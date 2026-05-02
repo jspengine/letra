@@ -55,6 +55,8 @@ export async function validate(targetPath?: string) {
 
           const ciFile = join(root, ".github", "workflows", "ci.yml");
           const cursorRulesFile = join(root, ".cursorrules");
+          const copilotFile = join(root, ".github", "copilot-instructions.md");
+          const vscodeSettingsFile = join(root, ".vscode", "settings.json");
 
           if (label.includes("letra init")) {
             const tmp = mkdtempSync(join(tmpdir(), "letra-test-"));
@@ -113,8 +115,51 @@ export async function validate(targetPath?: string) {
               if (rulesContent.includes("letra validate")) status = "PASS";
             }
           } else if (label.includes("Não-intrusivo")) {
-            if (existsSync(cursorRulesFile)) {
+            // Pass if either Cursor or VSCode adapter files exist
+            if (existsSync(cursorRulesFile) || existsSync(copilotFile)) {
               status = "PASS";
+            }
+          } else if (label.includes("Geração de Instruções")) {
+            if (existsSync(copilotFile)) {
+              const content = readFileSync(copilotFile, "utf-8");
+              if (content.includes(".letra/context.md") && content.includes(".letra/constitution.md")) {
+                status = "PASS";
+              }
+            }
+          } else if (label.includes("Settings do Editor")) {
+            if (existsSync(vscodeSettingsFile)) {
+              const content = readFileSync(vscodeSettingsFile, "utf-8");
+              if (content.includes("editor.formatOnSave")) {
+                status = "PASS";
+              }
+            }
+          } else if (label.includes("Injeção de Contexto")) {
+            // Pass if either Cursor or VSCode adapter files exist and reference .letra/
+            if (existsSync(cursorRulesFile)) {
+              const content = readFileSync(cursorRulesFile, "utf-8");
+              if (content.includes("@.letra/")) status = "PASS";
+            } else if (existsSync(copilotFile)) {
+              const content = readFileSync(copilotFile, "utf-8");
+              if (content.includes(".letra/")) status = "PASS";
+            }
+          } else if (label.includes("Acesso a Validação")) {
+            if (existsSync(cursorRulesFile)) {
+              const rulesContent = readFileSync(cursorRulesFile, "utf-8");
+              if (rulesContent.includes("letra validate")) status = "PASS";
+            }
+          } else if (label.includes("Geração de Instruções")) {
+            if (existsSync(copilotFile)) {
+              const content = readFileSync(copilotFile, "utf-8");
+              if (content.includes(".letra/context.md") && content.includes(".letra/constitution.md")) {
+                status = "PASS";
+              }
+            }
+          } else if (label.includes("Settings do Editor")) {
+            if (existsSync(vscodeSettingsFile)) {
+              const content = readFileSync(vscodeSettingsFile, "utf-8");
+              if (content.includes("editor.formatOnSave")) {
+                status = "PASS";
+              }
             }
           } else {
             note = "(manual check needed)";
