@@ -1,8 +1,71 @@
-import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { execSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import chalk from "chalk";
+
+const colloquialisms = ["tipo", "tá", "pra", "blz", "kkk", "eita", "oi", "oi pessoal"];
+
+function checkSpecContent(specDir: string, label: string, description: string) {
+  const specFile = join(specDir, "spec.md");
+  const glossaryFile = join(specDir, "..", "..", "glossary.md");
+  
+  if (!existsSync(specFile)) return { status: "FAIL" as const, note: "(spec.md not found)" };
+
+  const specContent = readFileSync(specFile, "utf-8");
+  const now = new Date();
+  
+  // Verificação de Conteúdo Mínimo
+  if (label.includes("Conteúdo Mínimo")) {
+    const outcomeMatch = specContent.match(/## Outcome\s+([\s\S]*?)(?=\n## )/);
+    if (!outcomeMatch) return { status: "FAIL" as const, note: "(no Outcome section)" };
+    const outcomeContent = outcomeMatch[1].trim();
+    if (outcomeContent.length >= 50) {
+      return { status: "PASS" as const, note: `(${outcomeContent.length} chars)` };
+    }
+    return { status: "FAIL" as const, note: `(only ${outcomeContent.length} chars, need 50+)` };
+  }
+
+  // Consistência de Terminologia
+  if (label.includes("Consistência de Terminologia") || label.includes("Terminologia")) {
+    if (!existsSync(glossaryFile)) {
+      return { status: "PASS" as const, note: "(no glossary to check against)" };
+    }
+    const glossaryContent = readFileSync(glossaryFile, "utf-8");
+    const terms = glossaryContent.match(/\*\*(.+?)\*\*/g) || [];
+    const extractedTerms = terms.map(t => t.replace(/\*\*/g, "").trim()).filter(t => t.length > 3);
+    const missingTerms = extractedTerms.filter(term => 
+      !specContent.toLowerCase().includes(term.toLowerCase())
+    );
+    if (missingTerms.length === 0) {
+      return { status: "PASS" as const, note: "(all glossary terms used)" };
+    }
+    return { status: "FAIL" as const, note: `(missing: ${missingTerms.slice(0, 3).join(", ")})` };
+  }
+
+  // Detecção de Tom
+  if (label.includes("Detecção de Tom") || label.includes("Tom")) {
+    const lowerSpec = specContent.toLowerCase();
+    const words = lowerSpec.split(/\s+/);
+    const foundColloquialisms = colloquialisms.filter(c => words.includes(c));
+    if (foundColloquialisms.length === 0) {
+      return { status: "PASS" as const, note: "(formal tone maintained)" };
+    }
+    return { status: "FAIL" as const, note: `(colloquialisms: ${foundColloquialisms.join(", ")})` };
+  }
+
+  // Drift Temporal
+  if (label.includes("Drift Temporal") || label.includes("Temporal")) {
+    const stat = statSync(specFile);
+    const daysOld = Math.floor((now.getTime() - stat.mtimeMs) / (1000 * 60 * 60 * 24));
+    if (daysOld < 30) {
+      return { status: "PASS" as const, note: `(${daysOld} days old)` };
+    }
+    return { status: "FAIL" as const, note: `(${daysOld} days old, stale >30d)` };
+  }
+
+  return null;
+}
 
 export async function validate(targetPath?: string) {
   const root = resolve(process.cwd(), targetPath || ".");
@@ -21,6 +84,10 @@ export async function validate(targetPath?: string) {
 
   const entryPoint = join(root, "src/index.ts");
   const opts = { stdio: "pipe", shell: true };
+  const ciFile = join(root, ".github", "workflows", "ci.yml");
+  const cursorRulesFile = join(root, ".cursorrules");
+  const copilotFile = join(root, ".github", "copilot-instructions.md");
+  const vscodeSettingsFile = join(root, ".vscode", "settings.json");
 
   for (const entry of entries) {
     if (!entry.isDirectory() || entry.name.startsWith("_")) continue;
@@ -49,28 +116,25 @@ export async function validate(targetPath?: string) {
         let note = "";
 
         try {
-          const runCmd = (args: string[], cwd?: string) => {
-            execSync(`npx tsx "${entryPoint}" ${args.join(" ")}`, { ...opts, cwd: cwd || root });
-          };
-
-          const ciFile = join(root, ".github", "workflows", "ci.yml");
-          const cursorRulesFile = join(root, ".cursorrules");
-          const copilotFile = join(root, ".github", "copilot-instructions.md");
-          const vscodeSettingsFile = join(root, ".vscode", "settings.json");
-
-          if (label.includes("letra init")) {
+          // Intelligence checks
+          const intelligenceResult = checkSpecContent(join(specsDir, entry.name), label, description);
+          if (intelligenceResult) {
+            status = intelligenceResult.status;
+            note = intelligenceResult.note;
+          }
+          else if (label.includes("letra init")) {
             const tmp = mkdtempSync(join(tmpdir(), "letra-test-"));
-            runCmd(["init", `"${tmp}"`]);
+            execSync(`npx tsx "${entryPoint}" init "${tmp}"`, { ...opts });
             if (existsSync(join(tmp, ".letra", "context.md"))) status = "PASS";
             rmSync(tmp, { recursive: true });
           } else if (label.includes("letra spec")) {
             const tmp = mkdtempSync(join(tmpdir(), "letra-test-"));
-            runCmd(["init", `"${tmp}"`]);
-            runCmd(["spec", "smoke-test"], tmp);
+            execSync(`npx tsx "${entryPoint}" init "${tmp}"`, { ...opts });
+            execSync(`npx tsx "${entryPoint}" spec smoke-test`, { ...opts, cwd: tmp });
             if (existsSync(join(tmp, ".letra", "specs", "smoke-test", "spec.md"))) status = "PASS";
             rmSync(tmp, { recursive: true });
           } else if (label.includes("letra lint")) {
-            runCmd(["lint"]);
+            execSync(`npx tsx "${entryPoint}" lint`, { ...opts });
             status = "PASS";
           } else if (label.includes("letra validate")) {
             status = "PASS";
@@ -94,7 +158,6 @@ export async function validate(targetPath?: string) {
               note = "(bin field missing)";
             }
           } else if (label.includes("Binário standalone") || label.includes("Binário")) {
-            // Legacy check - skipped in favor of npm distribution
             status = "PASS";
             note = "(npm distribution preferred)";
           } else if (label.includes("Geração de Regras") || label.includes("Geração")) {
@@ -108,6 +171,9 @@ export async function validate(targetPath?: string) {
             if (existsSync(cursorRulesFile)) {
               const rulesContent = readFileSync(cursorRulesFile, "utf-8");
               if (rulesContent.includes("@.letra/")) status = "PASS";
+            } else if (existsSync(copilotFile)) {
+              const copilotContent = readFileSync(copilotFile, "utf-8");
+              if (copilotContent.includes(".letra/")) status = "PASS";
             }
           } else if (label.includes("Acesso a Validação")) {
             if (existsSync(cursorRulesFile)) {
@@ -115,49 +181,20 @@ export async function validate(targetPath?: string) {
               if (rulesContent.includes("letra validate")) status = "PASS";
             }
           } else if (label.includes("Não-intrusivo")) {
-            // Pass if either Cursor or VSCode adapter files exist
             if (existsSync(cursorRulesFile) || existsSync(copilotFile)) {
               status = "PASS";
             }
           } else if (label.includes("Geração de Instruções")) {
             if (existsSync(copilotFile)) {
-              const content = readFileSync(copilotFile, "utf-8");
-              if (content.includes(".letra/context.md") && content.includes(".letra/constitution.md")) {
+              const copilotContent = readFileSync(copilotFile, "utf-8");
+              if (copilotContent.includes(".letra/context.md") && copilotContent.includes(".letra/constitution.md")) {
                 status = "PASS";
               }
             }
           } else if (label.includes("Settings do Editor")) {
             if (existsSync(vscodeSettingsFile)) {
-              const content = readFileSync(vscodeSettingsFile, "utf-8");
-              if (content.includes("editor.formatOnSave")) {
-                status = "PASS";
-              }
-            }
-          } else if (label.includes("Injeção de Contexto")) {
-            // Pass if either Cursor or VSCode adapter files exist and reference .letra/
-            if (existsSync(cursorRulesFile)) {
-              const content = readFileSync(cursorRulesFile, "utf-8");
-              if (content.includes("@.letra/")) status = "PASS";
-            } else if (existsSync(copilotFile)) {
-              const content = readFileSync(copilotFile, "utf-8");
-              if (content.includes(".letra/")) status = "PASS";
-            }
-          } else if (label.includes("Acesso a Validação")) {
-            if (existsSync(cursorRulesFile)) {
-              const rulesContent = readFileSync(cursorRulesFile, "utf-8");
-              if (rulesContent.includes("letra validate")) status = "PASS";
-            }
-          } else if (label.includes("Geração de Instruções")) {
-            if (existsSync(copilotFile)) {
-              const content = readFileSync(copilotFile, "utf-8");
-              if (content.includes(".letra/context.md") && content.includes(".letra/constitution.md")) {
-                status = "PASS";
-              }
-            }
-          } else if (label.includes("Settings do Editor")) {
-            if (existsSync(vscodeSettingsFile)) {
-              const content = readFileSync(vscodeSettingsFile, "utf-8");
-              if (content.includes("editor.formatOnSave")) {
+              const settingsContent = readFileSync(vscodeSettingsFile, "utf-8");
+              if (settingsContent.includes("editor.formatOnSave")) {
                 status = "PASS";
               }
             }
