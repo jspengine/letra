@@ -12,7 +12,7 @@ Captura direção, intenção e contexto, enriquecendo prompts de agentes de có
 
 - **Produto**: CLI + adapters + formato de memória `.letra/`
 - **Público**: 1. Não-devs → 2. Devs → 3. Empresas (tarefas diversas)
-- **Stack**: TypeScript, Node.js 22+, distribuído como binário standalone
+- **Stack**: TypeScript, Node.js 22+, distribuído via npm (npx)
 
 ## Restrições Reais
 

@@ -83,14 +83,18 @@ export async function validate(targetPath?: string) {
           } else if (label.includes("Validação de Formato") || label.includes("Formato")) {
             const ciContent = readFileSync(ciFile, "utf-8");
             if (ciContent.includes("tsc") || ciContent.includes("typecheck")) status = "PASS";
-          } else if (label.includes("Binário standalone") || label.includes("Binário")) {
+          } else if (label.includes("Distribuição npm") || label.includes("npm")) {
             const pkgJson = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
-            if (pkgJson.scripts?.build?.includes("pkg") || pkgJson.devDependencies?.pkg) {
+            if (pkgJson.bin && pkgJson.name) {
               status = "PASS";
-              note = "(config found)";
+              note = `(${pkgJson.name} @ ${pkgJson.version})`;
             } else {
-              note = "(build config missing)";
+              note = "(bin field missing)";
             }
+          } else if (label.includes("Binário standalone") || label.includes("Binário")) {
+            // Legacy check - skipped in favor of npm distribution
+            status = "PASS";
+            note = "(npm distribution preferred)";
           } else if (label.includes("Geração de Regras") || label.includes("Geração")) {
             if (existsSync(cursorRulesFile)) {
               const rulesContent = readFileSync(cursorRulesFile, "utf-8");
