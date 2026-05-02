@@ -1,0 +1,49 @@
+{
+  "name": "@letra/cli",
+  "version": "0.0.1",
+  "description": "SDD-agnostic memory framework for AI coding agents",
+  "type": "module",
+  "bin": {
+    "letra": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "lint": "biome check src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "sdd",
+    "spec-driven-development",
+    "ai-coding",
+    "agent",
+    "memory",
+    "context"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/letra-dev/letra"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "chalk": "^5.4.1",
+    "ora": "^9.3.0",
+    "glob": "^11.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

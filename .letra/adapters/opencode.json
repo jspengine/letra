@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "adapter": "opencode",
+  "version": "1",
+  "description": "Adapter para OpenCode — injeta contexto .letra/ no system prompt",
+  "injection": {
+    "method": "system-prompt",
+    "files": [
+      ".letra/context.md",
+      ".letra/constitution.md",
+      ".letra/glossary.md"
+    ],
+    "template": "## Projeto: Letra\n\nVocê está trabalhando no projeto Letra. Abaixo está o contexto, constituição e glossário do projeto. Use essas informações para guiar suas decisões.\n\n### Context\n{{context.md}}\n\n### Constitution\n{{constitution.md}}\n\n### Glossary\n{{glossary.md}}\n\n### Specs Ativas\n{{specs}}\n\nSempre consulte `.letra/specs/` antes de implementar qualquer funcionalidade. Se uma spec não existe para o que está sendo pedido, sugira criá-la primeiro.",
+    "specs_pattern": ".letra/specs/*/spec.md"
+  },
+  "validation": {
+    "command": "letra validate",
+    "lint_command": "letra lint .letra/"
+  },
+  "notes": "OpenCode lê configuração via AGENTS.md ou similar. Este adapter define como o conteúdo .letra/ deve ser injetado no system prompt."
+}
