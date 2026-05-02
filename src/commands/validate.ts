@@ -54,6 +54,7 @@ export async function validate(targetPath?: string) {
           };
 
           const ciFile = join(root, ".github", "workflows", "ci.yml");
+          const cursorRulesFile = join(root, ".cursorrules");
 
           if (label.includes("letra init")) {
             const tmp = mkdtempSync(join(tmpdir(), "letra-test-"));
@@ -89,6 +90,27 @@ export async function validate(targetPath?: string) {
               note = "(config found)";
             } else {
               note = "(build config missing)";
+            }
+          } else if (label.includes("Geração de Regras") || label.includes("Geração")) {
+            if (existsSync(cursorRulesFile)) {
+              const rulesContent = readFileSync(cursorRulesFile, "utf-8");
+              if (rulesContent.includes(".letra/context.md") && rulesContent.includes(".letra/constitution.md")) {
+                status = "PASS";
+              }
+            }
+          } else if (label.includes("Injeção de Contexto")) {
+            if (existsSync(cursorRulesFile)) {
+              const rulesContent = readFileSync(cursorRulesFile, "utf-8");
+              if (rulesContent.includes("@.letra/")) status = "PASS";
+            }
+          } else if (label.includes("Acesso a Validação")) {
+            if (existsSync(cursorRulesFile)) {
+              const rulesContent = readFileSync(cursorRulesFile, "utf-8");
+              if (rulesContent.includes("letra validate")) status = "PASS";
+            }
+          } else if (label.includes("Não-intrusivo")) {
+            if (existsSync(cursorRulesFile)) {
+              status = "PASS";
             }
           } else {
             note = "(manual check needed)";
