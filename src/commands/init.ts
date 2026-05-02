@@ -24,7 +24,7 @@ export async function init(targetPath?: string) {
     mkdirSync(join(letraDir, "adapters"), { recursive: true });
 
     // Copy templates from the package's .letra/ directory
-    const templateDir = join(__dirname, "..", ".letra");
+    const templateDir = join(__dirname, "..", "..", ".letra");
 
     const templates = ["context.md", "constitution.md", "glossary.md", "lessons-learned.md"];
     for (const file of templates) {
