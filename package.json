@@ -1,6 +1,6 @@
 {
-  "name": "@letra/cli",
-  "version": "0.0.1",
+  "name": "@letra.ai/cli",
+  "version": "0.0.2",
   "description": "SDD-agnostic memory framework for AI coding agents",
   "type": "module",
   "bin": {
@@ -48,7 +48,11 @@
   "pkg": {
     "scripts": "dist/**/*.js",
     "assets": ".letra/**/*",
-    "targets": ["node18-win-x64", "node18-linux-x64", "node18-macos-x64"],
+    "targets": [
+      "node18-win-x64",
+      "node18-linux-x64",
+      "node18-macos-x64"
+    ],
     "outputPath": "dist/bin"
   },
   "engines": {

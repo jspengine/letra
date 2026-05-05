@@ -22,7 +22,11 @@ const colloquialisms = [
 	"oi pessoal",
 ];
 
-export function checkSpecContent(specDir: string, label: string, description: string) {
+export function checkSpecContent(
+	specDir: string,
+	label: string,
+	description: string,
+) {
 	const specFile = join(specDir, "spec.md");
 	const glossaryFile = join(specDir, "..", "..", "glossary.md");
 
