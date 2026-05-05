@@ -4,7 +4,7 @@
   "description": "SDD-agnostic memory framework for AI coding agents",
   "type": "module",
   "bin": {
-    "letra": "./dist/index.js"
+    "letra": "dist/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -28,7 +28,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/letra-dev/letra"
+    "url": "git+https://github.com/letra-ai/letra.git"
   },
   "dependencies": {
     "chalk": "^5.4.1",
