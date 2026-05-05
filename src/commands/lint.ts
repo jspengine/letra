@@ -54,7 +54,7 @@ export async function lint(targetPath?: string) {
 				warnings.push("Spec exceeds 3000 chars (should be thin — max 1 page)");
 			}
 
-			const hasChecklist = content.includes("- [ ]");
+			const hasChecklist = /-\s*\[[ x]\]\s*\*\*/i.test(content);
 			if (!hasChecklist && content.includes("## Acceptance Criteria")) {
 				errors.push(
 					"Acceptance Criteria section exists but has no checklist items",
