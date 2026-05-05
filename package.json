@@ -1,6 +1,6 @@
 {
   "name": "@letra.ai/cli",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "SDD-agnostic memory framework for AI coding agents",
   "type": "module",
   "bin": {
