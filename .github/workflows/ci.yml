@@ -32,5 +32,8 @@ jobs:
       - name: Type Check
         run: npm run typecheck
 
+      - name: Run Tests
+        run: npm test
+
       - name: Validate Acceptance Criteria
         run: npm run dev -- validate || true

@@ -17,6 +17,12 @@
 3. **Constraints**: Siga a constituição. TypeScript estrito, specs thin, sem pseudo-código.
 4. **Commits**: Mensagens concisas no padrão `tipo: descrição`. Ex: `feat: add validate smoke tests`.
 
+## Regra de Comunicação
+
+- **Primordial**: Toda comunicação deve ser em **pt-br**.
+- **Fallback**: Se não for possível, use **inglês**.
+- Aplica-se a mensagens de commit, respostas no chat, comentários e documentação.
+
 ## Stack
 
 - **Linguagem**: TypeScript (strict mode)

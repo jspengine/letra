@@ -1,223 +1,320 @@
-import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync, statSync } from "node:fs";
-import { resolve, join } from "node:path";
-import { execSync } from "node:child_process";
+import { type ExecSyncOptions, execSync } from "node:child_process";
+import {
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import chalk from "chalk";
 
-const colloquialisms = ["tipo", "tá", "pra", "blz", "kkk", "eita", "oi", "oi pessoal"];
+const colloquialisms = [
+	"tipo",
+	"tá",
+	"pra",
+	"blz",
+	"kkk",
+	"eita",
+	"oi",
+	"oi pessoal",
+];
 
-function checkSpecContent(specDir: string, label: string, description: string) {
-  const specFile = join(specDir, "spec.md");
-  const glossaryFile = join(specDir, "..", "..", "glossary.md");
-  
-  if (!existsSync(specFile)) return { status: "FAIL" as const, note: "(spec.md not found)" };
+export function checkSpecContent(specDir: string, label: string, description: string) {
+	const specFile = join(specDir, "spec.md");
+	const glossaryFile = join(specDir, "..", "..", "glossary.md");
 
-  const specContent = readFileSync(specFile, "utf-8");
-  const now = new Date();
-  
-  // Verificação de Conteúdo Mínimo
-  if (label.includes("Conteúdo Mínimo")) {
-    const outcomeMatch = specContent.match(/## Outcome\s+([\s\S]*?)(?=\n## )/);
-    if (!outcomeMatch) return { status: "FAIL" as const, note: "(no Outcome section)" };
-    const outcomeContent = outcomeMatch[1].trim();
-    if (outcomeContent.length >= 50) {
-      return { status: "PASS" as const, note: `(${outcomeContent.length} chars)` };
-    }
-    return { status: "FAIL" as const, note: `(only ${outcomeContent.length} chars, need 50+)` };
-  }
+	if (!existsSync(specFile))
+		return { status: "FAIL" as const, note: "(spec.md not found)" };
 
-  // Consistência de Terminologia
-  if (label.includes("Consistência de Terminologia") || label.includes("Terminologia")) {
-    if (!existsSync(glossaryFile)) {
-      return { status: "PASS" as const, note: "(no glossary to check against)" };
-    }
-    const glossaryContent = readFileSync(glossaryFile, "utf-8");
-    const terms = glossaryContent.match(/\*\*(.+?)\*\*/g) || [];
-    const extractedTerms = terms.map(t => t.replace(/\*\*/g, "").trim()).filter(t => t.length > 3);
-    const missingTerms = extractedTerms.filter(term => 
-      !specContent.toLowerCase().includes(term.toLowerCase())
-    );
-    if (missingTerms.length === 0) {
-      return { status: "PASS" as const, note: "(all glossary terms used)" };
-    }
-    return { status: "FAIL" as const, note: `(missing: ${missingTerms.slice(0, 3).join(", ")})` };
-  }
+	const specContent = readFileSync(specFile, "utf-8");
+	const now = new Date();
 
-  // Detecção de Tom
-  if (label.includes("Detecção de Tom") || label.includes("Tom")) {
-    const lowerSpec = specContent.toLowerCase();
-    const words = lowerSpec.split(/\s+/);
-    const foundColloquialisms = colloquialisms.filter(c => words.includes(c));
-    if (foundColloquialisms.length === 0) {
-      return { status: "PASS" as const, note: "(formal tone maintained)" };
-    }
-    return { status: "FAIL" as const, note: `(colloquialisms: ${foundColloquialisms.join(", ")})` };
-  }
+	// Verificação de Conteúdo Mínimo
+	if (label.includes("Conteúdo Mínimo")) {
+		const outcomeMatch = specContent.match(/## Outcome\s+([\s\S]*?)(?=\n## )/);
+		if (!outcomeMatch)
+			return { status: "FAIL" as const, note: "(no Outcome section)" };
+		const outcomeContent = outcomeMatch[1].trim();
+		if (outcomeContent.length >= 50) {
+			return {
+				status: "PASS" as const,
+				note: `(${outcomeContent.length} chars)`,
+			};
+		}
+		return {
+			status: "FAIL" as const,
+			note: `(only ${outcomeContent.length} chars, need 50+)`,
+		};
+	}
 
-  // Drift Temporal
-  if (label.includes("Drift Temporal") || label.includes("Temporal")) {
-    const stat = statSync(specFile);
-    const daysOld = Math.floor((now.getTime() - stat.mtimeMs) / (1000 * 60 * 60 * 24));
-    if (daysOld < 30) {
-      return { status: "PASS" as const, note: `(${daysOld} days old)` };
-    }
-    return { status: "FAIL" as const, note: `(${daysOld} days old, stale >30d)` };
-  }
+	// Consistência de Terminologia
+	if (
+		label.includes("Consistência de Terminologia") ||
+		label.includes("Terminologia")
+	) {
+		if (!existsSync(glossaryFile)) {
+			return {
+				status: "PASS" as const,
+				note: "(no glossary to check against)",
+			};
+		}
+		const glossaryContent = readFileSync(glossaryFile, "utf-8");
+		const terms = glossaryContent.match(/\*\*(.+?)\*\*/g) || [];
+		const extractedTerms = terms
+			.map((t) => t.replace(/\*\*/g, "").trim())
+			.filter((t) => t.length > 3);
+		const missingTerms = extractedTerms.filter(
+			(term) => !specContent.toLowerCase().includes(term.toLowerCase()),
+		);
+		if (missingTerms.length === 0) {
+			return { status: "PASS" as const, note: "(all glossary terms used)" };
+		}
+		return {
+			status: "FAIL" as const,
+			note: `(missing: ${missingTerms.slice(0, 3).join(", ")})`,
+		};
+	}
 
-  return null;
+	// Detecção de Tom
+	if (label.includes("Detecção de Tom") || label.includes("Tom")) {
+		const lowerSpec = specContent.toLowerCase();
+		const words = lowerSpec.split(/\s+/);
+		const foundColloquialisms = colloquialisms.filter((c) => words.includes(c));
+		if (foundColloquialisms.length === 0) {
+			return { status: "PASS" as const, note: "(formal tone maintained)" };
+		}
+		return {
+			status: "FAIL" as const,
+			note: `(colloquialisms: ${foundColloquialisms.join(", ")})`,
+		};
+	}
+
+	// Drift Temporal
+	if (label.includes("Drift Temporal") || label.includes("Temporal")) {
+		const stat = statSync(specFile);
+		const daysOld = Math.floor(
+			(now.getTime() - stat.mtimeMs) / (1000 * 60 * 60 * 24),
+		);
+		if (daysOld < 30) {
+			return { status: "PASS" as const, note: `(${daysOld} days old)` };
+		}
+		return {
+			status: "FAIL" as const,
+			note: `(${daysOld} days old, stale >30d)`,
+		};
+	}
+
+	return null;
 }
 
 export async function validate(targetPath?: string) {
-  const root = resolve(process.cwd(), targetPath || ".");
-  const specsDir = join(root, ".letra", "specs");
+	const root = resolve(process.cwd(), targetPath || ".");
+	const specsDir = join(root, ".letra", "specs");
 
-  if (!existsSync(specsDir)) {
-    console.log(chalk.red("Error: .letra/specs/ not found. Run 'letra init' first."));
-    process.exit(1);
-  }
+	if (!existsSync(specsDir)) {
+		console.log(
+			chalk.red("Error: .letra/specs/ not found. Run 'letra init' first."),
+		);
+		process.exit(1);
+	}
 
-  console.log(chalk.bold("\nLetra Validation\n"));
+	console.log(chalk.bold("\nLetra Validation\n"));
 
-  const entries = readdirSync(specsDir, { withFileTypes: true });
-  let totalPass = 0;
-  let totalFail = 0;
+	const entries = readdirSync(specsDir, { withFileTypes: true });
+	let totalPass = 0;
+	let totalFail = 0;
 
-  const entryPoint = join(root, "src/index.ts");
-  const opts = { stdio: "pipe", shell: true };
-  const ciFile = join(root, ".github", "workflows", "ci.yml");
-  const cursorRulesFile = join(root, ".cursorrules");
-  const copilotFile = join(root, ".github", "copilot-instructions.md");
-  const vscodeSettingsFile = join(root, ".vscode", "settings.json");
+	const entryPoint = join(root, "src/index.ts");
+	const opts: ExecSyncOptions = {
+		stdio: "pipe",
+		encoding: "utf-8",
+		shell: process.platform === "win32" ? "cmd.exe" : true,
+	} as ExecSyncOptions;
+	const ciFile = join(root, ".github", "workflows", "ci.yml");
+	const cursorRulesFile = join(root, ".cursorrules");
+	const copilotFile = join(root, ".github", "copilot-instructions.md");
+	const vscodeSettingsFile = join(root, ".vscode", "settings.json");
 
-  for (const entry of entries) {
-    if (!entry.isDirectory() || entry.name.startsWith("_")) continue;
+	for (const entry of entries) {
+		if (!entry.isDirectory() || entry.name.startsWith("_")) continue;
 
-    const acceptanceFile = join(specsDir, entry.name, "acceptance.md");
-    if (!existsSync(acceptanceFile)) {
-      console.log(chalk.gray(`  Spec "${entry.name}" — no acceptance.md, skipping`));
-      continue;
-    }
+		const acceptanceFile = join(specsDir, entry.name, "acceptance.md");
+		if (!existsSync(acceptanceFile)) {
+			console.log(
+				chalk.gray(`  Spec "${entry.name}" — no acceptance.md, skipping`),
+			);
+			continue;
+		}
 
-    const content = readFileSync(acceptanceFile, "utf-8");
-    const criteriaLines = content.match(/- \[ \] \*\*(.+?)\*\*: (.+)/g) || [];
+		const content = readFileSync(acceptanceFile, "utf-8");
+		const criteriaLines = content.match(/- \[ \] \*\*(.+?)\*\*: (.+)/g) || [];
 
-    console.log(chalk.bold(`  Spec: ${entry.name}`));
+		console.log(chalk.bold(`  Spec: ${entry.name}`));
 
-    if (criteriaLines.length === 0) {
-      console.log(chalk.gray("    No criteria found"));
-      continue;
-    }
+		if (criteriaLines.length === 0) {
+			console.log(chalk.gray("    No criteria found"));
+			continue;
+		}
 
-    for (const line of criteriaLines) {
-      const match = line.match(/- \[ \] \*\*(.+?)\*\*: (.+)/);
-      if (match) {
-        const [, label, description] = match;
-        let status: "PASS" | "FAIL" = "FAIL";
-        let note = "";
+		for (const line of criteriaLines) {
+			const match = line.match(/- \[ \] \*\*(.+?)\*\*: (.+)/);
+			if (match) {
+				const [, label, description] = match;
+				let status: "PASS" | "FAIL" = "FAIL";
+				let note = "";
 
-        try {
-          // Intelligence checks
-          const intelligenceResult = checkSpecContent(join(specsDir, entry.name), label, description);
-          if (intelligenceResult) {
-            status = intelligenceResult.status;
-            note = intelligenceResult.note;
-          }
-          else if (label.includes("letra init")) {
-            const tmp = mkdtempSync(join(tmpdir(), "letra-test-"));
-            execSync(`npx tsx "${entryPoint}" init "${tmp}"`, { ...opts });
-            if (existsSync(join(tmp, ".letra", "context.md"))) status = "PASS";
-            rmSync(tmp, { recursive: true });
-          } else if (label.includes("letra spec")) {
-            const tmp = mkdtempSync(join(tmpdir(), "letra-test-"));
-            execSync(`npx tsx "${entryPoint}" init "${tmp}"`, { ...opts });
-            execSync(`npx tsx "${entryPoint}" spec smoke-test`, { ...opts, cwd: tmp });
-            if (existsSync(join(tmp, ".letra", "specs", "smoke-test", "spec.md"))) status = "PASS";
-            rmSync(tmp, { recursive: true });
-          } else if (label.includes("letra lint")) {
-            execSync(`npx tsx "${entryPoint}" lint`, { ...opts });
-            status = "PASS";
-          } else if (label.includes("letra validate")) {
-            status = "PASS";
-          } else if (label.includes("Workflow Ativo") || (label.includes("CI") && existsSync(ciFile))) {
-            status = "PASS";
-          } else if (label.includes("Lint Gate") || label.includes("Lint")) {
-            const ciContent = readFileSync(ciFile, "utf-8");
-            if (ciContent.includes("letra lint") || ciContent.includes("lint")) status = "PASS";
-          } else if (label.includes("Test Gate") || label.includes("Test")) {
-            const ciContent = readFileSync(ciFile, "utf-8");
-            if (ciContent.includes("npm test") || ciContent.includes("vitest") || ciContent.includes("test")) status = "PASS";
-          } else if (label.includes("Validação de Formato") || label.includes("Formato")) {
-            const ciContent = readFileSync(ciFile, "utf-8");
-            if (ciContent.includes("tsc") || ciContent.includes("typecheck")) status = "PASS";
-          } else if (label.includes("Distribuição npm") || label.includes("npm")) {
-            const pkgJson = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
-            if (pkgJson.bin && pkgJson.name) {
-              status = "PASS";
-              note = `(${pkgJson.name} @ ${pkgJson.version})`;
-            } else {
-              note = "(bin field missing)";
-            }
-          } else if (label.includes("Binário standalone") || label.includes("Binário")) {
-            status = "PASS";
-            note = "(npm distribution preferred)";
-          } else if (label.includes("Geração de Regras") || label.includes("Geração")) {
-            if (existsSync(cursorRulesFile)) {
-              const rulesContent = readFileSync(cursorRulesFile, "utf-8");
-              if (rulesContent.includes(".letra/context.md") && rulesContent.includes(".letra/constitution.md")) {
-                status = "PASS";
-              }
-            }
-          } else if (label.includes("Injeção de Contexto")) {
-            if (existsSync(cursorRulesFile)) {
-              const rulesContent = readFileSync(cursorRulesFile, "utf-8");
-              if (rulesContent.includes("@.letra/")) status = "PASS";
-            } else if (existsSync(copilotFile)) {
-              const copilotContent = readFileSync(copilotFile, "utf-8");
-              if (copilotContent.includes(".letra/")) status = "PASS";
-            }
-          } else if (label.includes("Acesso a Validação")) {
-            if (existsSync(cursorRulesFile)) {
-              const rulesContent = readFileSync(cursorRulesFile, "utf-8");
-              if (rulesContent.includes("letra validate")) status = "PASS";
-            }
-          } else if (label.includes("Não-intrusivo")) {
-            if (existsSync(cursorRulesFile) || existsSync(copilotFile)) {
-              status = "PASS";
-            }
-          } else if (label.includes("Geração de Instruções")) {
-            if (existsSync(copilotFile)) {
-              const copilotContent = readFileSync(copilotFile, "utf-8");
-              if (copilotContent.includes(".letra/context.md") && copilotContent.includes(".letra/constitution.md")) {
-                status = "PASS";
-              }
-            }
-          } else if (label.includes("Settings do Editor")) {
-            if (existsSync(vscodeSettingsFile)) {
-              const settingsContent = readFileSync(vscodeSettingsFile, "utf-8");
-              if (settingsContent.includes("editor.formatOnSave")) {
-                status = "PASS";
-              }
-            }
-          } else {
-            note = "(manual check needed)";
-          }
-        } catch (error: any) {
-          status = "FAIL";
-          note = `(error: ${error.message?.split("\n")[0] || "unknown"})`;
-        }
+				try {
+					// Intelligence checks
+					const intelligenceResult = checkSpecContent(
+						join(specsDir, entry.name),
+						label,
+						description,
+					);
+					if (intelligenceResult) {
+						status = intelligenceResult.status;
+						note = intelligenceResult.note;
+					} else if (label.includes("letra init")) {
+						const tmp = mkdtempSync(join(tmpdir(), "letra-test-"));
+						execSync(`npx tsx "${entryPoint}" init "${tmp}"`, { ...opts });
+						if (existsSync(join(tmp, ".letra", "context.md"))) status = "PASS";
+						rmSync(tmp, { recursive: true });
+					} else if (label.includes("letra spec")) {
+						const tmp = mkdtempSync(join(tmpdir(), "letra-test-"));
+						execSync(`npx tsx "${entryPoint}" init "${tmp}"`, { ...opts });
+						execSync(`npx tsx "${entryPoint}" spec smoke-test`, {
+							...opts,
+							cwd: tmp,
+						});
+						if (
+							existsSync(join(tmp, ".letra", "specs", "smoke-test", "spec.md"))
+						)
+							status = "PASS";
+						rmSync(tmp, { recursive: true });
+					} else if (label.includes("letra lint")) {
+						execSync(`npx tsx "${entryPoint}" lint`, { ...opts });
+						status = "PASS";
+					} else if (label.includes("letra validate")) {
+						status = "PASS";
+					} else if (
+						label.includes("Workflow Ativo") ||
+						(label.includes("CI") && existsSync(ciFile))
+					) {
+						status = "PASS";
+					} else if (label.includes("Lint Gate") || label.includes("Lint")) {
+						const ciContent = readFileSync(ciFile, "utf-8");
+						if (ciContent.includes("letra lint") || ciContent.includes("lint"))
+							status = "PASS";
+					} else if (label.includes("Test Gate") || label.includes("Test")) {
+						const ciContent = readFileSync(ciFile, "utf-8");
+						if (
+							ciContent.includes("npm test") ||
+							ciContent.includes("vitest") ||
+							ciContent.includes("test")
+						)
+							status = "PASS";
+					} else if (
+						label.includes("Validação de Formato") ||
+						label.includes("Formato")
+					) {
+						const ciContent = readFileSync(ciFile, "utf-8");
+						if (ciContent.includes("tsc") || ciContent.includes("typecheck"))
+							status = "PASS";
+					} else if (
+						label.includes("Distribuição npm") ||
+						label.includes("npm")
+					) {
+						const pkgJson = JSON.parse(
+							readFileSync(join(root, "package.json"), "utf-8"),
+						);
+						if (pkgJson.bin && pkgJson.name) {
+							status = "PASS";
+							note = `(${pkgJson.name} @ ${pkgJson.version})`;
+						} else {
+							note = "(bin field missing)";
+						}
+					} else if (
+						label.includes("Binário standalone") ||
+						label.includes("Binário")
+					) {
+						status = "PASS";
+						note = "(npm distribution preferred)";
+					} else if (
+						label.includes("Geração de Regras") ||
+						label.includes("Geração")
+					) {
+						if (existsSync(cursorRulesFile)) {
+							const rulesContent = readFileSync(cursorRulesFile, "utf-8");
+							if (
+								rulesContent.includes(".letra/context.md") &&
+								rulesContent.includes(".letra/constitution.md")
+							) {
+								status = "PASS";
+							}
+						}
+					} else if (label.includes("Injeção de Contexto")) {
+						if (existsSync(cursorRulesFile)) {
+							const rulesContent = readFileSync(cursorRulesFile, "utf-8");
+							if (rulesContent.includes("@.letra/")) status = "PASS";
+						} else if (existsSync(copilotFile)) {
+							const copilotContent = readFileSync(copilotFile, "utf-8");
+							if (copilotContent.includes(".letra/")) status = "PASS";
+						}
+					} else if (label.includes("Acesso a Validação")) {
+						if (existsSync(cursorRulesFile)) {
+							const rulesContent = readFileSync(cursorRulesFile, "utf-8");
+							if (rulesContent.includes("letra validate")) status = "PASS";
+						}
+					} else if (label.includes("Não-intrusivo")) {
+						if (existsSync(cursorRulesFile) || existsSync(copilotFile)) {
+							status = "PASS";
+						}
+					} else if (label.includes("Geração de Instruções")) {
+						if (existsSync(copilotFile)) {
+							const copilotContent = readFileSync(copilotFile, "utf-8");
+							if (
+								copilotContent.includes(".letra/context.md") &&
+								copilotContent.includes(".letra/constitution.md")
+							) {
+								status = "PASS";
+							}
+						}
+					} else if (label.includes("Settings do Editor")) {
+						if (existsSync(vscodeSettingsFile)) {
+							const settingsContent = readFileSync(vscodeSettingsFile, "utf-8");
+							if (settingsContent.includes("editor.formatOnSave")) {
+								status = "PASS";
+							}
+						}
+					} else {
+						note = "(manual check needed)";
+					}
+				} catch (error) {
+					status = "FAIL";
+					const err = error as Error;
+					note = `(error: ${err.message?.split("\n")[0] || "unknown"})`;
+				}
 
-        if (status === "PASS") {
-          console.log(`    [${chalk.green("✓")}] ${chalk.cyan(label)}: ${description} ${chalk.gray(note)}`);
-          totalPass++;
-        } else {
-          console.log(`    [${chalk.red("✗")}] ${chalk.cyan(label)}: ${description} ${chalk.gray(note)}`);
-          totalFail++;
-        }
-      }
-    }
-    console.log("");
-  }
+				if (status === "PASS") {
+					console.log(
+						`    [${chalk.green("✓")}] ${chalk.cyan(label)}: ${description} ${chalk.gray(note)}`,
+					);
+					totalPass++;
+				} else {
+					console.log(
+						`    [${chalk.red("✗")}] ${chalk.cyan(label)}: ${description} ${chalk.gray(note)}`,
+					);
+					totalFail++;
+				}
+			}
+		}
+		console.log("");
+	}
 
-  console.log(chalk.gray(`\nResults: ${totalPass} passed, ${totalFail} failed`));
-  process.exit(totalFail > 0 ? 1 : 0);
+	console.log(
+		chalk.gray(`\nResults: ${totalPass} passed, ${totalFail} failed`),
+	);
+	process.exit(totalFail > 0 ? 1 : 0);
 }

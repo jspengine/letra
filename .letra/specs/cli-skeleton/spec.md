@@ -7,8 +7,8 @@ Desenvolvedor e não-desenvolvedor podem inicializar um projeto com `.letra/`, c
 ## Constraints
 
 - TypeScript, Node.js 22+
-- Distribuição via binário standalone (bun build --compile)
-- Comandos: `init`, `spec new`, `validate`, `drift`, `sync`
+- Distribuição via npm (npx)
+- Comandos: `init`, `spec new`, `validate`, `lint`
 - Adapter OpenCode funcional no dia 1
 
 ## Exclusions
@@ -19,11 +19,11 @@ Desenvolvedor e não-desenvolvedor podem inicializar um projeto com `.letra/`, c
 
 ## Acceptance Criteria
 
-- [ ] **`letra init`**: Cria `.letra/` com templates em qualquer diretório.
-- [ ] **`letra spec new <nome>`**: Cria pasta de spec com template preenchido.
-- [ ] **`letra validate`**: Lê acceptance criteria e reporta pass/fail por critério.
-- [ ] **`letra lint`**: Valida formato e completude das specs (exit 0 ou 1).
-- [ ] **Binário standalone**: Funciona sem Node.js instalado.
+- [x] **`letra init`**: Cria `.letra/` com templates em qualquer diretório.
+- [x] **`letra spec new <nome>`**: Cria pasta de spec com template preenchido.
+- [x] **`letra validate`**: Lê acceptance criteria e reporta pass/fail por critério.
+- [x] **`letra lint`**: Valida formato e completude das specs (exit 0 ou 1).
+- [x] **Distribuição npm**: Funciona via `npx @letra/cli`.
 
 ## Context
 

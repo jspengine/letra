@@ -18,9 +18,9 @@ O repositório possui um pipeline de CI (GitHub Actions) que valida as specs e o
 
 ## Acceptance Criteria
 
-- [ ] **Lint Gate**: O CI falha se `letra lint` detectar erros nas specs.
-- [ ] **Test Gate**: O CI falha se os testes unitários (vitest) falharem.
-- [ ] **Validação de Formato**: O CI roda `tsc --noEmit` para checar tipos.
+- [x] **Lint Gate**: O CI falha se `letra lint` detectar erros nas specs.
+- [x] **Test Gate**: O CI falha se os testes unitários (vitest) falharem.
+- [x] **Validação de Formato**: O CI roda `tsc --noEmit` para checar tipos.
 
 ## Context
 
