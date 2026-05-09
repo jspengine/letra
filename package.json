@@ -1,6 +1,6 @@
 {
   "name": "@pitagor/cli",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "SDD-agnostic memory framework for AI coding agents",
   "type": "module",
   "bin": {
