@@ -1,6 +1,6 @@
 {
-  "name": "@jspengine/cli",
-  "version": "0.0.7",
+  "name": "@letra-ai/cli",
+  "version": "0.0.8",
   "description": "SDD-agnostic memory framework for AI coding agents",
   "type": "module",
   "bin": {
