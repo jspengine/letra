@@ -17,16 +17,16 @@ Letra é um framework de **Specification-Driven Development (SDD) agnóstico a f
 - **Thin Specs**: Máximo 1 página por feature.
 - **Spec-Anchored**: Spec vive junto com o código, atualizada como parte do DoD.
 - **Context First**: Intent, constraints e "porquês" — não markdown verbose.
-- **Agnóstico**: Adapters para OpenCode, Cursor, VS Code, e mais.
+- **Agnóstico**: Adapters para OpenCode, Cursor, VS Code e mais.
 
 ## Instalação
 
 ```bash
-# Via npm
-npm install -g @letra/cli
+# Execução direta via npx
+npx @letra-ai/cli init meu-projeto
 
-# Ou baixe o binário standalone
-# (para usuários sem Node.js instalado)
+# Ou instalação global
+npm install -g @letra-ai/cli
 ```
 
 ## Uso
@@ -36,12 +36,12 @@ npm install -g @letra/cli
 letra init
 
 # Criar uma nova spec
-letra spec new feature-auth
+letra spec minha-feature
 
-# Validar formato das specs
+# Validar formato e completude das specs
 letra lint
 
-# Verificar acceptance criteria
+# Verificar acceptance criteria das specs
 letra validate
 ```
 
@@ -49,29 +49,47 @@ letra validate
 
 ```
 .letra/
-├── context.md          # Intent global, domínio, restrições reais
-├── constitution.md     # Regras não-negociáveis
-├── decisions/          # ADRs
+├── context.md              # Intent global, domínio, restrições reais
+├── constitution.md          # Regras não-negociáveis
+├── glossary.md              # Termos do domínio
+├── lessons-learned.md       # Erros recorrentes dos agentes
+├── decisions/               # ADRs
 ├── specs/
-│   ├── feature-auth/
-│   │   ├── spec.md             # O que + porquê (1 página max)
-│   │   ├── acceptance.md       # Critérios binários
-│   │   └── status.md           # Sync status
-├── lessons-learned.md  # Erros recorrentes dos agentes
-├── glossary.md         # Termos do domínio
+│   └── minha-feature/
+│       ├── spec.md          # O que + porquê (1 página max)
+│       ├── acceptance.md    # Critérios binários
+│       └── status.md        # Sync status
 └── adapters/
-    ├── opencode.json   # Como OpenCode injeta contexto
-    ├── cursor.json
-    └── vscode.json
+    └── opencode.json        # Configuração do adapter OpenCode
 ```
 
 ## Adapters
 
-| Adapter | Status |
-|---------|--------|
-| OpenCode | Em desenvolvimento |
-| Cursor | Planejado |
-| VS Code | Planejado |
+| Adapter | Status | Artefato Gerado |
+|---------|--------|----------------|
+| OpenCode | ✅ Completo | `.letra/adapters/opencode.json` |
+| Cursor | ✅ Completo | `.cursorrules` |
+| VS Code (Copilot) | ✅ Completo | `.github/copilot-instructions.md` + `.vscode/settings.json` |
+
+## Exemplo
+
+```bash
+# Criar um novo projeto
+mkdir meu-app
+cd meu-app
+
+# Inicializar o .letra/
+npx @letra-ai/cli init
+
+# Criar uma spec de autenticação
+npx @letra-ai/cli spec auth
+
+# Editar .letra/specs/auth/spec.md com sua intenção
+# Desenvolver a funcionalidade...
+
+# Validar se o código cumpre os acceptance criteria
+npx @letra-ai/cli validate
+```
 
 ## Desenvolvimento
 
@@ -81,6 +99,12 @@ npm install
 
 # Rodar em dev
 npm run dev
+
+# Lint e formatação
+npm run lint
+
+# Type check
+npm run typecheck
 
 # Build
 npm run build
