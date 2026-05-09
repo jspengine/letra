@@ -39,7 +39,7 @@ jobs:
       
       - name: Setup .npmrc for publish
         run: |
-          echo "@letra-ai:registry=https://registry.npmjs.org/" > ~/.npmrc
+          echo "@pitagor:registry=https://registry.npmjs.org/" > ~/.npmrc
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
       
       - name: Publish to npm

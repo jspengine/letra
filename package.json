@@ -1,5 +1,5 @@
 {
-  "name": "@letra-ai/cli",
+  "name": "@pitagor/cli",
   "version": "0.1.0",
   "description": "SDD-agnostic memory framework for AI coding agents",
   "type": "module",
