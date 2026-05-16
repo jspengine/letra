@@ -32,17 +32,30 @@ npm install -g @letra-ai/cli
 ## Uso
 
 ```bash
-# Inicializar um projeto com .letra/
+# Inicializar um projeto com .letra/ (modo interativo)
 letra init
+
+# Silent mode (usa defaults, sem perguntas)
+letra init --yes
 
 # Criar uma nova spec
 letra spec minha-feature
+
+# Criar spec com template específico
+letra spec minha-feature --template web-api
+letra spec minha-feature --template cli-tool
 
 # Validar formato e completude das specs
 letra lint
 
 # Verificar acceptance criteria das specs
 letra validate
+letra validate --format github-annotation  # formato para CI (GitHub Actions)
+letra validate --format junit               # formato XML (demais CIs)
+letra validate --watch                      # re-valida automaticamente ao salvar
+
+# Combinar flags
+letra validate --watch --format github-annotation
 ```
 
 ## Validação de Specs
@@ -58,6 +71,35 @@ O `letra validate` analisa automaticamente suas specs em busca de problemas comu
 | **Detecção de Tom** | Gírias e linguagem informal em specs que deveriam ser formais | Escrever "blz" ou "tipo" numa spec que descreve um sistema crítico. |
 | **Baixa Confiança** | Palavras que mostram incerteza sobre o que está sendo especificado | "O sistema **provavelmente** valida o token" — não tem "provavelmente" numa especificação. É tudo certo ou não é. |
 | **Drift Temporal** | Specs que não são atualizadas há mais de 30 dias | A spec de autenticação foi escrita em janeiro, mas o código foi alterado em maio. A verificação alerta que a spec pode estar desatualizada. |
+
+## Funcionalidades Avançadas
+
+### Init Interativo
+
+`letra init` agora pergunta o tipo de projeto (web app, CLI, library, mobile) e qual agente IA você usa, adaptando os arquivos gerados. Use `--yes` para pular as perguntas.
+
+### Templates por Domínio
+
+`letra spec <nome> --template <nome>` cria specs com estrutura pré-definida para cada domínio:
+
+| Template | Quando usar |
+|----------|-------------|
+| `web-api` | Endpoints REST, GraphQL, websockets |
+| `cli-tool` | Comandos, argumentos, exit codes |
+| `mobile-feature` | Telas, navegação, estados |
+| *custom* | Coloque arquivos `.md` em `.letra/templates/` |
+
+### Formatos de Output
+
+`letra validate --format <formato>` permite integrar com diferentes CIs:
+
+- `text` (default) — saída colorida para terminal
+- `github-annotation` — `::error`/`::warning` compatível com GitHub Actions
+- `junit` — XML padrão para demais ferramentas de CI
+
+### Watch Mode
+
+`letra validate --watch` monitora alterações em specs e re-executa validação automaticamente com debounce de 300ms.
 
 ## Estrutura de Memória
 
