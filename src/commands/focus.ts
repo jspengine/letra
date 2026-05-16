@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { Command } from "commander";
 import chalk from "chalk";
+import { Command } from "commander";
 
 function extractOutcome(specDir: string): string | null {
 	const specFile = join(specDir, "spec.md");

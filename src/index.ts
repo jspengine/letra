@@ -1,10 +1,10 @@
 import { Command } from "commander";
+import decisionCommand from "./commands/decision.js";
+import focus from "./commands/focus.js";
 import { init } from "./commands/init.js";
 import { lint } from "./commands/lint.js";
-import decisionCommand from "./commands/decision.js";
 import { specNew } from "./commands/spec.js";
 import { validate } from "./commands/validate.js";
-import focus from "./commands/focus.js";
 
 const program = new Command();
 
@@ -21,7 +21,10 @@ program
 
 program
 	.command("spec <name>")
-	.option("--template <type>", 'Template type: web-api, cli-tool, mobile-feature')
+	.option(
+		"--template <type>",
+		"Template type: web-api, cli-tool, mobile-feature",
+	)
 	.description("Create a new spec from template")
 	.action((name, options) => specNew(name, { ...options }));
 
@@ -33,7 +36,7 @@ program
 program
 	.command("validate [path]")
 	.option("--watch", "Watch specs and re-validate on change")
-	.option("--format <type>", 'Output format: text, github-annotation, junit')
+	.option("--format <type>", "Output format: text, github-annotation, junit")
 	.description("Check if artifacts meet acceptance criteria")
 	.action((path, options) => validate(path, { ...options }));
 

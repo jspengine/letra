@@ -12,10 +12,10 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import {
-	loadConfig,
-	getHeuristicConfig,
 	type Config,
 	type HeuristicConfig,
+	getHeuristicConfig,
+	loadConfig,
 } from "../config.js";
 
 const placeholderPatterns = [
@@ -118,7 +118,14 @@ export function checkSpecContent(
 		const words = lowerSpec.split(/\s+/);
 		const heurConfig = getHeuristicConfig(cfg, label);
 		const blacklist = heurConfig.blacklist ?? [
-			"tipo", "tá", "pra", "blz", "kkk", "eita", "oi", "oi pessoal",
+			"tipo",
+			"tá",
+			"pra",
+			"blz",
+			"kkk",
+			"eita",
+			"oi",
+			"oi pessoal",
 		];
 		const foundColloquialisms = blacklist.filter((c) => words.includes(c));
 		if (foundColloquialisms.length === 0) {
@@ -265,10 +272,34 @@ export function checkLowConfidence(specContent: string): {
 }
 
 const commonWords = [
-	"para", "com", "que", "dos", "das", "uma", "como",
-	"mais", "mas", "por", "pode", "ser", "são", "tem",
-	"seu", "sua", "esta", "este", "isso", "the", "and",
-	"for", "with", "that", "this", "from", "are", "was",
+	"para",
+	"com",
+	"que",
+	"dos",
+	"das",
+	"uma",
+	"como",
+	"mais",
+	"mas",
+	"por",
+	"pode",
+	"ser",
+	"são",
+	"tem",
+	"seu",
+	"sua",
+	"esta",
+	"este",
+	"isso",
+	"the",
+	"and",
+	"for",
+	"with",
+	"that",
+	"this",
+	"from",
+	"are",
+	"was",
 ];
 
 function getSignificantWords(text: string): string[] {
@@ -443,9 +474,9 @@ function buildJunitXml(results: {
 	xml += `<testsuites name="letra-validate" tests="${results.pass + results.fail + results.warning}" failures="${results.fail}">\n`;
 	for (const suite of results.suites) {
 		xml += `  <testsuite name="${suite.name}" tests="${suite.pass + suite.fail + suite.warning}" failures="${suite.fail}">\n`;
-		xml += `  </testsuite>\n`;
+		xml += "  </testsuite>\n";
 	}
-	xml += `</testsuites>\n`;
+	xml += "</testsuites>\n";
 	return xml;
 }
 
@@ -491,7 +522,12 @@ function flushResults(
 			suites.push({ name, ...counts });
 		}
 		console.log(
-			buildJunitXml({ pass: totalPass, fail: totalFail, warning: totalWarning, suites }),
+			buildJunitXml({
+				pass: totalPass,
+				fail: totalFail,
+				warning: totalWarning,
+				suites,
+			}),
 		);
 		return;
 	}
@@ -572,7 +608,14 @@ export async function validate(
 			} else if (existsSync(specFile)) {
 				content = readFileSync(specFile, "utf-8");
 			} else {
-				out(fmt, "info", entry.name, "", `Spec "${entry.name}" — no acceptance.md or spec.md found`, "");
+				out(
+					fmt,
+					"info",
+					entry.name,
+					"",
+					`Spec "${entry.name}" — no acceptance.md or spec.md found`,
+					"",
+				);
 				continue;
 			}
 
@@ -615,7 +658,8 @@ export async function validate(
 						} else if (label.includes("letra init")) {
 							const tmp = mkdtempSync(join(tmpdir(), "letra-test-"));
 							execSync(`npx tsx "${entryPoint}" init "${tmp}"`, { ...opts });
-							if (existsSync(join(tmp, ".letra", "context.md"))) status = "PASS";
+							if (existsSync(join(tmp, ".letra", "context.md")))
+								status = "PASS";
 							rmSync(tmp, { recursive: true });
 						} else if (label.includes("letra spec")) {
 							const tmp = mkdtempSync(join(tmpdir(), "letra-test-"));
@@ -625,7 +669,9 @@ export async function validate(
 								cwd: tmp,
 							});
 							if (
-								existsSync(join(tmp, ".letra", "specs", "smoke-test", "spec.md"))
+								existsSync(
+									join(tmp, ".letra", "specs", "smoke-test", "spec.md"),
+								)
 							)
 								status = "PASS";
 							rmSync(tmp, { recursive: true });
@@ -641,7 +687,10 @@ export async function validate(
 							status = "PASS";
 						} else if (label.includes("Lint Gate") || label.includes("Lint")) {
 							const ciContent = readFileSync(ciFile, "utf-8");
-							if (ciContent.includes("letra lint") || ciContent.includes("lint"))
+							if (
+								ciContent.includes("letra lint") ||
+								ciContent.includes("lint")
+							)
 								status = "PASS";
 						} else if (label.includes("Test Gate") || label.includes("Test")) {
 							const ciContent = readFileSync(ciFile, "utf-8");
@@ -719,7 +768,10 @@ export async function validate(
 							}
 						} else if (label.includes("Settings do Editor")) {
 							if (existsSync(vscodeSettingsFile)) {
-								const settingsContent = readFileSync(vscodeSettingsFile, "utf-8");
+								const settingsContent = readFileSync(
+									vscodeSettingsFile,
+									"utf-8",
+								);
 								if (settingsContent.includes("editor.formatOnSave")) {
 									status = "PASS";
 								}
@@ -755,26 +807,61 @@ export async function validate(
 					}
 
 					if (status === "PASS") {
-						collectResult(allResults, "pass", entry.name, label, description, note);
+						collectResult(
+							allResults,
+							"pass",
+							entry.name,
+							label,
+							description,
+							note,
+						);
 						totalPass++;
 						specPass++;
 					} else if (intelligenceResult) {
 						const heurCfg = getHeuristicConfig(config, label);
 						if (heurCfg.severity === "warning") {
-							collectResult(allResults, "warning", entry.name, label, description, note);
+							collectResult(
+								allResults,
+								"warning",
+								entry.name,
+								label,
+								description,
+								note,
+							);
 							totalWarning++;
 							specWarning++;
 						} else {
-							collectResult(allResults, "fail", entry.name, label, description, note);
+							collectResult(
+								allResults,
+								"fail",
+								entry.name,
+								label,
+								description,
+								note,
+							);
 							totalFail++;
 							specFail++;
 						}
 					} else if (note.includes("manual check needed")) {
-						collectResult(allResults, "warning", entry.name, label, description, note);
+						collectResult(
+							allResults,
+							"warning",
+							entry.name,
+							label,
+							description,
+							note,
+						);
 						totalWarning++;
 						specWarning++;
 					} else {
-						collectResult(allResults, "fail", entry.name, label, description, note);
+						collectResult(
+							allResults,
+							"fail",
+							entry.name,
+							label,
+							description,
+							note,
+						);
 						totalFail++;
 						specFail++;
 					}
@@ -787,11 +874,25 @@ export async function validate(
 					const emptyResult = checkEmptySections(specContent);
 					if (emptyResult.status === "FAIL") {
 						if (emptyCfg.severity === "warning") {
-							collectResult(allResults, "warning", entry.name, "Seções Vazias", "Seções obrigatórias com placeholder ou vazias", emptyResult.note);
+							collectResult(
+								allResults,
+								"warning",
+								entry.name,
+								"Seções Vazias",
+								"Seções obrigatórias com placeholder ou vazias",
+								emptyResult.note,
+							);
 							totalWarning++;
 							specWarning++;
 						} else {
-							collectResult(allResults, "fail", entry.name, "Seções Vazias", "Seções obrigatórias com placeholder ou vazias", emptyResult.note);
+							collectResult(
+								allResults,
+								"fail",
+								entry.name,
+								"Seções Vazias",
+								"Seções obrigatórias com placeholder ou vazias",
+								emptyResult.note,
+							);
 							totalFail++;
 							specFail++;
 						}
@@ -803,11 +904,25 @@ export async function validate(
 					const binaryResult = checkBinaryCriteria(specContent);
 					if (binaryResult.status === "FAIL") {
 						if (binaryCfg.severity === "warning") {
-							collectResult(allResults, "warning", entry.name, "ACs sem Métrica", "Critérios com verbos vagos sem métrica", binaryResult.note);
+							collectResult(
+								allResults,
+								"warning",
+								entry.name,
+								"ACs sem Métrica",
+								"Critérios com verbos vagos sem métrica",
+								binaryResult.note,
+							);
 							totalWarning++;
 							specWarning++;
 						} else {
-							collectResult(allResults, "fail", entry.name, "ACs sem Métrica", "Critérios com verbos vagos sem métrica", binaryResult.note);
+							collectResult(
+								allResults,
+								"fail",
+								entry.name,
+								"ACs sem Métrica",
+								"Critérios com verbos vagos sem métrica",
+								binaryResult.note,
+							);
 							totalFail++;
 							specFail++;
 						}
@@ -819,11 +934,25 @@ export async function validate(
 					const lowConfResult = checkLowConfidence(specContent);
 					if (lowConfResult.status === "FAIL") {
 						if (lowConfCfg.severity === "warning") {
-							collectResult(allResults, "warning", entry.name, "Baixa Confiança", "Spec contém linguagem de baixa confiança", lowConfResult.note);
+							collectResult(
+								allResults,
+								"warning",
+								entry.name,
+								"Baixa Confiança",
+								"Spec contém linguagem de baixa confiança",
+								lowConfResult.note,
+							);
 							totalWarning++;
 							specWarning++;
 						} else {
-							collectResult(allResults, "fail", entry.name, "Baixa Confiança", "Spec contém linguagem de baixa confiança", lowConfResult.note);
+							collectResult(
+								allResults,
+								"fail",
+								entry.name,
+								"Baixa Confiança",
+								"Spec contém linguagem de baixa confiança",
+								lowConfResult.note,
+							);
 							totalFail++;
 							specFail++;
 						}
@@ -844,7 +973,14 @@ export async function validate(
 			for (const cr of conflictResults) {
 				if (cr.passed) continue;
 				const level = conflictCfg.severity === "warning" ? "warning" : "fail";
-				collectResult(allResults, level, "(cross-spec)", cr.label, cr.message, "");
+				collectResult(
+					allResults,
+					level,
+					"(cross-spec)",
+					cr.label,
+					cr.message,
+					"",
+				);
 				if (level === "warning") {
 					totalWarning++;
 				} else {
@@ -859,7 +995,14 @@ export async function validate(
 			}
 		}
 
-		flushResults(allResults, fmt, specGroups, totalPass, totalFail, totalWarning);
+		flushResults(
+			allResults,
+			fmt,
+			specGroups,
+			totalPass,
+			totalFail,
+			totalWarning,
+		);
 		return totalFail;
 	}
 

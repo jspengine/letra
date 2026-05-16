@@ -17,16 +17,7 @@ const DEFAULT_HEURISTICS: Record<string, HeuristicConfig> = {
 	"consistencia-terminologia": { severity: "warning" },
 	"detecao-tom": {
 		severity: "warning",
-		blacklist: [
-			"tipo",
-			"tá",
-			"pra",
-			"blz",
-			"kkk",
-			"eita",
-			"oi",
-			"oi pessoal",
-		],
+		blacklist: ["tipo", "tá", "pra", "blz", "kkk", "eita", "oi", "oi pessoal"],
 	},
 	"drift-temporal": { severity: "warning", maxDays: 30 },
 	"secoes-vazias": { severity: "warning" },

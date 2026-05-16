@@ -1,32 +1,32 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Letra Workspace Configuration",
-  "description": "Defines the workspace topology for multi-repo Letra projects",
-  "type": "object",
-  "properties": {
-    "version": { "type": "string", "const": "1" },
-    "name": { "type": "string", "description": "Workspace name" },
-    "controlPlane": {
-      "type": "object",
-      "properties": {
-        "repo": { "type": "string" },
-        "path": { "type": "string", "default": ".letra/" }
-      },
-      "required": ["repo"]
-    },
-    "repositories": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "path": { "type": "string" },
-          "url": { "type": "string" },
-          "stack": { "type": "string" }
-        },
-        "required": ["id", "path"]
-      }
-    }
-  },
-  "required": ["version", "name"]
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"title": "Letra Workspace Configuration",
+	"description": "Defines the workspace topology for multi-repo Letra projects",
+	"type": "object",
+	"properties": {
+		"version": { "type": "string", "const": "1" },
+		"name": { "type": "string", "description": "Workspace name" },
+		"controlPlane": {
+			"type": "object",
+			"properties": {
+				"repo": { "type": "string" },
+				"path": { "type": "string", "default": ".letra/" }
+			},
+			"required": ["repo"]
+		},
+		"repositories": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"id": { "type": "string" },
+					"path": { "type": "string" },
+					"url": { "type": "string" },
+					"stack": { "type": "string" }
+				},
+				"required": ["id", "path"]
+			}
+		}
+	},
+	"required": ["version", "name"]
 }
