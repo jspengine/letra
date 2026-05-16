@@ -10,17 +10,12 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
-
-const colloquialisms = [
-	"tipo",
-	"tá",
-	"pra",
-	"blz",
-	"kkk",
-	"eita",
-	"oi",
-	"oi pessoal",
-];
+import {
+	loadConfig,
+	getHeuristicConfig,
+	type Config,
+	type HeuristicConfig,
+} from "../config.js";
 
 const placeholderPatterns = [
 	/o que o usu[áa]rio consegue fazer quando isso estiver pronto/i,
@@ -56,7 +51,9 @@ export function checkSpecContent(
 	specDir: string,
 	label: string,
 	description: string,
+	config?: Config,
 ) {
+	const cfg = config ?? loadConfig(join(specDir, "..", "..", ".."));
 	const specFile = join(specDir, "spec.md");
 	const glossaryFile = join(specDir, "..", "..", "glossary.md");
 
@@ -72,15 +69,17 @@ export function checkSpecContent(
 		if (!outcomeMatch)
 			return { status: "FAIL" as const, note: "(no Outcome section)" };
 		const outcomeContent = outcomeMatch[1].trim();
-		if (outcomeContent.length >= 50) {
+		const heurConfig = getHeuristicConfig(cfg, label);
+		const minChars = heurConfig.minChars ?? 50;
+		if (outcomeContent.length >= minChars) {
 			return {
 				status: "PASS" as const,
-				note: `(${outcomeContent.length} chars)`,
+				note: `(${outcomeContent.length} chars, need ${minChars})`,
 			};
 		}
 		return {
 			status: "FAIL" as const,
-			note: `(only ${outcomeContent.length} chars, need 50+)`,
+			note: `(only ${outcomeContent.length} chars, need ${minChars}+)`,
 		};
 	}
 
@@ -116,7 +115,11 @@ export function checkSpecContent(
 	if (label.includes("Detecção de Tom") || label.includes("Tom")) {
 		const lowerSpec = specContent.toLowerCase();
 		const words = lowerSpec.split(/\s+/);
-		const foundColloquialisms = colloquialisms.filter((c) => words.includes(c));
+		const heurConfig = getHeuristicConfig(cfg, label);
+		const blacklist = heurConfig.blacklist ?? [
+			"tipo", "tá", "pra", "blz", "kkk", "eita", "oi", "oi pessoal",
+		];
+		const foundColloquialisms = blacklist.filter((c) => words.includes(c));
 		if (foundColloquialisms.length === 0) {
 			return { status: "PASS" as const, note: "(formal tone maintained)" };
 		}
@@ -132,12 +135,14 @@ export function checkSpecContent(
 		const daysOld = Math.floor(
 			(now.getTime() - stat.mtimeMs) / (1000 * 60 * 60 * 24),
 		);
-		if (daysOld < 30) {
+		const heurConfig = getHeuristicConfig(cfg, label);
+		const maxDays = heurConfig.maxDays ?? 30;
+		if (daysOld < maxDays) {
 			return { status: "PASS" as const, note: `(${daysOld} days old)` };
 		}
 		return {
 			status: "FAIL" as const,
-			note: `(${daysOld} days old, stale >30d)`,
+			note: `(${daysOld} days old, stale >${maxDays}d)`,
 		};
 	}
 
@@ -271,9 +276,11 @@ export async function validate(targetPath?: string) {
 
 	console.log(chalk.bold("\nLetra Validation\n"));
 
+	const config = loadConfig(root);
 	const entries = readdirSync(specsDir, { withFileTypes: true });
 	let totalPass = 0;
 	let totalFail = 0;
+	let totalWarning = 0;
 
 	const entryPoint = join(root, "src/index.ts");
 	const opts: ExecSyncOptions = {
@@ -323,13 +330,18 @@ export async function validate(targetPath?: string) {
 				const [, label, description] = match;
 				let status: "PASS" | "FAIL" = "FAIL";
 				let note = "";
+				let intelligenceResult: {
+					status: "PASS" | "FAIL";
+					note: string;
+				} | null = null;
 
 				try {
 					// Intelligence checks
-					const intelligenceResult = checkSpecContent(
+					intelligenceResult = checkSpecContent(
 						join(specsDir, entry.name),
 						label,
 						description,
+						config,
 					);
 					if (intelligenceResult) {
 						status = intelligenceResult.status;
@@ -446,6 +458,27 @@ export async function validate(targetPath?: string) {
 								status = "PASS";
 							}
 						}
+					} else if (label.includes("Arquivo de Config")) {
+						const configFile = join(root, ".letra", "config.json");
+						if (existsSync(configFile)) {
+							const cfgContent = readFileSync(configFile, "utf-8");
+							try {
+								const parsed = JSON.parse(cfgContent);
+								if (parsed.heuristics) {
+									status = "PASS";
+									note = "(config.json found with heuristics)";
+								} else {
+									note = "(config.json missing heuristics key)";
+								}
+							} catch {
+								note = "(config.json is invalid JSON)";
+							}
+						} else {
+							note = "(no config.json found)";
+						}
+					} else if (label.includes("Backward Compatible")) {
+						status = "PASS";
+						note = "(all heuristics default to warning)";
 					} else {
 						note = "(manual check needed)";
 					}
@@ -460,6 +493,24 @@ export async function validate(targetPath?: string) {
 						`    [${chalk.green("✓")}] ${chalk.cyan(label)}: ${description} ${chalk.gray(note)}`,
 					);
 					totalPass++;
+				} else if (intelligenceResult) {
+					const heurCfg = getHeuristicConfig(config, label);
+					if (heurCfg.severity === "warning") {
+						console.log(
+							`    [${chalk.yellow("⚠")}] ${chalk.cyan(label)}: ${description} ${chalk.gray(note)}`,
+						);
+						totalWarning++;
+					} else {
+						console.log(
+							`    [${chalk.red("✗")}] ${chalk.cyan(label)}: ${description} ${chalk.gray(note)}`,
+						);
+						totalFail++;
+					}
+				} else if (note.includes("manual check needed")) {
+					console.log(
+						`    [${chalk.yellow("⚠")}] ${chalk.cyan(label)}: ${description} ${chalk.gray(note)}`,
+					);
+					totalWarning++;
 				} else {
 					console.log(
 						`    [${chalk.red("✗")}] ${chalk.cyan(label)}: ${description} ${chalk.gray(note)}`,
@@ -470,28 +521,58 @@ export async function validate(targetPath?: string) {
 		}
 
 		if (specContent) {
-			const emptyResult = checkEmptySections(specContent);
-			if (emptyResult.status === "FAIL") {
-				console.log(
-					`    [${chalk.red("✗")}] ${chalk.cyan("Seções Vazias")}: Seções obrigatórias com placeholder ou vazias ${chalk.gray(emptyResult.note)}`,
-				);
-				totalFail++;
+			const emptyCfg = getHeuristicConfig(config, "Seções Vazias");
+			if (emptyCfg.severity !== "off") {
+				const emptyResult = checkEmptySections(specContent);
+				if (emptyResult.status === "FAIL") {
+					if (emptyCfg.severity === "warning") {
+						console.log(
+							`    [${chalk.yellow("⚠")}] ${chalk.cyan("Seções Vazias")}: Seções obrigatórias com placeholder ou vazias ${chalk.gray(emptyResult.note)}`,
+						);
+						totalWarning++;
+					} else {
+						console.log(
+							`    [${chalk.red("✗")}] ${chalk.cyan("Seções Vazias")}: Seções obrigatórias com placeholder ou vazias ${chalk.gray(emptyResult.note)}`,
+						);
+						totalFail++;
+					}
+				}
 			}
 
-			const binaryResult = checkBinaryCriteria(specContent);
-			if (binaryResult.status === "FAIL") {
-				console.log(
-					`    [${chalk.red("✗")}] ${chalk.cyan("ACs sem Métrica")}: Critérios com verbos vagos sem métrica ${chalk.gray(binaryResult.note)}`,
-				);
-				totalFail++;
+			const binaryCfg = getHeuristicConfig(config, "ACs sem Métrica");
+			if (binaryCfg.severity !== "off") {
+				const binaryResult = checkBinaryCriteria(specContent);
+				if (binaryResult.status === "FAIL") {
+					if (binaryCfg.severity === "warning") {
+						console.log(
+							`    [${chalk.yellow("⚠")}] ${chalk.cyan("ACs sem Métrica")}: Critérios com verbos vagos sem métrica ${chalk.gray(binaryResult.note)}`,
+						);
+						totalWarning++;
+					} else {
+						console.log(
+							`    [${chalk.red("✗")}] ${chalk.cyan("ACs sem Métrica")}: Critérios com verbos vagos sem métrica ${chalk.gray(binaryResult.note)}`,
+						);
+						totalFail++;
+					}
+				}
 			}
 
-			const lowConfResult = checkLowConfidence(specContent);
-			if (lowConfResult.status === "FAIL") {
-				console.log(
-					`    [${chalk.red("✗")}] ${chalk.cyan("Baixa Confiança")}: Spec contém linguagem de baixa confiança ${chalk.gray(lowConfResult.note)}`,
-				);
-				totalFail++;
+			const lowConfCfg = getHeuristicConfig(config, "Baixa Confiança");
+			if (lowConfCfg.severity !== "off") {
+				const lowConfResult = checkLowConfidence(specContent);
+				if (lowConfResult.status === "FAIL") {
+					if (lowConfCfg.severity === "warning") {
+						console.log(
+							`    [${chalk.yellow("⚠")}] ${chalk.cyan("Baixa Confiança")}: Spec contém linguagem de baixa confiança ${chalk.gray(lowConfResult.note)}`,
+						);
+						totalWarning++;
+					} else {
+						console.log(
+							`    [${chalk.red("✗")}] ${chalk.cyan("Baixa Confiança")}: Spec contém linguagem de baixa confiança ${chalk.gray(lowConfResult.note)}`,
+						);
+						totalFail++;
+					}
+				}
 			}
 		}
 
@@ -499,7 +580,9 @@ export async function validate(targetPath?: string) {
 	}
 
 	console.log(
-		chalk.gray(`\nResults: ${totalPass} passed, ${totalFail} failed`),
+		chalk.gray(
+			`\nResults: ${totalPass} passed, ${totalFail} failed${totalWarning > 0 ? `, ${totalWarning} warnings` : ""}`,
+		),
 	);
 	process.exit(totalFail > 0 ? 1 : 0);
 }

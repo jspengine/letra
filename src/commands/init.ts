@@ -67,6 +67,23 @@ Por que estamos construindo isso.
 `;
 		writeFileSync(specTemplate, specContent);
 
+		// Generate default config
+		const configPath = join(letraDir, "config.json");
+		const configContent = `{
+	"heuristics": {
+		"conteudo-minimo": { "severity": "warning", "minChars": 50 },
+		"consistencia-terminologia": { "severity": "warning" },
+		"detecao-tom": { "severity": "warning", "blacklist": ["tipo", "tá", "pra", "blz", "kkk", "eita", "oi", "oi pessoal"] },
+		"drift-temporal": { "severity": "warning", "maxDays": 30 },
+		"secoes-vazias": { "severity": "warning" },
+		"acs-sem-metrica": { "severity": "warning" },
+		"baixa-confianca": { "severity": "warning" }
+	}
+}
+`;
+		writeFileSync(configPath, configContent);
+		console.log(`    ${chalk.gray("Created")} .letra/config.json`);
+
 		// Generate Cursor adapter
 		const cursorRulesPath = join(root, ".cursorrules");
 		const cursorRulesContent = `# Letra Context — Cursor Adapter
