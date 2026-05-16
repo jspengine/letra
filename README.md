@@ -56,6 +56,15 @@ letra validate --watch                      # re-valida automaticamente ao salva
 
 # Combinar flags
 letra validate --watch --format github-annotation
+
+# Registrar decisão arquitetural
+letra decision new "Usar Commander em vez de Yargs"
+letra decision list
+
+# Definir foco da sessão
+letra focus validate-conflict
+letra focus                          # ver foco atual
+letra focus --clear                  # limpar foco
 ```
 
 ## Validação de Specs
@@ -100,6 +109,18 @@ O `letra validate` analisa automaticamente suas specs em busca de problemas comu
 ### Watch Mode
 
 `letra validate --watch` monitora alterações em specs e re-executa validação automaticamente com debounce de 300ms.
+
+### Architecture Decision Records
+
+`letra decision new <título>` cria ADRs em `.letra/decisions/` com template Contexto → Decisão → Consequências, data automática e status `proposed`. `letra decision list` lista todos os ADRs.
+
+### Session Focus
+
+`letra focus <spec>` define qual spec está ativa na sessão atual, escrevendo `.letra/focus.md`. O adapter do `letra init` já referencia esse arquivo, então o agente sabe exatamente o que importa agora. Use `letra focus` para ver o foco atual e `letra focus --clear` para limpar.
+
+### Validação de Conflitos entre Specs
+
+A 8ª heurística do `letra validate` — detecta automaticamente ACs contraditórios entre specs diferentes (ex: "login com email" vs "login apenas com Google"), evitando que requisitos conflitantes virem bugs. Severidade configurável via `config.json`.
 
 ## Estrutura de Memória
 
