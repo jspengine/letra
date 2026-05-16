@@ -67,8 +67,11 @@ letra validate
 
 | Adapter | Status | Artefato Gerado |
 |---------|--------|----------------|
-| OpenCode | ✅ Completo | `.letra/adapters/opencode.json` |
+| OpenCode | ✅ Completo | `AGENTS.md` |
+| Codex CLI | ✅ Completo | `AGENTS.md` (compartilhado) |
+| Claude Code | ✅ Completo | `CLAUDE.md` |
 | Cursor | ✅ Completo | `.cursorrules` |
+| Windsurf | ✅ Completo | `.windsurfrules` |
 | VS Code (Copilot) | ✅ Completo | `.github/copilot-instructions.md` + `.vscode/settings.json` |
 
 ## Exemplo

@@ -37,6 +37,24 @@ describe("init command", () => {
 		expect(content).toContain("Letra Context — Cursor Adapter");
 	});
 
+	it("should generate Claude Code adapter", async () => {
+		await init(tmpDir);
+		expect(existsSync(join(tmpDir, "CLAUDE.md"))).toBe(true);
+
+		const content = readFileSync(join(tmpDir, "CLAUDE.md"), "utf-8");
+		expect(content).toContain("Letra Context — Claude Code Adapter");
+		expect(content).toContain(".letra/context.md");
+	});
+
+	it("should generate Windsurf adapter", async () => {
+		await init(tmpDir);
+		expect(existsSync(join(tmpDir, ".windsurfrules"))).toBe(true);
+
+		const content = readFileSync(join(tmpDir, ".windsurfrules"), "utf-8");
+		expect(content).toContain("Letra Context — Windsurf Adapter");
+		expect(content).toContain(".letra/context.md");
+	});
+
 	it("should generate VSCode adapter files", async () => {
 		await init(tmpDir);
 		expect(existsSync(join(tmpDir, ".github", "copilot-instructions.md"))).toBe(
