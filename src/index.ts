@@ -1,8 +1,10 @@
 import { Command } from "commander";
 import { init } from "./commands/init.js";
 import { lint } from "./commands/lint.js";
+import decisionCommand from "./commands/decision.js";
 import { specNew } from "./commands/spec.js";
 import { validate } from "./commands/validate.js";
+import focus from "./commands/focus.js";
 
 const program = new Command();
 
@@ -34,5 +36,8 @@ program
 	.option("--format <type>", 'Output format: text, github-annotation, junit')
 	.description("Check if artifacts meet acceptance criteria")
 	.action((path, options) => validate(path, { ...options }));
+
+program.addCommand(decisionCommand());
+program.addCommand(focus());
 
 program.parse();

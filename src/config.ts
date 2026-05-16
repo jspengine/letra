@@ -32,6 +32,7 @@ const DEFAULT_HEURISTICS: Record<string, HeuristicConfig> = {
 	"secoes-vazias": { severity: "warning" },
 	"acs-sem-metrica": { severity: "warning" },
 	"baixa-confianca": { severity: "warning" },
+	"validate-conflict": { severity: "warning" },
 };
 
 export function loadConfig(root: string): Config {
@@ -88,6 +89,7 @@ function heuristicKey(label: string): string {
 		return "acs-sem-metrica";
 	if (lower.includes("baixa confiança") || lower.includes("baixa confianca"))
 		return "baixa-confianca";
+	if (lower.includes("validate conflict")) return "validate-conflict";
 
 	return lower.replace(/\s+/g, "-");
 }

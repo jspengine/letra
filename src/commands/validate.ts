@@ -264,6 +264,129 @@ export function checkLowConfidence(specContent: string): {
 	};
 }
 
+const commonWords = [
+	"para", "com", "que", "dos", "das", "uma", "como",
+	"mais", "mas", "por", "pode", "ser", "são", "tem",
+	"seu", "sua", "esta", "este", "isso", "the", "and",
+	"for", "with", "that", "this", "from", "are", "was",
+];
+
+function getSignificantWords(text: string): string[] {
+	return text
+		.toLowerCase()
+		.split(/\s+/)
+		.filter((w) => w.length >= 4 && !commonWords.includes(w));
+}
+
+function getPrefix(name: string): string {
+	const idx = name.indexOf("-");
+	return idx === -1 ? name : name.slice(0, idx);
+}
+
+function isSibling(nameA: string, nameB: string): boolean {
+	return getPrefix(nameA) === getPrefix(nameB);
+}
+
+function detectConflict(textA: string, textB: string): boolean {
+	const lowerA = textA.toLowerCase();
+	const lowerB = textB.toLowerCase();
+
+	const aHasNeg = /\bn[ãa]o\b/.test(lowerA) || /\bnot\b/.test(lowerA);
+	const bHasNeg = /\bn[ãa]o\b/.test(lowerB) || /\bnot\b/.test(lowerB);
+
+	// Negation: one has não/not, other doesn't, share >60% significant words
+	if (aHasNeg !== bHasNeg) {
+		const wordsA = getSignificantWords(lowerA);
+		const wordsB = getSignificantWords(lowerB);
+		const intersection = wordsA.filter((w) => wordsB.includes(w));
+		const maxLen = Math.max(wordsA.length, wordsB.length);
+		if (maxLen > 0 && intersection.length / maxLen > 0.6) return true;
+	}
+
+	// MECE: one has "apenas/only X", other mentions different term in same category
+	const apenasA = lowerA.match(/(?:apenas|only)\s+(\w+)/);
+	const apenasB = lowerB.match(/(?:apenas|only)\s+(\w+)/);
+
+	if (apenasA && !apenasB) {
+		const termA = apenasA[1];
+		const wordsA = getSignificantWords(lowerA);
+		const wordsB = getSignificantWords(lowerB);
+		const shared = wordsA.filter((w) => w !== termA && wordsB.includes(w));
+		if (shared.length > 0 && !wordsB.includes(termA)) return true;
+	}
+	if (apenasB && !apenasA) {
+		const termB = apenasB[1];
+		const wordsA = getSignificantWords(lowerA);
+		const wordsB = getSignificantWords(lowerB);
+		const shared = wordsB.filter((w) => w !== termB && wordsA.includes(w));
+		if (shared.length > 0 && !wordsA.includes(termB)) return true;
+	}
+	if (apenasA && apenasB && apenasA[1] !== apenasB[1]) {
+		const wordsA = getSignificantWords(lowerA);
+		const wordsB = getSignificantWords(lowerB);
+		const shared = wordsA.filter((w) => wordsB.includes(w));
+		if (shared.length > 0) return true;
+	}
+
+	return false;
+}
+
+export function checkConflicts(
+	specsDir: string,
+	config: Config,
+): { label: string; passed: boolean; message: string }[] {
+	const results: { label: string; passed: boolean; message: string }[] = [];
+	const entries = readdirSync(specsDir, { withFileTypes: true });
+	const specDirs = entries
+		.filter((e) => e.isDirectory() && !e.name.startsWith("_"))
+		.map((e) => e.name);
+
+	const specs: { name: string; acs: string[] }[] = [];
+	for (const dir of specDirs) {
+		const acceptanceFile = join(specsDir, dir, "acceptance.md");
+		if (!existsSync(acceptanceFile)) continue;
+		const content = readFileSync(acceptanceFile, "utf-8");
+		const acLines = content.match(/- \[[ x]\] \*\*(.+?)\*\*: (.+)/g) || [];
+		const acs = acLines
+			.map((line) => {
+				const m = line.match(/- \[[ x]\] \*\*(.+?)\*\*: (.+)/);
+				return m ? m[2].trim() : "";
+			})
+			.filter(Boolean);
+		if (acs.length > 0) specs.push({ name: dir, acs });
+	}
+
+	for (let i = 0; i < specs.length; i++) {
+		for (let j = i + 1; j < specs.length; j++) {
+			const a = specs[i];
+			const b = specs[j];
+			if (isSibling(a.name, b.name)) continue;
+
+			for (const acA of a.acs) {
+				for (const acB of b.acs) {
+					if (detectConflict(acA, acB)) {
+						results.push({
+							label: "Validate Conflict",
+							passed: false,
+							message: `Conflito: "${a.name}" AC "${acA}" vs "${b.name}" AC "${acB}"`,
+						});
+					}
+				}
+			}
+		}
+	}
+
+	if (results.length === 0) {
+		results.push({
+			label: "Validate Conflict",
+			passed: true,
+			message: "Nenhum conflito detectado entre specs",
+		});
+	}
+
+	return results;
+}
+
 type Format = "text" | "github-annotation" | "junit";
 
 function out(
@@ -713,6 +836,21 @@ export async function validate(
 				fail: specFail,
 				warning: specWarning,
 			});
+		}
+
+		const conflictCfg = getHeuristicConfig(config, "Validate Conflict");
+		if (conflictCfg.severity !== "off") {
+			const conflictResults = checkConflicts(specsDir, config);
+			for (const cr of conflictResults) {
+				if (cr.passed) continue;
+				const level = conflictCfg.severity === "warning" ? "warning" : "fail";
+				collectResult(allResults, level, "(cross-spec)", cr.label, cr.message, "");
+				if (level === "warning") {
+					totalWarning++;
+				} else {
+					totalFail++;
+				}
+			}
 		}
 
 		if (fmt === "text" || fmt === "github-annotation") {

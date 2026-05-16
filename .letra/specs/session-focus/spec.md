@@ -19,11 +19,11 @@ Usuário roda `letra focus <spec>` e o CLI escreve `.letra/focus.md` com o nome 
 
 ## Acceptance Criteria
 
-- [ ] **`letra focus <spec>`**: Cria `.letra/focus.md` com nome, caminho e outcome da spec.
-- [ ] **`letra focus`**: Exibe o conteúdo do foco atual (ou "Nenhum foco definido").
-- [ ] **`letra focus --clear`: Remove `.letra/focus.md`**.
-- [ ] **Adapter referencia focus.md**: `AGENTS.md` gerado pelo init inclui referência a `.letra/focus.md`.
-- [ ] **Fallback silencioso**: Se `focus.md` não existe, agente comporta-se normalmente (lê todas specs).
+- [x] **`letra focus <spec>`**: Cria `.letra/focus.md` com nome, caminho e outcome da spec.
+- [x] **`letra focus`**: Exibe o conteúdo do foco atual (ou "Nenhum foco definido").
+- [x] **`letra focus --clear`: Remove `.letra/focus.md`**.
+- [x] **Adapter referencia focus.md**: `AGENTS.md` gerado pelo init inclui referência a `.letra/focus.md`.
+- [x] **Fallback silencioso**: Se `focus.md` não existe, agente comporta-se normalmente (lê todas specs).
 
 ## Context
 
