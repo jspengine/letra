@@ -13,13 +13,15 @@ program
 
 program
 	.command("init [path]")
+	.option("--yes", "Skip prompts and use defaults")
 	.description("Initialize .letra/ directory with templates")
-	.action(init);
+	.action((path, options) => init(path, { ...options }));
 
 program
 	.command("spec <name>")
+	.option("--template <type>", 'Template type: web-api, cli-tool, mobile-feature')
 	.description("Create a new spec from template")
-	.action(specNew);
+	.action((name, options) => specNew(name, { ...options }));
 
 program
 	.command("lint [path]")
@@ -28,7 +30,9 @@ program
 
 program
 	.command("validate [path]")
+	.option("--watch", "Watch specs and re-validate on change")
+	.option("--format <type>", 'Output format: text, github-annotation, junit')
 	.description("Check if artifacts meet acceptance criteria")
-	.action(validate);
+	.action((path, options) => validate(path, { ...options }));
 
 program.parse();
