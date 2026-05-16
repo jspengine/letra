@@ -23,6 +23,12 @@
 - **Fallback**: Se não for possível, use **inglês**.
 - Aplica-se a mensagens de commit, respostas no chat, comentários e documentação.
 
+## Detecção de Pergunta vs Comando
+
+Quando o usuário **não** usar `?` no final, assuma que é uma **instrução** (faça).
+Quando o usuário usar `?`, palavras interrogativas (`por que`, `como`, `qual`, `será que`), assuma que é uma **pergunta** (explique).
+- Exceção: perguntas retóricas óbvias ainda devem ser tratadas como pergunta.
+
 ## Stack
 
 - **Linguagem**: TypeScript (strict mode)

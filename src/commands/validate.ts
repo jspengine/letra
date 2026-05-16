@@ -146,14 +146,22 @@ export async function validate(targetPath?: string) {
 		if (!entry.isDirectory() || entry.name.startsWith("_")) continue;
 
 		const acceptanceFile = join(specsDir, entry.name, "acceptance.md");
-		if (!existsSync(acceptanceFile)) {
+		const specFile = join(specsDir, entry.name, "spec.md");
+		let content: string;
+
+		if (existsSync(acceptanceFile)) {
+			content = readFileSync(acceptanceFile, "utf-8");
+		} else if (existsSync(specFile)) {
+			content = readFileSync(specFile, "utf-8");
+		} else {
 			console.log(
-				chalk.gray(`  Spec "${entry.name}" — no acceptance.md, skipping`),
+				chalk.gray(
+					`  Spec "${entry.name}" — no acceptance.md or spec.md found`,
+				),
 			);
 			continue;
 		}
 
-		const content = readFileSync(acceptanceFile, "utf-8");
 		const criteriaLines = content.match(/- \[ \] \*\*(.+?)\*\*: (.+)/g) || [];
 
 		console.log(chalk.bold(`  Spec: ${entry.name}`));

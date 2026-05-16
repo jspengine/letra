@@ -49,9 +49,9 @@
     "scripts": "dist/**/*.js",
     "assets": ".letra/**/*",
     "targets": [
-      "node18-win-x64",
-      "node18-linux-x64",
-      "node18-macos-x64"
+      "node22-win-x64",
+      "node22-linux-x64",
+      "node22-macos-x64"
     ],
     "outputPath": "dist/bin"
   },

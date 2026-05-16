@@ -36,4 +36,4 @@ jobs:
         run: npm test
 
       - name: Validate Acceptance Criteria
-        run: npm run dev -- validate || true
+        run: npm run dev -- validate
