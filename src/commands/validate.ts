@@ -22,6 +22,36 @@ const colloquialisms = [
 	"oi pessoal",
 ];
 
+const placeholderPatterns = [
+	/o que o usu[áa]rio consegue fazer quando isso estiver pronto/i,
+	/limitaç[õo]es t[ée]cnicas e de neg[óo]cio/i,
+	/o que explicitamente n[ãa]o est[áa] neste escopo/i,
+	/descriç[ãa]o bin[áa]ria/i,
+	/por que estamos construindo isso/i,
+];
+
+const vagueVerbs = [
+	"melhorar",
+	"otimizar",
+	"facilitar",
+	"aumentar",
+	"diminuir",
+	"agilizar",
+	"simplificar",
+	"aprimorar",
+];
+
+const lowConfidenceMarkers = [
+	"provavelmente",
+	"talvez",
+	"tentar",
+	"idealmente",
+	"possivelmente",
+	"quem sabe",
+	"de repente",
+	"teoricamente",
+];
+
 export function checkSpecContent(
 	specDir: string,
 	label: string,
@@ -114,6 +144,120 @@ export function checkSpecContent(
 	return null;
 }
 
+export function checkEmptySections(specContent: string): {
+	status: "PASS" | "FAIL";
+	note: string;
+} {
+	const requiredSections = [
+		"## Outcome",
+		"## Constraints",
+		"## Exclusions",
+		"## Acceptance Criteria",
+		"## Context",
+	];
+
+	const emptyOrPlaceholder: string[] = [];
+
+	for (const section of requiredSections) {
+		const escaped = section.replace(/[#]/g, "\\$&");
+		const pattern = new RegExp(`${escaped}\\s+([\\s\\S]*?)(?=\\n## |\\n*$)`);
+		const match = specContent.match(pattern);
+		if (!match) {
+			emptyOrPlaceholder.push(section.replace("## ", ""));
+			continue;
+		}
+		const content = match[1].trim();
+		if (content.length < 10) {
+			emptyOrPlaceholder.push(section.replace("## ", ""));
+			continue;
+		}
+		const hasPlaceholder = placeholderPatterns.some((p) => p.test(content));
+		if (hasPlaceholder) {
+			emptyOrPlaceholder.push(section.replace("## ", ""));
+		}
+	}
+
+	if (emptyOrPlaceholder.length === 0) {
+		return {
+			status: "PASS" as const,
+			note: "(all sections have real content)",
+		};
+	}
+	return {
+		status: "FAIL" as const,
+		note: `(empty/placeholder: ${emptyOrPlaceholder.join(", ")})`,
+	};
+}
+
+export function checkBinaryCriteria(specContent: string): {
+	status: "PASS" | "FAIL";
+	note: string;
+} {
+	const acMatch = specContent.match(
+		/## Acceptance Criteria\s+([\s\S]*?)(?=\n## |\n*$)/,
+	);
+	if (!acMatch) {
+		return {
+			status: "FAIL" as const,
+			note: "(no Acceptance Criteria section)",
+		};
+	}
+
+	const criteriaLines = acMatch[1].match(/- \[[ x]\] .+/g) || [];
+	if (criteriaLines.length === 0) {
+		return { status: "FAIL" as const, note: "(no criteria items found)" };
+	}
+
+	const nonBinary: string[] = [];
+	for (const line of criteriaLines) {
+		const description = line.replace(/- \[[ x]\] \*\*.+?\*\*:\s*/, "");
+		const hasMetric = /\d+/.test(description);
+		const hasVagueVerb = vagueVerbs.some((v) =>
+			description.toLowerCase().includes(v),
+		);
+		if (!hasMetric && hasVagueVerb) {
+			const labelMatch = line.match(/\*\*(.+?)\*\*/);
+			if (labelMatch) nonBinary.push(labelMatch[1]);
+		}
+	}
+
+	if (nonBinary.length === 0) {
+		return {
+			status: "PASS" as const,
+			note: "(all criteria have measurable outcomes)",
+		};
+	}
+	return {
+		status: "FAIL" as const,
+		note: `(vague criteria: ${nonBinary.join(", ")})`,
+	};
+}
+
+export function checkLowConfidence(specContent: string): {
+	status: "PASS" | "FAIL";
+	note: string;
+} {
+	const lower = specContent.toLowerCase();
+	const words = lower.split(/\s+/);
+	const found = lowConfidenceMarkers.filter((m) => {
+		if (m.includes(" ")) {
+			return lower.includes(m);
+		}
+		return words.includes(m);
+	});
+
+	if (found.length === 0) {
+		return {
+			status: "PASS" as const,
+			note: "(no low-confidence language detected)",
+		};
+	}
+	return {
+		status: "FAIL" as const,
+		note: `(low-confidence: ${found.join(", ")})`,
+	};
+}
+
 export async function validate(targetPath?: string) {
 	const root = resolve(process.cwd(), targetPath || ".");
 	const specsDir = join(root, ".letra", "specs");
@@ -163,12 +307,14 @@ export async function validate(targetPath?: string) {
 		}
 
 		const criteriaLines = content.match(/- \[ \] \*\*(.+?)\*\*: (.+)/g) || [];
+		const specContent = existsSync(specFile)
+			? readFileSync(specFile, "utf-8")
+			: null;
 
 		console.log(chalk.bold(`  Spec: ${entry.name}`));
 
 		if (criteriaLines.length === 0) {
 			console.log(chalk.gray("    No criteria found"));
-			continue;
 		}
 
 		for (const line of criteriaLines) {
@@ -322,6 +468,33 @@ export async function validate(targetPath?: string) {
 				}
 			}
 		}
+
+		if (specContent) {
+			const emptyResult = checkEmptySections(specContent);
+			if (emptyResult.status === "FAIL") {
+				console.log(
+					`    [${chalk.red("✗")}] ${chalk.cyan("Seções Vazias")}: Seções obrigatórias com placeholder ou vazias ${chalk.gray(emptyResult.note)}`,
+				);
+				totalFail++;
+			}
+
+			const binaryResult = checkBinaryCriteria(specContent);
+			if (binaryResult.status === "FAIL") {
+				console.log(
+					`    [${chalk.red("✗")}] ${chalk.cyan("ACs sem Métrica")}: Critérios com verbos vagos sem métrica ${chalk.gray(binaryResult.note)}`,
+				);
+				totalFail++;
+			}
+
+			const lowConfResult = checkLowConfidence(specContent);
+			if (lowConfResult.status === "FAIL") {
+				console.log(
+					`    [${chalk.red("✗")}] ${chalk.cyan("Baixa Confiança")}: Spec contém linguagem de baixa confiança ${chalk.gray(lowConfResult.note)}`,
+				);
+				totalFail++;
+			}
+		}
+
 		console.log("");
 	}
 

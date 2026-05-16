@@ -10,7 +10,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { init } from "./init.js";
-import { checkSpecContent } from "./validate.js";
+import {
+	checkBinaryCriteria,
+	checkEmptySections,
+	checkLowConfidence,
+	checkSpecContent,
+} from "./validate.js";
 
 describe("validate - checkSpecContent", () => {
 	let tmpDir: string;
@@ -282,5 +287,170 @@ Test.
 
 		const result = checkSpecContent(specDir, "Unknown Label", "test");
 		expect(result).toBeNull();
+	});
+});
+
+describe("validate - checkEmptySections", () => {
+	it("should PASS when all sections have real content", () => {
+		const spec = `# Spec: Test
+
+## Outcome
+This is a detailed outcome description for the specification.
+
+## Constraints
+Technical constraints that must be followed strictly.
+
+## Exclusions
+What is explicitly out of scope for this feature.
+
+## Acceptance Criteria
+- [ ] **Test**: Description of the test.
+
+## Context
+Why we are building this feature and trade-offs.
+`;
+		const result = checkEmptySections(spec);
+		expect(result.status).toBe("PASS");
+	});
+
+	it("should FAIL when a section has placeholder text", () => {
+		const spec = `# Spec: Test
+
+## Outcome
+O que o usuário consegue fazer quando isso estiver pronto.
+
+## Constraints
+Real constraint content here.
+
+## Exclusions
+Real exclusions here.
+
+## Acceptance Criteria
+- [ ] **Test**: Description.
+
+## Context
+Real context.
+`;
+		const result = checkEmptySections(spec);
+		expect(result.status).toBe("FAIL");
+		expect(result.note).toContain("Outcome");
+	});
+
+	it("should FAIL when a section is nearly empty", () => {
+		const spec = `# Spec: Test
+
+## Outcome
+Ok
+
+## Constraints
+Real constraints.
+
+## Exclusions
+Real exclusions.
+
+## Acceptance Criteria
+- [ ] **Test**: Description.
+
+## Context
+Real context.
+`;
+		const result = checkEmptySections(spec);
+		expect(result.status).toBe("FAIL");
+	});
+});
+
+describe("validate - checkBinaryCriteria", () => {
+	it("should PASS when all criteria have measurable outcomes", () => {
+		const spec = `# Spec: Test
+
+## Outcome
+Test outcome.
+
+## Constraints
+Test constraints.
+
+## Exclusions
+None.
+
+## Acceptance Criteria
+- [ ] **Performance**: Response time under 200ms.
+- [ ] **Auth**: Login flow completes in under 3 seconds.
+
+## Context
+Test context.
+`;
+		const result = checkBinaryCriteria(spec);
+		expect(result.status).toBe("PASS");
+	});
+
+	it("should FAIL when criteria uses vague verbs without metrics", () => {
+		const spec = `# Spec: Test
+
+## Outcome
+Test outcome.
+
+## Constraints
+Test constraints.
+
+## Exclusions
+None.
+
+## Acceptance Criteria
+- [ ] **Performance**: Melhorar a velocidade do sistema.
+- [ ] **UX**: Facilitar o uso da interface.
+
+## Context
+Test context.
+`;
+		const result = checkBinaryCriteria(spec);
+		expect(result.status).toBe("FAIL");
+		expect(result.note).toContain("Performance");
+	});
+});
+
+describe("validate - checkLowConfidence", () => {
+	it("should PASS when spec has no low-confidence language", () => {
+		const spec = `# Spec: Test
+
+## Outcome
+The user authenticates via OAuth2 and receives a JWT token.
+
+## Constraints
+TLS 1.3 is required for all connections.
+
+## Exclusions
+None.
+
+## Acceptance Criteria
+- [ ] **Auth**: Login flow completes.
+
+## Context
+Test.
+`;
+		const result = checkLowConfidence(spec);
+		expect(result.status).toBe("PASS");
+	});
+
+	it("should FAIL when spec contains low-confidence words", () => {
+		const spec = `# Spec: Test
+
+## Outcome
+O usuário provavelmente consegue fazer login.
+
+## Constraints
+Test.
+
+## Exclusions
+Test.
+
+## Acceptance Criteria
+- [ ] **Test**: Test.
+
+## Context
+Test.
+`;
+		const result = checkLowConfidence(spec);
+		expect(result.status).toBe("FAIL");
+		expect(result.note).toContain("provavelmente");
 	});
 });
