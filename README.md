@@ -45,6 +45,20 @@ letra lint
 letra validate
 ```
 
+## Validação de Specs
+
+O `letra validate` analisa automaticamente suas specs em busca de problemas comuns. São 7 verificações que rodam em toda spec:
+
+| Verificação | O que ela pega | Exemplo real |
+|---|---|---|
+| **Seções Vazias** | Seções que ficaram com o texto do template ou quase vazias | Você cria uma spec, copia o template, esquece de preencher o "Outcome". A verificação avisa que aquela seção ainda tem o texto padrão. |
+| **Conteúdo Mínimo** | Outcome muito curto, sem detalhe do que será feito | Escrever "Fazer o login" como Outcome não descreve o suficiente. A verificação sugere expandir. |
+| **ACs sem Métrica** | Critérios de aceite vagos, que não dá pra saber se passaram ou falharam | Escrever "Melhorar a performance" não é mensurável. O certo seria "Tempo de resposta < 200ms". |
+| **Consistência de Terminologia** | Termos definidos no glossário que não foram usados na spec | O glossário define "JWT" mas a spec chama de "token mágico". A verificação alerta para usar o termo oficial. |
+| **Detecção de Tom** | Gírias e linguagem informal em specs que deveriam ser formais | Escrever "blz" ou "tipo" numa spec que descreve um sistema crítico. |
+| **Baixa Confiança** | Palavras que mostram incerteza sobre o que está sendo especificado | "O sistema **provavelmente** valida o token" — não tem "provavelmente" numa especificação. É tudo certo ou não é. |
+| **Drift Temporal** | Specs que não são atualizadas há mais de 30 dias | A spec de autenticação foi escrita em janeiro, mas o código foi alterado em maio. A verificação alerta que a spec pode estar desatualizada. |
+
 ## Estrutura de Memória
 
 ```
