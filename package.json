@@ -10,7 +10,7 @@
 	"types": "./dist/index.d.ts",
 	"scripts": {
 		"dev": "tsx src/index.ts",
-		"build": "tsup src/index.ts --format cjs,esm --dts --clean",
+		"build": "tsup",
 		"build:binary": "pkg . --out-path dist/bin",
 		"lint": "biome check src/",
 		"typecheck": "tsc --noEmit",

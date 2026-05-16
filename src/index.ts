@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import decisionCommand from "./commands/decision.js";
 import focus from "./commands/focus.js";
@@ -6,12 +9,17 @@ import { lint } from "./commands/lint.js";
 import { specNew } from "./commands/spec.js";
 import { validate } from "./commands/validate.js";
 
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
+const pkg = JSON.parse(
+	readFileSync(join(resolve(__dirname, ".."), "package.json"), "utf-8"),
+);
+
 const program = new Command();
 
 program
 	.name("letra")
 	.description("SDD-agnostic memory framework for AI coding agents")
-	.version("0.0.1");
+	.version(pkg.version);
 
 program
 	.command("init [path]")
