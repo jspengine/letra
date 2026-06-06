@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import decisionCommand from "./commands/decision.js";
+import flowCommand from "./commands/flow.js";
 import focus from "./commands/focus.js";
 import { init } from "./commands/init.js";
 import { lint } from "./commands/lint.js";
@@ -49,6 +50,7 @@ program
 	.action((path, options) => validate(path, { ...options }));
 
 program.addCommand(decisionCommand());
+program.addCommand(flowCommand());
 program.addCommand(focus());
 
 program.parse();
