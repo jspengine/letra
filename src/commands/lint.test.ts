@@ -89,4 +89,89 @@ Why we are building this. Trade-offs considered.
 		expect(exitCode).toBe(1);
 		process.exit = originalExit;
 	});
+
+	it("should warn when spec exceeds 3000 chars", async () => {
+		const specName = "long-spec";
+		const specDir = join(tmpDir, ".letra", "specs", specName);
+		mkdirSync(specDir, { recursive: true });
+
+		const longSpec = `# Spec: ${specName}
+
+## Outcome
+${"A".repeat(500)}
+
+## Constraints
+${"B".repeat(500)}
+
+## Exclusions
+${"C".repeat(500)}
+
+## Acceptance Criteria
+- [ ] **Critério 1**: ${"D".repeat(500)}
+- [ ] **Critério 2**: ${"E".repeat(500)}
+
+## Context
+${"F".repeat(500)}
+`;
+
+		writeFileSync(join(specDir, "spec.md"), longSpec);
+
+		const originalExit = process.exit;
+		let exitCode = 0;
+		process.exit = (code?: number) => {
+			exitCode = code || 0;
+			throw new Error("exit");
+		};
+
+		try {
+			await lint(tmpDir);
+		} catch (e) {
+			// Expected
+		}
+
+		expect(exitCode).toBe(0);
+		process.exit = originalExit;
+	});
+
+	it("should fail for spec with acceptance criteria section but no checklist", async () => {
+		const specName = "no-checklist";
+		const specDir = join(tmpDir, ".letra", "specs", specName);
+		mkdirSync(specDir, { recursive: true });
+
+		const spec = `# Spec: ${specName}
+
+## Outcome
+Some outcome.
+
+## Constraints
+Some constraints.
+
+## Exclusions
+Some exclusions.
+
+## Acceptance Criteria
+Some text but no checklist items.
+
+## Context
+Some context.
+`;
+
+		writeFileSync(join(specDir, "spec.md"), spec);
+
+		const originalExit = process.exit;
+		let exitCode = 0;
+		process.exit = (code?: number) => {
+			exitCode = code || 0;
+			throw new Error("exit");
+		};
+
+		try {
+			await lint(tmpDir);
+		} catch (e) {
+			// Expected
+		}
+
+		expect(exitCode).toBe(1);
+		process.exit = originalExit;
+	});
 });

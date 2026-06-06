@@ -65,21 +65,20 @@ export function getHeuristicConfig(
 	return config.heuristics[key] ?? { severity: "warning" };
 }
 
-function heuristicKey(label: string): string {
-	const lower = label.toLowerCase();
+function normalize(str: string): string {
+	return str.normalize("NFD").replace(/\p{M}/gu, "");
+}
 
-	if (lower.includes("conteudo mínimo") || lower.includes("conteudo minimo"))
-		return "conteudo-minimo";
+function heuristicKey(label: string): string {
+	const lower = normalize(label.toLowerCase());
+
+	if (lower.includes("conteudo minimo")) return "conteudo-minimo";
 	if (lower.includes("terminologia")) return "consistencia-terminologia";
 	if (lower.includes("tom")) return "detecao-tom";
-	if (lower.includes("drift temporal") || lower.includes("temporal"))
-		return "drift-temporal";
-	if (lower.includes("seções vazias") || lower.includes("secoes vazias"))
-		return "secoes-vazias";
-	if (lower.includes("acs sem métrica") || lower.includes("acs sem metrica"))
-		return "acs-sem-metrica";
-	if (lower.includes("baixa confiança") || lower.includes("baixa confianca"))
-		return "baixa-confianca";
+	if (lower.includes("drift temporal")) return "drift-temporal";
+	if (lower.includes("secoes vazias")) return "secoes-vazias";
+	if (lower.includes("acs sem metrica")) return "acs-sem-metrica";
+	if (lower.includes("baixa confianca")) return "baixa-confianca";
 	if (lower.includes("validate conflict")) return "validate-conflict";
 
 	return lower.replace(/\s+/g, "-");
