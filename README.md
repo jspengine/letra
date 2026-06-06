@@ -65,6 +65,14 @@ letra decision list
 letra focus validate-conflict
 letra focus                          # ver foco atual
 letra focus --clear                  # limpar foco
+
+# Gerenciar workflow (Flow MVP)
+letra flow init --quick              # wizard 3 perguntas
+letra flow backlog add "Descrição"   # adicionar item ao backlog
+letra flow backlog list              # listar todos os itens
+letra flow move ITEM-1 --to Code     # mover item por ID
+letra flow move "Descrição" --to Review  # mover por descrição
+letra flow board                     # board visual por estágio
 ```
 
 ## Validação de Specs
@@ -113,6 +121,33 @@ O `letra validate` analisa automaticamente suas specs em busca de problemas comu
 ### Architecture Decision Records
 
 `letra decision new <título>` cria ADRs em `.letra/decisions/` com template Contexto → Decisão → Consequências, data automática e status `proposed`. `letra decision list` lista todos os ADRs.
+
+### Flow — Gerenciamento de Workflow (MVP)
+
+`letra flow` gerencia seu processo de trabalho com estágios, itens e adapters que mantêm agentes de IA sincronizados com o contexto atual.
+
+```bash
+letra flow init --quick
+# → Wizard com 3 perguntas (nome, estágios, ferramentas)
+# → Gera .letra/workflow.json com versão 1.0
+
+letra flow backlog add "Implementar login"
+# → Adiciona ITEM-1 ao primeiro estágio (Backlog)
+# → IDs auto-incrementais: ITEM-1, ITEM-2, ITEM-3...
+
+letra flow backlog list
+# → Tabela com ID, descrição, estágio e idade de todos os itens
+
+letra flow move ITEM-1 --to Code
+letra flow move "Implementar login" --to Review
+# → Move entre estágios por ID ou descrição
+# → Regenera automaticamente AGENTS.md, .cursorrules, etc.
+# → Adapters refletem estágio atual e itens ativos
+
+letra flow board
+# → Board visual: estágios, contagem de itens, itens ativos
+# → Estágios vazios marcados como (empty)
+```
 
 ### Session Focus
 
@@ -169,6 +204,13 @@ npx @letra-ai/cli spec auth
 
 # Validar se o código cumpre os acceptance criteria
 npx @letra-ai/cli validate
+
+# Ou usar o Flow para gerenciar o processo
+npx @letra-ai/cli flow init --quick
+npx @letra-ai/cli flow backlog add "Tela de login"
+npx @letra-ai/cli flow move ITEM-1 --to Code
+npx @letra-ai/cli flow move ITEM-1 --to Review
+npx @letra-ai/cli flow board
 ```
 
 ## Desenvolvimento
