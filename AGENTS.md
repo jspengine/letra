@@ -16,6 +16,7 @@
 2. **Validação**: Rode `letra lint` para checar formato das specs e `letra validate` para ver acceptance criteria.
 3. **Constraints**: Siga a constituição. TypeScript estrito, specs thin, sem pseudo-código.
 4. **Commits**: Mensagens concisas no padrão `tipo: descrição`. Ex: `feat: add validate smoke tests`.
+5. **Teste local obrigatório antes de todo PR**: `npm run build` → `npm install -g .` → testar em temp dir. Só subir PR se o teste local passar.
 
 ## Regra de Comunicação
 
