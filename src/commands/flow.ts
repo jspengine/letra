@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { backlogActionAdd, backlogActionList } from "./flow-backlog.js";
 import { flowInitAction } from "./flow-init.js";
+import { flowMoveAction } from "./flow-move.js";
 
 export default function flowCommand() {
 	const cmd = new Command("flow");
@@ -27,6 +28,14 @@ export default function flowCommand() {
 		.description("List all items with stage and age")
 		.action(() => {
 			backlogActionList(undefined);
+		});
+
+	cmd
+		.command("move <item-id>")
+		.requiredOption("--to <stage>", "Target stage id or name")
+		.description("Move item to another stage and regenerate adapters")
+		.action((itemId: string, options: { to: string }) => {
+			flowMoveAction(undefined, itemId, options);
 		});
 
 	return cmd;
