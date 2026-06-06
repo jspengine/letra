@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { backlogActionAdd, backlogActionList } from "./flow-backlog.js";
+import { flowBoardAction } from "./flow-board.js";
 import { flowInitAction } from "./flow-init.js";
 import { flowMoveAction } from "./flow-move.js";
 
@@ -36,6 +37,13 @@ export default function flowCommand() {
 		.description("Move item to another stage and regenerate adapters")
 		.action((itemId: string, options: { to: string }) => {
 			flowMoveAction(undefined, itemId, options);
+		});
+
+	cmd
+		.command("board")
+		.description("Show board with all stages and items")
+		.action(() => {
+			flowBoardAction(undefined);
 		});
 
 	return cmd;
