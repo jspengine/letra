@@ -18,13 +18,13 @@ Usuário edita metadados do workflow diretamente via CLI (nome, descrição) e v
 - Diff interativo com staging
 
 ## Acceptance Criteria
-- [ ] `letra flow edit --name "Novo"` atualiza nome e versiona
-- [ ] `letra flow edit --desc "Desc"` atualiza descrição
-- [ ] Versionamento incrementa (1.0.0 → 1.1.0) a cada edição
-- [ ] Backup da versão anterior é salvo
-- [ ] `flow diff` mostra diferenças entre atual e último backup
-- [ ] `flow diff v1.0.0 v1.1.0` compara versões específicas
-- [ ] Testado localmente antes do PR
+- [ ] **`letra flow edit --name "Novo"`**: atualiza nome e versiona
+- [ ] **`letra flow edit --desc "Desc"`**: atualiza descrição
+- [ ] **Versionamento**: incrementa (1.0.0 → 1.1.0) a cada edição
+- [ ] **Backup**: da versão anterior é salvo
+- [ ] **`flow diff`**: mostra diferenças entre atual e último backup
+- [ ] **`flow diff v1.0.0 v1.1.0`**: compara versões específicas
+- [ ] **Testado localmente**: antes do PR
 
 ## Context
 Feature P1 do Flow MVP. Versionamento semântico para rastrear mudanças no workflow.
