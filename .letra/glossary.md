@@ -14,3 +14,8 @@
 | **Spec-Anchored** | Modelo onde a spec vive junto com o código e é atualizada como parte do DoD. |
 | **Control Plane** | Repo central que mantém specs e contexto global em setups multi-repo. |
 | **Dogfood** | Usar o próprio produto para construir o produto. |
+| **Workflow** | Conjunto de estágios (Backlog → Design → Code → Review → Done) que definem o processo de trabalho. Armazenado em `.letra/workflow.json`. |
+| **Flow Board** | Visualização no terminal de todos os estágios com contagem de itens e itens ativos. |
+| **Backlog** | Primeiro estágio do workflow, onde itens são adicionados antes de serem movidos para outros estágios. |
+| **Item** | Unidade de trabalho no workflow, com ID (ITEM-1, ITEM-2), descrição, estágio atual e data de criação. |
+| **Adapter Regeneration** | Processo automático que atualiza AGENTS.md, .cursorrules, CLAUDE.md, etc. com o estágio atual e itens ativos após cada `flow move`. |

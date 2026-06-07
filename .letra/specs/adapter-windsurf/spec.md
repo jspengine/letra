@@ -17,10 +17,10 @@ O Windsurf (Cognition/Codeium) lê automaticamente o contexto `.letra/` ao abrir
 
 ## Acceptance Criteria
 
-- [ ] **Geração de Regras**: `letra init` cria `.windsurfrules` com referências a `.letra/context.md`, `.letra/constitution.md` e `.letra/glossary.md`.
-- [ ] **Injeção de Contexto**: Ao abrir projeto no Windsurf, o agente injeta os arquivos `.letra/` no contexto.
-- [ ] **Acesso a Validação**: Agente consegue executar `letra validate` e ler output.
-- [ ] **Não-intrusivo**: O adapter não modifica arquivos além de criar `.windsurfrules` na raiz.
+- [x] **Geração de Regras**: `letra init` cria `.windsurfrules` com referências a `.letra/context.md`, `.letra/constitution.md` e `.letra/glossary.md`.
+- [x] **Injeção de Contexto**: Ao abrir projeto no Windsurf, o agente injeta os arquivos `.letra/` no contexto.
+- [x] **Acesso a Validação**: Agente consegue executar `letra validate` e ler output.
+- [x] **Não-intrusivo**: O adapter não modifica arquivos além de criar `.windsurfrules` na raiz.
 
 ## Context
 
