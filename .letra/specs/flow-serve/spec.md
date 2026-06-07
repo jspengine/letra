@@ -1,0 +1,45 @@
+# Spec: flow serve
+
+## Outcome
+Usuário sobe um servidor web local que exibe o board do workflow em tempo real, acessível pelo navegador.
+
+## Constraints
+- Zero dependências externas — usa `node:http`, `node:fs`, `node:path`
+- SSE (Server-Sent Events) para atualização em tempo real
+- Interface HTML responsiva, sem framework JS
+- Porta padrão 3000, configurável via `--port`
+- Detecta mudanças no `.letra/workflow.json` via `fs.watch`
+- Abre o navegador automaticamente com `--open`
+
+## Architecture
+
+```
+flow-serve.ts
+└── FlowServer
+    ├── start()      — HTTP + SSE server
+    ├── handleIndex  — GET /  → HTML board
+    ├── handleAPI    — GET /api/workflow → JSON
+    ├── handleEvents — GET /events → SSE stream
+    └── watcher      — fs.watch → broadcast SSE
+```
+
+## Acceptance Criteria
+- [ ] **`letra flow serve`** sobe servidor em `http://localhost:3000`
+- [ ] **`letra flow serve --port 8080`** usa porta customizada
+- [ ] **`letra flow serve --open`** abre navegador automaticamente
+- [ ] **`GET /`** renderiza board HTML com estágios, itens e contagem
+- [ ] **`GET /api/workflow`** retorna JSON do workflow
+- [ ] **`GET /events`** stream SSE; ao salvar workflow.json, envia evento `workflow-updated`
+- [ ] Board HTML é atualizado automaticamente via SSE
+- [ ] Sem workflow: exibe mensagem "No workflow found"
+- [ ] **Ctrl+C** para o servidor graciosamente
+- [ ] Testado localmente antes do PR
+
+## Exclusions
+- WebSocket (SSE é suficiente para o MVP)
+- Autenticação, HTTPS
+- Build step ou bundler
+- Hot reload com WebSocket
+
+## Context
+Feature v0.3.0 do Flow. Primeiro passo para uma web UI. Arquitetura preparada para futuro: o `FlowServer` pode ser estendido com novas rotas e o HTML pode evoluir para SPA sem mudar a API.
