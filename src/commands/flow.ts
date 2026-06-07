@@ -5,6 +5,7 @@ import { flowDiffAction, flowEditAction } from "./flow-edit-diff.js";
 import { flowExportAction, flowImportAction } from "./flow-export-import.js";
 import { flowInitAction } from "./flow-init.js";
 import { flowMoveAction } from "./flow-move.js";
+import { flowServeAction } from "./flow-serve.js";
 import { flowVisualizeAction } from "./flow-visualize.js";
 
 export default function flowCommand() {
@@ -62,6 +63,18 @@ export default function flowCommand() {
 		.description("Import workflow from a JSON file")
 		.action((file: string) => {
 			flowImportAction(undefined, file);
+		});
+
+	cmd
+		.command("serve")
+		.option("--port <number>", "Port to listen on", "3000")
+		.option("--open", "Open browser automatically")
+		.description("Start local web server with live board")
+		.action((options: { port?: string; open?: boolean }) => {
+			flowServeAction(undefined, {
+				port: options.port ? Number(options.port) : undefined,
+				open: options.open,
+			});
 		});
 
 	cmd
