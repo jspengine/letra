@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { backlogActionAdd, backlogActionList } from "./flow-backlog.js";
 import { flowBoardAction } from "./flow-board.js";
+import { flowDiffAction, flowEditAction } from "./flow-edit-diff.js";
 import { flowExportAction, flowImportAction } from "./flow-export-import.js";
 import { flowInitAction } from "./flow-init.js";
 import { flowMoveAction } from "./flow-move.js";
@@ -69,6 +70,23 @@ export default function flowCommand() {
 		.description("Generate Mermaid diagram of workflow")
 		.action((options: { output?: string }) => {
 			flowVisualizeAction(undefined, options);
+		});
+
+	cmd
+		.command("edit")
+		.option("--name <name>", "New workflow name")
+		.option("--desc <desc>", "New workflow description")
+		.description("Edit workflow metadata")
+		.action((options: { name?: string; desc?: string }) => {
+			flowEditAction(undefined, options);
+		});
+
+	cmd
+		.command("diff [v1] [v2]")
+		.description("Show diff between workflow versions")
+		.action((...args: unknown[]) => {
+			const strings = args.filter((a): a is string => typeof a === "string");
+			flowDiffAction(undefined, strings[0], strings[1]);
 		});
 
 	return cmd;
