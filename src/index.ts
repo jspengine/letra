@@ -28,8 +28,10 @@ program
 	.description("Initialize .letra/ directory with templates")
 	.action((path, options) => init(path, { ...options }));
 
-program
-	.command("spec <name>")
+const specCmd = program.command("spec").description("Manage specs");
+
+specCmd
+	.command("new <name>")
 	.option(
 		"--template <type>",
 		"Template type: web-api, cli-tool, mobile-feature",
