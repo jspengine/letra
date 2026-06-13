@@ -1,9 +1,9 @@
 {
   "version": "1.0",
   "name": "letra",
-  "description": "Specification-Driven Development framework — CLI, adapters, and .letra memory format for capturing direction, intent, and context.",
+  "description": "SDD-agnostic memory framework for AI coding agents",
   "createdAt": "2026-06-07T21:45:54.843Z",
-  "updatedAt": "2026-06-13T19:56:59.995Z",
+  "updatedAt": "2026-06-13T20:05:48.112Z",
   "stages": [
     {
       "id": "backlog",
@@ -47,56 +47,56 @@
       "id": "ITEM-2",
       "description": "adapter claude code",
       "spec": "adapter-claude-code",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-3",
       "description": "adapter codex cli",
       "spec": "adapter-codex-cli",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-4",
       "description": "adapter cursor",
       "spec": "adapter-cursor",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-5",
       "description": "adapter opencode",
       "spec": "adapter-opencode",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-6",
       "description": "adapter vscode",
       "spec": "adapter-vscode",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-7",
       "description": "adapter windsurf",
       "spec": "adapter-windsurf",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-8",
       "description": "ci cd pipeline",
       "spec": "ci-cd-pipeline",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-9",
       "description": "cli skeleton",
       "spec": "cli-skeleton",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {

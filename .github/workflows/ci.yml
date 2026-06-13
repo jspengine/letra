@@ -17,7 +17,7 @@ jobs:
           node-version: 22.x
           cache: "npm"
       - run: npm ci
-      - run: npm run dev -- lint
+      - run: npm -w packages/cli run dev -- lint
 
   typecheck:
     name: Type Check
@@ -53,4 +53,4 @@ jobs:
           node-version: 22.x
           cache: "npm"
       - run: npm ci
-      - run: npm run dev -- validate
+      - run: npm -w packages/cli run dev -- validate
