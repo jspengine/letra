@@ -50,11 +50,12 @@ function createImportWorkflow(): Workflow {
 
 describe("flow-export-import", () => {
 	let tmpDir: string;
+	let consoleSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
 		tmpDir = join(tmpdir(), `letra-flow-export-import-test-${Date.now()}`);
 		mkdirSync(tmpDir, { recursive: true });
-		vi.spyOn(console, "log").mockImplementation(() => {});
+		consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 	});
 
 	afterEach(() => {
@@ -74,8 +75,7 @@ describe("flow-export-import", () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 			flowExport(tmpDir);
-			const output = (console.log as ReturnType<typeof vi.spyOn>).mock
-				.calls[0][0] as string;
+			const output = (consoleSpy.mock.calls[0][0] ?? "") as string;
 			expect(output).toContain('"name": "test-project"');
 			expect(output).toContain("  ");
 		});
@@ -84,8 +84,7 @@ describe("flow-export-import", () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 			flowExport(tmpDir, { minified: true });
-			const output = (console.log as ReturnType<typeof vi.spyOn>).mock
-				.calls[0][0] as string;
+			const output = (consoleSpy.mock.calls[0][0] ?? "") as string;
 			expect(output).toContain('"name":"test-project"');
 			expect(output).not.toContain("  ");
 		});

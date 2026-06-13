@@ -3,7 +3,7 @@
   "name": "letra",
   "description": "SDD-agnostic memory framework for AI coding agents",
   "createdAt": "2026-06-07T21:45:54.843Z",
-  "updatedAt": "2026-06-13T20:05:48.112Z",
+  "updatedAt": "2026-06-13T20:06:25.825Z",
   "stages": [
     {
       "id": "backlog",
@@ -103,42 +103,42 @@
       "id": "ITEM-10",
       "description": "decision new",
       "spec": "decision-new",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-11",
       "description": "design system",
       "spec": "design-system",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-12",
       "description": "flow designer",
       "spec": "flow-designer",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-13",
       "description": "flow edit diff",
       "spec": "flow-edit-diff",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-14",
       "description": "flow export import",
       "spec": "flow-export-import",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-15",
       "description": "flow hub redesign",
       "spec": "flow-hub-redesign",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
