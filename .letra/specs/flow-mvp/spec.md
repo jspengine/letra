@@ -1,4 +1,4 @@
-# Spec: Flow MVP
+# Spec: flow-mvp
 
 ## Outcome
 
@@ -37,4 +37,4 @@ Usuário consegue definir seu processo de trabalho com 3 perguntas, visualizar o
 
 ## Context
 
-Decisão ADR em `.letra/decisions/flow-mvp-escopo-enxuto-3-comandos-valor-imediato.md`. Este MVP prioriza entrega rápida de valor em detrimento de automações complexas. O modelo de dados em `.letra/flow/` foi desenhado para ser extensível sem quebrar versões anteriores.
+Decisão ADR em `.letra/decisions/flow-mvp-escopo-enxuto-3-comandos-valor-imediato.md`. Este MVP prioriza entrega rápida de valor em detrimento de automações complexas. O modelo de dados em `.letra/flow/` foi desenhado para ser extensível sem quebrar versões anteriores

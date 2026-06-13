@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@import "../../../ui/src/index.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+html {
+	background: var(--surface-1);
+	color: var(--text-primary);
+}
+
+body {
+	margin: 0;
+	padding: 2rem;
+	font-family: system-ui, -apple-system, sans-serif;
+}

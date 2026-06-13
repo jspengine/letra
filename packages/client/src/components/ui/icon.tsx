@@ -1,0 +1,101 @@
+import type { SVGAttributes } from "react";
+import { cn } from "../../lib/utils";
+
+const ICONS: Record<string, string[]> = {
+	home: ["M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"],
+	specs: [
+		"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z",
+		"M14 2v6h6",
+		"M16 13H8",
+		"M16 17H8",
+		"M10 9H8",
+	],
+	flow: [
+		"M4 16l4.586-4.586a2 2 0 0 1 2.828 0L16 16m-2-2l1.586-1.586a2 2 0 0 1 2.828 0L20 14m-6-6h.01M6 20h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z",
+	],
+	context: [
+		"M11 4a2 2 0 1 1 4 0v1a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a2 2 0 1 1 4 0z",
+		"M8 10h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z",
+	],
+	sun: [
+		"M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42",
+		"M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14z",
+	],
+	moon: ["M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"],
+	grid: [
+		"M16 3h5v5",
+		"M8 3H3v5",
+		"M3 16v5h5",
+		"M16 21h5v-5",
+		"M3 12h3",
+		"M18 12h3",
+		"M12 3v3",
+		"M12 18v3",
+	],
+	plus: ["M12 5v14", "M5 12h14"],
+	trash: [
+		"M3 6h18",
+		"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6",
+		"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
+		"M10 11v6",
+		"M14 11v6",
+	],
+	check: ["M20 6L9 17l-5-5"],
+	edit: [
+		"M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7",
+		"M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z",
+	],
+	search: [
+		"M21 21l-4.35-4.35",
+		"M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z",
+	],
+	info: [
+		"M12 16v-4",
+		"M12 8h.01",
+		"M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z",
+	],
+	"chevron-left": ["M15 18l-6-6 6-6"],
+	"chevron-right": ["M9 18l6-6-6-6"],
+	"arrow-up": ["M12 19V5", "M5 12l7-7 7 7"],
+	star: ["M12 2l3 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"],
+	"list-three": ["M4 6h16", "M4 12h16", "M4 18h16"],
+	settings: [
+		"M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z",
+		"M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+	],
+	cross: ["M3 12h3", "M18 12h3", "M12 3v3", "M12 18v3", "M5 5l14 14", "M5 19l14-14"],
+	x: ["M18 6l-12 12", "M6 6l12 12"],
+	"alert-triangle": ["M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z", "M12 9v4", "M12 17h.01"],
+};
+
+export type IconName = keyof typeof ICONS;
+
+interface IconProps extends SVGAttributes<SVGSVGElement> {
+	name: IconName;
+	size?: 14 | 16 | 20 | 24;
+}
+
+export function Icon({ name, size = 16, className, ...props }: IconProps) {
+	const paths = ICONS[name];
+	if (!paths) return null;
+
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			width={size}
+			height={size}
+			className={cn("shrink-0", className)}
+			aria-hidden="true"
+			{...props}
+		>
+			{paths.map((d, i) => (
+				<path key={i} d={d} />
+			))}
+		</svg>
+	);
+}

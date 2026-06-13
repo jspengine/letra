@@ -1,40 +1,31 @@
 {
-	"name": "@letra-ai/cli",
+	"name": "letra",
 	"version": "0.3.0",
-	"description": "SDD-agnostic memory framework for AI coding agents",
+	"private": true,
 	"type": "module",
 	"bin": {
-		"letra": "dist/index.js"
+		"letra": "packages/cli/dist/index.js"
 	},
-	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
-	"scripts": {
-		"dev": "tsx src/index.ts",
-		"build": "tsup",
-		"build:binary": "pkg . --out-path dist/bin",
-		"lint": "biome check src/",
-		"typecheck": "tsc --noEmit",
-		"test": "vitest run",
-		"test:watch": "vitest"
-	},
-	"keywords": [
-		"sdd",
-		"spec-driven-development",
-		"ai-coding",
-		"agent",
-		"memory",
-		"context"
+	"workspaces": [
+		"packages/types",
+		"packages/client",
+		"packages/cli",
+		"packages/ui",
+		"packages/design-toolkit"
 	],
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/letra-ai/letra.git"
-	},
-	"dependencies": {
-		"chalk": "^5.4.1",
-		"commander": "^12.1.0",
-		"glob": "^11.0.0",
-		"ora": "^9.3.0"
+	"scripts": {
+		"dev": "node scripts/dev.mjs",
+		"dev:client": "npm -w packages/client run dev",
+		"dev:cli": "npm -w packages/cli run dev",
+		"build": "node scripts/build-cli.mjs",
+		"build:client": "npm -w packages/client run build",
+		"lint": "biome check packages/",
+		"typecheck": "tsc --noEmit",
+		"test": "npm -w packages/cli run test",
+		"test:client": "npm -w packages/client run test",
+		"ds:playground": "npm -w packages/design-toolkit run playground",
+		"ds:check": "npm -w packages/design-toolkit run check",
+		"ds:validate": "npm -w packages/design-toolkit run validate"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
@@ -44,16 +35,6 @@
 		"tsx": "^4.20.6",
 		"typescript": "^5.8.3",
 		"vitest": "^3.2.4"
-	},
-	"pkg": {
-		"scripts": "dist/**/*.js",
-		"assets": ".letra/**/*",
-		"targets": [
-			"node22-win-x64",
-			"node22-linux-x64",
-			"node22-macos-x64"
-		],
-		"outputPath": "dist/bin"
 	},
 	"engines": {
 		"node": ">=22.0.0"

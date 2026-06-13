@@ -1,34 +1,39 @@
 {
   "version": "1.0",
-  "name": "cli",
+  "name": "letra",
   "description": "Specification-Driven Development framework — CLI, adapters, and .letra memory format for capturing direction, intent, and context.",
   "createdAt": "2026-06-07T21:45:54.843Z",
-  "updatedAt": "2026-06-07T21:48:45.235Z",
+  "updatedAt": "2026-06-13T19:56:59.995Z",
   "stages": [
     {
       "id": "backlog",
       "name": "Backlog",
-      "order": 0
+      "order": 0,
+      "zone": "todo"
     },
     {
       "id": "design",
       "name": "Design",
-      "order": 1
+      "order": 1,
+      "zone": "doing"
     },
     {
       "id": "code",
       "name": "Code",
-      "order": 2
+      "order": 2,
+      "zone": "doing"
     },
     {
       "id": "review",
       "name": "Review",
-      "order": 3
+      "order": 3,
+      "zone": "doing"
     },
     {
       "id": "done",
       "name": "Done",
-      "order": 4
+      "order": 4,
+      "zone": "done"
     }
   ],
   "items": [
@@ -37,8 +42,290 @@
       "description": "Branding: header Letra no flow serve + 3 opções de logo",
       "stage": "review",
       "createdAt": "2026-06-07T21:45:59.038Z"
+    },
+    {
+      "id": "ITEM-2",
+      "description": "adapter claude code",
+      "spec": "adapter-claude-code",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-3",
+      "description": "adapter codex cli",
+      "spec": "adapter-codex-cli",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-4",
+      "description": "adapter cursor",
+      "spec": "adapter-cursor",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-5",
+      "description": "adapter opencode",
+      "spec": "adapter-opencode",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-6",
+      "description": "adapter vscode",
+      "spec": "adapter-vscode",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-7",
+      "description": "adapter windsurf",
+      "spec": "adapter-windsurf",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-8",
+      "description": "ci cd pipeline",
+      "spec": "ci-cd-pipeline",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-9",
+      "description": "cli skeleton",
+      "spec": "cli-skeleton",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-10",
+      "description": "decision new",
+      "spec": "decision-new",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-11",
+      "description": "design system",
+      "spec": "design-system",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-12",
+      "description": "flow designer",
+      "spec": "flow-designer",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-13",
+      "description": "flow edit diff",
+      "spec": "flow-edit-diff",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-14",
+      "description": "flow export import",
+      "spec": "flow-export-import",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-15",
+      "description": "flow hub redesign",
+      "spec": "flow-hub-redesign",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-16",
+      "description": "flow import issues",
+      "spec": "flow-import-issues",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-17",
+      "description": "flow mvp",
+      "spec": "flow-mvp",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-18",
+      "description": "flow serve",
+      "spec": "flow-serve",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-19",
+      "description": "flow visualize",
+      "spec": "flow-visualize",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-20",
+      "description": "init interactive",
+      "spec": "init-interactive",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-21",
+      "description": "item 26 home rica",
+      "spec": "item-26-home-rica",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-22",
+      "description": "item 7 automacoes",
+      "spec": "item-7-automacoes",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-23",
+      "description": "session focus",
+      "spec": "session-focus",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-24",
+      "description": "spec templates domain",
+      "spec": "spec-templates-domain",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-25",
+      "description": "validate config",
+      "spec": "validate-config",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-26",
+      "description": "validate conflict",
+      "spec": "validate-conflict",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-27",
+      "description": "validate format pr",
+      "spec": "validate-format-pr",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-28",
+      "description": "validate intelligence",
+      "spec": "validate-intelligence",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-29",
+      "description": "validate watch",
+      "spec": "validate-watch",
+      "stage": "backlog",
+      "createdAt": "2026-06-07T22:00:00.000Z"
     }
   ],
+  "specLinks": {
+    "adapter-claude-code": {
+      "path": ".letra/specs/adapter-claude-code/spec.md"
+    },
+    "adapter-codex-cli": {
+      "path": ".letra/specs/adapter-codex-cli/spec.md"
+    },
+    "adapter-cursor": {
+      "path": ".letra/specs/adapter-cursor/spec.md"
+    },
+    "adapter-opencode": {
+      "path": ".letra/specs/adapter-opencode/spec.md"
+    },
+    "adapter-vscode": {
+      "path": ".letra/specs/adapter-vscode/spec.md"
+    },
+    "adapter-windsurf": {
+      "path": ".letra/specs/adapter-windsurf/spec.md"
+    },
+    "ci-cd-pipeline": {
+      "path": ".letra/specs/ci-cd-pipeline/spec.md"
+    },
+    "cli-skeleton": {
+      "path": ".letra/specs/cli-skeleton/spec.md"
+    },
+    "decision-new": {
+      "path": ".letra/specs/decision-new/spec.md"
+    },
+    "design-system": {
+      "path": ".letra/specs/design-system/spec.md"
+    },
+    "flow-designer": {
+      "path": ".letra/specs/flow-designer/spec.md"
+    },
+    "flow-edit-diff": {
+      "path": ".letra/specs/flow-edit-diff/spec.md"
+    },
+    "flow-export-import": {
+      "path": ".letra/specs/flow-export-import/spec.md"
+    },
+    "flow-hub-redesign": {
+      "path": ".letra/specs/flow-hub-redesign/spec.md"
+    },
+    "flow-import-issues": {
+      "path": ".letra/specs/flow-import-issues/spec.md"
+    },
+    "flow-mvp": {
+      "path": ".letra/specs/flow-mvp/spec.md"
+    },
+    "flow-serve": {
+      "path": ".letra/specs/flow-serve/spec.md"
+    },
+    "flow-visualize": {
+      "path": ".letra/specs/flow-visualize/spec.md"
+    },
+    "init-interactive": {
+      "path": ".letra/specs/init-interactive/spec.md"
+    },
+    "item-26-home-rica": {
+      "path": ".letra/specs/item-26-home-rica/spec.md"
+    },
+    "item-7-automacoes": {
+      "path": ".letra/specs/item-7-automacoes/spec.md"
+    },
+    "session-focus": {
+      "path": ".letra/specs/session-focus/spec.md"
+    },
+    "spec-templates-domain": {
+      "path": ".letra/specs/spec-templates-domain/spec.md"
+    },
+    "validate-config": {
+      "path": ".letra/specs/validate-config/spec.md"
+    },
+    "validate-conflict": {
+      "path": ".letra/specs/validate-conflict/spec.md"
+    },
+    "validate-format-pr": {
+      "path": ".letra/specs/validate-format-pr/spec.md"
+    },
+    "validate-intelligence": {
+      "path": ".letra/specs/validate-intelligence/spec.md"
+    },
+    "validate-watch": {
+      "path": ".letra/specs/validate-watch/spec.md"
+    }
+  },
   "tools": [
     "cursor",
     "opencode",

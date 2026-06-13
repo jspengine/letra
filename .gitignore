@@ -4,3 +4,7 @@ dist/
 .DS_Store
 .env
 .letra/specs/*/status.md
+
+# Workflow backups.letra/backups/.letra/workflow.v*.json
+# OpenCode local config.opencode/
+# Workflow backups.letra/workflow.v*.json
