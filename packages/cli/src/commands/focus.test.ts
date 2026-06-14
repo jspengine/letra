@@ -1,10 +1,4 @@
-import {
-	existsSync,
-	mkdirSync,
-	readFileSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -65,9 +59,7 @@ describe("focus command", () => {
 		await cmd.parseAsync(["node", "test"]);
 
 		expect(logSpy).toHaveBeenCalled();
-		expect(
-			logSpy.mock.calls.some((call) => call[0].includes("Focus: auth")),
-		).toBe(true);
+		expect(logSpy.mock.calls.some((call) => call[0].includes("Focus: auth"))).toBe(true);
 
 		logSpy.mockRestore();
 	});
@@ -81,9 +73,7 @@ describe("focus command", () => {
 		await cmd.parseAsync(["node", "test"]);
 
 		expect(logSpy).toHaveBeenCalled();
-		expect(
-			logSpy.mock.calls.some((call) => call[0].includes("Nenhum foco")),
-		).toBe(true);
+		expect(logSpy.mock.calls.some((call) => call[0].includes("Nenhum foco"))).toBe(true);
 
 		logSpy.mockRestore();
 	});

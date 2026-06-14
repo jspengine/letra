@@ -39,7 +39,10 @@ export function Dialog({ open, onClose, title, children, actions }: DialogProps)
 				aria-modal="true"
 				aria-label={title}
 			>
-				<div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+				<div
+					className="flex items-center justify-between px-4 py-3 border-b"
+					style={{ borderColor: "var(--border)" }}
+				>
 					<h2 className="text-sm font-semibold">{title}</h2>
 					<button
 						onClick={onClose}
@@ -50,11 +53,12 @@ export function Dialog({ open, onClose, title, children, actions }: DialogProps)
 						✕
 					</button>
 				</div>
-				<div className="px-4 py-3">
-					{children}
-				</div>
+				<div className="px-4 py-3">{children}</div>
 				{actions && (
-					<div className="flex justify-end gap-2 px-4 py-3 border-t" style={{ borderColor: "var(--border)" }}>
+					<div
+						className="flex justify-end gap-2 px-4 py-3 border-t"
+						style={{ borderColor: "var(--border)" }}
+					>
 						{actions}
 					</div>
 				)}
@@ -100,7 +104,10 @@ export function ConfirmDialog({
 						{cancelLabel}
 					</button>
 					<button
-						onClick={() => { onConfirm(); onClose(); }}
+						onClick={() => {
+							onConfirm();
+							onClose();
+						}}
 						className={cn(
 							"inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-transparent cursor-pointer",
 							variant === "danger"
@@ -170,7 +177,10 @@ export function PromptDialog({
 					<button
 						onClick={() => {
 							const val = inputRef.current?.value.trim();
-							if (val) { onSubmit(val); onClose(); }
+							if (val) {
+								onSubmit(val);
+								onClose();
+							}
 						}}
 						className={cn(
 							"inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-transparent text-primary-foreground cursor-pointer",
@@ -199,7 +209,10 @@ export function PromptDialog({
 					onKeyDown={(e) => {
 						if (e.key === "Enter") {
 							const val = inputRef.current?.value.trim();
-							if (val) { onSubmit(val); onClose(); }
+							if (val) {
+								onSubmit(val);
+								onClose();
+							}
 						}
 					}}
 				/>

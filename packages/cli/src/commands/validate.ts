@@ -11,12 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
-import {
-	type Config,
-	type HeuristicConfig,
-	getHeuristicConfig,
-	loadConfig,
-} from "../config.js";
+import { type Config, type HeuristicConfig, getHeuristicConfig, loadConfig } from "../config.js";
 
 const placeholderPatterns = [
 	/o que o usu[áa]rio consegue fazer quando isso estiver pronto/i,
@@ -58,8 +53,7 @@ export function checkSpecContent(
 	const specFile = join(specDir, "spec.md");
 	const glossaryFile = join(specDir, "..", "..", "glossary.md");
 
-	if (!existsSync(specFile))
-		return { status: "FAIL" as const, note: "(spec.md not found)" };
+	if (!existsSync(specFile)) return { status: "FAIL" as const, note: "(spec.md not found)" };
 
 	const specContent = readFileSync(specFile, "utf-8");
 	const now = new Date();
@@ -67,8 +61,7 @@ export function checkSpecContent(
 	// Verificação de Conteúdo Mínimo
 	if (label.includes("Conteúdo Mínimo")) {
 		const outcomeMatch = specContent.match(/## Outcome\s+([\s\S]*?)(?=\n## )/);
-		if (!outcomeMatch)
-			return { status: "FAIL" as const, note: "(no Outcome section)" };
+		if (!outcomeMatch) return { status: "FAIL" as const, note: "(no Outcome section)" };
 		const outcomeContent = outcomeMatch[1].trim();
 		const heurConfig = getHeuristicConfig(cfg, label);
 		const minChars = heurConfig.minChars ?? 50;
@@ -85,10 +78,7 @@ export function checkSpecContent(
 	}
 
 	// Consistência de Terminologia
-	if (
-		label.includes("Consistência de Terminologia") ||
-		label.includes("Terminologia")
-	) {
+	if (label.includes("Consistência de Terminologia") || label.includes("Terminologia")) {
 		if (!existsSync(glossaryFile)) {
 			return {
 				status: "PASS" as const,
@@ -140,9 +130,7 @@ export function checkSpecContent(
 	// Drift Temporal
 	if (label.includes("Drift Temporal") || label.includes("Temporal")) {
 		const stat = statSync(specFile);
-		const daysOld = Math.floor(
-			(now.getTime() - stat.mtimeMs) / (1000 * 60 * 60 * 24),
-		);
+		const daysOld = Math.floor((now.getTime() - stat.mtimeMs) / (1000 * 60 * 60 * 24));
 		const heurConfig = getHeuristicConfig(cfg, label);
 		const maxDays = heurConfig.maxDays ?? 30;
 		if (daysOld < maxDays) {
@@ -206,9 +194,7 @@ export function checkBinaryCriteria(specContent: string): {
 	status: "PASS" | "FAIL";
 	note: string;
 } {
-	const acMatch = specContent.match(
-		/## Acceptance Criteria\s+([\s\S]*?)(?=\n## |\n*$)/,
-	);
+	const acMatch = specContent.match(/## Acceptance Criteria\s+([\s\S]*?)(?=\n## |\n*$)/);
 	if (!acMatch) {
 		return {
 			status: "FAIL" as const,
@@ -225,9 +211,7 @@ export function checkBinaryCriteria(specContent: string): {
 	for (const line of criteriaLines) {
 		const description = line.replace(/- \[[ x]\] \*\*.+?\*\*:\s*/, "");
 		const hasMetric = /\d+/.test(description);
-		const hasVagueVerb = vagueVerbs.some((v) =>
-			description.toLowerCase().includes(v),
-		);
+		const hasVagueVerb = vagueVerbs.some((v) => description.toLowerCase().includes(v));
 		if (!hasMetric && hasVagueVerb) {
 			const labelMatch = line.match(/\*\*(.+?)\*\*/);
 			if (labelMatch) nonBinary.push(labelMatch[1]);
@@ -453,9 +437,7 @@ function out(
 	if (level === "info") {
 		console.log(`  ${message}`);
 	} else {
-		console.log(
-			`    [${icon}] ${chalk.cyan(label)}: ${message} ${chalk.gray(note)}`,
-		);
+		console.log(`    [${icon}] ${chalk.cyan(label)}: ${message} ${chalk.gray(note)}`);
 	}
 }
 
@@ -569,10 +551,7 @@ export async function validate(
 		let totalPass = 0;
 		let totalFail = 0;
 		let totalWarning = 0;
-		const specGroups = new Map<
-			string,
-			{ pass: number; fail: number; warning: number }
-		>();
+		const specGroups = new Map<string, { pass: number; fail: number; warning: number }>();
 		const allResults: Array<{
 			level: "pass" | "fail" | "warning";
 			spec: string;
@@ -620,9 +599,7 @@ export async function validate(
 			}
 
 			const criteriaLines = content.match(/- \[ \] \*\*(.+?)\*\*: (.+)/g) || [];
-			const specContent = existsSync(specFile)
-				? readFileSync(specFile, "utf-8")
-				: null;
+			const specContent = existsSync(specFile) ? readFileSync(specFile, "utf-8") : null;
 
 			out(fmt, "info", entry.name, "", `Spec: ${entry.name}`, "");
 
@@ -658,8 +635,7 @@ export async function validate(
 						} else if (label.includes("letra init")) {
 							const tmp = mkdtempSync(join(tmpdir(), "letra-test-"));
 							execSync(`npx tsx "${entryPoint}" init "${tmp}"`, { ...opts });
-							if (existsSync(join(tmp, ".letra", "context.md")))
-								status = "PASS";
+							if (existsSync(join(tmp, ".letra", "context.md"))) status = "PASS";
 							rmSync(tmp, { recursive: true });
 						} else if (label.includes("letra spec")) {
 							const tmp = mkdtempSync(join(tmpdir(), "letra-test-"));
@@ -668,11 +644,7 @@ export async function validate(
 								...opts,
 								cwd: tmp,
 							});
-							if (
-								existsSync(
-									join(tmp, ".letra", "specs", "smoke-test", "spec.md"),
-								)
-							)
+							if (existsSync(join(tmp, ".letra", "specs", "smoke-test", "spec.md")))
 								status = "PASS";
 							rmSync(tmp, { recursive: true });
 						} else if (label.includes("letra lint")) {
@@ -687,10 +659,7 @@ export async function validate(
 							status = "PASS";
 						} else if (label.includes("Lint Gate") || label.includes("Lint")) {
 							const ciContent = readFileSync(ciFile, "utf-8");
-							if (
-								ciContent.includes("letra lint") ||
-								ciContent.includes("lint")
-							)
+							if (ciContent.includes("letra lint") || ciContent.includes("lint"))
 								status = "PASS";
 						} else if (label.includes("Test Gate") || label.includes("Test")) {
 							const ciContent = readFileSync(ciFile, "utf-8");
@@ -707,10 +676,7 @@ export async function validate(
 							const ciContent = readFileSync(ciFile, "utf-8");
 							if (ciContent.includes("tsc") || ciContent.includes("typecheck"))
 								status = "PASS";
-						} else if (
-							label.includes("Distribuição npm") ||
-							label.includes("npm")
-						) {
+						} else if (label.includes("Distribuição npm") || label.includes("npm")) {
 							const pkgJson = JSON.parse(
 								readFileSync(join(root, "package.json"), "utf-8"),
 							);
@@ -768,10 +734,7 @@ export async function validate(
 							}
 						} else if (label.includes("Settings do Editor")) {
 							if (existsSync(vscodeSettingsFile)) {
-								const settingsContent = readFileSync(
-									vscodeSettingsFile,
-									"utf-8",
-								);
+								const settingsContent = readFileSync(vscodeSettingsFile, "utf-8");
 								if (settingsContent.includes("editor.formatOnSave")) {
 									status = "PASS";
 								}
@@ -807,14 +770,7 @@ export async function validate(
 					}
 
 					if (status === "PASS") {
-						collectResult(
-							allResults,
-							"pass",
-							entry.name,
-							label,
-							description,
-							note,
-						);
+						collectResult(allResults, "pass", entry.name, label, description, note);
 						totalPass++;
 						specPass++;
 					} else if (intelligenceResult) {
@@ -831,37 +787,16 @@ export async function validate(
 							totalWarning++;
 							specWarning++;
 						} else {
-							collectResult(
-								allResults,
-								"fail",
-								entry.name,
-								label,
-								description,
-								note,
-							);
+							collectResult(allResults, "fail", entry.name, label, description, note);
 							totalFail++;
 							specFail++;
 						}
 					} else if (note.includes("manual check needed")) {
-						collectResult(
-							allResults,
-							"warning",
-							entry.name,
-							label,
-							description,
-							note,
-						);
+						collectResult(allResults, "warning", entry.name, label, description, note);
 						totalWarning++;
 						specWarning++;
 					} else {
-						collectResult(
-							allResults,
-							"fail",
-							entry.name,
-							label,
-							description,
-							note,
-						);
+						collectResult(allResults, "fail", entry.name, label, description, note);
 						totalFail++;
 						specFail++;
 					}
@@ -973,14 +908,7 @@ export async function validate(
 			for (const cr of conflictResults) {
 				if (cr.passed) continue;
 				const level = conflictCfg.severity === "warning" ? "warning" : "fail";
-				collectResult(
-					allResults,
-					level,
-					"(cross-spec)",
-					cr.label,
-					cr.message,
-					"",
-				);
+				collectResult(allResults, level, "(cross-spec)", cr.label, cr.message, "");
 				if (level === "warning") {
 					totalWarning++;
 				} else {
@@ -995,14 +923,7 @@ export async function validate(
 			}
 		}
 
-		flushResults(
-			allResults,
-			fmt,
-			specGroups,
-			totalPass,
-			totalFail,
-			totalWarning,
-		);
+		flushResults(allResults, fmt, specGroups, totalPass, totalFail, totalWarning);
 		return totalFail;
 	}
 

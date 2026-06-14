@@ -1,11 +1,6 @@
 import { resolve } from "node:path";
 import chalk from "chalk";
-import {
-	type Item,
-	type Workflow,
-	loadWorkflow,
-	saveWorkflow,
-} from "./flow-init.js";
+import { type Item, type Workflow, loadWorkflow, saveWorkflow } from "./flow-init.js";
 
 function now(): string {
 	return new Date().toISOString();
@@ -26,9 +21,7 @@ function nextItemId(workflow: Workflow): string {
 function ensureWorkflow(root: string): Workflow {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
-		console.log(
-			chalk.red("No workflow found. Run 'letra flow init --quick' first"),
-		);
+		console.log(chalk.red("No workflow found. Run 'letra flow init --quick' first"));
 		process.exit(1);
 	}
 	if (workflow.stages.length === 0) {
@@ -88,9 +81,7 @@ export async function backlogImportGitHub(
 		if (response.status === 404) {
 			console.log(chalk.red(`Repository "${repo}" not found or is private`));
 		} else if (response.status === 401 || response.status === 403) {
-			console.log(
-				chalk.red(`GitHub API error (${response.status}). Check GITHUB_TOKEN`),
-			);
+			console.log(chalk.red(`GitHub API error (${response.status}). Check GITHUB_TOKEN`));
 		} else {
 			console.log(chalk.red(`GitHub API error (${response.status}): ${text}`));
 		}
@@ -159,11 +150,7 @@ export async function backlogImportLinear(
 	const apiKey = process.env.LINEAR_API_KEY;
 
 	if (!apiKey) {
-		console.log(
-			chalk.red(
-				"LINEAR_API_KEY environment variable is required for Linear import",
-			),
-		);
+		console.log(chalk.red("LINEAR_API_KEY environment variable is required for Linear import"));
 		process.exit(1);
 	}
 
@@ -220,9 +207,7 @@ export async function backlogImportLinear(
 
 	if (data.data?.team?.issues?.nodes == null) {
 		const errMsg =
-			data?.data?.team == null
-				? `Team "${team}" not found`
-				: "Failed to fetch Linear issues";
+			data?.data?.team == null ? `Team "${team}" not found` : "Failed to fetch Linear issues";
 		console.log(chalk.red(errMsg));
 		process.exit(1);
 	}

@@ -2,10 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-	backlogImportGitHub,
-	backlogImportLinear,
-} from "./flow-import-issues.js";
+import { backlogImportGitHub, backlogImportLinear } from "./flow-import-issues.js";
 import { type Workflow, saveWorkflow } from "./flow-init.js";
 
 function createTestWorkflow(): Workflow {
@@ -82,9 +79,7 @@ describe("flow-import-issues", () => {
 			expect(loaded.items[0].description).toContain("[1] Fix login bug");
 			expect(loaded.items[0].description).toContain("(bug)");
 			expect(loaded.items[0].source).toBe("github");
-			expect(loaded.items[0].sourceUrl).toBe(
-				"https://github.com/owner/repo/issues/1",
-			);
+			expect(loaded.items[0].sourceUrl).toBe("https://github.com/owner/repo/issues/1");
 			expect(loaded.items[1].description).toBe("[2] Add dark mode");
 		});
 
@@ -120,9 +115,7 @@ describe("flow-import-issues", () => {
 				throw new Error("process.exit");
 			});
 
-			await expect(backlogImportGitHub(tmpDir, "owner/repo")).rejects.toThrow(
-				"process.exit",
-			);
+			await expect(backlogImportGitHub(tmpDir, "owner/repo")).rejects.toThrow("process.exit");
 			expect(exitSpy).toHaveBeenCalledWith(1);
 		});
 
@@ -135,9 +128,9 @@ describe("flow-import-issues", () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 
-			await expect(
-				backlogImportGitHub(tmpDir, "owner/private-repo"),
-			).rejects.toThrow("process.exit");
+			await expect(backlogImportGitHub(tmpDir, "owner/private-repo")).rejects.toThrow(
+				"process.exit",
+			);
 			expect(exitSpy).toHaveBeenCalledWith(1);
 		});
 	});
@@ -185,9 +178,7 @@ describe("flow-import-issues", () => {
 			expect(loaded.items).toHaveLength(2);
 			expect(loaded.items[0].description).toBe("CI-1 Setup CI pipeline");
 			expect(loaded.items[0].source).toBe("linear");
-			expect(loaded.items[0].sourceUrl).toBe(
-				"https://linear.app/team/issue/CI-1",
-			);
+			expect(loaded.items[0].sourceUrl).toBe("https://linear.app/team/issue/CI-1");
 		});
 
 		it("should exit if LINEAR_API_KEY is missing", async () => {
@@ -198,9 +189,7 @@ describe("flow-import-issues", () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 
-			await expect(backlogImportLinear(tmpDir, "CI")).rejects.toThrow(
-				"process.exit",
-			);
+			await expect(backlogImportLinear(tmpDir, "CI")).rejects.toThrow("process.exit");
 			expect(exitSpy).toHaveBeenCalledWith(1);
 		});
 	});

@@ -21,9 +21,7 @@ export async function lint(targetPath?: string) {
 	const specsDir = join(root, ".letra", "specs");
 
 	if (!existsSync(specsDir)) {
-		console.log(
-			chalk.red("Error: .letra/specs/ not found. Run 'letra init' first."),
-		);
+		console.log(chalk.red("Error: .letra/specs/ not found. Run 'letra init' first."));
 		process.exit(1);
 	}
 
@@ -56,9 +54,7 @@ export async function lint(targetPath?: string) {
 
 			const hasChecklist = /-\s*\[[ x]\]\s*\*\*/i.test(content);
 			if (!hasChecklist && content.includes("## Acceptance Criteria")) {
-				errors.push(
-					"Acceptance Criteria section exists but has no checklist items",
-				);
+				errors.push("Acceptance Criteria section exists but has no checklist items");
 			}
 		}
 

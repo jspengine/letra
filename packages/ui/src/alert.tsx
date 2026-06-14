@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { cn } from "./utils";
 import type { IconName } from "./icon";
 import { Icon } from "./icon";
+import { cn } from "./utils";
 
 interface AlertProps {
 	title?: string;
@@ -32,7 +32,9 @@ export function Alert({ title, children, variant = "info", className }: AlertPro
 				name={variantIcons[variant] || "info"}
 				size={16}
 				className="shrink-0 mt-0.5"
-				style={{ color: `var(--${variant === "error" ? "error" : variant === "warning" ? "warning" : "info"})` }}
+				style={{
+					color: `var(--${variant === "error" ? "error" : variant === "warning" ? "warning" : "info"})`,
+				}}
 			/>
 			<div className="text-sm" style={{ color: "var(--foreground)" }}>
 				{title && <strong className="block font-semibold mb-0.5">{title}</strong>}

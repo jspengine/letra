@@ -40,8 +40,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 						key={item.id}
 						className="px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-slide-in-right pointer-events-auto"
 						style={{
-							background: item.type === "success" ? "var(--success)" : item.type === "error" ? "var(--error)" : "var(--primary)",
-							color: item.type === "success" ? "var(--success-foreground)" : item.type === "error" ? "var(--error-foreground)" : "var(--primary-foreground)",
+							background:
+								item.type === "success"
+									? "var(--success)"
+									: item.type === "error"
+										? "var(--error)"
+										: "var(--primary)",
+							color:
+								item.type === "success"
+									? "var(--success-foreground)"
+									: item.type === "error"
+										? "var(--error-foreground)"
+										: "var(--primary-foreground)",
 						}}
 					>
 						{item.type === "success" ? "✓ " : item.type === "error" ? "✗ " : "ℹ "}

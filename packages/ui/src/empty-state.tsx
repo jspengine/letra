@@ -12,7 +12,10 @@ interface EmptyStateProps {
 export function EmptyState({ icon, title, description, action, className }: EmptyStateProps) {
 	return (
 		<div
-			className={cn("flex flex-col items-center justify-center text-center py-12 px-6", className)}
+			className={cn(
+				"flex flex-col items-center justify-center text-center py-12 px-6",
+				className,
+			)}
 		>
 			{icon && (
 				<div className="mb-4" style={{ color: "var(--muted-foreground)" }}>

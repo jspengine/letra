@@ -13,9 +13,7 @@ interface Props {
 }
 
 function daysSince(dateStr: string): number {
-	return Math.floor(
-		(Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24),
-	);
+	return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function daysColor(d: number): string {
@@ -131,20 +129,28 @@ export default function KanbanView({
 		const done = item.tasks.filter((t) => t.done).length;
 		const stage = workflow.stages.find((s) => s.id === item.stage);
 		return (
-			<Progress value={done} max={item.tasks.length} size="xs" showValue barColor={stage?.color} />
+			<Progress
+				value={done}
+				max={item.tasks.length}
+				size="xs"
+				showValue
+				barColor={stage?.color}
+			/>
 		);
 	}
 
 	return (
 		<div className="flex h-full gap-3 p-3 overflow-x-auto">
 			{workflow.stages.map((stage) => {
-				const stageItems = workflow.items.filter(
-					(it) => it.stage === stage.id,
-				);
+				const stageItems = workflow.items.filter((it) => it.stage === stage.id);
 				const isOver = dragOver === stage.id;
-				const isOverDenied = isOver && draggingId && allowMoveToStage
-					? !allowMoveToStage(workflow.items.find((it) => it.id === draggingId)!, stage.id)
-					: false;
+				const isOverDenied =
+					isOver && draggingId && allowMoveToStage
+						? !allowMoveToStage(
+								workflow.items.find((it) => it.id === draggingId)!,
+								stage.id,
+							)
+						: false;
 				const accentBorder = stage.color ? `2px solid ${stage.color}40` : undefined;
 				const accentHeader = stage.color ? stage.color : undefined;
 				return (
@@ -164,10 +170,16 @@ export default function KanbanView({
 						<CardContent className="p-3">
 							<h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
 								{accentHeader && (
-									<span className="w-2 h-2 rounded-full shrink-0" style={{ background: accentHeader }} />
+									<span
+										className="w-2 h-2 rounded-full shrink-0"
+										style={{ background: accentHeader }}
+									/>
 								)}
 								{stage.name}
-								<span className="text-xs font-normal" style={{ color: "var(--muted-foreground)" }}>
+								<span
+									className="text-xs font-normal"
+									style={{ color: "var(--muted-foreground)" }}
+								>
 									{stageItems.length}
 								</span>
 							</h3>
@@ -198,20 +210,37 @@ export default function KanbanView({
 													: "bg-card hover:border-primary/20",
 											)}
 											style={{
-												borderColor: stage.color ? `${stage.color}30` : "var(--border)",
-												background: stage.color ? `color-mix(in srgb, ${stage.color}08, var(--card))` : undefined,
-												boxShadow: draggingId === it.id ? undefined : stage.color ? `0 1px 3px ${stage.color}15` : undefined,
+												borderColor: stage.color
+													? `${stage.color}30`
+													: "var(--border)",
+												background: stage.color
+													? `color-mix(in srgb, ${stage.color}08, var(--card))`
+													: undefined,
+												boxShadow:
+													draggingId === it.id
+														? undefined
+														: stage.color
+															? `0 1px 3px ${stage.color}15`
+															: undefined,
 											}}
 										>
 											<div className="p-2.5 flex flex-col gap-1.5">
 												<div className="flex items-center justify-between gap-2">
-													<span className="font-medium text-xs">{it.id}</span>
-													<span className="flex items-center gap-1 text-xs tabular-nums shrink-0" style={{ color: daysColor(days) }}>
+													<span className="font-medium text-xs">
+														{it.id}
+													</span>
+													<span
+														className="flex items-center gap-1 text-xs tabular-nums shrink-0"
+														style={{ color: daysColor(days) }}
+													>
 														{icon && <Icon name={icon} size={12} />}
 														{daysLabel(days)}
 													</span>
 												</div>
-												<div className="truncate text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+												<div
+													className="truncate text-xs leading-relaxed"
+													style={{ color: "var(--muted-foreground)" }}
+												>
 													{it.description}
 												</div>
 												<div className="flex items-center gap-2 mt-0.5">

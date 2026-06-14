@@ -1,10 +1,4 @@
-import {
-	existsSync,
-	mkdirSync,
-	readFileSync,
-	readdirSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import ora from "ora";
@@ -131,19 +125,11 @@ function listTemplates(root: string): string[] {
 	return names;
 }
 
-function findTemplate(
-	root: string,
-	type: string,
-): { spec: string; acceptance: string } | null {
+function findTemplate(root: string, type: string): { spec: string; acceptance: string } | null {
 	const lower = type.toLowerCase();
 	if (builtInTemplates[lower]) return builtInTemplates[lower];
 	const customFile = join(root, ".letra", "templates", `${type}.md`);
-	const customAcceptance = join(
-		root,
-		".letra",
-		"templates",
-		`${type}-acceptance.md`,
-	);
+	const customAcceptance = join(root, ".letra", "templates", `${type}-acceptance.md`);
 	if (existsSync(customFile)) {
 		const spec = readFileSync(customFile, "utf-8");
 		const acceptance = existsSync(customAcceptance)
@@ -174,16 +160,11 @@ export async function specNew(name: string, options?: { template?: string }) {
 	}
 
 	const templateType = options?.template || "_default";
-	const template =
-		templateType === "_default" ? null : findTemplate(root, templateType);
+	const template = templateType === "_default" ? null : findTemplate(root, templateType);
 
 	if (options?.template && !template) {
 		const available = listTemplates(root).join(", ");
-		console.log(
-			chalk.red(
-				`Template "${options.template}" not found. Available: ${available}`,
-			),
-		);
+		console.log(chalk.red(`Template "${options.template}" not found. Available: ${available}`));
 		process.exit(1);
 	}
 
@@ -228,9 +209,7 @@ Por que estamos construindo isso. Trade-offs considerados.
 			writeFileSync(join(specDir, "acceptance.md"), acceptanceContent);
 		}
 
-		spinner.succeed(
-			chalk.green(`Spec "${name}" created at .letra/specs/${name}/`),
-		);
+		spinner.succeed(chalk.green(`Spec "${name}" created at .letra/specs/${name}/`));
 	} catch (error) {
 		spinner.fail(chalk.red("Failed to create spec"));
 		process.exit(1);

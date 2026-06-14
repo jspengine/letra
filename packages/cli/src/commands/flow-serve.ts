@@ -1,11 +1,6 @@
-
 import { existsSync, mkdirSync, readFileSync, readdirSync, watch, writeFileSync } from "node:fs";
 
-import {
-	type IncomingMessage,
-	type ServerResponse,
-	createServer,
-} from "node:http";
+import { type IncomingMessage, type ServerResponse, createServer } from "node:http";
 
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,17 +51,13 @@ function esc(s: string): string {
 		.replace(/"/g, "&quot;");
 }
 
-
 interface TemplateStage {
 	id: string;
 	name: string;
 	zone?: "todo" | "doing" | "done";
 }
 
-const TEMPLATES: Record<
-	string,
-	{ name: string; stages: TemplateStage[] }
-> = {
+const TEMPLATES: Record<string, { name: string; stages: TemplateStage[] }> = {
 	padrao: {
 		name: "Padrão",
 		stages: [
@@ -129,8 +120,6 @@ function createWorkflowFromTemplate(
 	};
 }
 
-
-
 export class FlowServer {
 	private server: ReturnType<typeof createServer> | undefined;
 	private watcher: ReturnType<typeof watch> | undefined;
@@ -168,21 +157,24 @@ export class FlowServer {
 			return;
 		}
 
-
 		if (path === "/api/workflow/template" && req.method === "POST") {
 			let body = "";
-			req.on("data", (chunk: string) => { body += chunk; });
+			req.on("data", (chunk: string) => {
+				body += chunk;
+			});
 			req.on("end", () => {
 				try {
 					const data = JSON.parse(body);
 					let wf: Workflow;
 					if (data.stages) {
-						const stages = data.stages.map((s: { id: string; name: string; zone?: string }, i: number) => ({
-							id: s.id,
-							name: s.name,
-							order: i,
-							zone: s.zone,
-						}));
+						const stages = data.stages.map(
+							(s: { id: string; name: string; zone?: string }, i: number) => ({
+								id: s.id,
+								name: s.name,
+								order: i,
+								zone: s.zone,
+							}),
+						);
 						const existing = loadWorkflow(this.root);
 						wf = {
 							version: "1.0",
@@ -226,7 +218,9 @@ export class FlowServer {
 
 		if (path === "/api/specs" && req.method === "POST") {
 			let body = "";
-			req.on("data", (chunk: string) => { body += chunk; });
+			req.on("data", (chunk: string) => {
+				body += chunk;
+			});
 			req.on("end", () => {
 				try {
 					const { id, content } = JSON.parse(body);
@@ -287,7 +281,9 @@ export class FlowServer {
 				return;
 			}
 			let body = "";
-			req.on("data", (chunk: string) => { body += chunk; });
+			req.on("data", (chunk: string) => {
+				body += chunk;
+			});
 			req.on("end", () => {
 				try {
 					const { content } = JSON.parse(body);
@@ -323,13 +319,25 @@ export class FlowServer {
 
 			if (!existsSync(specFile)) {
 				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ id: specId, issues: [{ type: "error", msg: "spec.md not found" }], valid: false }));
+				res.end(
+					JSON.stringify({
+						id: specId,
+						issues: [{ type: "error", msg: "spec.md not found" }],
+						valid: false,
+					}),
+				);
 				return;
 			}
 
 			const content = readFileSync(specFile, "utf-8");
 
-			const requiredSections = ["Outcome", "Constraints", "Exclusions", "Acceptance Criteria", "Context"];
+			const requiredSections = [
+				"Outcome",
+				"Constraints",
+				"Exclusions",
+				"Acceptance Criteria",
+				"Context",
+			];
 			for (const section of requiredSections) {
 				const re = new RegExp(`## ${section}`);
 				if (!re.test(content)) {
@@ -342,7 +350,10 @@ export class FlowServer {
 				const acSection = acMatch[1];
 				const items = [...acSection.matchAll(/-\s+\[(\s|x)\]\s+/g)];
 				if (items.length === 0) {
-					issues.push({ type: "warning", msg: "Acceptance Criteria section has no checklist items" });
+					issues.push({
+						type: "warning",
+						msg: "Acceptance Criteria section has no checklist items",
+					});
 				}
 			}
 
@@ -351,14 +362,22 @@ export class FlowServer {
 			}
 
 			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ id: specId, issues, valid: issues.filter(i => i.type === "error").length === 0 }));
+			res.end(
+				JSON.stringify({
+					id: specId,
+					issues,
+					valid: issues.filter((i) => i.type === "error").length === 0,
+				}),
+			);
 			return;
 		}
 
 		// ── Item CRUD ──────────────────────────────────────────────
 		if (path === "/api/items" && req.method === "POST") {
 			let body = "";
-			req.on("data", (chunk: string) => { body += chunk; });
+			req.on("data", (chunk: string) => {
+				body += chunk;
+			});
 			req.on("end", () => {
 				try {
 					const { id, description, stage } = JSON.parse(body);
@@ -397,7 +416,9 @@ export class FlowServer {
 		if (path.match(/^\/api\/items\/[^/]+$/) && req.method === "PATCH") {
 			const itemId = path.replace("/api/items/", "");
 			let body = "";
-			req.on("data", (chunk: string) => { body += chunk; });
+			req.on("data", (chunk: string) => {
+				body += chunk;
+			});
 			req.on("end", () => {
 				try {
 					const data = JSON.parse(body);
@@ -464,7 +485,9 @@ export class FlowServer {
 		// ── Workflow PATCH (update stages, name, etc.) ─────────────
 		if (path === "/api/workflow" && req.method === "PATCH") {
 			let body = "";
-			req.on("data", (chunk: string) => { body += chunk; });
+			req.on("data", (chunk: string) => {
+				body += chunk;
+			});
 			req.on("end", () => {
 				try {
 					const data = JSON.parse(body);
@@ -517,11 +540,13 @@ export class FlowServer {
 				const content = readFileSync(focusFile, "utf-8");
 				res.writeHead(200, { "Content-Type": "application/json" });
 				const lines = content.split("\n").filter((l) => l.trim());
-				res.end(JSON.stringify({
-					active: true,
-					spec: lines[0]?.replace(/^#\s*/, "") || "",
-					content,
-				}));
+				res.end(
+					JSON.stringify({
+						active: true,
+						spec: lines[0]?.replace(/^#\s*/, "") || "",
+						content,
+					}),
+				);
 			} else {
 				res.writeHead(200, { "Content-Type": "application/json" });
 				res.end(JSON.stringify({ active: false }));
@@ -574,11 +599,7 @@ export class FlowServer {
 
 	private clientDir: string | null = null;
 
-	private serveClient(
-		path: string,
-		req: IncomingMessage,
-		res: ServerResponse,
-	): void {
+	private serveClient(path: string, req: IncomingMessage, res: ServerResponse): void {
 		if (!this.clientDir) {
 			const cliDir = dirname(fileURLToPath(import.meta.url));
 			// Published package via npm: dist/client/ is built alongside CLI
@@ -643,7 +664,6 @@ export class FlowServer {
 			});
 	}
 
-
 	private broadcast(): void {
 		if (this.clients.size === 0) return;
 		const data = "event: workflow-updated\ndata: {}\n\n";
@@ -656,11 +676,7 @@ export class FlowServer {
 		}
 	}
 
-
-	private async fireWebhooks(
-		event: string,
-		payload: Record<string, unknown>,
-	): Promise<void> {
+	private async fireWebhooks(event: string, payload: Record<string, unknown>): Promise<void> {
 		const wf = this.loadWorkflow();
 		if (!wf?.webhooks || wf.webhooks.length === 0) return;
 		const matching = wf.webhooks.filter((wh) => wh.events.includes(event));
@@ -686,8 +702,6 @@ export class FlowServer {
 		}
 		saveWorkflow(this.root, wf);
 	}
-
-
 
 	start(): Promise<void> {
 		return new Promise((resolve, reject) => {
@@ -726,14 +740,11 @@ export async function flowServeAction(
 	const root = resolve(process.cwd(), targetPath ?? ".");
 	const port = options?.port ?? DEFAULT_PORT;
 
-
-
 	const wf = loadWorkflow(root);
 	if (!wf) {
 		console.log("No workflow found. Run 'letra flow init --quick' first");
 		return;
 	}
-
 
 	const server = new FlowServer(root, port);
 	try {
@@ -761,10 +772,7 @@ export async function flowServeAction(
 			});
 		});
 	} catch (err) {
-		console.error(
-			`Failed to start server on port ${port}:`,
-			(err as Error).message,
-		);
+		console.error(`Failed to start server on port ${port}:`, (err as Error).message);
 		process.exit(1);
 	}
 }

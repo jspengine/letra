@@ -56,60 +56,44 @@ describe("flow-board", () => {
 	describe("flowBoard", () => {
 		it("should show warning when no workflow exists", () => {
 			flowBoard(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("No workflow found"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("No workflow found"));
 		});
 
 		it("should show board header with project name", () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 			flowBoard(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("test-project"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("test-project"));
 		});
 
 		it("should show empty stage label", () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 			flowBoard(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("(empty)"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("(empty)"));
 		});
 
 		it("should show item count per stage", () => {
 			const workflow = createTestWorkflow(2);
 			saveWorkflow(tmpDir, workflow);
 			flowBoard(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("1 item"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("1 item"));
 		});
 
 		it("should show item id and description", () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 			flowBoard(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("ITEM-1"),
-			);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("First task"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("ITEM-1"));
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("First task"));
 		});
 
 		it("should show items distributed across stages", () => {
 			const workflow = createTestWorkflow(4);
 			saveWorkflow(tmpDir, workflow);
 			flowBoard(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("Backlog"),
-			);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("Design"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Backlog"));
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Design"));
 			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Code"));
 		});
 	});

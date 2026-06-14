@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { cn } from "./utils";
 
 interface DialogProps {
@@ -31,17 +31,23 @@ export function Dialog({ open, onClose, title, children, actions }: DialogProps)
 			onClick={(e) => {
 				if (e.target === overlayRef.current) onClose();
 			}}
+			onKeyDown={(e) => {
+				if (e.key === "Escape") onClose();
+			}}
 		>
-			<div
+			<dialog
+				open
 				className="w-full max-w-md mx-4 rounded-xl border shadow-lg"
 				style={{ background: "var(--card)", borderColor: "var(--border)" }}
-				role="dialog"
-				aria-modal="true"
 				aria-label={title}
 			>
-				<div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+				<div
+					className="flex items-center justify-between px-4 py-3 border-b"
+					style={{ borderColor: "var(--border)" }}
+				>
 					<h2 className="text-sm font-semibold">{title}</h2>
 					<button
+						type="button"
 						onClick={onClose}
 						className="text-sm px-2 py-1 rounded hover:bg-muted/50 transition-colors"
 						style={{ color: "var(--muted-foreground)" }}
@@ -50,15 +56,16 @@ export function Dialog({ open, onClose, title, children, actions }: DialogProps)
 						✕
 					</button>
 				</div>
-				<div className="px-4 py-3">
-					{children}
-				</div>
+				<div className="px-4 py-3">{children}</div>
 				{actions && (
-					<div className="flex justify-end gap-2 px-4 py-3 border-t" style={{ borderColor: "var(--border)" }}>
+					<div
+						className="flex justify-end gap-2 px-4 py-3 border-t"
+						style={{ borderColor: "var(--border)" }}
+					>
 						{actions}
 					</div>
 				)}
-			</div>
+			</dialog>
 		</div>
 	);
 }
@@ -92,13 +99,18 @@ export function ConfirmDialog({
 			actions={
 				<>
 					<button
+						type="button"
 						onClick={onClose}
 						className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-border bg-transparent hover:bg-muted text-foreground cursor-pointer"
 					>
 						{cancelLabel}
 					</button>
 					<button
-						onClick={() => { onConfirm(); onClose(); }}
+						type="button"
+						onClick={() => {
+							onConfirm();
+							onClose();
+						}}
 						className={cn(
 							"inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-transparent cursor-pointer",
 						)}
@@ -154,18 +166,26 @@ export function PromptDialog({
 			actions={
 				<>
 					<button
+						type="button"
 						onClick={onClose}
 						className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-border bg-transparent hover:bg-muted text-foreground cursor-pointer"
 					>
 						{cancelLabel}
 					</button>
 					<button
+						type="button"
 						onClick={() => {
 							const val = inputRef.current?.value.trim();
-							if (val) { onSubmit(val); onClose(); }
+							if (val) {
+								onSubmit(val);
+								onClose();
+							}
 						}}
 						className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-transparent cursor-pointer"
-						style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
+						style={{
+							background: "var(--primary)",
+							color: "var(--primary-foreground)",
+						}}
 					>
 						{submitLabel}
 					</button>
@@ -189,7 +209,10 @@ export function PromptDialog({
 					onKeyDown={(e) => {
 						if (e.key === "Enter") {
 							const val = inputRef.current?.value.trim();
-							if (val) { onSubmit(val); onClose(); }
+							if (val) {
+								onSubmit(val);
+								onClose();
+							}
 						}
 					}}
 				/>

@@ -3,10 +3,7 @@ import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { type Workflow, loadWorkflow, saveWorkflow } from "./flow-init.js";
 
-export function flowExport(
-	root: string,
-	options?: { minified?: boolean },
-): void {
+export function flowExport(root: string, options?: { minified?: boolean }): void {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
 		console.log(chalk.yellow("No workflow found"));
@@ -59,17 +56,11 @@ export function flowImport(root: string, filePath: string): void {
 
 	const existingWorkflow = loadWorkflow(root);
 	if (existingWorkflow) {
-		const backup = join(
-			root,
-			".letra",
-			`workflow.v${existingWorkflow.version}.json`,
-		);
+		const backup = join(root, ".letra", `workflow.v${existingWorkflow.version}.json`);
 		if (!existsSync(backup)) {
 			writeFileSync(backup, JSON.stringify(existingWorkflow, null, 2));
 			console.log(
-				chalk.gray(
-					`Backup saved: .letra/workflow.v${existingWorkflow.version}.json`,
-				),
+				chalk.gray(`Backup saved: .letra/workflow.v${existingWorkflow.version}.json`),
 			);
 		}
 	}
@@ -78,15 +69,10 @@ export function flowImport(root: string, filePath: string): void {
 	imported.updatedAt = now();
 	saveWorkflow(root, imported);
 
-	console.log(
-		chalk.green(`Workflow imported: ${imported.name} (${imported.version})`),
-	);
+	console.log(chalk.green(`Workflow imported: ${imported.name} (${imported.version})`));
 }
 
-export function flowImportAction(
-	targetPath: string | undefined,
-	filePath: string,
-): void {
+export function flowImportAction(targetPath: string | undefined, filePath: string): void {
 	const root = resolve(process.cwd(), targetPath || ".");
 	flowImport(root, filePath);
 }

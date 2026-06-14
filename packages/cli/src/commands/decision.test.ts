@@ -1,11 +1,4 @@
-import {
-	existsSync,
-	mkdirSync,
-	readFileSync,
-	readdirSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -69,18 +62,13 @@ describe("decision command", () => {
 		const { default: decisionCommand } = await import("./decision.js");
 		const cmd = decisionCommand();
 
-		writeFileSync(
-			join(tmpDir, ".letra", "decisions", "test-decision.md"),
-			"# Test Decision\n",
-		);
+		writeFileSync(join(tmpDir, ".letra", "decisions", "test-decision.md"), "# Test Decision\n");
 
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await cmd.parseAsync(["node", "test", "list"]);
 		expect(logSpy).toHaveBeenCalled();
-		expect(
-			logSpy.mock.calls.some((call) => call[0].includes("test-decision")),
-		).toBe(true);
+		expect(logSpy.mock.calls.some((call) => call[0].includes("test-decision"))).toBe(true);
 
 		logSpy.mockRestore();
 	});
@@ -98,9 +86,7 @@ describe("decision command", () => {
 
 		await cmd.parseAsync(["node", "test", "list"]);
 		expect(logSpy).toHaveBeenCalled();
-		expect(
-			logSpy.mock.calls.some((call) => call[0].includes("No decisions")),
-		).toBe(true);
+		expect(logSpy.mock.calls.some((call) => call[0].includes("No decisions"))).toBe(true);
 
 		logSpy.mockRestore();
 	});

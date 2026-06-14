@@ -11,9 +11,7 @@ import { specNew } from "./commands/spec.js";
 import { validate } from "./commands/validate.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
-const pkg = JSON.parse(
-	readFileSync(join(resolve(__dirname, ".."), "package.json"), "utf-8"),
-);
+const pkg = JSON.parse(readFileSync(join(resolve(__dirname, ".."), "package.json"), "utf-8"));
 
 const program = new Command();
 
@@ -33,17 +31,11 @@ const specCmd = program.command("spec").description("Manage specs");
 
 specCmd
 	.command("new <name>")
-	.option(
-		"--template <type>",
-		"Template type: web-api, cli-tool, mobile-feature",
-	)
+	.option("--template <type>", "Template type: web-api, cli-tool, mobile-feature")
 	.description("Create a new spec from template")
 	.action((name, options) => specNew(name, { ...options }));
 
-program
-	.command("lint [path]")
-	.description("Validate spec format and completeness")
-	.action(lint);
+program.command("lint [path]").description("Validate spec format and completeness").action(lint);
 
 program
 	.command("validate [path]")

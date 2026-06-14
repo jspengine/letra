@@ -10,7 +10,15 @@ interface ProgressProps {
 	className?: string;
 }
 
-export function Progress({ value, max = 100, label, size = "md", barColor, showValue, className }: ProgressProps) {
+export function Progress({
+	value,
+	max = 100,
+	label,
+	size = "md",
+	barColor,
+	showValue,
+	className,
+}: ProgressProps) {
 	const pct = Math.min(Math.max((value / max) * 100, 0), 100);
 	const hMap = { xs: "h-1", sm: "h-1.5", md: "h-2" };
 	const barClass = hMap[size];
@@ -25,7 +33,10 @@ export function Progress({ value, max = 100, label, size = "md", barColor, showV
 						</span>
 					)}
 					{showValue && (
-						<span className="text-xs tabular-nums" style={{ color: "var(--muted-foreground)" }}>
+						<span
+							className="text-xs tabular-nums"
+							style={{ color: "var(--muted-foreground)" }}
+						>
 							{value}/{max}
 						</span>
 					)}

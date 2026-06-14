@@ -69,9 +69,7 @@ function toggleAC(content: string, line: number, checked: boolean): string {
 
 function updateSpecName(content: string, name: string): string {
 	const today = new Date().toISOString().split("T")[0];
-	return content
-		.replace(/(# Spec:?)\s*.*/, `$1 ${name}`)
-		.replace(/\{\{date\}\}/g, today);
+	return content.replace(/(# Spec:?)\s*.*/, `$1 ${name}`).replace(/\{\{date\}\}/g, today);
 }
 
 export default function SpecsView() {
@@ -95,7 +93,9 @@ export default function SpecsView() {
 			.catch(() => {});
 	}, []);
 
-	useEffect(() => { load(); }, [load]);
+	useEffect(() => {
+		load();
+	}, [load]);
 
 	const selectedSpec = specs.find((s) => s.id === selected);
 
@@ -122,14 +122,19 @@ export default function SpecsView() {
 	const filtered = sorted.filter((s) => {
 		if (search) {
 			const q = search.toLowerCase();
-			if (!s.id.toLowerCase().includes(q) && !s.content.toLowerCase().includes(q)) return false;
+			if (!s.id.toLowerCase().includes(q) && !s.content.toLowerCase().includes(q))
+				return false;
 		}
 		const v = validations.get(s.id);
 		switch (filter) {
-			case "errors": return v && !v.valid;
-			case "warnings": return v && v.issues.some(i => i.type === "warning");
-			case "valid": return v && v.valid;
-			default: return true;
+			case "errors":
+				return v && !v.valid;
+			case "warnings":
+				return v?.issues.some((i) => i.type === "warning");
+			case "valid":
+				return v?.valid;
+			default:
+				return true;
 		}
 	});
 
@@ -163,7 +168,10 @@ export default function SpecsView() {
 	function handleDelete(id: string) {
 		if (!window.confirm("Tem certeza que deseja excluir esta spec?")) return;
 		fetch(`/api/specs/${id}`, { method: "DELETE" }).then(() => {
-			if (selected === id) { setSelected(null); setEditing(false); }
+			if (selected === id) {
+				setSelected(null);
+				setEditing(false);
+			}
 			load();
 			toast("Spec excluída", "success");
 		});
@@ -191,17 +199,19 @@ export default function SpecsView() {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ id: name, content }),
-		}).then((r) => r.json()).then((data) => {
-			if (data && !data.error) {
-				setCreating(false);
-				setNewName("");
-				setSelected(name);
-				setEditing(true);
-				setEditContent(content);
-				setEditName(name);
-				load();
-			}
-		});
+		})
+			.then((r) => r.json())
+			.then((data) => {
+				if (data && !data.error) {
+					setCreating(false);
+					setNewName("");
+					setSelected(name);
+					setEditing(true);
+					setEditContent(content);
+					setEditName(name);
+					load();
+				}
+			});
 	}
 
 	function handleACChange(checked: boolean, line: number) {
@@ -215,21 +225,39 @@ export default function SpecsView() {
 		return specs.filter((s) => {
 			const v = validations.get(s.id);
 			switch (f) {
-				case "errors": return v && !v.valid;
-				case "warnings": return v && v.issues.some(i => i.type === "warning");
-				case "valid": return v && v.valid;
-				default: return true;
+				case "errors":
+					return v && !v.valid;
+				case "warnings":
+					return v?.issues.some((i) => i.type === "warning");
+				case "valid":
+					return v?.valid;
+				default:
+					return true;
 			}
 		}).length;
 	}
 
 	return (
 		<div className="flex h-full">
-			<div className="w-[30%] border-r overflow-y-auto flex flex-col shrink-0" style={{ borderColor: "var(--border)" }}>
-				<div className="p-3 flex flex-col gap-2 border-b" style={{ borderColor: "var(--border)" }}>
+			<div
+				className="w-[30%] border-r overflow-y-auto flex flex-col shrink-0"
+				style={{ borderColor: "var(--border)" }}
+			>
+				<div
+					className="p-3 flex flex-col gap-2 border-b"
+					style={{ borderColor: "var(--border)" }}
+				>
 					<div className="flex items-center gap-2">
 						<h2 className="text-sm font-semibold flex-1">Specs</h2>
-						<Button size="sm" variant="default" onClick={() => { setCreating(true); setEditing(false); setSelected(null); }}>
+						<Button
+							size="sm"
+							variant="default"
+							onClick={() => {
+								setCreating(true);
+								setEditing(false);
+								setSelected(null);
+							}}
+						>
 							+ Nova
 						</Button>
 					</div>
@@ -239,57 +267,87 @@ export default function SpecsView() {
 						onChange={(e) => setSearch(e.target.value)}
 						aria-label="Buscar specs"
 					/>
-					<div className="flex rounded-lg border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-					{([
-						{ id: "all" as Filter, label: "Todas", icon: null as IconName | null },
-						{ id: "errors" as Filter, label: "Erros", icon: "x" as IconName },
-						{ id: "warnings" as Filter, label: "Avisos", icon: "alert-triangle" as IconName },
-						{ id: "valid" as Filter, label: "Válidas", icon: "check" as IconName },
-					] as const).map((f, i) => {
-						const active = filter === f.id;
-						return (
-							<button
-								key={f.id}
-								onClick={() => setFilter(f.id)}
-								className={cn(
-									"flex items-center justify-center gap-1 text-xs px-2.5 py-1.5 transition-colors flex-1",
-									i > 0 && "border-l",
-									active ? "font-medium" : "hover:bg-muted/50",
-								)}
-								style={{
-									background: active ? "var(--primary)" : "transparent",
-									color: active ? "var(--primary-foreground)" : "var(--muted-foreground)",
-									borderColor: "var(--border)",
-								}}
-								title={
-									f.id === "errors" ? "Specs com erro de validação" :
-									f.id === "warnings" ? "Specs com avisos" :
-									f.id === "valid" ? "Specs válidas" :
-									"Todas as specs"
-								}
-							>
-								{f.icon && (
-									<Icon
-										name={f.icon}
-										size={14}
-										style={{
-											color: active ? "var(--primary-foreground)" :
-												f.id === "errors" ? "var(--error)" :
-												f.id === "warnings" ? "var(--warning)" :
-												f.id === "valid" ? "var(--success)" : undefined,
-										}}
-									/>
-								)}
-								<span className="truncate">{f.label}</span>
-								<span className="opacity-70">{filterCount(f.id)}</span>
-							</button>
-						);
-					})}
-				</div>
+					<div
+						className="flex rounded-lg border overflow-hidden"
+						style={{ borderColor: "var(--border)" }}
+					>
+						{(
+							[
+								{
+									id: "all" as Filter,
+									label: "Todas",
+									icon: null as IconName | null,
+								},
+								{ id: "errors" as Filter, label: "Erros", icon: "x" as IconName },
+								{
+									id: "warnings" as Filter,
+									label: "Avisos",
+									icon: "alert-triangle" as IconName,
+								},
+								{
+									id: "valid" as Filter,
+									label: "Válidas",
+									icon: "check" as IconName,
+								},
+							] as const
+						).map((f, i) => {
+							const active = filter === f.id;
+							return (
+								<button
+									key={f.id}
+									onClick={() => setFilter(f.id)}
+									className={cn(
+										"flex items-center justify-center gap-1 text-xs px-2.5 py-1.5 transition-colors flex-1",
+										i > 0 && "border-l",
+										active ? "font-medium" : "hover:bg-muted/50",
+									)}
+									style={{
+										background: active ? "var(--primary)" : "transparent",
+										color: active
+											? "var(--primary-foreground)"
+											: "var(--muted-foreground)",
+										borderColor: "var(--border)",
+									}}
+									title={
+										f.id === "errors"
+											? "Specs com erro de validação"
+											: f.id === "warnings"
+												? "Specs com avisos"
+												: f.id === "valid"
+													? "Specs válidas"
+													: "Todas as specs"
+									}
+								>
+									{f.icon && (
+										<Icon
+											name={f.icon}
+											size={14}
+											style={{
+												color: active
+													? "var(--primary-foreground)"
+													: f.id === "errors"
+														? "var(--error)"
+														: f.id === "warnings"
+															? "var(--warning)"
+															: f.id === "valid"
+																? "var(--success)"
+																: undefined,
+											}}
+										/>
+									)}
+									<span className="truncate">{f.label}</span>
+									<span className="opacity-70">{filterCount(f.id)}</span>
+								</button>
+							);
+						})}
+					</div>
 				</div>
 				<div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1">
 					{creating && (
-						<div className="p-3 rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+						<div
+							className="p-3 rounded-lg border"
+							style={{ borderColor: "var(--border)", background: "var(--card)" }}
+						>
 							<Input
 								placeholder="Nome da spec (ex: auth-flow)"
 								value={newName}
@@ -298,8 +356,16 @@ export default function SpecsView() {
 								autoFocus
 							/>
 							<div className="flex gap-2 mt-2">
-								<Button size="sm" onClick={handleCreate}>Criar</Button>
-								<Button size="sm" variant="ghost" onClick={() => setCreating(false)}>Cancelar</Button>
+								<Button size="sm" onClick={handleCreate}>
+									Criar
+								</Button>
+								<Button
+									size="sm"
+									variant="ghost"
+									onClick={() => setCreating(false)}
+								>
+									Cancelar
+								</Button>
 							</div>
 						</div>
 					)}
@@ -311,7 +377,10 @@ export default function SpecsView() {
 							<button
 								key={spec.id}
 								onClick={() => handleSelect(spec.id)}
-								onContextMenu={(e) => { e.preventDefault(); handleValidate(spec.id); }}
+								onContextMenu={(e) => {
+									e.preventDefault();
+									handleValidate(spec.id);
+								}}
 								className="text-left px-3 py-2 rounded-lg hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 transition-colors flex items-center gap-2"
 								style={{
 									background: selected === spec.id ? "var(--muted)" : undefined,
@@ -321,25 +390,45 @@ export default function SpecsView() {
 									<Icon
 										name={status === "valid" ? "check" : "x"}
 										size={14}
-										style={{ color: status === "valid" ? "var(--success)" : "var(--error)" }}
+										style={{
+											color:
+												status === "valid"
+													? "var(--success)"
+													: "var(--error)",
+										}}
 									/>
 								) : (
-									<span className="w-3.5 inline-flex items-center justify-center text-xs" style={{ color: "var(--muted-foreground)" }}>○</span>
+									<span
+										className="w-3.5 inline-flex items-center justify-center text-xs"
+										style={{ color: "var(--muted-foreground)" }}
+									>
+										○
+									</span>
 								)}
 								<span className="text-sm truncate flex-1">{spec.id}</span>
 								{v && v.issues.length > 0 && (
-									<Badge variant={v.valid ? "success" : "warning"} className="shrink-0">
-										{v.issues.filter(i => i.type === "error").length}E {v.issues.filter(i => i.type === "warning").length}W
+									<Badge
+										variant={v.valid ? "success" : "warning"}
+										className="shrink-0"
+									>
+										{v.issues.filter((i) => i.type === "error").length}E{" "}
+										{v.issues.filter((i) => i.type === "warning").length}W
 									</Badge>
 								)}
-								<span className="text-xs shrink-0 tabular-nums" style={{ color: "var(--muted-foreground)" }}>
+								<span
+									className="text-xs shrink-0 tabular-nums"
+									style={{ color: "var(--muted-foreground)" }}
+								>
 									{date}
 								</span>
 							</button>
 						);
 					})}
 					{filtered.length === 0 && !creating && (
-						<p className="text-sm px-3 py-4 text-center" style={{ color: "var(--muted-foreground)" }}>
+						<p
+							className="text-sm px-3 py-4 text-center"
+							style={{ color: "var(--muted-foreground)" }}
+						>
 							{search ? "Nenhuma spec encontrada" : "Nenhuma spec ainda. Crie uma!"}
 						</p>
 					)}
@@ -375,7 +464,13 @@ export default function SpecsView() {
 						/>
 						<div className="flex gap-2">
 							<Button onClick={handleSave}>Salvar</Button>
-							<Button variant="ghost" onClick={() => { setEditing(false); setEditContent(selectedSpec.content); }}>
+							<Button
+								variant="ghost"
+								onClick={() => {
+									setEditing(false);
+									setEditContent(selectedSpec.content);
+								}}
+							>
 								Cancelar
 							</Button>
 							<div className="flex-1" />
@@ -392,20 +487,26 @@ export default function SpecsView() {
 						</div>
 						{validations.get(selected!) && (
 							<div className="flex flex-col gap-1">
-								{validations.get(selected!)!.issues.map((issue, i) => (
+								{validations.get(selected!)?.issues.map((issue, i) => (
 									<div
 										key={i}
 										className="text-sm px-3 py-2 rounded-lg"
 										style={{
 											background: "var(--muted)",
-											color: issue.type === "error" ? "var(--error)" : "var(--warning)",
+											color:
+												issue.type === "error"
+													? "var(--error)"
+													: "var(--warning)",
 										}}
 									>
 										{issue.type === "error" ? "✗" : "⚠"} {issue.msg}
 									</div>
 								))}
-								{validations.get(selected!)!.issues.length === 0 && (
-									<div className="text-sm px-3 py-2 rounded-lg" style={{ color: "var(--success)" }}>
+								{validations.get(selected!)?.issues.length === 0 && (
+									<div
+										className="text-sm px-3 py-2 rounded-lg"
+										style={{ color: "var(--success)" }}
+									>
 										✅ Spec válida
 									</div>
 								)}
@@ -414,15 +515,28 @@ export default function SpecsView() {
 					</div>
 				) : selectedSpec ? (
 					<div key={selectedSpec.id} className="animate-fade-in flex flex-col h-full">
-						<div className="flex items-center gap-2.5 px-6 py-3 border-b shrink-0" style={{ borderColor: "var(--border)" }}>
+						<div
+							className="flex items-center gap-2.5 px-6 py-3 border-b shrink-0"
+							style={{ borderColor: "var(--border)" }}
+						>
 							<Icon name="specs" size={20} className="text-primary" />
 							<div className="flex-1 min-w-0">
-								<h2 className="text-sm font-semibold truncate">{selectedSpec.id}</h2>
-								<p className="text-xs truncate" style={{ color: "var(--muted-foreground)" }}>
-									Spec de funcionalidade — define objetivo, constraints, critérios de aceitação e contexto.
+								<h2 className="text-sm font-semibold truncate">
+									{selectedSpec.id}
+								</h2>
+								<p
+									className="text-xs truncate"
+									style={{ color: "var(--muted-foreground)" }}
+								>
+									Spec de funcionalidade — define objetivo, constraints, critérios
+									de aceitação e contexto.
 								</p>
 							</div>
-							<Button size="sm" variant="outline" onClick={() => handleValidate(selectedSpec.id)}>
+							<Button
+								size="sm"
+								variant="outline"
+								onClick={() => handleValidate(selectedSpec.id)}
+							>
 								Validar
 							</Button>
 							<Button size="sm" onClick={() => handleEdit(selectedSpec)}>
@@ -433,12 +547,14 @@ export default function SpecsView() {
 							<div className="max-w-3xl mx-auto flex flex-col gap-4">
 								{validations.get(selectedSpec.id) && (
 									<div className="flex flex-wrap gap-2">
-										{validations.get(selectedSpec.id)!.issues.map((issue, i) => (
-											<Badge key={i} variant="warning">
-												{issue.type === "error" ? "✗" : "⚠"} {issue.msg}
-											</Badge>
-										))}
-										{validations.get(selectedSpec.id)!.issues.length === 0 && (
+										{validations
+											.get(selectedSpec.id)
+											?.issues.map((issue, i) => (
+												<Badge key={i} variant="warning">
+													{issue.type === "error" ? "✗" : "⚠"} {issue.msg}
+												</Badge>
+											))}
+										{validations.get(selectedSpec.id)?.issues.length === 0 && (
 											<Badge variant="success">✅ Válida</Badge>
 										)}
 									</div>
@@ -450,7 +566,11 @@ export default function SpecsView() {
 											checked={ac.checked}
 											label={ac.text}
 											onChange={(e) => {
-												const newContent = toggleAC(selectedSpec.content, ac.line, e.target.checked);
+												const newContent = toggleAC(
+													selectedSpec.content,
+													ac.line,
+													e.target.checked,
+												);
 												setEditContent(newContent);
 												fetch(`/api/specs/${selectedSpec.id}`, {
 													method: "PUT",

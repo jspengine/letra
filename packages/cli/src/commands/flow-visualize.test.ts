@@ -56,24 +56,16 @@ describe("flow-visualize", () => {
 	describe("flowVisualize", () => {
 		it("should show warning when no workflow exists", () => {
 			flowVisualize(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("No workflow found"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("No workflow found"));
 		});
 
 		it("should output mermaid diagram to console", () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 			flowVisualize(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("flowchart LR"),
-			);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("Backlog"),
-			);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("Design"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("flowchart LR"));
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Backlog"));
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Design"));
 		});
 
 		it("should save diagram to file when output option is given", () => {
@@ -92,18 +84,14 @@ describe("flow-visualize", () => {
 			const workflow = createTestWorkflow(2);
 			saveWorkflow(tmpDir, workflow);
 			flowVisualize(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("1 item"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("1 item"));
 		});
 
 		it("should handle empty stages showing zero items", () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 			flowVisualize(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("0 items"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("0 items"));
 		});
 
 		it("should include all stages in diagram", () => {
@@ -111,9 +99,7 @@ describe("flow-visualize", () => {
 			saveWorkflow(tmpDir, workflow);
 			flowVisualize(tmpDir);
 			for (const stage of workflow.stages) {
-				expect(console.log).toHaveBeenCalledWith(
-					expect.stringContaining(stage.name),
-				);
+				expect(console.log).toHaveBeenCalledWith(expect.stringContaining(stage.name));
 			}
 		});
 	});

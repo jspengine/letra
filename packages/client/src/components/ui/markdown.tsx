@@ -18,13 +18,24 @@ function inlineFormat(text: string): ReactNode[] {
 			parts.push(<em key={key++}>{match[4]}</em>);
 		} else if (match[6]) {
 			parts.push(
-				<code key={key++} className="px-1 py-0.5 rounded text-xs" style={{ backgroundColor: "var(--muted)", color: "var(--foreground)" }}>
+				<code
+					key={key++}
+					className="px-1 py-0.5 rounded text-xs"
+					style={{ backgroundColor: "var(--muted)", color: "var(--foreground)" }}
+				>
 					{match[6]}
 				</code>,
 			);
 		} else if (match[8] && match[9]) {
 			parts.push(
-				<a key={key++} href={match[9]} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2" style={{ color: "var(--primary)" }}>
+				<a
+					key={key++}
+					href={match[9]}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="underline underline-offset-2"
+					style={{ color: "var(--primary)" }}
+				>
 					{match[8]}
 				</a>,
 			);
@@ -151,7 +162,11 @@ export function Markdown({ content, className }: MarkdownProps) {
 		}
 
 		// Table
-		if (trimmed.startsWith("|") && i + 1 < lines.length && /^\|[\s\-:]+\|/.test(lines[i + 1].trim())) {
+		if (
+			trimmed.startsWith("|") &&
+			i + 1 < lines.length &&
+			/^\|[\s\-:]+\|/.test(lines[i + 1].trim())
+		) {
 			const tableLines: string[] = [];
 			while (i < lines.length && lines[i].trim().startsWith("|")) {
 				tableLines.push(lines[i].trim());
@@ -169,11 +184,18 @@ export function Markdown({ content, className }: MarkdownProps) {
 
 			elements.push(
 				<div key={key++} className="overflow-x-auto my-3">
-					<table className="w-full text-sm border-collapse" style={{ color: "var(--foreground)" }}>
+					<table
+						className="w-full text-sm border-collapse"
+						style={{ color: "var(--foreground)" }}
+					>
 						<thead>
 							<tr>
 								{headerCells.map((h, ci) => (
-									<th key={ci} className="text-left font-semibold px-3 py-2 border-b-2" style={{ borderColor: "var(--border)" }}>
+									<th
+										key={ci}
+										className="text-left font-semibold px-3 py-2 border-b-2"
+										style={{ borderColor: "var(--border)" }}
+									>
 										{inlineFormat(h)}
 									</th>
 								))}
@@ -183,7 +205,11 @@ export function Markdown({ content, className }: MarkdownProps) {
 							{rows.map((row, ri) => (
 								<tr key={ri}>
 									{row.map((c, ci) => (
-										<td key={ci} className="px-3 py-1.5 border-b" style={{ borderColor: "var(--border)" }}>
+										<td
+											key={ci}
+											className="px-3 py-1.5 border-b"
+											style={{ borderColor: "var(--border)" }}
+										>
 											{inlineFormat(c)}
 										</td>
 									))}
@@ -207,7 +233,7 @@ export function Markdown({ content, className }: MarkdownProps) {
 
 		// Headings
 		if (/^#{1,3}\s/.test(trimmed)) {
-			const level = trimmed.match(/^#+/)![0].length as 1 | 2 | 3;
+			const level = trimmed.match(/^#+/)?.[0].length as 1 | 2 | 3;
 			const headingText = trimmed.replace(/^#+\s/, "");
 			const headingKey = key++;
 			if (level === 1) {
@@ -236,7 +262,17 @@ export function Markdown({ content, className }: MarkdownProps) {
 		// Paragraph (default)
 		const paraLines: string[] = [line];
 		i++;
-		while (i < lines.length && lines[i].trim() !== "" && !lines[i].trim().startsWith("#") && !lines[i].trim().startsWith("- ") && !/^\d+\.\s/.test(lines[i].trim()) && !lines[i].trim().startsWith("> ") && !lines[i].trim().startsWith("```") && !lines[i].trim().startsWith("|") && !/^-{3,}$/.test(lines[i].trim())) {
+		while (
+			i < lines.length &&
+			lines[i].trim() !== "" &&
+			!lines[i].trim().startsWith("#") &&
+			!lines[i].trim().startsWith("- ") &&
+			!/^\d+\.\s/.test(lines[i].trim()) &&
+			!lines[i].trim().startsWith("> ") &&
+			!lines[i].trim().startsWith("```") &&
+			!lines[i].trim().startsWith("|") &&
+			!/^-{3,}$/.test(lines[i].trim())
+		) {
 			paraLines.push(lines[i]);
 			i++;
 		}
@@ -247,9 +283,5 @@ export function Markdown({ content, className }: MarkdownProps) {
 		);
 	}
 
-	return (
-		<div className={cn("space-y-0", className)}>
-			{elements}
-		</div>
-	);
+	return <div className={cn("space-y-0", className)}>{elements}</div>;
 }

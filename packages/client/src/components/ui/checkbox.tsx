@@ -22,7 +22,10 @@ export function Checkbox({ className, label, id, ...props }: CheckboxProps) {
 				{...props}
 			/>
 			{label && (
-				<span className="text-sm select-none group-hover:text-foreground transition-colors" style={{ color: "var(--muted-foreground)" }}>
+				<span
+					className="text-sm select-none group-hover:text-foreground transition-colors"
+					style={{ color: "var(--muted-foreground)" }}
+				>
 					{label}
 				</span>
 			)}

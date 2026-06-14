@@ -1,11 +1,4 @@
-import {
-	existsSync,
-	mkdirSync,
-	rmSync,
-	statSync,
-	utimesSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -166,11 +159,7 @@ Test.
 `;
 		writeFileSync(join(specDir, "spec.md"), specContent);
 
-		const result = checkSpecContent(
-			specDir,
-			"Consistência de Terminologia",
-			"test",
-		);
+		const result = checkSpecContent(specDir, "Consistência de Terminologia", "test");
 		expect(result?.status).toBe("PASS");
 	});
 
@@ -202,11 +191,7 @@ Test.
 `;
 		writeFileSync(join(specDir, "spec.md"), specContent);
 
-		const result = checkSpecContent(
-			specDir,
-			"Consistência de Terminologia",
-			"test",
-		);
+		const result = checkSpecContent(specDir, "Consistência de Terminologia", "test");
 		expect(result?.status).toBe("FAIL");
 		expect(result?.note).toContain("missing");
 	});

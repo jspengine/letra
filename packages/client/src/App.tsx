@@ -19,9 +19,7 @@ export default function App() {
 		if (typeof window === "undefined") return "dark";
 		const stored = localStorage.getItem("letra-theme");
 		if (stored === "light" || stored === "dark") return stored;
-		return window.matchMedia("(prefers-color-scheme: light)").matches
-			? "light"
-			: "dark";
+		return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 	});
 
 	useEffect(() => {
@@ -85,7 +83,9 @@ export default function App() {
 			case "specs":
 				return <SpecsView />;
 			case "flow":
-				return <FlowView workflow={wf} onItemMoved={refreshWorkflow} onTabChange={setTab} />;
+				return (
+					<FlowView workflow={wf} onItemMoved={refreshWorkflow} onTabChange={setTab} />
+				);
 			case "context":
 				return <ContextView />;
 		}
@@ -97,15 +97,9 @@ export default function App() {
 				className="flex flex-col h-screen"
 				style={{ background: "var(--background)", color: "var(--foreground)" }}
 			>
-				<Header
-					name={wf?.name || "Letra"}
-					theme={theme}
-					onThemeChange={setTheme}
-				/>
+				<Header name={wf?.name || "Letra"} theme={theme} onThemeChange={setTheme} />
 				<NavTabs activeTab={tab} onTabChange={setTab} />
-				<main className="flex-1 animate-fade-in" role="main">
-					{renderPanel()}
-				</main>
+				<main className="flex-1 animate-fade-in">{renderPanel()}</main>
 			</div>
 		</ToastProvider>
 	);

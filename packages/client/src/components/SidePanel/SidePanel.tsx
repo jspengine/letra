@@ -9,18 +9,12 @@ interface Props {
 }
 
 function daysSince(dateStr: string): number {
-	return Math.floor(
-		(Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24),
-	);
+	return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function SidePanelContent({
-	item,
-	workflow,
-}: { item: Item; workflow: Workflow }) {
+function SidePanelContent({ item, workflow }: { item: Item; workflow: Workflow }) {
 	const [selectedStage, setSelectedStage] = useState(item.stage);
-	const stageName =
-		workflow.stages.find((s) => s.id === item.stage)?.name || item.stage;
+	const stageName = workflow.stages.find((s) => s.id === item.stage)?.name || item.stage;
 
 	function handleMove() {
 		fetch(`/api/items/${item.id}`, {

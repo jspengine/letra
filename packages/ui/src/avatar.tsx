@@ -1,5 +1,5 @@
-import { cn } from "./utils";
 import { Icon } from "./icon";
+import { cn } from "./utils";
 
 interface AvatarProps {
 	name?: string;

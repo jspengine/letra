@@ -1,10 +1,4 @@
-import {
-	existsSync,
-	mkdirSync,
-	readFileSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -66,9 +60,7 @@ describe("flow-export-import", () => {
 	describe("flowExport", () => {
 		it("should show warning when no workflow exists", () => {
 			flowExport(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("No workflow found"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("No workflow found"));
 		});
 
 		it("should print formatted JSON", () => {
@@ -98,10 +90,7 @@ describe("flow-export-import", () => {
 
 			flowImport(tmpDir, importFile);
 
-			const saved = readFileSync(
-				join(tmpDir, ".letra", "workflow.json"),
-				"utf-8",
-			);
+			const saved = readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8");
 			const parsed = JSON.parse(saved);
 			expect(parsed.name).toBe("imported-project");
 			expect(parsed.version).toBe("2.0");
