@@ -34,11 +34,11 @@ diagnostics/
 - [ ] **engine.runAll()**: Executa todos os detectores em paralelo, coleta resultados
 - [ ] **Auto-fix certo**: Se detector tem certeza ≥ 90% (ac-stale, missing-dir, dead-icons), aplica correção automaticamente e registra snapshot
 - [ ] **Suggest-only**: Se detector tem certeza < 90% (stage-drift parcial, ac-false-pos), retorna como sugestão sem aplicar
-- [ ] **Snapshot pré-fix**: Antes de qualquer auto-correção, salva estado anterior dos arquivos modificados
+- [x] **Snapshot pré-fix**: Antes de qualquer auto-correção, salva estado anterior dos arquivos modificados
 - [ ] **engine.undo(snapshotId)**: Restaura arquivos do snapshot, apaga snapshot
 - [ ] **Cleanup automático**: Snapshots >30d são removidos na inicialização do engine
-- [ ] **Detector AC stale**: Varre `*.test.ts` por padrões `AC-<specId>-<numero>` e compara com `acceptance.md` — AC `[ ]` com teste passando → auto-corrige para `[x]`
-- [ ] **Detector missing-dir**: Lista de diretórios obrigatórios (`.letra/templates/`, `.letra/brand/`) — ausente → cria
+- [x] **Detector AC stale**: Varre `*.test.ts` por padrões `AC-<specId>-<numero>` e compara com `acceptance.md` — AC `[ ]` com teste passando → auto-corrige para `[x]`
+- [x] **Detector missing-dir**: Lista de diretórios obrigatórios (`.letra/templates/`, `.letra/brand/`) — ausente → cria
 - [ ] **Detector dead-icons**: Varre JSX `<Icon name="X">` vs `ICONS` map — referenciado não definido → adiciona placeholder
 - [ ] **Detector stage-drift**: Item com 100% ACs implementados em estágio `review` ou anterior → sugere mover para `done`
 - [ ] **Detector ac-false-pos**: AC `[x]` sem teste ou implementação correspondente → sugere marcar como `[ ]`

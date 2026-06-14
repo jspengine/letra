@@ -193,7 +193,7 @@ export default function HomeView({ workflow, onSelectItem, onTabChange }: Props)
 	}
 
 	return (
-		<div className="flex flex-col h-full">
+		<div className="flex flex-col flex-1 min-h-0">
 			<div className="flex-1 overflow-y-auto p-6">
 				<div className="flex flex-col gap-6">
 					<div>
@@ -482,8 +482,17 @@ export default function HomeView({ workflow, onSelectItem, onTabChange }: Props)
 										[ver todas]
 									</button>
 								</div>
-								<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-									{specs.slice(0, 4).map((spec) => {
+						<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+								{[...specs]
+									.sort((a, b) => {
+										const da = a.content.match(/> Updated:\s*(\d{4}-\d{2}-\d{2})/);
+										const db = b.content.match(/> Updated:\s*(\d{4}-\d{2}-\d{2})/);
+										const ta = da ? new Date(da[1]).getTime() : 0;
+										const tb = db ? new Date(db[1]).getTime() : 0;
+										return tb - ta;
+									})
+									.slice(0, 4)
+									.map((spec) => {
 										const hasOutcome = /## Outcome/.test(spec.content);
 										const hasAC = /## Acceptance Criteria/.test(spec.content);
 										const acDone = (spec.content.match(/-\s+\[x\]/g) || [])

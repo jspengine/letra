@@ -3,7 +3,7 @@
   "name": "letra",
   "description": "SDD-agnostic memory framework for AI coding agents",
   "createdAt": "2026-06-07T21:45:54.843Z",
-  "updatedAt": "2026-06-14T15:08:49.841Z",
+  "updatedAt": "2026-06-14T18:21:16.242Z",
   "stages": [
     {
       "id": "backlog",
@@ -259,6 +259,13 @@
       "spec": "diagnostics-ui",
       "stage": "design",
       "createdAt": "2026-06-14T14:56:00.000Z"
+    },
+    {
+      "id": "ITEM-33",
+      "description": "ruler header — DocumentView reutilizável com sticky header + régua de seções + fade no scroll",
+      "spec": "ruler-header",
+      "stage": "code",
+      "createdAt": "2026-06-14T15:33:00.000Z"
     }
   ],
   "specLinks": {
@@ -354,6 +361,9 @@
     },
     "diagnostics-ui": {
       "path": ".letra/specs/diagnostics-ui/spec.md"
+    },
+    "ruler-header": {
+      "path": ".letra/specs/ruler-header/spec.md"
     }
   },
   "tools": [

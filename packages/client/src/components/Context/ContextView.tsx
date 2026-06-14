@@ -3,6 +3,7 @@ import { Icon } from "@letra/ui";
 import type { IconName } from "@letra/ui";
 import { Markdown } from "../ui/markdown";
 import { cn } from "../../lib/utils";
+import { MarkdownView, extractMarkdownSections } from "../ui/MarkdownView";
 
 type Tab = "context.md" | "constitution.md" | "glossary.md" | "decisions";
 
@@ -85,7 +86,7 @@ export default function ContextView() {
 	const selectedDecisionData = decisions.find((d) => d.name === selectedDecision);
 
 	return (
-		<div className="flex h-full">
+		<div className="flex flex-1 min-h-0 overflow-hidden">
 			<div
 				className="w-72 border-r overflow-y-auto flex flex-col shrink-0"
 				style={{ borderColor: "var(--border)" }}
@@ -181,7 +182,7 @@ export default function ContextView() {
 				)}
 			</div>
 
-			<div className="flex flex-col flex-1 min-w-0 h-full">
+			<div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
 				{loading ? (
 					<div
 						key={tab}
@@ -195,31 +196,14 @@ export default function ContextView() {
 						</p>
 					</div>
 				) : tab === "decisions" && selectedDecisionData ? (
-					<div
+					<MarkdownView
 						key={`${tab}-${selectedDecision}`}
-						className="animate-fade-in flex flex-col h-full"
+						title={resolveTitle(selectedDecisionData.content) || selectedDecisionData.name}
+						description={FILE_INFO.decisions.description}
+						sections={extractMarkdownSections(selectedDecisionData.content)}
 					>
-						<div
-							className="flex items-center gap-2.5 px-6 py-3 border-b"
-							style={{ borderColor: "var(--border)" }}
-						>
-							<Icon name="list-three" size={20} className="text-primary" />
-							<div>
-								<h2 className="text-sm font-semibold">
-									{resolveTitle(selectedDecisionData.content) ||
-										selectedDecisionData.name}
-								</h2>
-								<p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-									{FILE_INFO.decisions.description}
-								</p>
-							</div>
-						</div>
-						<div className="flex-1 overflow-y-auto p-6">
-							<div className="max-w-3xl mx-auto">
-								<Markdown content={selectedDecisionData.content} />
-							</div>
-						</div>
-					</div>
+						<Markdown content={selectedDecisionData.content} />
+					</MarkdownView>
 				) : tab === "decisions" ? (
 					<div
 						key={tab}
@@ -230,31 +214,14 @@ export default function ContextView() {
 						</p>
 					</div>
 				) : (
-					<div key={tab} className="animate-fade-in flex flex-col h-full">
-						<div
-							className="flex items-center gap-2.5 px-6 py-3 border-b"
-							style={{ borderColor: "var(--border)" }}
-						>
-							<Icon
-								name={TABS.find((t) => t.id === tab)?.icon ?? "context"}
-								size={20}
-								className="text-primary"
-							/>
-							<div>
-								<h2 className="text-sm font-semibold">
-									{resolveTitle(content) || tab}
-								</h2>
-								<p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-									{FILE_INFO[tab]?.description ?? ""}
-								</p>
-							</div>
-						</div>
-						<div className="flex-1 overflow-y-auto p-6">
-							<div className="max-w-3xl mx-auto">
-								<Markdown content={content} />
-							</div>
-						</div>
-					</div>
+					<MarkdownView
+						key={tab}
+						title={resolveTitle(content) || tab}
+						description={FILE_INFO[tab]?.description}
+						sections={extractMarkdownSections(content)}
+					>
+						<Markdown content={content} />
+					</MarkdownView>
 				)}
 			</div>
 		</div>

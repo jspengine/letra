@@ -31,6 +31,7 @@ export class DiagnosticEngine {
 		stageDriftDetector,
 	];
 	private lastOutput: DiagnosticOutput = { fixes: [], suggestions: [], errors: [] };
+	private appliedFixes = new Set<string>();
 
 	constructor(rootDir: string) {
 		this.rootDir = rootDir;
@@ -39,12 +40,16 @@ export class DiagnosticEngine {
 
 	async runAll(): Promise<DiagnosticOutput> {
 		const output: DiagnosticOutput = { fixes: [], suggestions: [], errors: [] };
+		const newApplied = new Set<string>();
 
 		for (const detector of this.detectors) {
 			try {
 				const results = await detector.run(this.rootDir);
 				for (const result of results) {
 					if (result.autoFix && result.certainty >= 0.9) {
+						if (this.appliedFixes.has(result.id)) {
+							continue;
+						}
 						try {
 							const fix = await result.autoFix();
 							const snapshotId = await this.snapshots.save(
@@ -52,12 +57,15 @@ export class DiagnosticEngine {
 								result.title,
 								fix.files,
 							);
-							output.fixes.push({
-								id: result.id,
-								title: result.title,
-								description: result.description,
-								snapshotId,
-							});
+							newApplied.add(result.id);
+							if (snapshotId) {
+								output.fixes.push({
+									id: result.id,
+									title: result.title,
+									description: result.description,
+									snapshotId,
+								});
+							}
 						} catch (fixError) {
 							output.errors.push(`Auto-fix falhou para ${result.id}: ${fixError}`);
 						}
@@ -76,6 +84,7 @@ export class DiagnosticEngine {
 			}
 		}
 
+		this.appliedFixes = newApplied;
 		this.lastOutput = output;
 		return output;
 	}

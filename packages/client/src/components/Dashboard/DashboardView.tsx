@@ -94,7 +94,7 @@ export default function DashboardView({ workflow, onSelectItem }: Props) {
 	const done = zoneItems(workflow, "done");
 
 	return (
-		<div className="flex h-full">
+		<div className="flex flex-1 min-h-0">
 			<DashColumn
 				title="A fazer"
 				items={todo}

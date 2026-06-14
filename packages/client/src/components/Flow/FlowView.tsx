@@ -309,7 +309,7 @@ export default function FlowView({ workflow, onItemMoved, onTabChange }: Props) 
 	};
 
 	return (
-		<div className="flex flex-col h-full">
+		<div className="flex flex-col flex-1 min-h-0">
 			<div
 				className="flex items-center gap-2.5 px-4 py-3 border-b shrink-0"
 				style={{ borderColor: "var(--border)" }}

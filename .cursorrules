@@ -3,13 +3,11 @@
 
 ## Workflow
 
-**Estagio atual:** Design
+**Estagio atual:** Code
 
 ### Itens neste estagio
 
-- ITEM-30: self-diagnosis engine — detecta e corrige drifts entre specs, código e workflow
-- ITEM-31: diagnostics web — SSE + REST endpoints para diagnóstico no flow serve
-- ITEM-32: diagnostics UI — badge, sugestões, histórico de correções e undo
+- ITEM-33: ruler header — DocumentView reutilizável com sticky header + régua de seções + fade no scroll
 
 ### Regras
 

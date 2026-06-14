@@ -8,7 +8,7 @@ import SpecsView from "./components/Specs/SpecsView";
 import FlowView from "./components/Flow/FlowView";
 import ContextView from "./components/Context/ContextView";
 import UndoHistory from "./components/Diagnostics/UndoHistory";
-import { ToastProvider, SkeletonCard, toast } from "@letra/ui";
+import { ToastProvider, SkeletonCard, useToast } from "@letra/ui";
 
 type Tab = "home" | "specs" | "flow" | "context";
 
@@ -20,7 +20,8 @@ interface Suggestion {
 	detector: string;
 }
 
-export default function App() {
+function AppContent() {
+	const { toast } = useToast();
 	const [wf, setWf] = useState<Workflow | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [tab, setTab] = useState<Tab>("home");
@@ -80,11 +81,11 @@ export default function App() {
 				if (data.fixes?.length > 0) {
 					refreshWorkflow();
 					refreshDiagnostics();
-					toast.success("Item movido automaticamente");
+					toast("Item movido automaticamente", "success");
 				}
 			}
 		} catch {
-			toast.error("Erro ao aplicar sugestão");
+			toast("Erro ao aplicar sugestão", "error");
 		}
 	}
 
@@ -131,23 +132,29 @@ export default function App() {
 	}
 
 	return (
+		<div
+			className="flex flex-col h-screen"
+			style={{ background: "var(--background)", color: "var(--foreground)" }}
+		>
+			<Header
+				name={wf?.name || "Letra"}
+				theme={theme}
+				onThemeChange={setTheme}
+				suggestions={suggestions}
+				onApplySuggestion={handleApplySuggestion}
+				onOpenHistory={() => setShowHistory(true)}
+			/>
+			<NavTabs activeTab={tab} onTabChange={setTab} />
+			<main className="flex-1 min-h-0 flex flex-col animate-fade-in">{renderPanel()}</main>
+			<UndoHistory visible={showHistory} onClose={() => setShowHistory(false)} />
+		</div>
+	);
+}
+
+export default function App() {
+	return (
 		<ToastProvider>
-			<div
-				className="flex flex-col h-screen"
-				style={{ background: "var(--background)", color: "var(--foreground)" }}
-			>
-				<Header
-					name={wf?.name || "Letra"}
-					theme={theme}
-					onThemeChange={setTheme}
-					suggestions={suggestions}
-					onApplySuggestion={handleApplySuggestion}
-					onOpenHistory={() => setShowHistory(true)}
-				/>
-				<NavTabs activeTab={tab} onTabChange={setTab} />
-				<main className="flex-1 animate-fade-in">{renderPanel()}</main>
-				<UndoHistory visible={showHistory} onClose={() => setShowHistory(false)} />
-			</div>
+			<AppContent />
 		</ToastProvider>
 	);
 }

@@ -140,7 +140,7 @@ export default function KanbanView({
 	}
 
 	return (
-		<div className="flex h-full gap-3 p-3 overflow-x-auto">
+		<div className="flex flex-1 min-h-0 gap-3 p-3 overflow-x-auto">
 			{workflow.stages.map((stage) => {
 				const stageItems = workflow.items.filter((it) => it.stage === stage.id);
 				const isOver = dragOver === stage.id;
