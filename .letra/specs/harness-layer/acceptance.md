@@ -31,13 +31,13 @@
 
 ## Fase 4 — Limpeza de estado dinâmico
 
-- [ ] **context.md sem Estado Atual**: Template de init não gera seção "Estado Atual" em context.md.
-- [ ] **Dogfood context.md**: `.letra/context.md` do repo letra não contém item/estágio obsoleto.
-- [ ] **Glossary atualizado**: Entrada "Adapter Regeneration" descreve composição em camadas.
+- [x] **context.md sem Estado Atual**: Template de init não gera seção "Estado Atual" em context.md.
+- [x] **Dogfood context.md**: `.letra/context.md` do repo letra não contém item/estágio obsoleto.
+- [x] **Glossary atualizado**: Entrada "Adapter Regeneration" descreve composição em camadas.
 
 ## Não-regressão
 
-- [ ] **Adapter thin**: Nenhum adapter gerado ultrapassa 60 linhas em projeto com 1 item ativo.
-- [ ] **Sem spec inline**: Nenhum adapter contém texto de Outcome/Constraints copiado de spec.md.
-- [ ] **Multi-tool**: `workflow.tools` com cursor+opencode+vscode gera os 3 arquivos corretos no mesmo evento.
-- [ ] **111+ testes**: Suite existente passa; novos testes cobrem builder e formatters.
+- [x] **Adapter thin**: Nenhum adapter gerado ultrapassa 60 linhas em projeto com 1 item ativo.
+- [x] **Sem spec inline**: Nenhum adapter contém texto de Outcome/Constraints copiado de spec.md.
+- [x] **Multi-tool**: `workflow.tools` com cursor+opencode+vscode gera os 3 arquivos corretos no mesmo evento.
+- [x] **130+ testes**: Suite existente passa; novos testes cobrem builder e formatters.

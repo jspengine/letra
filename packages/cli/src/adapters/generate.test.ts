@@ -205,5 +205,29 @@ describe("adapters", () => {
 			expect(content).toContain("- .letra/context.md");
 			expect(content).toContain("OpenCode Adapter");
 		});
+
+		it("generates adapters for multiple tools in single event", () => {
+			generateAdapters(tmpDir, ["cursor", "opencode", "vscode"], {
+				source: "init",
+				quiet: true,
+			});
+
+			// Assert all 3 files exist
+			expect(existsSync(join(tmpDir, ".cursorrules"))).toBe(true);
+			expect(existsSync(join(tmpDir, "AGENTS.md"))).toBe(true);
+			expect(existsSync(join(tmpDir, ".github/copilot-instructions.md"))).toBe(true);
+
+			// Assert cursor has @ format
+			const cursor = readFileSync(join(tmpDir, ".cursorrules"), "utf-8");
+			expect(cursor).toContain("@.letra/context.md");
+
+			// Assert opencode has bullet format
+			const opencode = readFileSync(join(tmpDir, "AGENTS.md"), "utf-8");
+			expect(opencode).toContain("- .letra/context.md");
+
+			// Assert vscode has bullet format
+			const vscode = readFileSync(join(tmpDir, ".github/copilot-instructions.md"), "utf-8");
+			expect(vscode).toContain("- .letra/context.md");
+		});
 	});
 });
