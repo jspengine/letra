@@ -25,9 +25,9 @@
 
 ## Fase 3 — Detecção ac-source-drift
 
-- [ ] **Drift inline**: Quando contagem de ACs difere entre spec.md e acceptance.md, L3 inclui aviso `ac-source-drift`.
-- [ ] **Detector harness-stale**: Diagnostics detecta adapter sem referências L1 e sugere `letra flow move` ou `letra focus`.
-- [ ] **Specs adapter-* atualizadas**: Exclusion "sem sync automático" removida; AC de regeneração em flow move adicionado.
+- [x] **Drift inline**: Quando contagem de ACs difere entre spec.md e acceptance.md, L3 inclui aviso `ac-source-drift`.
+- [x] **Detector harness-stale**: Diagnostics detecta adapter sem referências L1 e sugere `letra flow move` ou `letra focus`.
+- [x] **Specs adapter-* atualizadas**: Exclusion "sem sync automático" removida; AC de regeneração em flow move adicionado.
 
 ## Fase 4 — Limpeza de estado dinâmico
 

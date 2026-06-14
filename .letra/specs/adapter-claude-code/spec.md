@@ -13,7 +13,6 @@ O Claude Code (Anthropic) lê automaticamente o contexto `.letra/` ao iniciar um
 ## Exclusions
 
 - **Não é um plugin**: Claude Code já lê `CLAUDE.md` nativamente.
-- **Sem sync automático**: O `CLAUDE.md` é gerado no `init`, não re-sincronizado.
 
 ## Acceptance Criteria
 
@@ -21,6 +20,7 @@ O Claude Code (Anthropic) lê automaticamente o contexto `.letra/` ao iniciar um
 - [x] **Injeção de Contexto**: Ao iniciar sessão, o Claude Code injeta os arquivos `.letra/` no contexto.
 - [x] **Acesso a Validação**: Agente consegue executar `letra validate` e ler output.
 - [ ] **Não-intrusivo**: O adapter não modifica arquivos além de criar `CLAUDE.md` na raiz.
+- [x] **Sync automático**: `CLAUDE.md` é regenerado automaticamente em `flow move` e `letra focus` commands.
 
 ## Context
 

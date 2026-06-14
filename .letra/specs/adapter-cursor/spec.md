@@ -15,7 +15,6 @@ Quando o Letra é inicializado em um projeto, o Cursor lê automaticamente o con
 
 - **Não é um plugin VSCode**: Cursor é um fork independente com regras próprias.
 - **Não é marketplace**: Nada para publicar na loja de extensões.
-- **Sem sync automático**: O `.cursorrules` é gerado no `init`, não é re-sincronizado a cada mudança na spec (por enquanto).
 
 ## Acceptance Criteria
 
@@ -23,6 +22,7 @@ Quando o Letra é inicializado em um projeto, o Cursor lê automaticamente o con
 - [x] **Injeção de Contexto**: Ao abrir projeto no Cursor, o agente injeta os arquivos `.letra/` no system prompt.
 - [x] **Acesso a Validação**: Agente consegue executar `letra validate` e ler output para saber critérios pendentes.
 - [x] **Não-intrusivo**: O adapter não modifica arquivos do projeto além de criar `.cursorrules` na raiz.
+- [x] **Sync automático**: `.cursorrules` é regenerado automaticamente em `flow move` e `letra focus` commands, refletindo estado atual do workflow.
 
 ## Context
 

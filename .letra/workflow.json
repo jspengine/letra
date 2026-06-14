@@ -271,7 +271,7 @@
       "id": "ITEM-34",
       "description": "harness layer — composição de adapters (L1-L4), work signals, focus sync",
       "spec": "harness-layer",
-      "stage": "code",
+      "stage": "review",
       "createdAt": "2026-06-14T20:00:00.000Z"
     },
     {
