@@ -95,7 +95,14 @@ describe("adapters", () => {
 				workflow: {
 					name: "letra",
 					stages: [{ id: "code", name: "Code" }],
-					items: [{ id: "ITEM-33", description: "ruler header", stage: "code", spec: "ruler-header" }],
+					items: [
+						{
+							id: "ITEM-33",
+							description: "ruler header",
+							stage: "code",
+							spec: "ruler-header",
+						},
+					],
 				},
 				activeStageId: "code",
 			});
@@ -163,7 +170,14 @@ describe("adapters", () => {
 				workflow: {
 					name: "letra",
 					stages: [{ id: "code", name: "Code" }],
-					items: [{ id: "ITEM-33", description: "ruler header", stage: "code", spec: "ruler-header" }],
+					items: [
+						{
+							id: "ITEM-33",
+							description: "ruler header",
+							stage: "code",
+							spec: "ruler-header",
+						},
+					],
 				},
 				activeStageId: "code",
 			});

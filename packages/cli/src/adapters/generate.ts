@@ -11,10 +11,7 @@ const ADAPTER_HEADER: Record<AdapterSource, string> = {
 	focus: "# Gerado por letra focus. Nao edite manualmente.\n",
 };
 
-const TOOL_TARGETS: Record<
-	string,
-	{ path: string; format: "at" | "text"; displayName: string }
-> = {
+const TOOL_TARGETS: Record<string, { path: string; format: "at" | "text"; displayName: string }> = {
 	cursor: { path: ".cursorrules", format: "at", displayName: "Cursor" },
 	"claude-code": { path: "CLAUDE.md", format: "text", displayName: "Claude Code" },
 	windsurf: { path: ".windsurfrules", format: "at", displayName: "Windsurf" },
@@ -55,7 +52,9 @@ export function generateAdapters(
 		writeFileSync(filePath, header + content);
 
 		if (!options.quiet) {
-			console.log(`  ${chalk.gray(verb)} ${filePath.replace(`${root}/`, "").replace(`${root}\\`, "")}`);
+			console.log(
+				`  ${chalk.gray(verb)} ${filePath.replace(`${root}/`, "").replace(`${root}\\`, "")}`,
+			);
 		}
 	}
 }

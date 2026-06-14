@@ -98,8 +98,9 @@ export class SnapshotStore {
 
 	private getLastForDiagnostic(diagnosticId: string): Snapshot | null {
 		if (!existsSync(this.snapshotsDir)) return null;
-		const entries = readdirSync(this.snapshotsDir)
-			.filter((f) => f.endsWith(".json") && f.includes(`_${diagnosticId}`));
+		const entries = readdirSync(this.snapshotsDir).filter(
+			(f) => f.endsWith(".json") && f.includes(`_${diagnosticId}`),
+		);
 		if (entries.length === 0) return null;
 		entries.sort().reverse();
 		try {

@@ -1,10 +1,6 @@
 import type { AdapterFormat, HarnessSnapshot } from "./types.js";
 
-const L1_FILES = [
-	".letra/context.md",
-	".letra/constitution.md",
-	".letra/glossary.md",
-] as const;
+const L1_FILES = [".letra/context.md", ".letra/constitution.md", ".letra/glossary.md"] as const;
 
 function formatL1(snapshot: HarnessSnapshot, format: AdapterFormat): string {
 	if (format === "at") {
@@ -78,7 +74,7 @@ function formatL3(snapshot: HarnessSnapshot): string | null {
 		`**Tasks:** ${tasksOpen}/${tasksTotal} abertas`,
 	];
 
-	if (primaryItem && primaryItem.spec && snapshot.acDrifts) {
+	if (primaryItem?.spec && snapshot.acDrifts) {
 		const drift = snapshot.acDrifts.find((d) => d.spec === primaryItem.spec);
 		if (drift) {
 			lines.push(

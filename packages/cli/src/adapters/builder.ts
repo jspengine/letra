@@ -80,7 +80,7 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 	} else {
 		// Derivar do item primário se ele tiver spec
 		const primaryItem = items.find((i) => i.id === primaryItemId);
-		if (primaryItem && primaryItem.spec) {
+		if (primaryItem?.spec) {
 			focusSpec = primaryItem.spec;
 			focusPath = `.letra/specs/${primaryItem.spec}/`;
 		}

@@ -66,7 +66,13 @@ function extractOutcome(content: string): string {
 
 function validateSpecLocally(content: string): SpecValidation {
 	const issues: Array<{ type: "error" | "warning"; msg: string }> = [];
-	const requiredSections = ["Outcome", "Constraints", "Exclusions", "Acceptance Criteria", "Context"];
+	const requiredSections = [
+		"Outcome",
+		"Constraints",
+		"Exclusions",
+		"Acceptance Criteria",
+		"Context",
+	];
 	for (const section of requiredSections) {
 		if (!new RegExp(`## ${section}`).test(content)) {
 			issues.push({ type: "error", msg: `Seção obrigatória ausente: ## ${section}` });
@@ -147,7 +153,10 @@ export default function SpecsView() {
 	}, [specs, selected, creating]);
 
 	const selectedSpec = specs.find((s) => s.id === selected);
-	const specSections = useMemo(() => selectedSpec ? extractMarkdownSections(selectedSpec.content) : [], [selectedSpec]);
+	const specSections = useMemo(
+		() => (selectedSpec ? extractMarkdownSections(selectedSpec.content) : []),
+		[selectedSpec],
+	);
 
 	function specDate(content: string): string {
 		const m = content.match(/> Updated:\s*(\d{4}-\d{2}-\d{2})/);
@@ -432,7 +441,8 @@ export default function SpecsView() {
 						const isValid = v?.valid && v.issues.length === 0;
 						const date = formatSpecDateTime(specDate(spec.content));
 						const outcome = extractOutcome(spec.content);
-						const truncatedOutcome = outcome.length > 60 ? outcome.slice(0, 60) + "…" : outcome;
+						const truncatedOutcome =
+							outcome.length > 60 ? `${outcome.slice(0, 60)}…` : outcome;
 						return (
 							<button
 								key={spec.id}
@@ -448,28 +458,56 @@ export default function SpecsView() {
 							>
 								<div className="flex items-center gap-2">
 									{hasErrors ? (
-										<Icon name="x" size={14} style={{ color: "var(--error)" }} />
+										<Icon
+											name="x"
+											size={14}
+											style={{ color: "var(--error)" }}
+										/>
 									) : hasWarnings ? (
-										<Icon name="alert-triangle" size={14} style={{ color: "var(--warning)" }} />
+										<Icon
+											name="alert-triangle"
+											size={14}
+											style={{ color: "var(--warning)" }}
+										/>
 									) : isValid ? (
-										<Icon name="check" size={14} style={{ color: "var(--success)" }} />
+										<Icon
+											name="check"
+											size={14}
+											style={{ color: "var(--success)" }}
+										/>
 									) : (
-										<span className="w-3.5 inline-flex items-center justify-center text-xs" style={{ color: "var(--muted-foreground)" }}>○</span>
+										<span
+											className="w-3.5 inline-flex items-center justify-center text-xs"
+											style={{ color: "var(--muted-foreground)" }}
+										>
+											○
+										</span>
 									)}
-									<span className="text-sm font-medium truncate flex-1">{spec.id}</span>
+									<span className="text-sm font-medium truncate flex-1">
+										{spec.id}
+									</span>
 									{v && v.issues.length > 0 && (
-										<Badge variant={v.valid ? "success" : "warning"} className="shrink-0 text-[10px]">
+										<Badge
+											variant={v.valid ? "success" : "warning"}
+											className="shrink-0 text-[10px]"
+										>
 											{v.issues.filter((i) => i.type === "error").length}E{" "}
 											{v.issues.filter((i) => i.type === "warning").length}W
 										</Badge>
 									)}
-									<span className="text-[10px] shrink-0 tabular-nums" style={{ color: "var(--muted-foreground)" }}>
+									<span
+										className="text-[10px] shrink-0 tabular-nums"
+										style={{ color: "var(--muted-foreground)" }}
+									>
 										{date}
 									</span>
 								</div>
 								{truncatedOutcome && (
 									<div className="flex items-center gap-1 pl-5">
-										<span className="text-[11px] truncate" style={{ color: "var(--muted-foreground)" }}>
+										<span
+											className="text-[11px] truncate"
+											style={{ color: "var(--muted-foreground)" }}
+										>
 											{truncatedOutcome}
 										</span>
 									</div>
@@ -483,7 +521,12 @@ export default function SpecsView() {
 											border: "1px solid var(--border)",
 										}}
 									>
-										<div className="font-medium mb-1" style={{ color: "var(--muted-foreground)" }}>Outcome</div>
+										<div
+											className="font-medium mb-1"
+											style={{ color: "var(--muted-foreground)" }}
+										>
+											Outcome
+										</div>
 										{outcome}
 									</div>
 								)}
@@ -602,13 +645,11 @@ export default function SpecsView() {
 					>
 						{validations.get(selectedSpec.id) && (
 							<div className="flex flex-wrap gap-2 mb-4">
-								{validations
-									.get(selectedSpec.id)
-									?.issues.map((issue, i) => (
-										<Badge key={i} variant="warning">
-											{issue.type === "error" ? "✗" : "⚠"} {issue.msg}
-										</Badge>
-									))}
+								{validations.get(selectedSpec.id)?.issues.map((issue, i) => (
+									<Badge key={i} variant="warning">
+										{issue.type === "error" ? "✗" : "⚠"} {issue.msg}
+									</Badge>
+								))}
 								{validations.get(selectedSpec.id)?.issues.length === 0 && (
 									<Badge variant="success">✅ Válida</Badge>
 								)}

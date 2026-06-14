@@ -37,11 +37,17 @@ export const harnessStaleDetector: Detector = {
 			let isStale = false;
 
 			if (info.format === "at") {
-				if (!content.includes("@.letra/context.md") || !content.includes("@.letra/constitution.md")) {
+				if (
+					!content.includes("@.letra/context.md") ||
+					!content.includes("@.letra/constitution.md")
+				) {
 					isStale = true;
 				}
 			} else {
-				if (!content.includes(".letra/context.md") || !content.includes(".letra/constitution.md")) {
+				if (
+					!content.includes(".letra/context.md") ||
+					!content.includes(".letra/constitution.md")
+				) {
 					isStale = true;
 				}
 			}

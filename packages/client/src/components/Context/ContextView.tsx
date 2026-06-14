@@ -198,7 +198,9 @@ export default function ContextView() {
 				) : tab === "decisions" && selectedDecisionData ? (
 					<MarkdownView
 						key={`${tab}-${selectedDecision}`}
-						title={resolveTitle(selectedDecisionData.content) || selectedDecisionData.name}
+						title={
+							resolveTitle(selectedDecisionData.content) || selectedDecisionData.name
+						}
 						description={FILE_INFO.decisions.description}
 						sections={extractMarkdownSections(selectedDecisionData.content)}
 					>
