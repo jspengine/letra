@@ -1,0 +1,44 @@
+@import "tailwindcss";
+@import "../../ui/src/index.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+html {
+	background: var(--surface-1);
+	color: var(--text-primary);
+}
+
+@keyframes fade-in {
+	from { opacity: 0; transform: translateY(4px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-live {
+	0%, 100% { box-shadow: 0 0 0 0 oklch(0.627 0.194 149.214 / 0.4); }
+	50% { box-shadow: 0 0 0 4px oklch(0.627 0.194 149.214 / 0); }
+}
+
+.animate-pulse-live {
+	animation: pulse-live 2s ease-in-out infinite;
+}
+
+@keyframes slide-in-from-right {
+	from { opacity: 0; transform: translateX(100%); }
+	to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fade-in {
+	animation: fade-in 0.2s ease-out;
+}
+
+.animate-slide-in-right {
+	animation: slide-in-from-right 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}

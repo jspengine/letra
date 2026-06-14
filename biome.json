@@ -1,0 +1,46 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"organizeImports": {
+		"enabled": false
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"indentWidth": 4,
+		"lineWidth": 100
+	},
+	"files": {
+		"ignoreUnknown": true,
+		"ignore": ["*.css", "*.json", "node_modules", "dist"]
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"a11y": {
+				"useButtonType": "warn",
+				"useKeyWithClickEvents": "off",
+				"useSemanticElements": "off",
+				"noRedundantRoles": "warn"
+			},
+			"style": {
+				"noNonNullAssertion": "warn",
+				"useTemplate": "warn",
+				"noParameterAssign": "off"
+			},
+			"suspicious": {
+				"noArrayIndexKey": "warn",
+				"noExplicitAny": "warn",
+				"noAssignInExpressions": "warn"
+			},
+			"complexity": {
+				"noForEach": "warn",
+				"noStaticOnlyClass": "off",
+				"noBannedTypes": "off"
+			},
+			"correctness": {
+				"useExhaustiveDependencies": "off"
+			}
+		}
+	}
+}

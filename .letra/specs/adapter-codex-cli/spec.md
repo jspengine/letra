@@ -1,4 +1,5 @@
-# Spec — Adapter Codex CLI
+
+# Spec adapter-codex-cli
 
 ## Outcome
 
