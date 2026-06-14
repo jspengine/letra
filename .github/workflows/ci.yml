@@ -17,6 +17,7 @@ jobs:
           node-version: 22.x
           cache: "npm"
       - run: npm ci
+      - run: npm -w packages/cli run dev -- init --quick
       - run: npm -w packages/cli run dev -- lint
 
   typecheck:
@@ -53,4 +54,5 @@ jobs:
           node-version: 22.x
           cache: "npm"
       - run: npm ci
+      - run: npm -w packages/cli run dev -- init --quick
       - run: npm -w packages/cli run dev -- validate
