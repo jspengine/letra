@@ -4,3 +4,6 @@ dist/
 .DS_Store
 .env
 .letra/specs/*/status.md
+.letra/backups/
+.letra/workflow.v*.json
+.opencode/

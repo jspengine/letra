@@ -1,5 +1,6 @@
 # Spec Template
 
+> Updated: YYYY-MM-DD
 > Template para thin specs do Letra
 > Cada feature deve ter sua própria pasta em `.letra/specs/`
 

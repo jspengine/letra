@@ -1,6 +1,6 @@
 # Context
 
-> Updated: 2026-05-01
+> Updated: 2026-06-13
 > Owner: letra-dev
 
 ## Intent
@@ -10,9 +10,28 @@ Captura direção, intenção e contexto, enriquecendo prompts de agentes de có
 
 ## Domínio
 
-- **Produto**: CLI + adapters + formato de memória `.letra/`
+- **Produto**: CLI + adapters + formato de memória `.letra/` + SPA web UI
 - **Público**: 1. Não-devs → 2. Devs → 3. Empresas (tarefas diversas)
-- **Stack**: TypeScript, Node.js 22+, distribuído via npm (npx)
+- **Stack**: TypeScript, Node.js 22+, React 19 + Vite (web UI), distribuído via npm (npx)
+
+## Estado Atual (2026-06-13)
+
+- **Estágio**: Design
+- **Item corrente**: ITEM-12 — Modelo de dados resiliente
+- **UX Redesign**: Letra como "AI Memory & Spec Hub" — spec-first, 4 abas (Home, Specs, Flow, Context)
+- **Shell implementado**: Header simplificado + NavTabs + FlowView (pipe/kanban toggle + detail inline) + HomeView (health check) + SpecsView (list + detail) + ContextView (markdown viewer)
+- **Flow Designer**: ITEM-13 completo (drag & drop nativo HTML5, tasks, specLinks, modelo resiliente)
+- **Design System**: shadcn-inspired com tokens OKLCH, dark/light mode, Tailwind v4, componentes Button/Badge/Card — ver `.letra/docs/design-system.md`
+- **Build**: 111/111 testes passando
+
+## Stack
+
+- **Monorepo**: npm workspaces (`packages/cli`, `packages/client`, `packages/types`)
+- **CLI**: Commander, tsup (build), Vitest (testes)
+- **Web UI**: React 19, Vite 6, Tailwind v4 + `@tailwindcss/vite`, shadcn/ui-inspired componentes
+- **Linting**: Biome
+- **Runtime**: Node 22+, ESM (`"type": "module"`)
+- **Zero dependências runtime externas** — `fetch()` nativo Node 22+
 
 ## Restrições Reais
 
@@ -20,6 +39,7 @@ Captura direção, intenção e contexto, enriquecendo prompts de agentes de có
 - Sem lock-in de IDE — o formato `.letra/` é Markdown puro
 - Drift detection deve funcionar para qualquer domínio (não só código)
 - Pipeline CI/CD deve falhar se spec não for cumprida
+- Web UI pré-compilado no build do pacote — usuário final só precisa de Node
 
 ## Porquês
 
@@ -27,3 +47,5 @@ Captura direção, intenção e contexto, enriquecendo prompts de agentes de có
 - Escolhemos Markdown checklist porque não-devs precisam ler e escrever specs
 - Escolhemos adapter OpenCode primeiro para dogfooding imediato
 - Escolhemos organização GitHub dedicada para identidade de produto
+- Escolhemos OKLCH sobre HSL para percepção consistente entre matizes
+- Escolhemos SPA React + Vite para web UI acessível a não-devs
