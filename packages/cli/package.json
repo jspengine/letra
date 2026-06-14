@@ -1,6 +1,6 @@
 {
-	"name": "@letra/cli",
-	"version": "0.3.0",
+	"name": "@letra-ai/cli",
+	"version": "0.4.0",
 	"type": "module",
 	"bin": {
 		"letra": "dist/index.js"
