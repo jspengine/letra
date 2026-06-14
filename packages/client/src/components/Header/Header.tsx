@@ -1,12 +1,31 @@
 import { Badge, Button, Icon } from "@letra/ui";
+import DiagnosticsIndicator from "../Diagnostics/DiagnosticsIndicator";
+
+interface Suggestion {
+	id: string;
+	title: string;
+	description: string;
+	type: string;
+	detector: string;
+}
 
 interface Props {
 	name: string;
 	theme: "light" | "dark";
 	onThemeChange: (t: "light" | "dark") => void;
+	suggestions?: Suggestion[];
+	onApplySuggestion?: (s: Suggestion) => void;
+	onOpenHistory?: () => void;
 }
 
-export default function Header({ name, theme, onThemeChange }: Props) {
+export default function Header({
+	name,
+	theme,
+	onThemeChange,
+	suggestions = [],
+	onApplySuggestion,
+	onOpenHistory,
+}: Props) {
 	return (
 		<header
 			className="flex items-center justify-between px-4 py-2 border-b"
@@ -25,6 +44,24 @@ export default function Header({ name, theme, onThemeChange }: Props) {
 			</div>
 
 			<div className="flex items-center gap-2">
+				{suggestions.length > 0 && onApplySuggestion && onOpenHistory && (
+					<DiagnosticsIndicator
+						suggestions={suggestions}
+						onApplyFix={onApplySuggestion}
+						onOpenHistory={onOpenHistory}
+					/>
+				)}
+
+				<button
+					type="button"
+					onClick={() => onOpenHistory?.()}
+					className="p-1.5 rounded hover:opacity-70 transition-opacity"
+					style={{ color: "var(--muted-foreground)" }}
+					aria-label="Histórico de correções"
+				>
+					<Icon name="settings" size={16} />
+				</button>
+
 				<Button
 					variant="ghost"
 					size="sm"

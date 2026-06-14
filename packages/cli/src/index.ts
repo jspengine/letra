@@ -9,6 +9,7 @@ import { init } from "./commands/init.js";
 import { lint } from "./commands/lint.js";
 import { specNew } from "./commands/spec.js";
 import { validate } from "./commands/validate.js";
+import { diagnose } from "./commands/diagnose.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(readFileSync(join(resolve(__dirname, ".."), "package.json"), "utf-8"));
@@ -43,6 +44,11 @@ program
 	.option("--format <type>", "Output format: text, github-annotation, junit")
 	.description("Check if artifacts meet acceptance criteria")
 	.action((path, options) => validate(path, { ...options }));
+
+program
+	.command("diagnose [path]")
+	.description("Detect and fix drifts between specs, code, and workflow")
+	.action((path) => diagnose(path));
 
 program.addCommand(decisionCommand());
 program.addCommand(flowCommand());

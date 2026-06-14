@@ -3,7 +3,7 @@
   "name": "letra",
   "description": "SDD-agnostic memory framework for AI coding agents",
   "createdAt": "2026-06-07T21:45:54.843Z",
-  "updatedAt": "2026-06-14T13:57:32.529Z",
+  "updatedAt": "2026-06-14T15:08:49.841Z",
   "stages": [
     {
       "id": "backlog",
@@ -152,35 +152,35 @@
       "id": "ITEM-17",
       "description": "flow mvp",
       "spec": "flow-mvp",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-18",
       "description": "flow serve",
       "spec": "flow-serve",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-19",
       "description": "flow visualize",
       "spec": "flow-visualize",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-20",
       "description": "init interactive",
       "spec": "init-interactive",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-21",
       "description": "item 26 home rica",
       "spec": "item-26-home-rica",
-      "stage": "backlog",
+      "stage": "review",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
@@ -194,50 +194,71 @@
       "id": "ITEM-23",
       "description": "session focus",
       "spec": "session-focus",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-24",
       "description": "spec templates domain",
       "spec": "spec-templates-domain",
-      "stage": "backlog",
+      "stage": "review",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-25",
       "description": "validate config",
       "spec": "validate-config",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-26",
       "description": "validate conflict",
       "spec": "validate-conflict",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-27",
       "description": "validate format pr",
       "spec": "validate-format-pr",
-      "stage": "backlog",
+      "stage": "review",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-28",
       "description": "validate intelligence",
       "spec": "validate-intelligence",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-29",
       "description": "validate watch",
       "spec": "validate-watch",
-      "stage": "backlog",
+      "stage": "review",
       "createdAt": "2026-06-07T22:00:00.000Z"
+    },
+    {
+      "id": "ITEM-30",
+      "description": "self-diagnosis engine — detecta e corrige drifts entre specs, código e workflow",
+      "spec": "self-diagnosis-core",
+      "stage": "design",
+      "createdAt": "2026-06-14T14:56:00.000Z"
+    },
+    {
+      "id": "ITEM-31",
+      "description": "diagnostics web — SSE + REST endpoints para diagnóstico no flow serve",
+      "spec": "diagnostics-web",
+      "stage": "design",
+      "createdAt": "2026-06-14T14:56:00.000Z"
+    },
+    {
+      "id": "ITEM-32",
+      "description": "diagnostics UI — badge, sugestões, histórico de correções e undo",
+      "spec": "diagnostics-ui",
+      "stage": "design",
+      "createdAt": "2026-06-14T14:56:00.000Z"
     }
   ],
   "specLinks": {
@@ -324,6 +345,15 @@
     },
     "validate-watch": {
       "path": ".letra/specs/validate-watch/spec.md"
+    },
+    "self-diagnosis-core": {
+      "path": ".letra/specs/self-diagnosis-core/spec.md"
+    },
+    "diagnostics-web": {
+      "path": ".letra/specs/diagnostics-web/spec.md"
+    },
+    "diagnostics-ui": {
+      "path": ".letra/specs/diagnostics-ui/spec.md"
     }
   },
   "tools": [

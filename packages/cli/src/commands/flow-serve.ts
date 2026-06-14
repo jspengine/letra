@@ -6,6 +6,7 @@ import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadWorkflow, saveWorkflow, detectProjectName } from "./flow-init.js";
 import type { Item, Workflow } from "./flow-init.js";
+import { DiagnosticEngine } from "../diagnostics/engine.js";
 
 const DEFAULT_PORT = 3000;
 
@@ -123,15 +124,18 @@ function createWorkflowFromTemplate(
 export class FlowServer {
 	private server: ReturnType<typeof createServer> | undefined;
 	private watcher: ReturnType<typeof watch> | undefined;
+	private diagnosticsTimer: ReturnType<typeof setInterval> | undefined;
 	private clients: Set<ServerResponse> = new Set();
 	private root: string;
 	private port: number;
 	private loadWorkflow;
+	private engine: DiagnosticEngine;
 
 	constructor(root: string, port: number = DEFAULT_PORT) {
 		this.root = root;
 		this.port = port;
 		this.loadWorkflow = () => loadWorkflow(root);
+		this.engine = new DiagnosticEngine(root);
 	}
 
 	private handleRequest = (req: IncomingMessage, res: ServerResponse): void => {
@@ -593,6 +597,57 @@ export class FlowServer {
 			return;
 		}
 
+		// ── Diagnostics ──────────────────────────────────────────────
+		if (path === "/api/diagnostics" && req.method === "GET") {
+			const output = this.engine.getLastOutput();
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify(output));
+			return;
+		}
+
+		if (path === "/api/diagnostics/snapshots" && req.method === "GET") {
+			const snapshots = this.engine.listSnapshots();
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ snapshots }));
+			return;
+		}
+
+		if (path === "/api/diagnostics/scan" && req.method === "POST") {
+			this.engine
+				.runAll()
+				.then((output) => {
+					this.broadcastDiagnostics(output);
+					res.writeHead(200, { "Content-Type": "application/json" });
+					res.end(JSON.stringify(output));
+				})
+				.catch((e) => {
+					res.writeHead(500, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ error: e.message }));
+				});
+			return;
+		}
+
+		if (path.match(/^\/api\/diagnostics\/undo\/[^/]+$/) && req.method === "POST") {
+			const snapshotId = path.replace("/api/diagnostics/undo/", "");
+			this.engine
+				.undo(snapshotId)
+				.then((result) => {
+					if (!result.ok) {
+						res.writeHead(404, { "Content-Type": "application/json" });
+						res.end(JSON.stringify({ error: "Snapshot not found" }));
+						return;
+					}
+					this.broadcast();
+					res.writeHead(200, { "Content-Type": "application/json" });
+					res.end(JSON.stringify(result));
+				})
+				.catch((e) => {
+					res.writeHead(500, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ error: e.message }));
+				});
+			return;
+		}
+
 		// Serve SPA (client/dist/) or proxy to Vite dev server
 		this.serveClient(path, req, res);
 	};
@@ -676,6 +731,22 @@ export class FlowServer {
 		}
 	}
 
+	private broadcastDiagnostics(output: {
+		fixes: unknown[];
+		suggestions: unknown[];
+		errors: unknown[];
+	}): void {
+		if (this.clients.size === 0) return;
+		const data = `event: diagnostics-updated\ndata: ${JSON.stringify({ fixes: output.fixes.length, suggestions: output.suggestions.length, errors: output.errors.length })}\n\n`;
+		for (const client of this.clients) {
+			try {
+				client.write(data);
+			} catch {
+				this.clients.delete(client);
+			}
+		}
+	}
+
 	private async fireWebhooks(event: string, payload: Record<string, unknown>): Promise<void> {
 		const wf = this.loadWorkflow();
 		if (!wf?.webhooks || wf.webhooks.length === 0) return;
@@ -713,6 +784,30 @@ export class FlowServer {
 						this.watcher = watch(wfPath, () => this.broadcast());
 					} catch {}
 				}
+
+				// First diagnostic scan immediately after starting
+				this.engine.ensureDirs();
+				this.engine
+					.runAll()
+					.then((output) => {
+						this.broadcastDiagnostics(output);
+					})
+					.catch(() => {
+						/* silent */
+					});
+
+				// Periodic diagnostic scan every 30s
+				this.diagnosticsTimer = setInterval(() => {
+					this.engine
+						.runAll()
+						.then((output) => {
+							this.broadcastDiagnostics(output);
+						})
+						.catch(() => {
+							/* silent */
+						});
+				}, 30000);
+
 				resolve();
 			});
 			this.server.on("error", reject);
@@ -721,6 +816,7 @@ export class FlowServer {
 
 	stop(): void {
 		if (this.watcher) this.watcher.close();
+		if (this.diagnosticsTimer) clearInterval(this.diagnosticsTimer);
 		if (this.server) this.server.close();
 		for (const client of this.clients) {
 			client.destroy();

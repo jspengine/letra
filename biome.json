@@ -33,6 +33,11 @@
 				"noExplicitAny": "warn",
 				"noAssignInExpressions": "warn"
 			},
+			"complexity": {
+				"noForEach": "warn",
+				"noStaticOnlyClass": "off",
+				"noBannedTypes": "off"
+			},
 			"correctness": {
 				"useExhaustiveDependencies": "off"
 			}

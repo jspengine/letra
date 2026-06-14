@@ -1,13 +1,15 @@
 # Gerado por letra flow move. Nao edite manualmente.
-# Letra Context — cli
+# Letra Context — letra
 
 ## Workflow
 
-**Estagio atual:** Done
+**Estagio atual:** Design
 
 ### Itens neste estagio
 
-- ITEM-1: Branding: header Letra no flow serve + 3 opções de logo
+- ITEM-30: self-diagnosis engine — detecta e corrige drifts entre specs, código e workflow
+- ITEM-31: diagnostics web — SSE + REST endpoints para diagnóstico no flow serve
+- ITEM-32: diagnostics UI — badge, sugestões, histórico de correções e undo
 
 ### Regras
 

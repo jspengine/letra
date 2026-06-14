@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { Workflow } from "@letra/types";
 import Header from "./components/Header/Header";
 import { NavTabs } from "./components/NavTabs/NavTabs";
@@ -7,9 +7,18 @@ import HomeView from "./components/Home/HomeView";
 import SpecsView from "./components/Specs/SpecsView";
 import FlowView from "./components/Flow/FlowView";
 import ContextView from "./components/Context/ContextView";
-import { ToastProvider, SkeletonCard } from "@letra/ui";
+import UndoHistory from "./components/Diagnostics/UndoHistory";
+import { ToastProvider, SkeletonCard, toast } from "@letra/ui";
 
 type Tab = "home" | "specs" | "flow" | "context";
+
+interface Suggestion {
+	id: string;
+	title: string;
+	description: string;
+	type: string;
+	detector: string;
+}
 
 export default function App() {
 	const [wf, setWf] = useState<Workflow | null>(null);
@@ -21,6 +30,8 @@ export default function App() {
 		if (stored === "light" || stored === "dark") return stored;
 		return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 	});
+	const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+	const [showHistory, setShowHistory] = useState(false);
 
 	useEffect(() => {
 		document.documentElement.classList.toggle("dark", theme === "dark");
@@ -35,6 +46,15 @@ export default function App() {
 			});
 	}
 
+	const refreshDiagnostics = useCallback(() => {
+		fetch("/api/diagnostics")
+			.then((r) => r.json())
+			.then((data) => {
+				if (data && data.suggestions) setSuggestions(data.suggestions);
+			})
+			.catch(() => {});
+	}, []);
+
 	useEffect(() => {
 		fetch("/api/workflow")
 			.then((r) => r.json())
@@ -44,10 +64,29 @@ export default function App() {
 			})
 			.catch(() => setLoading(false));
 
+		refreshDiagnostics();
+
 		const es = new EventSource("/events");
 		es.addEventListener("workflow-updated", () => refreshWorkflow());
+		es.addEventListener("diagnostics-updated", () => refreshDiagnostics());
 		return () => es.close();
-	}, []);
+	}, [refreshDiagnostics]);
+
+	async function handleApplySuggestion(suggestion: Suggestion) {
+		try {
+			if (suggestion.detector === "stage-drift") {
+				const res = await fetch("/api/diagnostics/scan", { method: "POST" });
+				const data = await res.json();
+				if (data.fixes?.length > 0) {
+					refreshWorkflow();
+					refreshDiagnostics();
+					toast.success("Item movido automaticamente");
+				}
+			}
+		} catch {
+			toast.error("Erro ao aplicar sugestão");
+		}
+	}
 
 	if (loading) {
 		return (
@@ -97,9 +136,17 @@ export default function App() {
 				className="flex flex-col h-screen"
 				style={{ background: "var(--background)", color: "var(--foreground)" }}
 			>
-				<Header name={wf?.name || "Letra"} theme={theme} onThemeChange={setTheme} />
+				<Header
+					name={wf?.name || "Letra"}
+					theme={theme}
+					onThemeChange={setTheme}
+					suggestions={suggestions}
+					onApplySuggestion={handleApplySuggestion}
+					onOpenHistory={() => setShowHistory(true)}
+				/>
 				<NavTabs activeTab={tab} onTabChange={setTab} />
 				<main className="flex-1 animate-fade-in">{renderPanel()}</main>
+				<UndoHistory visible={showHistory} onClose={() => setShowHistory(false)} />
 			</div>
 		</ToastProvider>
 	);
