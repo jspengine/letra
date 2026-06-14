@@ -3,7 +3,7 @@
   "name": "letra",
   "description": "SDD-agnostic memory framework for AI coding agents",
   "createdAt": "2026-06-07T21:45:54.843Z",
-  "updatedAt": "2026-06-13T20:06:25.825Z",
+  "updatedAt": "2026-06-14T13:57:32.529Z",
   "stages": [
     {
       "id": "backlog",
@@ -40,7 +40,7 @@
     {
       "id": "ITEM-1",
       "description": "Branding: header Letra no flow serve + 3 opções de logo",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-07T21:45:59.038Z"
     },
     {
@@ -152,28 +152,28 @@
       "id": "ITEM-17",
       "description": "flow mvp",
       "spec": "flow-mvp",
-      "stage": "backlog",
+      "stage": "review",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-18",
       "description": "flow serve",
       "spec": "flow-serve",
-      "stage": "backlog",
+      "stage": "review",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-19",
       "description": "flow visualize",
       "spec": "flow-visualize",
-      "stage": "backlog",
+      "stage": "review",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-20",
       "description": "init interactive",
       "spec": "init-interactive",
-      "stage": "backlog",
+      "stage": "review",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {

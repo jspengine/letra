@@ -63,18 +63,18 @@ Letra resolve com **três camadas**:
 
 ## Non-goals (o que NÃO vamos construir agora)
 
-- Flow Designer visual complexo (ITEM-13) — adiado
 - Template marketplace — adiado
 - Skills engine — adiado
 
-## Go-forward priorities (v0.4.0+)
+## Go-forward priorities (v0.4.0 concluído, v0.5.0+)
 
 Baseado na validação e no perfil não-dev:
 
-1. **Flow UI como cidadão de primeira classe** — evoluir flow serve de kanban para flow manager (crud de itens, tasks, mover entre stages via UI)
-2. **Context injection** — o `.letra/` alimentar o harness automaticamente (diminui retrabalho)
-3. **Auto-detection de ferramentas** — detectar qual harness está no projeto e gerar adapter correto (já parcialmente feito)
-4. **Flow promote com validação** — travar/liberar avanço baseado em comandos configurados
+1. ✅ **Flow UI como cidadão de primeira classe** — SPA React com 4 abas (Home, Specs, Flow, Context), kanban drag-and-drop, CRUD de itens/specs, stage management, webhooks
+2. ✅ **Context injection** — `flow move` regenera adapters automaticamente com contexto atual do workflow
+3. ✅ **Auto-detection de ferramentas** — `flow init` detecta Cursor, Claude Code, Windsurf, VS Code, OpenCode
+4. ✅ **Data Resilience** — backup automático, versionamento, merge em re-setup
+5. ⏳ **Flow promote com validação** — travar/liberar avanço baseado em comandos configurados
 
 ## Risks
 
@@ -87,6 +87,8 @@ Baseado na validação e no perfil não-dev:
 1. [x] Validar com usuário real
 2. [x] Definir JTBD
 3. [x] Decidir GO
-4. [ ] Priorizar e implementar Flow UI como ferramenta de gestão visual
-5. [ ] Implementar context injection para harnesses
-6. [ ] v0.4.0 com as prioridades acima
+4. [x] Flow UI como ferramenta de gestão visual (SPA React + REST API)
+5. [x] Context injection via adapters (regeneração em flow move)
+6. [x] Auto-detection de ferramentas (init + move)
+7. [x] v0.4.0 — Flow MVP + Web UI + Design System
+8. [ ] Flow promote com validação — travar avanço baseado em regras configuráveis
