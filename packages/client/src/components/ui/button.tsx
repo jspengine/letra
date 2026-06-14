@@ -10,13 +10,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<Variant, string> = {
-	default:
-		"bg-primary text-primary-foreground hover:opacity-90 border border-transparent",
-	secondary:
-		"bg-muted text-muted-foreground hover:bg-muted/80 border border-transparent",
+	default: "bg-primary text-primary-foreground hover:opacity-90 border border-transparent",
+	secondary: "bg-muted text-muted-foreground hover:bg-muted/80 border border-transparent",
 	outline: "border border-border bg-transparent hover:bg-muted text-foreground",
-	ghost:
-		"bg-transparent hover:bg-muted text-foreground border border-transparent",
+	ghost: "bg-transparent hover:bg-muted text-foreground border border-transparent",
 };
 
 const sizeStyles: Record<Size, string> = {

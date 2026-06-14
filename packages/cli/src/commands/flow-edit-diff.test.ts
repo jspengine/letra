@@ -92,9 +92,7 @@ describe("flow-edit-diff", () => {
 
 		it("should show warning when no workflow exists", () => {
 			flowEdit(tmpDir, { name: "Novo" });
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("No workflow found"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("No workflow found"));
 		});
 	});
 
@@ -104,12 +102,8 @@ describe("flow-edit-diff", () => {
 			saveWorkflow(tmpDir, workflow);
 			flowEdit(tmpDir, { name: "Novo Nome" });
 			flowDiff(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("Novo Nome"),
-			);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("test-project"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Novo Nome"));
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("test-project"));
 		});
 
 		it("should show diff between specific versions", () => {
@@ -118,16 +112,12 @@ describe("flow-edit-diff", () => {
 			flowEdit(tmpDir, { name: "Edit 1" });
 			flowEdit(tmpDir, { name: "Edit 2" });
 			flowDiff(tmpDir, "1.0.0", "1.1.0");
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("Edit 1"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Edit 1"));
 		});
 
 		it("should show message when no workflow found", () => {
 			flowDiff(tmpDir);
-			expect(console.log).toHaveBeenCalledWith(
-				expect.stringContaining("No workflow found"),
-			);
+			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("No workflow found"));
 		});
 
 		it("should show message when no backup found", () => {

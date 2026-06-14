@@ -27,8 +27,7 @@ function adapterContent(
 ): string {
 	const stageItems = items.filter(
 		(item) =>
-			item.stage ===
-				currentStageName.toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
+			item.stage === currentStageName.toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
 			stageNames.get(item.stage) === currentStageName,
 	);
 
@@ -56,11 +55,7 @@ ${itemsBlock}
 `;
 }
 
-function generateAdapters(
-	root: string,
-	tools: string[],
-	content: string,
-): void {
+function generateAdapters(root: string, tools: string[], content: string): void {
 	const adapters: Array<{ path: string; content: string }> = [];
 
 	const header = `# Gerado por letra flow move. Nao edite manualmente.
@@ -112,16 +107,10 @@ function generateAdapters(
 	}
 }
 
-export function flowMove(
-	root: string,
-	itemId: string,
-	targetStageInput: string,
-): void {
+export function flowMove(root: string, itemId: string, targetStageInput: string): void {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
-		console.log(
-			chalk.red("No workflow found. Run 'letra flow init --quick' first"),
-		);
+		console.log(chalk.red("No workflow found. Run 'letra flow init --quick' first"));
 		process.exit(1);
 	}
 
@@ -136,25 +125,17 @@ export function flowMove(
 	const targetStageId = resolveStage(workflow, targetStageInput);
 	if (!targetStageId) {
 		const valid = workflow.stages.map((s) => `${s.id} (${s.name})`).join(", ");
-		console.log(
-			chalk.red(
-				`Stage "${targetStageInput}" not found. Valid stages: ${valid}`,
-			),
-		);
+		console.log(chalk.red(`Stage "${targetStageInput}" not found. Valid stages: ${valid}`));
 		process.exit(1);
 	}
 
 	if (item.stage === targetStageId) {
-		console.log(
-			chalk.yellow(`Item ${itemId} is already in stage "${targetStageId}"`),
-		);
+		console.log(chalk.yellow(`Item ${itemId} is already in stage "${targetStageId}"`));
 		return;
 	}
 
-	const fromStage =
-		workflow.stages.find((s) => s.id === item.stage)?.name || item.stage;
-	const toStage =
-		workflow.stages.find((s) => s.id === targetStageId)?.name || targetStageId;
+	const fromStage = workflow.stages.find((s) => s.id === item.stage)?.name || item.stage;
+	const toStage = workflow.stages.find((s) => s.id === targetStageId)?.name || targetStageId;
 
 	item.stage = targetStageId;
 	workflow.updatedAt = now();
@@ -163,21 +144,14 @@ export function flowMove(
 	const stageNames = new Map(workflow.stages.map((s) => [s.id, s.name]));
 	const currentStageName = stageNames.get(targetStageId) || targetStageId;
 
-	const content = adapterContent(
-		workflow.name,
-		currentStageName,
-		workflow.items,
-		stageNames,
-	);
+	const content = adapterContent(workflow.name, currentStageName, workflow.items, stageNames);
 
 	generateAdapters(root, workflow.tools, content);
 
 	console.log(
 		`  ${chalk.green("✓")} Item ${chalk.cyan(itemId)} moved: ${chalk.yellow(fromStage)} → ${chalk.green(toStage)}`,
 	);
-	console.log(
-		`  ${chalk.gray("Adapters regenerated for:")} ${workflow.tools.join(", ")}`,
-	);
+	console.log(`  ${chalk.gray("Adapters regenerated for:")} ${workflow.tools.join(", ")}`);
 }
 
 export function flowMoveAction(

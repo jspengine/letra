@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { cn } from "./utils";
 
 interface TooltipProps {
@@ -33,7 +33,10 @@ export function Tooltip({ content, children, position = "top", className }: Tool
 						"absolute z-50 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap pointer-events-none",
 						posClasses[position],
 					)}
-					style={{ background: "var(--foreground)", color: "var(--background)" }}
+					style={{
+						background: "var(--foreground)",
+						color: "var(--background)",
+					}}
 					role="tooltip"
 				>
 					{content}

@@ -24,9 +24,7 @@ describe("init command", () => {
 		expect(existsSync(join(tmpDir, ".letra", "context.md"))).toBe(true);
 		expect(existsSync(join(tmpDir, ".letra", "constitution.md"))).toBe(true);
 		expect(existsSync(join(tmpDir, ".letra", "glossary.md"))).toBe(true);
-		expect(existsSync(join(tmpDir, ".letra", "specs", "_template.md"))).toBe(
-			true,
-		);
+		expect(existsSync(join(tmpDir, ".letra", "specs", "_template.md"))).toBe(true);
 	});
 
 	it("should generate Cursor adapter", async () => {
@@ -57,9 +55,7 @@ describe("init command", () => {
 
 	it("should generate VSCode adapter files", async () => {
 		await init(tmpDir);
-		expect(existsSync(join(tmpDir, ".github", "copilot-instructions.md"))).toBe(
-			true,
-		);
+		expect(existsSync(join(tmpDir, ".github", "copilot-instructions.md"))).toBe(true);
 		expect(existsSync(join(tmpDir, ".vscode", "settings.json"))).toBe(true);
 	});
 });

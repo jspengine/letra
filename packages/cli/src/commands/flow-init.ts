@@ -79,8 +79,7 @@ export function detectExistingTools(root: string): string[] {
 	if (existsSync(join(root, "CLAUDE.md"))) tools.push("claude-code");
 	if (existsSync(join(root, ".windsurfrules"))) tools.push("windsurf");
 	if (existsSync(join(root, "AGENTS.md"))) tools.push("opencode");
-	if (existsSync(join(root, ".github", "copilot-instructions.md")))
-		tools.push("vscode");
+	if (existsSync(join(root, ".github", "copilot-instructions.md"))) tools.push("vscode");
 	return tools;
 }
 
@@ -151,14 +150,9 @@ export function saveWorkflow(root: string, workflow: Workflow): void {
 	writeFileSync(filePath, JSON.stringify(workflow, null, 2));
 }
 
-export async function flowInit(
-	root: string,
-	options?: { quick?: boolean },
-): Promise<Workflow> {
+export async function flowInit(root: string, options?: { quick?: boolean }): Promise<Workflow> {
 	if (!process.stdin.isTTY && !options?.quick) {
-		console.log(
-			chalk.yellow("Non-TTY: usando defaults. Passe --quick para confirmar."),
-		);
+		console.log(chalk.yellow("Non-TTY: usando defaults. Passe --quick para confirmar."));
 		return flowInitQuick(root);
 	}
 
@@ -174,8 +168,7 @@ export async function flowInit(
 	const stages = stagesFromInput(stagesInput);
 
 	const detected = detectExistingTools(root);
-	const defaultTools =
-		detected.length > 0 ? detected.join(", ") : "cursor, opencode";
+	const defaultTools = detected.length > 0 ? detected.join(", ") : "cursor, opencode";
 	const toolsInput = await askText("Tools (comma-separated)?", defaultTools);
 	const tools = toolsInput
 		.split(",")
@@ -199,14 +192,10 @@ async function flowInitQuick(root: string): Promise<Workflow> {
 	const defaultName = detectProjectName(root);
 	const defaultStagesList = "backlog, design, code, review, done";
 	const detected = detectExistingTools(root);
-	const defaultTools =
-		detected.length > 0 ? detected.join(", ") : "cursor, opencode";
+	const defaultTools = detected.length > 0 ? detected.join(", ") : "cursor, opencode";
 
 	const name = await askText("Workflow name?", defaultName);
-	const stagesInput = await askText(
-		"Stages (comma-separated)?",
-		defaultStagesList,
-	);
+	const stagesInput = await askText("Stages (comma-separated)?", defaultStagesList);
 	const stages = stagesFromInput(stagesInput);
 
 	const toolsInput = await askText("Tools (comma-separated)?", defaultTools);
@@ -236,9 +225,7 @@ export async function flowInitAction(
 	const filePath = workflowFilePath(root);
 
 	if (existsSync(filePath)) {
-		console.log(
-			chalk.yellow("Workflow already exists at .letra/workflow.json"),
-		);
+		console.log(chalk.yellow("Workflow already exists at .letra/workflow.json"));
 		return;
 	}
 
@@ -254,18 +241,14 @@ export async function flowInitAction(
 		spinner.succeed(chalk.green("Workflow created at .letra/workflow.json"));
 		console.log("");
 		console.log(`  Name:   ${chalk.cyan(workflow.name)}`);
-		console.log(
-			`  Stages: ${chalk.cyan(workflow.stages.map((s) => s.name).join(" → "))}`,
-		);
+		console.log(`  Stages: ${chalk.cyan(workflow.stages.map((s) => s.name).join(" → "))}`);
 		console.log(`  Tools:  ${chalk.cyan(workflow.tools.join(", "))}`);
 		console.log("");
 		console.log("  Next steps:");
 		console.log(
 			`    ${chalk.cyan("letra flow backlog add <desc>")}   Add items to your backlog`,
 		);
-		console.log(
-			`    ${chalk.cyan("letra flow board")}                View your board`,
-		);
+		console.log(`    ${chalk.cyan("letra flow board")}                View your board`);
 	} catch (error) {
 		spinner.fail(chalk.red("Failed to create workflow"));
 		process.exit(1);

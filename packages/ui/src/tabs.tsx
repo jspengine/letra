@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { cn } from "./utils";
 
 interface Tab {
@@ -33,6 +33,7 @@ export function Tabs({ tabs, activeTab: controlledTab, onChange, children, class
 			>
 				{tabs.map((tab) => (
 					<button
+						type="button"
 						key={tab.id}
 						role="tab"
 						aria-selected={active === tab.id}
@@ -53,11 +54,7 @@ export function Tabs({ tabs, activeTab: controlledTab, onChange, children, class
 					</button>
 				))}
 			</div>
-			{children && (
-				<div className="flex-1 overflow-y-auto">
-					{children(active)}
-				</div>
-			)}
+			{children && <div className="flex-1 overflow-y-auto">{children(active)}</div>}
 		</div>
 	);
 }

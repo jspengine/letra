@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { type ReactNode, createContext, useCallback, useContext, useState } from "react";
 import { cn } from "./utils";
 
 type ToastType = "success" | "error" | "info";
@@ -43,10 +43,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 							"px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-slide-in-right border",
 						)}
 						style={{
-							background: t.type === "success" ? "var(--success)"
-								: t.type === "error" ? "var(--error)"
-								: "var(--card)",
-							color: t.type === "info" ? "var(--card-foreground)" : "var(--success-foreground)",
+							background:
+								t.type === "success"
+									? "var(--success)"
+									: t.type === "error"
+										? "var(--error)"
+										: "var(--card)",
+							color:
+								t.type === "info"
+									? "var(--card-foreground)"
+									: "var(--success-foreground)",
 							borderColor: "var(--border)",
 						}}
 					>

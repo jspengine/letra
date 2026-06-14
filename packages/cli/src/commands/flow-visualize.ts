@@ -32,9 +32,7 @@ function generateMermaid(workflow: Workflow): string {
 	);
 
 	for (let i = 1; i < sorted.length - 1; i++) {
-		lines.push(
-			`  ${sorted[i].id} --> ${sorted[i + 1].id}["${labelFor(sorted[i + 1])}"]`,
-		);
+		lines.push(`  ${sorted[i].id} --> ${sorted[i + 1].id}["${labelFor(sorted[i + 1])}"]`);
 	}
 
 	return lines.join("\n");
@@ -66,15 +64,10 @@ ${mermaid}
 </html>`;
 }
 
-export function flowVisualize(
-	root: string,
-	options?: { output?: string },
-): void {
+export function flowVisualize(root: string, options?: { output?: string }): void {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
-		console.log(
-			chalk.yellow("No workflow found. Run 'letra flow init --quick' first"),
-		);
+		console.log(chalk.yellow("No workflow found. Run 'letra flow init --quick' first"));
 		return;
 	}
 

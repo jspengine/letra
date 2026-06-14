@@ -4,10 +4,7 @@ import { Card, CardContent } from "../ui/card";
 
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
-function zoneForStage(
-	stageId: string,
-	wf: Workflow,
-): "todo" | "doing" | "done" {
+function zoneForStage(stageId: string, wf: Workflow): "todo" | "doing" | "done" {
 	const stage = wf.stages.find((s) => s.id === stageId);
 	if (stage?.zone) return stage.zone;
 	const idx = wf.stages.findIndex((s) => s.id === stageId);
@@ -17,19 +14,14 @@ function zoneForStage(
 }
 
 function daysSince(dateStr: string): number {
-	return Math.floor(
-		(Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24),
-	);
+	return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function zoneItems(wf: Workflow, zone: "todo" | "doing" | "done"): Item[] {
 	return wf.items.filter((it) => {
 		const z = zoneForStage(it.stage, wf);
 		if (zone === "done") {
-			return (
-				z === "done" &&
-				Date.now() - new Date(it.createdAt).getTime() <= SEVEN_DAYS
-			);
+			return z === "done" && Date.now() - new Date(it.createdAt).getTime() <= SEVEN_DAYS;
 		}
 		return z === zone;
 	});
@@ -58,10 +50,7 @@ function DashColumn({ title, items, stages, onSelectItem }: ColumnProps) {
 	return (
 		<div className="flex-1 min-w-0 p-3">
 			<h2 className="text-base font-semibold mb-3">
-				{title}{" "}
-				<span style={{ color: "var(--muted-foreground)" }}>
-					({items.length})
-				</span>
+				{title} <span style={{ color: "var(--muted-foreground)" }}>({items.length})</span>
 			</h2>
 			{items.length === 0 && (
 				<p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
@@ -70,8 +59,7 @@ function DashColumn({ title, items, stages, onSelectItem }: ColumnProps) {
 			)}
 			<div className="flex flex-col gap-2">
 				{items.map((it) => {
-					const stageName =
-						stages.find((s) => s.id === it.stage)?.name || it.stage;
+					const stageName = stages.find((s) => s.id === it.stage)?.name || it.stage;
 					return (
 						<Card key={it.id} onClick={() => onSelectItem(it.id)}>
 							<CardContent className="p-3">
@@ -106,7 +94,7 @@ export default function DashboardView({ workflow, onSelectItem }: Props) {
 	const done = zoneItems(workflow, "done");
 
 	return (
-		<div className="flex h-full">
+		<div className="flex flex-1 min-h-0">
 			<DashColumn
 				title="A fazer"
 				items={todo}

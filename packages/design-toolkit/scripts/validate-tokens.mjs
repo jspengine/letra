@@ -15,11 +15,29 @@ for (const m of css.matchAll(/--([\w-]+)\s*:/g)) {
 
 // Legacy tokens that components may still use
 const LEGACY = new Set([
-	"background", "foreground", "muted", "muted-foreground",
-	"card", "card-foreground", "border", "secondary", "secondary-foreground",
-	"primary", "primary-foreground", "accent", "accent-foreground",
-	"ring", "success", "success-foreground", "warning", "warning-foreground",
-	"error", "error-foreground", "info", "info-foreground", "live",
+	"background",
+	"foreground",
+	"muted",
+	"muted-foreground",
+	"card",
+	"card-foreground",
+	"border",
+	"secondary",
+	"secondary-foreground",
+	"primary",
+	"primary-foreground",
+	"accent",
+	"accent-foreground",
+	"ring",
+	"success",
+	"success-foreground",
+	"warning",
+	"warning-foreground",
+	"error",
+	"error-foreground",
+	"info",
+	"info-foreground",
+	"live",
 ]);
 
 const ALL_DEFS = new Set([...TOKEN_DEFS, ...LEGACY]);
@@ -36,10 +54,7 @@ function walk(dir, files) {
 	}
 }
 
-const SRC_DIRS = [
-	join(ROOT, "ui", "src"),
-	join(ROOT, "client", "src"),
-];
+const SRC_DIRS = [join(ROOT, "ui", "src"), join(ROOT, "client", "src")];
 
 const missing = new Set();
 

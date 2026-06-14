@@ -9,11 +9,10 @@ import { init } from "./commands/init.js";
 import { lint } from "./commands/lint.js";
 import { specNew } from "./commands/spec.js";
 import { validate } from "./commands/validate.js";
+import { diagnose } from "./commands/diagnose.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
-const pkg = JSON.parse(
-	readFileSync(join(resolve(__dirname, ".."), "package.json"), "utf-8"),
-);
+const pkg = JSON.parse(readFileSync(join(resolve(__dirname, ".."), "package.json"), "utf-8"));
 
 const program = new Command();
 
@@ -33,17 +32,11 @@ const specCmd = program.command("spec").description("Manage specs");
 
 specCmd
 	.command("new <name>")
-	.option(
-		"--template <type>",
-		"Template type: web-api, cli-tool, mobile-feature",
-	)
+	.option("--template <type>", "Template type: web-api, cli-tool, mobile-feature")
 	.description("Create a new spec from template")
 	.action((name, options) => specNew(name, { ...options }));
 
-program
-	.command("lint [path]")
-	.description("Validate spec format and completeness")
-	.action(lint);
+program.command("lint [path]").description("Validate spec format and completeness").action(lint);
 
 program
 	.command("validate [path]")
@@ -51,6 +44,11 @@ program
 	.option("--format <type>", "Output format: text, github-annotation, junit")
 	.description("Check if artifacts meet acceptance criteria")
 	.action((path, options) => validate(path, { ...options }));
+
+program
+	.command("diagnose [path]")
+	.description("Detect and fix drifts between specs, code, and workflow")
+	.action((path) => diagnose(path));
 
 program.addCommand(decisionCommand());
 program.addCommand(flowCommand());

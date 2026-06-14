@@ -28,9 +28,7 @@ function ZoneBadge({ zone }: { zone: string }) {
 		done: "border-green-500/30 text-green-600 dark:text-green-400 bg-green-500/10",
 	};
 	return (
-		<span
-			className={`text-xs px-2 py-0.5 rounded-full border ${colors[zone] || colors.doing}`}
-		>
+		<span className={`text-xs px-2 py-0.5 rounded-full border ${colors[zone] || colors.doing}`}>
 			{zone === "todo" ? "A fazer" : zone === "doing" ? "Fazendo" : "Feito"}
 		</span>
 	);
@@ -45,10 +43,7 @@ function StepStages({
 	onChange: (s: StageDef[]) => void;
 }) {
 	function addStage() {
-		onChange([
-			...stages,
-			{ id: freshId(), name: "", zone: "doing" },
-		]);
+		onChange([...stages, { id: freshId(), name: "", zone: "doing" }]);
 	}
 	function removeStage(id: string) {
 		onChange(stages.filter((s) => s.id !== id));
@@ -61,8 +56,7 @@ function StepStages({
 		<div>
 			<h2 className="text-xl font-bold mb-1">Configure os estágios</h2>
 			<p className="text-sm text-muted-foreground mb-6">
-				Defina as etapas do seu fluxo de trabalho. Adicione, renomeie ou remova
-				estágios.
+				Defina as etapas do seu fluxo de trabalho. Adicione, renomeie ou remova estágios.
 			</p>
 
 			<div className="flex flex-col gap-2 mb-4">
@@ -117,8 +111,8 @@ function StepZones({
 		<div>
 			<h2 className="text-xl font-bold mb-1">Organize em zonas</h2>
 			<p className="text-sm text-muted-foreground mb-6">
-				Cada estágio pertence a uma zona visual no dashboard: A fazer, Em
-				andamento ou Feito.
+				Cada estágio pertence a uma zona visual no dashboard: A fazer, Em andamento ou
+				Feito.
 			</p>
 
 			<div className="flex flex-col gap-2">
@@ -267,23 +261,14 @@ export function PersonalizationWizard({ onComplete, onBack }: Props) {
 					))}
 				</div>
 
-				<StepComponent
-					stages={stages}
-					onChange={setStages}
-				/>
+				<StepComponent stages={stages} onChange={setStages} />
 
 				<div className="mt-8 flex justify-between">
-					<Button
-						variant="ghost"
-						onClick={step === 0 ? onBack : () => setStep(step - 1)}
-					>
+					<Button variant="ghost" onClick={step === 0 ? onBack : () => setStep(step - 1)}>
 						{step === 0 ? "Voltar" : "Anterior"}
 					</Button>
 					{step < steps.length - 1 ? (
-						<Button
-							disabled={!canContinue[step]()}
-							onClick={() => setStep(step + 1)}
-						>
+						<Button disabled={!canContinue[step]()} onClick={() => setStep(step + 1)}>
 							Próximo
 						</Button>
 					) : (

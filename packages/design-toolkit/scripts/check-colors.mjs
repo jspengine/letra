@@ -4,10 +4,7 @@ import { join } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 
-const DIRS = [
-	join(ROOT, "ui", "src"),
-	join(ROOT, "client", "src"),
-];
+const DIRS = [join(ROOT, "ui", "src"), join(ROOT, "client", "src")];
 
 const ALLOWLIST = [
 	"@import",

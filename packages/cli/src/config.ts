@@ -57,10 +57,7 @@ export function loadConfig(root: string): Config {
 	return { heuristics };
 }
 
-export function getHeuristicConfig(
-	config: Config,
-	label: string,
-): HeuristicConfig {
+export function getHeuristicConfig(config: Config, label: string): HeuristicConfig {
 	const key = heuristicKey(label);
 	return config.heuristics[key] ?? { severity: "warning" };
 }

@@ -20,11 +20,7 @@ export function Card({ className, children, noBorder, ...props }: CardProps) {
 	);
 }
 
-export function CardHeader({
-	className,
-	children,
-	...props
-}: HTMLAttributes<HTMLDivElement>) {
+export function CardHeader({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
 	return (
 		<div className={cn("px-5 pt-5 pb-3", className)} {...props}>
 			{children}
@@ -32,16 +28,9 @@ export function CardHeader({
 	);
 }
 
-export function CardTitle({
-	className,
-	children,
-	...props
-}: HTMLAttributes<HTMLHeadingElement>) {
+export function CardTitle({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
 	return (
-		<h3
-			className={cn("text-lg font-semibold leading-tight", className)}
-			{...props}
-		>
+		<h3 className={cn("text-lg font-semibold leading-tight", className)} {...props}>
 			{children}
 		</h3>
 	);
@@ -53,20 +42,13 @@ export function CardDescription({
 	...props
 }: HTMLAttributes<HTMLParagraphElement>) {
 	return (
-		<p
-			className={cn("text-sm text-muted-foreground mt-1", className)}
-			{...props}
-		>
+		<p className={cn("text-sm text-muted-foreground mt-1", className)} {...props}>
 			{children}
 		</p>
 	);
 }
 
-export function CardContent({
-	className,
-	children,
-	...props
-}: HTMLAttributes<HTMLDivElement>) {
+export function CardContent({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
 	return (
 		<div className={cn("px-5 pb-5", className)} {...props}>
 			{children}

@@ -9,10 +9,7 @@ interface SetupWizardProps {
 	onPersonalizedComplete: (workflow: unknown) => void;
 }
 
-export function SetupWizard({
-	onComplete,
-	onPersonalizedComplete,
-}: SetupWizardProps) {
+export function SetupWizard({ onComplete, onPersonalizedComplete }: SetupWizardProps) {
 	const [selected, setSelected] = useState<string | null>(null);
 	const [personalizing, setPersonalizing] = useState(false);
 
@@ -45,16 +42,16 @@ export function SetupWizard({
 				<div className="text-center mb-10">
 					<div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4">
 						<svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="w-7 h-7 text-primary"
-              aria-hidden="true"
-            >
-              <path d="M16 3h5v5" />
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							className="w-7 h-7 text-primary"
+							aria-hidden="true"
+						>
+							<path d="M16 3h5v5" />
 							<path d="M8 3H3v5" />
 							<path d="M3 16v5h5" />
 							<path d="M16 21h5v-5" />
@@ -66,17 +63,17 @@ export function SetupWizard({
 					</div>
 					<h1 className="text-3xl font-bold mb-2">Bem-vindo ao Letra Flow</h1>
 					<p className="text-muted-foreground text-base max-w-md mx-auto">
-						Organize seu trabalho com um fluxo visual. Escolha um template para
-						começar ou crie o seu do zero.
+						Organize seu trabalho com um fluxo visual. Escolha um template para começar
+						ou crie o seu do zero.
 					</p>
 				</div>
 
 				<div className="grid gap-4">
 					{TEMPLATES.map((t) => (
-<button
-              key={t.id}
-              type="button"
-              onClick={() => setSelected(t.id)}
+						<button
+							key={t.id}
+							type="button"
+							onClick={() => setSelected(t.id)}
 							className={cn(
 								"w-full text-left rounded-xl border p-5 transition-all cursor-pointer",
 								selected === t.id
@@ -87,16 +84,16 @@ export function SetupWizard({
 							<div className="flex items-start gap-4">
 								<div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
 									<svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="w-5 h-5 text-primary"
-                    aria-hidden="true"
-                  >
-                    <path d={t.icon} />
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										className="w-5 h-5 text-primary"
+										aria-hidden="true"
+									>
+										<path d={t.icon} />
 									</svg>
 								</div>
 								<div className="flex-1 min-w-0">
@@ -113,9 +110,7 @@ export function SetupWizard({
 											<Badge variant="warning">Do zero</Badge>
 										)}
 									</div>
-									<p className="text-sm text-muted-foreground">
-										{t.description}
-									</p>
+									<p className="text-sm text-muted-foreground">{t.description}</p>
 									{t.stages.length > 0 && (
 										<div className="flex gap-1.5 mt-3">
 											{t.stages.map((s) => (
@@ -145,17 +140,17 @@ export function SetupWizard({
 									)}
 								>
 									{selected === t.id && (
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="white"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="w-3 h-3"
-                      aria-hidden="true"
-                    >
-                      <path d="M5 12l5 5 9-9" />
+										<svg
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="white"
+											strokeWidth="3"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											className="w-3 h-3"
+											aria-hidden="true"
+										>
+											<path d="M5 12l5 5 9-9" />
 										</svg>
 									)}
 								</div>

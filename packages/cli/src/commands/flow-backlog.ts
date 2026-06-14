@@ -1,11 +1,6 @@
 import { resolve } from "node:path";
 import chalk from "chalk";
-import {
-	type Item,
-	type Workflow,
-	loadWorkflow,
-	saveWorkflow,
-} from "./flow-init.js";
+import { type Item, type Workflow, loadWorkflow, saveWorkflow } from "./flow-init.js";
 
 function now(): string {
 	return new Date().toISOString();
@@ -35,9 +30,7 @@ export function backlogAdd(root: string, description: string): void {
 
 	const workflow = workflowExists(root);
 	if (!workflow) {
-		console.log(
-			chalk.red("No workflow found. Run 'letra flow init --quick' first"),
-		);
+		console.log(chalk.red("No workflow found. Run 'letra flow init --quick' first"));
 		process.exit(1);
 	}
 
@@ -67,9 +60,7 @@ export function backlogAdd(root: string, description: string): void {
 export function backlogList(root: string): void {
 	const workflow = workflowExists(root);
 	if (!workflow) {
-		console.log(
-			chalk.yellow("No workflow found. Run 'letra flow init --quick' first"),
-		);
+		console.log(chalk.yellow("No workflow found. Run 'letra flow init --quick' first"));
 		return;
 	}
 
@@ -89,9 +80,7 @@ export function backlogList(root: string): void {
 	for (const item of workflow.items) {
 		const stageName = stageNames.get(item.stage) || item.stage;
 		const created = new Date(item.createdAt);
-		const age = Math.floor(
-			(Date.now() - created.getTime()) / (1000 * 60 * 60 * 24),
-		);
+		const age = Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24));
 		const ageStr = age === 0 ? "today" : `${age}d`;
 
 		const desc =
@@ -106,10 +95,7 @@ export function backlogList(root: string): void {
 	console.log("");
 }
 
-export function backlogActionAdd(
-	targetPath: string | undefined,
-	description: string,
-): void {
+export function backlogActionAdd(targetPath: string | undefined, description: string): void {
 	const root = resolve(process.cwd(), targetPath || ".");
 	backlogAdd(root, description);
 }

@@ -57,10 +57,7 @@ describe("flow-init", () => {
 
 	describe("detectProjectName", () => {
 		it("should return package.json name", () => {
-			writeFileSync(
-				join(tmpDir, "package.json"),
-				JSON.stringify({ name: "@letra-ai/cli" }),
-			);
+			writeFileSync(join(tmpDir, "package.json"), JSON.stringify({ name: "@letra-ai/cli" }));
 			expect(detectProjectName(tmpDir)).toBe("cli");
 		});
 

@@ -41,13 +41,9 @@ function loadVersion(root: string, version: string): Workflow | null {
 function getLatestBackupVersion(root: string): string | null {
 	const dir = join(root, ".letra");
 	if (!existsSync(dir)) return null;
-	const files = readdirSync(dir).filter(
-		(f) => f.startsWith("workflow.v") && f.endsWith(".json"),
-	);
+	const files = readdirSync(dir).filter((f) => f.startsWith("workflow.v") && f.endsWith(".json"));
 	if (files.length === 0) return null;
-	const versions = files.map((f) =>
-		f.replace("workflow.v", "").replace(".json", ""),
-	);
+	const versions = files.map((f) => f.replace("workflow.v", "").replace(".json", ""));
 	versions.sort((a, b) => {
 		const pa = a.split(".").map(Number);
 		const pb = b.split(".").map(Number);
@@ -63,15 +59,10 @@ function backupFilePath(root: string, version: string): string {
 	return join(root, ".letra", `workflow.v${version}.json`);
 }
 
-export function flowEdit(
-	root: string,
-	options: { name?: string; desc?: string },
-): void {
+export function flowEdit(root: string, options: { name?: string; desc?: string }): void {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
-		console.log(
-			chalk.yellow("No workflow found. Run 'letra flow init --quick' first"),
-		);
+		console.log(chalk.yellow("No workflow found. Run 'letra flow init --quick' first"));
 		return;
 	}
 
@@ -116,18 +107,13 @@ function stageName(workflow: Workflow, stageId: string): string {
 }
 
 function computeDiff(oldWf: Workflow, newWf: Workflow): DiffResult {
-	const nameDiff =
-		oldWf.name !== newWf.name ? `"${oldWf.name}" → "${newWf.name}"` : null;
+	const nameDiff = oldWf.name !== newWf.name ? `"${oldWf.name}" → "${newWf.name}"` : null;
 
 	const oldStageNames = new Set(oldWf.stages.map((s) => s.name));
 	const newStageNames = new Set(newWf.stages.map((s) => s.name));
 
-	const stagesAdded = newWf.stages
-		.filter((s) => !oldStageNames.has(s.name))
-		.map((s) => s.name);
-	const stagesRemoved = oldWf.stages
-		.filter((s) => !newStageNames.has(s.name))
-		.map((s) => s.name);
+	const stagesAdded = newWf.stages.filter((s) => !oldStageNames.has(s.name)).map((s) => s.name);
+	const stagesRemoved = oldWf.stages.filter((s) => !newStageNames.has(s.name)).map((s) => s.name);
 
 	const oldItemMap = new Map(oldWf.items.map((i) => [i.id, i]));
 	const newItemMap = new Map(newWf.items.map((i) => [i.id, i]));
@@ -214,9 +200,7 @@ export function flowDiff(root: string, v1?: string, v2?: string): void {
 		const wf1 = loadVersion(root, stripVPrefix(v1));
 		const wf2 = loadVersion(root, stripVPrefix(v2));
 		if (!wf1 && !wf2) {
-			console.log(
-				chalk.yellow(`No backups found for versions ${v1} and ${v2}`),
-			);
+			console.log(chalk.yellow(`No backups found for versions ${v1} and ${v2}`));
 			return;
 		}
 		if (!wf1) {
@@ -238,9 +222,7 @@ export function flowDiff(root: string, v1?: string, v2?: string): void {
 		}
 		const backup = loadBackup(root, latestVersion);
 		if (!backup) {
-			console.log(
-				chalk.yellow(`Failed to load backup version ${latestVersion}`),
-			);
+			console.log(chalk.yellow(`Failed to load backup version ${latestVersion}`));
 			return;
 		}
 		const diff = computeDiff(backup, current);
@@ -257,11 +239,7 @@ export function flowEditAction(
 	flowEdit(root, options);
 }
 
-export function flowDiffAction(
-	targetPath: string | undefined,
-	v1?: string,
-	v2?: string,
-): void {
+export function flowDiffAction(targetPath: string | undefined, v1?: string, v2?: string): void {
 	const root = resolve(process.cwd(), targetPath || ".");
 	flowDiff(root, v1, v2);
 }

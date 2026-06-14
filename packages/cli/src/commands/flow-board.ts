@@ -4,18 +4,14 @@ import { loadWorkflow } from "./flow-init.js";
 
 function ageLabel(createdAt: string): string {
 	const created = new Date(createdAt);
-	const age = Math.floor(
-		(Date.now() - created.getTime()) / (1000 * 60 * 60 * 24),
-	);
+	const age = Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24));
 	return age === 0 ? "today" : `${age}d`;
 }
 
 export function flowBoard(root: string): void {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
-		console.log(
-			chalk.yellow("No workflow found. Run 'letra flow init --quick' first"),
-		);
+		console.log(chalk.yellow("No workflow found. Run 'letra flow init --quick' first"));
 		return;
 	}
 

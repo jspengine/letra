@@ -75,10 +75,10 @@ O `workflow.json` é o **registro central** do projeto. Tudo que importa — spe
 ```json
 {
   "version": "1.0",
-  "name": "Letra Spec Driven",
-  "description": "...",
+  "name": "Letra",
+  "description": "SDD-agnostic memory framework for AI coding agents",
 
-  "specs": {
+  "specLinks": {
     "checkout-pix": {
       "path": ".letra/specs/checkout-pix/spec.md",
       "aliases": ["pix", "pagamento-pix"]
@@ -89,12 +89,11 @@ O `workflow.json` é o **registro central** do projeto. Tudo que importa — spe
   },
 
   "stages": [
-    { "id": "backlog", "name": "Backlog", "order": 0 },
-    { "id": "design",  "name": "Design",  "order": 1 },
-    { "id": "code",    "name": "Code",    "order": 2 },
-    { "id": "tests",   "name": "Tests",   "order": 3 },
-    { "id": "review",  "name": "Review",  "order": 4 },
-    { "id": "done",    "name": "Done",    "order": 5 }
+    { "id": "backlog", "name": "Backlog", "order": 0, "zone": "todo" },
+    { "id": "design",  "name": "Design",  "order": 1, "zone": "doing", "allow": ["backlog"] },
+    { "id": "code",    "name": "Code",    "order": 2, "zone": "doing", "allow": ["design"] },
+    { "id": "review",  "name": "Review",  "order": 3, "zone": "doing", "allow": ["code"] },
+    { "id": "done",    "name": "Done",    "order": 4, "zone": "done",  "allow": ["review"] }
   ],
 
   "items": [
@@ -104,6 +103,8 @@ O `workflow.json` é o **registro central** do projeto. Tudo que importa — spe
       "stage": "code",
       "spec": "checkout-pix",
       "createdAt": "2026-06-07T21:45:59.038Z",
+      "source": "github",
+      "sourceUrl": "https://github.com/owner/repo/issues/42",
       "tasks": [
         { "id": "TASK-1", "description": "Criar rota POST /api/pix/qrcode",      "done": true },
         { "id": "TASK-2", "description": "Implementar componente QR Code",        "done": false },
@@ -112,7 +113,12 @@ O `workflow.json` é o **registro central** do projeto. Tudo que importa — spe
     }
   ],
 
-  "tools": ["opencode", "vscode"]
+  "tools": ["opencode", "vscode"],
+  "webhooks": [
+    { "id": "wh-1", "url": "https://hooks.slack.com/...", "events": ["item.moved"], "label": "Slack" }
+  ],
+  "createdAt": "2026-06-07T21:45:54.843Z",
+  "updatedAt": "2026-06-13T20:06:25.825Z"
 }
 ```
 
@@ -124,7 +130,8 @@ erDiagram
         string version
         string name
         string description
-        json specs "REGISTRO CENTRAL: id estavel { path, aliases }"
+        json specLinks "REGISTRO CENTRAL: id estavel { path, aliases }"
+        json webhooks "opcional: [{ url, events }]"
         datetime createdAt
         datetime updatedAt
         string[] tools
@@ -133,9 +140,12 @@ erDiagram
         string id PK
         string name
         int order
+        string zone "todo | doing | done"
+        string[] allow "transicoes permitidas"
+        string color "opcional: cor personalizada"
     }
-    SPEC {
-        string id PK "ESTAVEL — ex: checkout-pix"
+    SPEC_LINK {
+        string specId PK "ESTAVEL — ex: checkout-pix"
         string path "MUTAVEL — ex: .letra/specs/checkout-pix/spec.md"
         string[] aliases "opcional"
     }
@@ -147,8 +157,8 @@ erDiagram
         string id PK "ITEM-12"
         string description
         string stage FK
-        string spec FK "opcional — aponta SPEC.id"
-        string source "opcional"
+        string spec FK "opcional — aponta SPEC_LINK.specId"
+        string source "opcional — github | linear"
         string sourceUrl "opcional"
         datetime createdAt
         json tasks "[{ id, description, done }]"
@@ -156,17 +166,17 @@ erDiagram
 
     WORKFLOW ||--o{ STAGE : "tem"
     WORKFLOW ||--o{ ITEM : "contem"
-    WORKFLOW ||--|| SPEC : "registra (workflow.specs{})"
-    ITEM }o--|| SPEC : "referencia (spec FK -> SPEC.id)"
-    SPEC ||--o| SPEC_FILE : "aponta (path -> arquivo)"
+    WORKFLOW ||--|| SPEC_LINK : "registra (workflow.specLinks{})"
+    ITEM }o--|| SPEC_LINK : "referencia (spec FK -> SPEC_LINK.specId)"
+    SPEC_LINK ||--o| SPEC_FILE : "aponta (path -> arquivo)"
 ```
 
 ### Cardinalidades
 
 ```
-SPEC  1 ──── N ITEMS      (uma spec pode ter varios itens)
-ITEM 1 ──── N TASKS      (um item se decompoe em varias tarefas)
-STAGE 1 ──── N ITEMS     (um estagio contem varios itens)
+SPEC_LINK  1 ──── N ITEMS  (uma spec pode ter varios itens)
+ITEM       1 ──── N TASKS  (um item se decompoe em varias tarefas)
+STAGE      1 ──── N ITEMS  (um estagio contem varios itens)
 ```
 
 ---
@@ -177,13 +187,19 @@ O problema central resolvido por este modelo: **o vinculo entre item e spec nao 
 
 | Acao do usuario | Efeito | Como resolver |
 |---|---|---|
-| Renomear pasta `checkout-pix` -> `pix` | So atualizar `path` no `specs{}` | `letra spec update checkout-pix --path .letra/specs/pix/spec.md` |
+| Renomear pasta `checkout-pix` -> `pix` | So atualizar `path` no `specLinks{}` | `letra spec update checkout-pix --path .letra/specs/pix/spec.md` |
 | Mover spec para outro local | Atualizar `path` | Idem |
 | Apagar pasta da spec acidentalmente | `letra validate` detecta path invalido | Aviso: "Spec 'checkout-pix': path nao encontrado" |
-| Duas pastas com mesmo conteudo | IDs unicos no `specs{}` impedem conflito | O JSON nao permite chave duplicada |
+| Duas pastas com mesmo conteudo | IDs unicos no `specLinks{}` impedem conflito | O JSON nao permite chave duplicada |
 | Merge conflict no `workflow.json` | Resolvido pelo Git (ja acontece hoje) | Sempre foi gerenciável |
 
 **Principio:** o `workflow.json` e a fonte da verdade. O filesystem (`.letra/specs/`) e apenas **cache de conteudo** — o spec.md pode ser recriado a partir do contrato, mas o vinculo esta no JSON versionado.
+
+### Backup e Versionamento
+
+- **Backup automatico:** `saveWorkflow()` salva copia timestampada em `.letra/backups/workflow-{timestamp}.json` antes de qualquer overwrite
+- **Versionamento semantico:** `flow edit` incrementa minor version e salva `.letra/workflow.v{version}.json`
+- **Merge em re-setup:** `createWorkflowFromTemplate` preserva items/specLinks/tools existentes
 
 ---
 
@@ -195,7 +211,7 @@ Quando o kanban renderiza um item:
 ITEM: { spec: "checkout-pix" }
               |
               v
-    workflow.specs["checkout-pix"]?
+    workflow.specLinks["checkout-pix"]?
               |
         +-----+-----+
         v           v
@@ -258,16 +274,37 @@ Code:
 
 ---
 
-## 6. Comandos Futuros
+## 6. Comandos (Implementados vs Futuros)
+
+### Implementados
+
+| Comando | Descricao |
+|---|---|
+| `letra flow init --quick` | Inicializa workflow com 3 perguntas |
+| `letra flow backlog add "descricao"` | Adiciona item ao primeiro estagio (ID auto-incremental) |
+| `letra flow backlog import github <repo>` | Importa issues do GitHub |
+| `letra flow backlog import linear <team>` | Importa issues do Linear |
+| `letra flow move ITEM-1 --to Code` | Move item entre estagios + regenera adapters |
+| `letra flow board` | Board visual com estagios e contagem |
+| `letra flow visualize --output diagram.html` | Diagrama Mermaid do fluxo |
+| `letra flow edit --name "Novo" --desc "..."` | Edita metadados do workflow |
+| `letra flow diff [v1] [v2]` | Diff entre versoes |
+| `letra flow export --minified` | Exporta workflow como JSON |
+| `letra flow import <file>` | Importa workflow de arquivo |
+| `letra flow serve --port 3000` | Servidor HTTP + SPA web UI |
+| `letra decision new <titulo>` | ADR com template |
+| `letra focus <spec>` | Define foco da sessao |
+| Via API `PATCH /api/items/:id` | Adicionar/atualizar tasks de um item |
+
+### Futuros
 
 | Comando | Descricao |
 |---|---|
 | `letra spec link ITEM-12 checkout-pix` | Vincula item a uma spec |
 | `letra spec unlink ITEM-12` | Remove vinculo |
 | `letra spec update checkout-pix --path <novo>` | Atualiza path apos renomear/mover pasta |
-| `letra task add ITEM-12 "descricao"` | Adiciona tarefa a um item |
-| `letra task done ITEM-12 TASK-1` | Marca tarefa como concluida |
 | `letra validate --specs` | Verifica integridade dos vinculos spec<->item |
+| `letra flow promote --validate` | Promover com validacao automatica |
 
 ---
 
@@ -276,10 +313,13 @@ Code:
 | Decisao | Motivo |
 |---|---|
 | `workflow.json` como registro central | Unico arquivo versionado, diffavel, mergeavel |
-| SPEC.id desacoplado do path | Resiste a renomeacao/movimentacao de pastas |
+| specLinks desacoplado do path | Resiste a renomeacao/movimentacao de pastas |
 | Tasks dentro do item | Nao precisam de workflow proprio, andam com o item |
 | Spec nao anda no kanban | Spec e contrato estavel, item e entrega executavel |
 | Fallback por descricao | Mantem compatibilidade com dados existentes |
+| Adapters regenerados em `flow move` | Mantem agentes sincronizados com contexto atual |
+| Backup automatico antes de overwrite | Evita perda de dados em re-setup |
+| SSE live updates | UI reflete mudancas em tempo real |
 
 ---
 

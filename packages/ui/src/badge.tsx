@@ -26,13 +26,7 @@ function getVariantStyle(v: Variant): CSSProperties | undefined {
 	return undefined;
 }
 
-export function Badge({
-	variant = "default",
-	className,
-	children,
-	style,
-	...props
-}: BadgeProps) {
+export function Badge({ variant = "default", className, children, style, ...props }: BadgeProps) {
 	const varStyle = getVariantStyle(variant);
 	return (
 		<span
