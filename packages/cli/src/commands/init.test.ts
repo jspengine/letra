@@ -33,6 +33,7 @@ describe("init command", () => {
 
 		const content = readFileSync(join(tmpDir, ".cursorrules"), "utf-8");
 		expect(content).toContain("Letra Context — Cursor Adapter");
+		expect(content).toContain("@.letra/context.md");
 	});
 
 	it("should generate Claude Code adapter", async () => {

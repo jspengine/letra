@@ -77,6 +77,9 @@ describe("flow-move", () => {
 			const content = readFileSync(join(tmpDir, ".cursorrules"), "utf-8");
 			expect(content).toContain("Design");
 			expect(content).toContain("ITEM-1");
+			expect(content).toContain("@.letra/context.md");
+			expect(content).toContain("@.letra/constitution.md");
+			expect(content).toContain("@.letra/glossary.md");
 		});
 
 		it("should update workflow updatedAt after move", () => {
@@ -104,6 +107,31 @@ describe("flow-move", () => {
 			expect(content).toContain("Design");
 			expect(content).toContain("ITEM-1: First task");
 			expect(content).toContain("letra flow move <id> --to");
+			expect(content).toContain("@.letra/context.md");
+			expect(content).toContain("## Regras");
+		});
+
+		it("should sync focus file when moved item has spec", () => {
+			const workflow = createTestWorkflow();
+			workflow.items[0].spec = "my-feature";
+			saveWorkflow(tmpDir, workflow);
+
+			const specDir = join(tmpDir, ".letra", "specs", "my-feature");
+			mkdirSync(specDir, { recursive: true });
+			writeFileSync(
+				join(specDir, "spec.md"),
+				"# Spec: My Feature\n\n## Outcome\nAllows cool things\n",
+			);
+
+			flowMove(tmpDir, "ITEM-1", "design");
+
+			const focusFile = join(tmpDir, ".letra", "focus.md");
+			expect(existsSync(focusFile)).toBe(true);
+
+			const focusContent = readFileSync(focusFile, "utf-8");
+			expect(focusContent).toContain("# Focus: my-feature");
+			expect(focusContent).toContain("**Item**: ITEM-1");
+			expect(focusContent).toContain("**Outcome**: Allows cool things");
 		});
 	});
 });

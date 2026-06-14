@@ -3,7 +3,7 @@
   "name": "letra",
   "description": "SDD-agnostic memory framework for AI coding agents",
   "createdAt": "2026-06-07T21:45:54.843Z",
-  "updatedAt": "2026-06-14T18:21:16.242Z",
+  "updatedAt": "2026-06-14T19:17:18.055Z",
   "stages": [
     {
       "id": "backlog",
@@ -266,6 +266,20 @@
       "spec": "ruler-header",
       "stage": "code",
       "createdAt": "2026-06-14T15:33:00.000Z"
+    },
+    {
+      "id": "ITEM-34",
+      "description": "harness layer — composição de adapters (L1-L4), work signals, focus sync",
+      "spec": "harness-layer",
+      "stage": "code",
+      "createdAt": "2026-06-14T20:00:00.000Z"
+    },
+    {
+      "id": "ITEM-35",
+      "description": "validate ac signal — relatório completo de ACs + detector ac-source-drift",
+      "spec": "validate-ac-signal",
+      "stage": "backlog",
+      "createdAt": "2026-06-14T20:00:00.000Z"
     }
   ],
   "specLinks": {
@@ -364,6 +378,12 @@
     },
     "ruler-header": {
       "path": ".letra/specs/ruler-header/spec.md"
+    },
+    "harness-layer": {
+      "path": ".letra/specs/harness-layer/spec.md"
+    },
+    "validate-ac-signal": {
+      "path": ".letra/specs/validate-ac-signal/spec.md"
     }
   },
   "tools": [

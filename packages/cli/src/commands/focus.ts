@@ -1,15 +1,10 @@
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-
-function extractOutcome(specDir: string): string | null {
-	const specFile = join(specDir, "spec.md");
-	if (!existsSync(specFile)) return null;
-	const content = readFileSync(specFile, "utf-8");
-	const match = content.match(/## Outcome\s+([\s\S]*?)(?=\n## |\n*$)/);
-	return match ? match[1].trim() : null;
-}
+import { generateAdapters } from "../adapters/generate.js";
+import { clearFocusFile, writeFocusFile } from "../adapters/focus-sync.js";
+import { loadWorkflow } from "./flow-init.js";
 
 export default function () {
 	return new Command("focus")
@@ -21,10 +16,28 @@ export default function () {
 
 			if (options.clear) {
 				if (existsSync(focusFile)) {
-					unlinkSync(focusFile);
+					clearFocusFile(root);
 					console.log(chalk.green("Focus removed."));
 				} else {
 					console.log(chalk.yellow("No focus to remove."));
+				}
+
+				const workflow = loadWorkflow(root);
+				if (workflow) {
+					const codeStage = workflow.stages.find(
+						(s) => s.id === "code" || s.name.toLowerCase() === "code",
+					);
+					const activeStageId = codeStage ? codeStage.id : workflow.stages[0]?.id;
+
+					generateAdapters(root, workflow.tools, {
+						source: "focus",
+						workflow: {
+							name: workflow.name,
+							stages: workflow.stages,
+							items: workflow.items,
+						},
+						activeStageId,
+					});
 				}
 				return;
 			}
@@ -38,18 +51,38 @@ export default function () {
 					process.exit(1);
 				}
 
-				const outcome = extractOutcome(specDir);
-				const outcomeLine = `**Outcome**: ${outcome || spec}`;
-				const focusContent = [
-					`# Focus: ${spec}`,
-					"",
-					`**Path**: .letra/specs/${spec}/`,
-					outcomeLine,
-					"",
-				].join("\n");
+				const workflow = loadWorkflow(root);
+				let itemId = "";
+				let activeStageId = "code";
 
-				writeFileSync(focusFile, focusContent);
+				if (workflow) {
+					const itemWithSpec = workflow.items.find((item) => item.spec === spec);
+					if (itemWithSpec) {
+						itemId = itemWithSpec.id;
+						activeStageId = itemWithSpec.stage;
+					} else {
+						const codeStage = workflow.stages.find(
+							(s) => s.id === "code" || s.name.toLowerCase() === "code",
+						);
+						activeStageId = codeStage ? codeStage.id : workflow.stages[0]?.id;
+					}
+				}
+
+				writeFocusFile(root, spec, itemId);
 				console.log(chalk.green(`Focus set to "${spec}".`));
+
+				if (workflow) {
+					generateAdapters(root, workflow.tools, {
+						source: "focus",
+						workflow: {
+							name: workflow.name,
+							stages: workflow.stages,
+							items: workflow.items,
+						},
+						activeStageId,
+						primaryItemId: itemId || undefined,
+					});
+				}
 				return;
 			}
 

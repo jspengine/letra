@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import chalk from "chalk";
+import { generateAdapters } from "../adapters/generate.js";
+import { writeFocusFile } from "../adapters/focus-sync.js";
 import { loadWorkflow, saveWorkflow } from "./flow-init.js";
 
 function now(): string {
@@ -17,94 +18,6 @@ function resolveStage(
 		if (stage.name.toLowerCase() === lower) return stage.id;
 	}
 	return null;
-}
-
-function adapterContent(
-	workflowName: string,
-	currentStageName: string,
-	items: Array<{ id: string; description: string; stage: string }>,
-	stageNames: Map<string, string>,
-): string {
-	const stageItems = items.filter(
-		(item) =>
-			item.stage === currentStageName.toLowerCase().replace(/[^a-z0-9]+/g, "-") ||
-			stageNames.get(item.stage) === currentStageName,
-	);
-
-	const itemsBlock =
-		stageItems.length > 0
-			? stageItems.map((item) => `- ${item.id}: ${item.description}`).join("\n")
-			: "(nenhum item ativo neste estagio)";
-
-	return `# Letra Context — ${workflowName}
-
-## Workflow
-
-**Estagio atual:** ${currentStageName}
-
-### Itens neste estagio
-
-${itemsBlock}
-
-### Regras
-
-- Leia as specs em .letra/specs/ antes de codificar
-- Execute \`letra validate\` para verificar acceptance criteria
-- Siga a constitution.md rigorosamente
-- Ao concluir, mova o item com \`letra flow move <id> --to <proximo_estagio>\`
-`;
-}
-
-function generateAdapters(root: string, tools: string[], content: string): void {
-	const adapters: Array<{ path: string; content: string }> = [];
-
-	const header = `# Gerado por letra flow move. Nao edite manualmente.
-`;
-
-	for (const tool of tools) {
-		switch (tool) {
-			case "cursor":
-				adapters.push({
-					path: join(root, ".cursorrules"),
-					content: header + content,
-				});
-				break;
-			case "claude-code":
-				adapters.push({
-					path: join(root, "CLAUDE.md"),
-					content: header + content,
-				});
-				break;
-			case "windsurf":
-				adapters.push({
-					path: join(root, ".windsurfrules"),
-					content: header + content,
-				});
-				break;
-			case "vscode": {
-				const dir = join(root, ".github");
-				if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-				adapters.push({
-					path: join(dir, "copilot-instructions.md"),
-					content: header + content,
-				});
-				break;
-			}
-			case "opencode":
-				adapters.push({
-					path: join(root, "AGENTS.md"),
-					content: header + content,
-				});
-				break;
-		}
-	}
-
-	for (const { path, content: fileContent } of adapters) {
-		const dir = join(path, "..");
-		if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-		writeFileSync(path, fileContent);
-		console.log(`  ${chalk.gray("Updated")} ${path.replace(`${root}/`, "")}`);
-	}
 }
 
 export function flowMove(root: string, itemId: string, targetStageInput: string): void {
@@ -141,12 +54,20 @@ export function flowMove(root: string, itemId: string, targetStageInput: string)
 	workflow.updatedAt = now();
 	saveWorkflow(root, workflow);
 
-	const stageNames = new Map(workflow.stages.map((s) => [s.id, s.name]));
-	const currentStageName = stageNames.get(targetStageId) || targetStageId;
+	if (item.spec) {
+		writeFocusFile(root, item.spec, item.id);
+	}
 
-	const content = adapterContent(workflow.name, currentStageName, workflow.items, stageNames);
-
-	generateAdapters(root, workflow.tools, content);
+	generateAdapters(root, workflow.tools, {
+		source: "flow-move",
+		workflow: {
+			name: workflow.name,
+			stages: workflow.stages,
+			items: workflow.items,
+		},
+		activeStageId: targetStageId,
+		primaryItemId: item.id,
+	});
 
 	console.log(
 		`  ${chalk.green("✓")} Item ${chalk.cyan(itemId)} moved: ${chalk.yellow(fromStage)} → ${chalk.green(toStage)}`,
