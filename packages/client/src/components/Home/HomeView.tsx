@@ -482,72 +482,85 @@ export default function HomeView({ workflow, onSelectItem, onTabChange }: Props)
 										[ver todas]
 									</button>
 								</div>
-						<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-								{[...specs]
-									.sort((a, b) => {
-										const da = a.content.match(/> Updated:\s*(\d{4}-\d{2}-\d{2})/);
-										const db = b.content.match(/> Updated:\s*(\d{4}-\d{2}-\d{2})/);
-										const ta = da ? new Date(da[1]).getTime() : 0;
-										const tb = db ? new Date(db[1]).getTime() : 0;
-										return tb - ta;
-									})
-									.slice(0, 4)
-									.map((spec) => {
-										const hasOutcome = /## Outcome/.test(spec.content);
-										const hasAC = /## Acceptance Criteria/.test(spec.content);
-										const acDone = (spec.content.match(/-\s+\[x\]/g) || [])
-											.length;
-										const acTotal = (
-											spec.content.match(/-\s+\[(\s|x)\]/g) || []
-										).length;
-										const pct =
-											acTotal > 0 ? Math.round((acDone / acTotal) * 100) : 0;
-										return (
-											<Card
-												key={spec.id}
-												className="p-3 transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 border-muted/60"
-											>
-												<CardContent className="p-0">
-													<div className="flex items-center gap-2">
-														<span className="text-sm font-medium truncate flex-1">
-															{spec.id}
-														</span>
-														<Badge
-															variant={
-																hasOutcome && hasAC
-																	? "success"
-																	: "warning"
-															}
-															className="shrink-0"
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+									{[...specs]
+										.sort((a, b) => {
+											const da = a.content.match(
+												/> Updated:\s*(\d{4}-\d{2}-\d{2})/,
+											);
+											const db = b.content.match(
+												/> Updated:\s*(\d{4}-\d{2}-\d{2})/,
+											);
+											const ta = da ? new Date(da[1]).getTime() : 0;
+											const tb = db ? new Date(db[1]).getTime() : 0;
+											return tb - ta;
+										})
+										.slice(0, 4)
+										.map((spec) => {
+											const hasOutcome = /## Outcome/.test(spec.content);
+											const hasAC = /## Acceptance Criteria/.test(
+												spec.content,
+											);
+											const acDone = (spec.content.match(/-\s+\[x\]/g) || [])
+												.length;
+											const acTotal = (
+												spec.content.match(/-\s+\[(\s|x)\]/g) || []
+											).length;
+											const pct =
+												acTotal > 0
+													? Math.round((acDone / acTotal) * 100)
+													: 0;
+											return (
+												<Card
+													key={spec.id}
+													className="p-3 transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 border-muted/60"
+												>
+													<CardContent className="p-0">
+														<div className="flex items-center gap-2">
+															<span className="text-sm font-medium truncate flex-1">
+																{spec.id}
+															</span>
+															<Badge
+																variant={
+																	hasOutcome && hasAC
+																		? "success"
+																		: "warning"
+																}
+																className="shrink-0"
+															>
+																{pct}%
+															</Badge>
+														</div>
+														<div
+															className="flex items-center gap-2 mt-1 text-xs"
+															style={{
+																color: "var(--muted-foreground)",
+															}}
 														>
-															{pct}%
-														</Badge>
-													</div>
-													<div
-														className="flex items-center gap-2 mt-1 text-xs"
-														style={{ color: "var(--muted-foreground)" }}
-													>
-														<span className="flex items-center gap-1">
-															<Icon
-																name="check"
-																size={14}
-																style={{
-																	color:
-																		hasOutcome && hasAC
-																			? "var(--success)"
-																			: "var(--warning)",
-																}}
-															/>
-															{acTotal} ACs
-														</span>
-														<span>
-															· {hasOutcome ? "completa" : "rascunho"}
-														</span>
-													</div>
-												</CardContent>
-											</Card>
-										);
-									})}
+															<span className="flex items-center gap-1">
+																<Icon
+																	name="check"
+																	size={14}
+																	style={{
+																		color:
+																			hasOutcome && hasAC
+																				? "var(--success)"
+																				: "var(--warning)",
+																	}}
+																/>
+																{acTotal} ACs
+															</span>
+															<span>
+																·{" "}
+																{hasOutcome
+																	? "completa"
+																	: "rascunho"}
+															</span>
+														</div>
+													</CardContent>
+												</Card>
+											);
+										})}
 									{specs.length === 0 && (
 										<p
 											className="text-sm"

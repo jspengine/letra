@@ -15,7 +15,14 @@ interface RulerHeaderProps {
 	actions?: ReactNode;
 }
 
-export function RulerHeader({ title, description, progress, sections, activeSection, actions }: RulerHeaderProps) {
+export function RulerHeader({
+	title,
+	description,
+	progress,
+	sections,
+	activeSection,
+	actions,
+}: RulerHeaderProps) {
 	const progPct = Math.round(progress * 100);
 
 	return (
@@ -31,19 +38,28 @@ export function RulerHeader({ title, description, progress, sections, activeSect
 				<div className="flex-1 min-w-0">
 					<h2 className="text-sm font-semibold truncate">{title}</h2>
 					{description && (
-						<p className="text-xs truncate" style={{ color: "var(--muted-foreground)" }}>
+						<p
+							className="text-xs truncate"
+							style={{ color: "var(--muted-foreground)" }}
+						>
 							{description}
 						</p>
 					)}
 				</div>
-				<span className="text-xs tabular-nums shrink-0" style={{ color: "var(--muted-foreground)" }}>
+				<span
+					className="text-xs tabular-nums shrink-0"
+					style={{ color: "var(--muted-foreground)" }}
+				>
 					{progPct}%
 				</span>
 				{actions}
 			</div>
 
 			<div className="relative px-4 pb-2">
-				<div className="relative h-1 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+				<div
+					className="relative h-1 rounded-full overflow-hidden"
+					style={{ background: "var(--border)" }}
+				>
 					<div
 						className="h-full rounded-full"
 						style={{
@@ -57,7 +73,8 @@ export function RulerHeader({ title, description, progress, sections, activeSect
 					<div className="relative flex justify-between mt-1">
 						{sections.map((sec, i) => {
 							const isActive = activeSection === sec.id;
-							const leftPct = sections.length > 1 ? (i / (sections.length - 1)) * 100 : 50;
+							const leftPct =
+								sections.length > 1 ? (i / (sections.length - 1)) * 100 : 50;
 							return (
 								<div
 									key={sec.id}
@@ -72,7 +89,9 @@ export function RulerHeader({ title, description, progress, sections, activeSect
 										style={{
 											width: isActive ? 8 : 4,
 											height: isActive ? 8 : 4,
-											background: isActive ? "var(--primary)" : "var(--muted-foreground)",
+											background: isActive
+												? "var(--primary)"
+												: "var(--muted-foreground)",
 											opacity: isActive ? 1 : 0.5,
 											margin: "0 auto",
 										}}
@@ -85,7 +104,10 @@ export function RulerHeader({ title, description, progress, sections, activeSect
 
 				{activeSection && (
 					<div className="text-center mt-1">
-						<span className="text-[10px] font-medium" style={{ color: "var(--primary)" }}>
+						<span
+							className="text-[10px] font-medium"
+							style={{ color: "var(--primary)" }}
+						>
 							{sections.find((s) => s.id === activeSection)?.label ?? activeSection}
 						</span>
 					</div>

@@ -51,7 +51,7 @@ function AppContent() {
 		fetch("/api/diagnostics")
 			.then((r) => r.json())
 			.then((data) => {
-				if (data && data.suggestions) setSuggestions(data.suggestions);
+				if (data?.suggestions) setSuggestions(data.suggestions);
 			})
 			.catch(() => {});
 	}, []);
