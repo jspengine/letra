@@ -11,10 +11,7 @@ export function extractMarkdownSections(content: string): Section[] {
 	if (!headings) return [];
 	return headings.map((h) => {
 		const label = h.replace(/^##\s+/, "");
-		const id = label
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, "-")
-			.replace(/(^-|-$)/g, "");
+		const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 		return { id, label };
 	});
 }
@@ -27,13 +24,7 @@ interface MarkdownViewProps {
 	children: ReactNode;
 }
 
-export function MarkdownView({
-	title,
-	description,
-	sections,
-	actions,
-	children,
-}: MarkdownViewProps) {
+export function MarkdownView({ title, description, sections, actions, children }: MarkdownViewProps) {
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const [progress, setProgress] = useState(0);
 	const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -68,15 +59,7 @@ export function MarkdownView({
 	}, [labels, sections]);
 
 	return (
-		<div
-			style={{
-				display: "flex",
-				flexDirection: "column",
-				flex: 1,
-				minHeight: 0,
-				overflow: "hidden",
-			}}
-		>
+		<div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
 			<div style={{ flexShrink: 0 }}>
 				<RulerHeader
 					title={title}

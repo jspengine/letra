@@ -1,12 +1,6 @@
 # Gerado por letra flow move. Nao edite manualmente.
 # Letra Context — letra
 
-Read the following files before starting any task:
-- .letra/context.md
-- .letra/constitution.md
-- .letra/glossary.md
-- .letra/focus.md (defines current session focus)
-
 ## Workflow
 
 **Estagio atual:** Code
@@ -14,9 +8,8 @@ Read the following files before starting any task:
 ### Itens neste estagio
 
 - ITEM-33: ruler header — DocumentView reutilizável com sticky header + régua de seções + fade no scroll
-- ITEM-34: harness layer — composição de adapters (L1-L4), work signals, focus sync
 
-## Regras
+### Regras
 
 - Leia as specs em .letra/specs/ antes de codificar
 - Execute `letra validate` para verificar acceptance criteria

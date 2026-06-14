@@ -5,7 +5,6 @@ import { acStaleDetector } from "./detectors/ac-stale.js";
 import { missingDirDetector } from "./detectors/missing-dir.js";
 import { deadIconsDetector } from "./detectors/dead-icons.js";
 import { stageDriftDetector } from "./detectors/stage-drift.js";
-import { harnessStaleDetector } from "./detectors/harness-stale.js";
 import type { DiagnosticResult } from "./types.js";
 
 export type DiagnosticType = "info" | "warning" | "error";
@@ -30,7 +29,6 @@ export class DiagnosticEngine {
 		missingDirDetector,
 		deadIconsDetector,
 		stageDriftDetector,
-		harnessStaleDetector,
 	];
 	private lastOutput: DiagnosticOutput = { fixes: [], suggestions: [], errors: [] };
 	private appliedFixes = new Set<string>();

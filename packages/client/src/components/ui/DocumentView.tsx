@@ -11,10 +11,7 @@ export function extractMarkdownSections(content: string): Section[] {
 	if (!headings) return [];
 	return headings.map((h) => {
 		const label = h.replace(/^##\s+/, "");
-		const id = label
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, "-")
-			.replace(/(^-|-$)/g, "");
+		const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 		return { id, label };
 	});
 }
@@ -61,11 +58,7 @@ export function DocumentView({ title, sections, actions, children }: DocumentVie
 				const rect = s.getBoundingClientRect();
 				const totalScrollable = s.scrollHeight - s.clientHeight;
 				const scrollOffset = -rect.top;
-				setProgress(
-					totalScrollable > 0
-						? Math.max(0, Math.min(scrollOffset / totalScrollable, 1))
-						: 0,
-				);
+				setProgress(totalScrollable > 0 ? Math.max(0, Math.min(scrollOffset / totalScrollable, 1)) : 0);
 
 				const headings = s.querySelectorAll("h2");
 				let found: string | null = sections[0]?.id ?? null;
@@ -131,7 +124,9 @@ export function DocumentView({ title, sections, actions, children }: DocumentVie
 					overflowY: "auto",
 				}}
 			>
-				<div className="p-6 max-w-3xl mx-auto">{children}</div>
+				<div className="p-6 max-w-3xl mx-auto">
+					{children}
+				</div>
 			</div>
 		</div>
 	);
