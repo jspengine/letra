@@ -11,7 +11,10 @@ export function extractMarkdownSections(content: string): Section[] {
 	if (!headings) return [];
 	return headings.map((h) => {
 		const label = h.replace(/^##\s+/, "");
-		const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+		const id = label
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/(^-|-$)/g, "");
 		return { id, label };
 	});
 }
@@ -35,8 +38,9 @@ export function DocumentView({ title, sections, actions, children }: DocumentVie
 	useEffect(() => {
 		const c = containerRef.current;
 		if (!c) return;
+		const el = c;
 		function measure() {
-			const r = c.getBoundingClientRect();
+			const r = el.getBoundingClientRect();
 			setRect({ top: r.top, left: r.left, width: r.width });
 		}
 		measure();
@@ -47,20 +51,25 @@ export function DocumentView({ title, sections, actions, children }: DocumentVie
 	useEffect(() => {
 		const s = scrollRef.current;
 		if (!s) return;
+		const el = s;
 
-		s.style.paddingTop = `${rulerRef.current?.offsetHeight ?? 60}px`;
+		el.style.paddingTop = `${rulerRef.current?.offsetHeight ?? 60}px`;
 
 		let raf: number;
 
 		function onScroll() {
 			cancelAnimationFrame(raf);
 			raf = requestAnimationFrame(() => {
-				const rect = s.getBoundingClientRect();
-				const totalScrollable = s.scrollHeight - s.clientHeight;
+				const rect = el.getBoundingClientRect();
+				const totalScrollable = el.scrollHeight - el.clientHeight;
 				const scrollOffset = -rect.top;
-				setProgress(totalScrollable > 0 ? Math.max(0, Math.min(scrollOffset / totalScrollable, 1)) : 0);
+				setProgress(
+					totalScrollable > 0
+						? Math.max(0, Math.min(scrollOffset / totalScrollable, 1))
+						: 0,
+				);
 
-				const headings = s.querySelectorAll("h2");
+				const headings = el.querySelectorAll("h2");
 				let found: string | null = sections[0]?.id ?? null;
 				for (const h of headings) {
 					const text = h.textContent?.trim() ?? "";
@@ -75,13 +84,13 @@ export function DocumentView({ title, sections, actions, children }: DocumentVie
 			});
 		}
 
-		s.addEventListener("scroll", onScroll, { passive: true });
+		el.addEventListener("scroll", onScroll, { passive: true });
 		window.addEventListener("scroll", onScroll, { passive: true });
 		onScroll();
 
 		return () => {
 			cancelAnimationFrame(raf);
-			s.removeEventListener("scroll", onScroll);
+			el.removeEventListener("scroll", onScroll);
 			window.removeEventListener("scroll", onScroll);
 		};
 	}, [labels, sections]);
@@ -124,9 +133,7 @@ export function DocumentView({ title, sections, actions, children }: DocumentVie
 					overflowY: "auto",
 				}}
 			>
-				<div className="p-6 max-w-3xl mx-auto">
-					{children}
-				</div>
+				<div className="p-6 max-w-3xl mx-auto">{children}</div>
 			</div>
 		</div>
 	);

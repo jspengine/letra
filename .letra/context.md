@@ -1,6 +1,6 @@
 # Context
 
-> Updated: 2026-06-13
+> Updated: 2026-06-15
 > Owner: letra-dev
 
 ## Intent
@@ -14,16 +14,18 @@ Captura direção, intenção e contexto, enriquecendo prompts de agentes de có
 - **Público**: 1. Não-devs → 2. Devs → 3. Empresas (tarefas diversas)
 - **Stack**: TypeScript, Node.js 22+, React 19 + Vite (web UI), distribuído via npm (npx)
 
-## Estado Atual (2026-06-14)
+## Estado Atual (2026-06-15)
 
-- **Estágio**: Code
-- **Itens correntes**: ITEM-33 (ruler header), ITEM-34 (harness layer)
+- **Estágio**: Review
+- **Itens correntes**: ITEM-33 (ruler header — revisão)
 - **Recente**: 
-  - ITEM-30-32 (self-diagnosis engine + diagnostics web + diagnostics UI)
-  - ITEM-34 (harness layer: composição de adapters L1-L4 + AC counter + focus sync)
+  - SpecsView enriquecida (outcome, status, auto-validate, auto-select)
+  - Header rebranding (amber + logo + Space Grotesk + favicon)
+  - Scroll isolation corrigido (flex chain sem h-full)
+  - Testes flow-move corrigidos
 - **Web UI**: Flow designer, spec viewer, diagnostics dashboard, home health check
 - **CLI**: init, flow move, flow board, spec management, diagnostics validation
-- **Build**: 129/129 testes passando (fase 1-3 do ITEM-34 completa)
+- **Build**: 130/130 testes passando | Build limpo
 
 ## Stack
 

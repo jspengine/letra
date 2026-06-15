@@ -34,9 +34,9 @@ export const missingDirDetector: Detector = {
 			});
 		}
 
-		results.forEach((r) => {
+		for (const r of results) {
 			const originalAutoFix = r.autoFix;
-			if (!originalAutoFix) return;
+			if (!originalAutoFix) continue;
 			r.autoFix = async () => {
 				const dirs: string[] = [];
 				for (const required of REQUIRED_DIRS) {
@@ -50,7 +50,7 @@ export const missingDirDetector: Detector = {
 					snapshotId: "",
 				};
 			};
-		});
+		}
 
 		return results;
 	},
