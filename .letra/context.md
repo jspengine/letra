@@ -1,6 +1,6 @@
 # Context
 
-> Updated: 2026-06-13
+> Updated: 2026-06-15
 > Owner: letra-dev
 
 ## Intent
@@ -14,15 +14,18 @@ Captura direção, intenção e contexto, enriquecendo prompts de agentes de có
 - **Público**: 1. Não-devs → 2. Devs → 3. Empresas (tarefas diversas)
 - **Stack**: TypeScript, Node.js 22+, React 19 + Vite (web UI), distribuído via npm (npx)
 
-## Estado Atual (2026-06-13)
+## Estado Atual (2026-06-15)
 
-- **Estágio**: Design
-- **Item corrente**: ITEM-12 — Modelo de dados resiliente
-- **UX Redesign**: Letra como "AI Memory & Spec Hub" — spec-first, 4 abas (Home, Specs, Flow, Context)
-- **Shell implementado**: Header simplificado + NavTabs + FlowView (pipe/kanban toggle + detail inline) + HomeView (health check) + SpecsView (list + detail) + ContextView (markdown viewer)
-- **Flow Designer**: ITEM-13 completo (drag & drop nativo HTML5, tasks, specLinks, modelo resiliente)
-- **Design System**: shadcn-inspired com tokens OKLCH, dark/light mode, Tailwind v4, componentes Button/Badge/Card — ver `.letra/docs/design-system.md`
-- **Build**: 111/111 testes passando
+- **Estágio**: Review
+- **Itens correntes**: ITEM-33 (ruler header — revisão)
+- **Recente**: 
+  - SpecsView enriquecida (outcome, status, auto-validate, auto-select)
+  - Header rebranding (amber + logo + Space Grotesk + favicon)
+  - Scroll isolation corrigido (flex chain sem h-full)
+  - Testes flow-move corrigidos
+- **Web UI**: Flow designer, spec viewer, diagnostics dashboard, home health check
+- **CLI**: init, flow move, flow board, spec management, diagnostics validation
+- **Build**: 130/130 testes passando | Build limpo
 
 ## Stack
 

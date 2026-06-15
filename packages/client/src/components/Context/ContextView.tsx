@@ -102,6 +102,7 @@ export default function ContextView() {
 					{TABS.map((t) => (
 						<button
 							key={t.id}
+							type="button"
 							onClick={() => {
 								setTab(t.id);
 								setSelectedDecision(null);
@@ -198,7 +199,9 @@ export default function ContextView() {
 				) : tab === "decisions" && selectedDecisionData ? (
 					<MarkdownView
 						key={`${tab}-${selectedDecision}`}
-						title={resolveTitle(selectedDecisionData.content) || selectedDecisionData.name}
+						title={
+							resolveTitle(selectedDecisionData.content) || selectedDecisionData.name
+						}
 						description={FILE_INFO.decisions.description}
 						sections={extractMarkdownSections(selectedDecisionData.content)}
 					>

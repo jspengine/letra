@@ -3,7 +3,7 @@
   "name": "letra",
   "description": "SDD-agnostic memory framework for AI coding agents",
   "createdAt": "2026-06-07T21:45:54.843Z",
-  "updatedAt": "2026-06-14T18:21:16.242Z",
+  "updatedAt": "2026-06-15T00:00:00.000Z",
   "stages": [
     {
       "id": "backlog",
@@ -180,7 +180,7 @@
       "id": "ITEM-21",
       "description": "item 26 home rica",
       "spec": "item-26-home-rica",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
@@ -201,7 +201,7 @@
       "id": "ITEM-24",
       "description": "spec templates domain",
       "spec": "spec-templates-domain",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
@@ -222,7 +222,7 @@
       "id": "ITEM-27",
       "description": "validate format pr",
       "spec": "validate-format-pr",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
@@ -236,21 +236,21 @@
       "id": "ITEM-29",
       "description": "validate watch",
       "spec": "validate-watch",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
       "id": "ITEM-30",
       "description": "self-diagnosis engine — detecta e corrige drifts entre specs, código e workflow",
       "spec": "self-diagnosis-core",
-      "stage": "design",
+      "stage": "done",
       "createdAt": "2026-06-14T14:56:00.000Z"
     },
     {
       "id": "ITEM-31",
       "description": "diagnostics web — SSE + REST endpoints para diagnóstico no flow serve",
       "spec": "diagnostics-web",
-      "stage": "design",
+      "stage": "done",
       "createdAt": "2026-06-14T14:56:00.000Z"
     },
     {
@@ -264,7 +264,7 @@
       "id": "ITEM-33",
       "description": "ruler header — DocumentView reutilizável com sticky header + régua de seções + fade no scroll",
       "spec": "ruler-header",
-      "stage": "code",
+      "stage": "review",
       "createdAt": "2026-06-14T15:33:00.000Z"
     }
   ],

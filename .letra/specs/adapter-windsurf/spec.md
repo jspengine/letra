@@ -13,7 +13,6 @@ O Windsurf (Cognition/Codeium) lê automaticamente o contexto `.letra/` ao abrir
 ## Exclusions
 
 - **Não é um plugin**: Windsurf lê `.windsurfrules` nativamente.
-- **Sem sync automático**: O `.windsurfrules` é gerado no `init`, não re-sincronizado.
 
 ## Acceptance Criteria
 
@@ -21,6 +20,7 @@ O Windsurf (Cognition/Codeium) lê automaticamente o contexto `.letra/` ao abrir
 - [x] **Injeção de Contexto**: Ao abrir projeto no Windsurf, o agente injeta os arquivos `.letra/` no contexto.
 - [x] **Acesso a Validação**: Agente consegue executar `letra validate` e ler output.
 - [x] **Não-intrusivo**: O adapter não modifica arquivos além de criar `.windsurfrules` na raiz.
+- [x] **Sync automático**: `.windsurfrules` é regenerado automaticamente em `flow move` e `letra focus` commands.
 
 ## Context
 

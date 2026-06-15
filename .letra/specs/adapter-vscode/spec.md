@@ -15,7 +15,6 @@ Quando o Letra é inicializado em um projeto, o VSCode (com GitHub Copilot) lê 
 
 - **Não é um plugin**: Não vamos criar uma extensão `.vsix`.
 - **Sem IntelliCode customizado**: Foco apenas na injeção de contexto do agente de código.
-- **Sem sync automático**: O arquivo é gerado no `init`, não é re-sincronizado.
 
 ## Acceptance Criteria
 
@@ -23,6 +22,7 @@ Quando o Letra é inicializado em um projeto, o VSCode (com GitHub Copilot) lê 
 - [x] **Settings do Editor**: `letra init` cria `.vscode/settings.json` com formatação e lint configurados para o projeto.
 - [x] **Injeção de Contexto**: Ao abrir projeto no VSCode, o Copilot injeta os arquivos `.letra/` no system prompt.
 - [x] **Não-intrusivo**: O adapter não modifica arquivos do projeto além de criar os arquivos de configuração na raiz.
+- [x] **Sync automático**: `.github/copilot-instructions.md` é regenerado automaticamente em `flow move` e `letra focus` commands.
 
 ## Context
 
