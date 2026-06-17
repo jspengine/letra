@@ -29,8 +29,10 @@ jobs:
       - name: Run linter
         run: npm run lint
       
-      - name: Run type check
+      - name: Run type check: cli
         run: npm -w packages/cli run typecheck
+
+      - name: Run type check: ui
         run: npm -w packages/ui run typecheck
       
       - name: Run tests
