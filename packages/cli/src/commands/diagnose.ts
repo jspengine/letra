@@ -1,5 +1,12 @@
 import { resolve } from "node:path";
 import { DiagnosticEngine } from "../diagnostics/engine.js";
+import type { DiagnosticResult } from "../diagnostics/types.js";
+import {
+	loadHealthRecord,
+	saveHealthRecord,
+	mergeScanResults,
+} from "../health-record.js";
+import { logEntry } from "../session-log.js";
 
 export async function diagnose(targetPath?: string): Promise<void> {
 	const root = resolve(process.cwd(), targetPath ?? ".");
@@ -43,6 +50,19 @@ export async function diagnose(targetPath?: string): Promise<void> {
 		console.log("  Nenhum problema detectado. Tudo ok.\n");
 	}
 
+	const suggestions: DiagnosticResult[] = output.suggestions.map((s) => ({
+		id: s.id,
+		type: s.type,
+		title: s.title,
+		description: s.description,
+		certainty: 0.8,
+		detector: s.detector,
+	}));
+
+	const record = loadHealthRecord(root);
+	mergeScanResults(record, suggestions);
+	saveHealthRecord(root, record);
+
 	const snapshots = engine.listSnapshots();
 	if (snapshots.length > 0) {
 		console.log(`📦 ${snapshots.length} snapshots disponíveis para undo:`);
@@ -56,4 +76,8 @@ export async function diagnose(targetPath?: string): Promise<void> {
 		}
 		console.log();
 	}
+
+	logEntry(root, "diagnose", `Diagnóstico executado — ${output.fixes.length} auto-correção(ões), ${output.suggestions.length} sugestão(ões), ${output.errors.length} erro(s)`, {
+		details: { fixes: output.fixes.length, suggestions: output.suggestions.length, errors: output.errors.length },
+	});
 }

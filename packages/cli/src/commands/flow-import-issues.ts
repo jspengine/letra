@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import chalk from "chalk";
-import { type Item, type Workflow, loadWorkflow, saveWorkflow } from "./flow-init.js";
+import { type Item, type Workflow, loadWorkflow, writeWorkflow } from "./flow-init.js";
 
 function now(): string {
 	return new Date().toISOString();
@@ -126,7 +126,7 @@ export async function backlogImportGitHub(
 	}
 
 	workflow.updatedAt = now();
-	saveWorkflow(root, workflow);
+	writeWorkflow(root, { workflow, source: "flow-import", skipSitrep: true, quiet: true });
 
 	console.log(
 		`  ${chalk.green("✓")} Imported ${chalk.cyan(String(imported))} issue${imported !== 1 ? "s" : ""} from ${chalk.cyan(repo)}`,
@@ -236,7 +236,7 @@ export async function backlogImportLinear(
 	}
 
 	workflow.updatedAt = now();
-	saveWorkflow(root, workflow);
+	writeWorkflow(root, { workflow, source: "flow-import", skipSitrep: true, quiet: true });
 
 	console.log(
 		`  ${chalk.green("✓")} Imported ${chalk.cyan(String(imported))} issue${imported !== 1 ? "s" : ""} from Linear team ${chalk.cyan(team)}`,

@@ -2,21 +2,23 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { generateAdapters } from "../adapters/generate.js";
 import { clearFocusFile, writeFocusFile } from "../adapters/focus-sync.js";
-import { loadWorkflow } from "./flow-init.js";
+import { loadWorkflow, writeWorkflow } from "./flow-init.js";
+import { logEntry } from "../session-log.js";
 
 export default function () {
 	return new Command("focus")
 		.argument("[spec]", "Spec name to focus on")
+		.option("--claim", "Also claim the item (set claimedBy)")
 		.option("--clear", "Remove focus file")
-		.action((spec: string | undefined, options: { clear?: boolean }) => {
+		.action(async (spec: string | undefined, options: { clear?: boolean; claim?: boolean }) => {
 			const root = resolve(process.cwd());
 			const focusFile = join(root, ".letra", "focus.md");
 
 			if (options.clear) {
 				if (existsSync(focusFile)) {
 					clearFocusFile(root);
+					logEntry(root, "focus_set", "Foco removido");
 					console.log(chalk.green("Focus removed."));
 				} else {
 					console.log(chalk.yellow("No focus to remove."));
@@ -24,19 +26,23 @@ export default function () {
 
 				const workflow = loadWorkflow(root);
 				if (workflow) {
-					const codeStage = workflow.stages.find(
-						(s) => s.id === "code" || s.name.toLowerCase() === "code",
-					);
-					const activeStageId = codeStage ? codeStage.id : workflow.stages[0]?.id;
-
-					generateAdapters(root, workflow.tools, {
+					let releasedCount = 0;
+					for (const item of workflow.items) {
+						if (item.claimedBy) {
+							logEntry(root, "item_release", `Auto-release on focus clear: ${item.id}`, { itemId: item.id });
+							delete item.claimedBy;
+							delete item.claimedAt;
+							releasedCount++;
+						}
+					}
+					if (releasedCount > 0) {
+						console.log(chalk.gray(`  Released ${releasedCount} item(s).`));
+					}
+					await writeWorkflow(root, {
+						workflow,
 						source: "focus",
-						workflow: {
-							name: workflow.name,
-							stages: workflow.stages,
-							items: workflow.items,
-						},
-						activeStageId,
+						skipSitrep: true,
+						quiet: true,
 					});
 				}
 				return;
@@ -68,19 +74,34 @@ export default function () {
 					}
 				}
 
+				if (options.claim && workflow && itemId) {
+					const itemWithSpec = workflow.items.find((item) => item.spec === spec);
+					if (itemWithSpec && itemWithSpec.id === itemId) {
+						for (const other of workflow.items) {
+							if (other.claimedBy === "opencode" && other.id !== itemId) {
+								logEntry(root, "item_release", `Auto-release on refocus: ${other.id}`, { itemId: other.id });
+								delete other.claimedBy;
+								delete other.claimedAt;
+							}
+						}
+						itemWithSpec.claimedBy = "opencode";
+						itemWithSpec.claimedAt = new Date().toISOString();
+						console.log(chalk.gray(`  Claimed ${itemId}.`));
+						logEntry(root, "item_claim", `Auto-claim: ${itemId}`, { itemId, by: "opencode" });
+					}
+				}
+
 				writeFocusFile(root, spec, itemId);
+				logEntry(root, "focus_set", `Foco definido: ${spec}`, { itemId });
 				console.log(chalk.green(`Focus set to "${spec}".`));
 
 				if (workflow) {
-					generateAdapters(root, workflow.tools, {
+					await writeWorkflow(root, {
+						workflow,
 						source: "focus",
-						workflow: {
-							name: workflow.name,
-							stages: workflow.stages,
-							items: workflow.items,
-						},
-						activeStageId,
 						primaryItemId: itemId || undefined,
+						skipSitrep: true,
+						quiet: true,
 					});
 				}
 				return;

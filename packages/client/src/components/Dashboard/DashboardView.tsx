@@ -67,6 +67,7 @@ function DashColumn({ title, items, stages, onSelectItem }: ColumnProps) {
 								<div className="truncate">{it.description}</div>
 								<div className="flex items-center gap-2 mt-1 text-xs">
 									<Badge variant="secondary">{stageName}</Badge>
+									{it.claimedBy && <span>🤖</span>}
 									{tasksBar(it) && <span>{tasksBar(it)}</span>}
 									<span style={{ color: "var(--muted-foreground)" }}>
 										{daysSince(it.createdAt) === 0

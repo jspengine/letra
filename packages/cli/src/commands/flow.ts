@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import { Command } from "commander";
 import { backlogActionAdd, backlogActionList } from "./flow-backlog.js";
 import { flowBoardAction } from "./flow-board.js";
@@ -6,6 +7,8 @@ import { flowExportAction, flowImportAction } from "./flow-export-import.js";
 import { backlogImportGitHubAction, backlogImportLinearAction } from "./flow-import-issues.js";
 import { flowInitAction } from "./flow-init.js";
 import { flowMoveAction } from "./flow-move.js";
+import { claimAction, releaseAction } from "./flow-claim.js";
+import { flowAcAction } from "./flow-ac.js";
 import { flowServeAction } from "./flow-serve.js";
 import { flowVisualizeAction } from "./flow-visualize.js";
 
@@ -23,9 +26,10 @@ export default function flowCommand() {
 
 	backlog
 		.command("add <description>")
+		.option("--spec <name>", "Spec name to link")
 		.description("Add item to the first stage")
-		.action((description: string) => {
-			backlogActionAdd(undefined, description);
+		.action((description: string, options: { spec?: string }) => {
+			backlogActionAdd(undefined, description, options.spec);
 		});
 
 	backlog
@@ -55,9 +59,15 @@ export default function flowCommand() {
 		});
 
 	cmd.command("move <item-id>")
-		.requiredOption("--to <stage>", "Target stage id or name")
+		.option("--to <stage>", "Target stage id or name")
+		.option("--auto", "Automatically discover next stage by order")
+		.option("--force", "Skip pre-move validation (pending ACs, etc)")
 		.description("Move item to another stage and regenerate adapters")
-		.action((itemId: string, options: { to: string }) => {
+		.action((itemId: string, options: { to?: string; auto?: boolean; force?: boolean }) => {
+			if (!options.to && !options.auto) {
+				console.log(chalk.red("Either --to or --auto is required"));
+				process.exit(1);
+			}
 			flowMoveAction(undefined, itemId, options);
 		});
 
@@ -96,6 +106,25 @@ export default function flowCommand() {
 		.description("Generate Mermaid diagram of workflow")
 		.action((options: { output?: string }) => {
 			flowVisualizeAction(undefined, options);
+		});
+
+	cmd.command("claim <item-id>")
+		.description("Claim an item (mark as being worked on)")
+		.action(async (itemId: string) => {
+			await claimAction(undefined, itemId);
+		});
+
+	cmd.command("release")
+		.option("--item <id>", "Specific item to release (releases all by default)")
+		.description("Release claimed item(s)")
+		.action(async (options: { item?: string }) => {
+			await releaseAction(undefined, options);
+		});
+
+	cmd.command("ac <item-id> <ac-number>")
+		.description("Mark an acceptance criterion as completed in the spec file")
+		.action((itemId: string, acNumber: string) => {
+			flowAcAction(undefined, itemId, acNumber);
 		});
 
 	cmd.command("edit")

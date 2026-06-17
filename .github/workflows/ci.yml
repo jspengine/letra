@@ -30,7 +30,8 @@ jobs:
           node-version: 22.x
           cache: "npm"
       - run: npm ci
-      - run: npm run typecheck
+      - run: npm -w packages/cli run typecheck
+      - run: npm -w packages/ui run typecheck
 
   tests:
     name: Run Tests

@@ -22,6 +22,14 @@ const ICONS: Record<string, string[]> = {
 		"M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14z",
 	],
 	moon: ["M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"],
+	"file-text": [
+		"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z",
+		"M14 2v6h6",
+		"M16 13H8",
+		"M16 17H8",
+		"M10 9H8",
+	],
+	"chevron-down": ["M6 9l6 6 6-6"],
 	grid: [
 		"M16 3h5v5",
 		"M8 3H3v5",
@@ -67,13 +75,30 @@ const ICONS: Record<string, string[]> = {
 		"M12 9v4",
 		"M12 17h.01",
 	],
+	"x-circle": [
+		"M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2z",
+		"M15 9l-6 6M9 9l6 6",
+	],
+	"check-circle": [
+		"M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2z",
+		"M8 12l3 3 5-5",
+	],
+	"alert-circle": [
+		"M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2z",
+		"M12 8v5",
+		"M12 16h.01",
+	],
+	clock: [
+		"M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2z",
+		"M12 6v6l4 2",
+	],
 };
 
 export type IconName = keyof typeof ICONS;
 
 interface IconProps extends SVGAttributes<SVGSVGElement> {
 	name: IconName;
-	size?: 14 | 16 | 20 | 24;
+	size?: 10 | 12 | 14 | 16 | 20 | 24;
 }
 
 export function Icon({ name, size = 16, className, ...props }: IconProps) {

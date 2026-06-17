@@ -1,0 +1,4089 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "log-zuyi-001",
+      "timestamp": "2026-06-15T20:55:27.354Z",
+      "action": "item_move",
+      "description": "Item ITEM-49 movido: Backlog → Done",
+      "itemId": "ITEM-49",
+      "acId": null,
+      "details": {
+        "from": "done",
+        "to": "done"
+      }
+    },
+    {
+      "id": "log-7c1o-001",
+      "timestamp": "2026-06-15T21:01:16.092Z",
+      "action": "item_move",
+      "description": "Item ITEM-44 movido: Backlog → Code",
+      "itemId": "ITEM-44",
+      "acId": null,
+      "details": {
+        "from": "code",
+        "to": "code"
+      }
+    },
+    {
+      "id": "log-7lmn-001",
+      "timestamp": "2026-06-15T21:01:28.511Z",
+      "action": "item_move",
+      "description": "Item ITEM-44 movido: Code → Review",
+      "itemId": "ITEM-44",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-kzwp-001",
+      "timestamp": "2026-06-15T21:11:53.545Z",
+      "action": "item_move",
+      "description": "Item ITEM-44 movido: Review → Done",
+      "itemId": "ITEM-44",
+      "acId": null,
+      "details": {
+        "from": "done",
+        "to": "done"
+      }
+    },
+    {
+      "id": "log-svzp-001",
+      "timestamp": "2026-06-15T21:18:01.717Z",
+      "action": "validate",
+      "description": "Validação executada — 26 passed, 0 failed, 248 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 26,
+        "failed": 0,
+        "warnings": 248
+      }
+    },
+    {
+      "id": "log-t2rs-001",
+      "timestamp": "2026-06-15T21:18:10.504Z",
+      "action": "item_move",
+      "description": "Item ITEM-42 movido: Backlog → Code",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {
+        "from": "code",
+        "to": "code"
+      }
+    },
+    {
+      "id": "log-t8ww-001",
+      "timestamp": "2026-06-15T21:18:18.464Z",
+      "action": "item_move",
+      "description": "Item ITEM-42 movido: Code → Review",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-1yt4-001",
+      "timestamp": "2026-06-15T21:25:05.272Z",
+      "action": "item_move",
+      "description": "Item ITEM-43 movido: Backlog → Review",
+      "itemId": "ITEM-43",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-6imf-001",
+      "timestamp": "2026-06-15T21:28:37.576Z",
+      "action": "item_move",
+      "description": "Item ITEM-16 movido: Backlog → Done",
+      "itemId": "ITEM-16",
+      "acId": null,
+      "details": {
+        "from": "done",
+        "to": "done"
+      }
+    },
+    {
+      "id": "log-6izk-001",
+      "timestamp": "2026-06-15T21:28:38.048Z",
+      "action": "item_move",
+      "description": "Item ITEM-22 movido: Backlog → Done",
+      "itemId": "ITEM-22",
+      "acId": null,
+      "details": {
+        "from": "done",
+        "to": "done"
+      }
+    },
+    {
+      "id": "log-nuuo-001",
+      "timestamp": "2026-06-16T11:41:55.056Z",
+      "action": "item_move",
+      "description": "Item ITEM-46 movido: Backlog → Review",
+      "itemId": "ITEM-46",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-nv5t-001",
+      "timestamp": "2026-06-16T11:41:55.457Z",
+      "action": "item_move",
+      "description": "Item ITEM-52 movido: Backlog → Review",
+      "itemId": "ITEM-52",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-rhv0-001",
+      "timestamp": "2026-06-16T11:44:44.844Z",
+      "action": "item_move",
+      "description": "Item ITEM-47 movido: Backlog → Review",
+      "itemId": "ITEM-47",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-cbmi-001",
+      "timestamp": "2026-06-16T12:00:56.538Z",
+      "action": "health_scan",
+      "description": "Scan de saúde executado — 0 auto-correção(ões), 4 sugestão(ões)",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "fixes": 0,
+        "suggestions": 4
+      }
+    },
+    {
+      "id": "log-k0tq-001",
+      "timestamp": "2026-06-16T13:58:54.254Z",
+      "action": "item_move",
+      "description": "Item ITEM-34 movido: Backlog → Design",
+      "itemId": "ITEM-34",
+      "acId": null,
+      "details": {
+        "from": "design",
+        "to": "design"
+      }
+    },
+    {
+      "id": "log-py1i-001",
+      "timestamp": "2026-06-16T14:03:30.582Z",
+      "action": "item_move",
+      "description": "Item ITEM-34 movido: Backlog → Design",
+      "itemId": "ITEM-34",
+      "acId": null,
+      "details": {
+        "from": "design",
+        "to": "design"
+      }
+    },
+    {
+      "id": "log-c5s2-001",
+      "timestamp": "2026-06-16T15:16:46.274Z",
+      "action": "item_move",
+      "description": "Item ITEM-34 movido: Design → Code",
+      "itemId": "ITEM-34",
+      "acId": null,
+      "details": {
+        "from": "code",
+        "to": "code"
+      }
+    },
+    {
+      "id": "log-pnux-001",
+      "timestamp": "2026-06-16T15:27:16.233Z",
+      "action": "validate",
+      "description": "Validação executada — 25 passed, 0 failed, 251 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 25,
+        "failed": 0,
+        "warnings": 251
+      }
+    },
+    {
+      "id": "log-prj2-001",
+      "timestamp": "2026-06-16T15:27:20.990Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-prj4-002",
+      "timestamp": "2026-06-16T15:27:20.992Z",
+      "action": "item_move",
+      "description": "Item ITEM-34 movido: Code → Review",
+      "itemId": "ITEM-34",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-wo6b-001",
+      "timestamp": "2026-06-16T16:28:42.467Z",
+      "action": "system",
+      "description": "workflow_updated via flow-backlog",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-q717-001",
+      "timestamp": "2026-06-16T16:51:39.931Z",
+      "action": "system",
+      "description": "workflow_updated via flow-backlog",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-y50c-001",
+      "timestamp": "2026-06-16T16:57:50.556Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-y50g-002",
+      "timestamp": "2026-06-16T16:57:50.560Z",
+      "action": "item_move",
+      "description": "Item ITEM-32 movido: Design → Done",
+      "itemId": "ITEM-32",
+      "acId": null,
+      "details": {
+        "from": "done",
+        "to": "done"
+      }
+    },
+    {
+      "id": "log-zvr4-001",
+      "timestamp": "2026-06-16T16:59:11.872Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-zvr6-002",
+      "timestamp": "2026-06-16T16:59:11.874Z",
+      "action": "item_move",
+      "description": "Item ITEM-37 movido: Backlog → Design",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {
+        "from": "design",
+        "to": "design"
+      }
+    },
+    {
+      "id": "log-zwnu-001",
+      "timestamp": "2026-06-16T16:59:13.050Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-zwnw-002",
+      "timestamp": "2026-06-16T16:59:13.052Z",
+      "action": "item_move",
+      "description": "Item ITEM-38 movido: Backlog → Design",
+      "itemId": "ITEM-38",
+      "acId": null,
+      "details": {
+        "from": "design",
+        "to": "design"
+      }
+    },
+    {
+      "id": "log-259a-001",
+      "timestamp": "2026-06-16T17:00:57.502Z",
+      "action": "system",
+      "description": "workflow_updated via flow-edit",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-ih0r-001",
+      "timestamp": "2026-06-16T17:13:39.243Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-ih0w-002",
+      "timestamp": "2026-06-16T17:13:39.248Z",
+      "action": "item_move",
+      "description": "Item ITEM-37 movido: Design → Code",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {
+        "from": "code",
+        "to": "code"
+      }
+    },
+    {
+      "id": "log-ql2r-001",
+      "timestamp": "2026-06-16T17:19:57.747Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-ql2v-002",
+      "timestamp": "2026-06-16T17:19:57.751Z",
+      "action": "item_move",
+      "description": "Item ITEM-37 movido: Code → Review",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-qld2-001",
+      "timestamp": "2026-06-16T17:19:58.118Z",
+      "action": "system",
+      "description": "workflow_updated via flow-edit",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-ta70-001",
+      "timestamp": "2026-06-16T17:22:03.612Z",
+      "action": "system",
+      "description": "workflow_updated via flow-backlog",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-tm7v-001",
+      "timestamp": "2026-06-16T17:22:19.195Z",
+      "action": "system",
+      "description": "workflow_updated via flow-edit",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wvof-001",
+      "timestamp": "2026-06-16T17:24:51.423Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wvoh-002",
+      "timestamp": "2026-06-16T17:24:51.425Z",
+      "action": "item_move",
+      "description": "Item ITEM-38 movido: Design → Code",
+      "itemId": "ITEM-38",
+      "acId": null,
+      "details": {
+        "from": "code",
+        "to": "code"
+      }
+    },
+    {
+      "id": "log-sc7b-001",
+      "timestamp": "2026-06-16T17:49:19.175Z",
+      "action": "system",
+      "description": "workflow_updated via stage-drift",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-3qzo-001",
+      "timestamp": "2026-06-16T17:58:11.556Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-3rym-002",
+      "timestamp": "2026-06-16T17:58:12.814Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-fvqy-001",
+      "timestamp": "2026-06-16T18:35:37.210Z",
+      "action": "system",
+      "description": "workflow_updated via flow-ac",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-fvqz-002",
+      "timestamp": "2026-06-16T18:35:37.211Z",
+      "action": "ac_complete",
+      "description": "AC 1 marcado como concluído em kanban-ux",
+      "itemId": "ITEM-38",
+      "acId": "1",
+      "details": {}
+    },
+    {
+      "id": "log-q14j-001",
+      "timestamp": "2026-06-16T18:43:30.739Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-q14l-002",
+      "timestamp": "2026-06-16T18:43:30.741Z",
+      "action": "item_move",
+      "description": "Item ITEM-38 movido: Code → Review",
+      "itemId": "ITEM-38",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-xqua-001",
+      "timestamp": "2026-06-16T18:49:30.658Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-xqud-002",
+      "timestamp": "2026-06-16T18:49:30.661Z",
+      "action": "item_move",
+      "description": "Item ITEM-22 movido: Backlog → Done",
+      "itemId": "ITEM-22",
+      "acId": null,
+      "details": {
+        "from": "done",
+        "to": "done"
+      }
+    },
+    {
+      "id": "log-q6f1-001",
+      "timestamp": "2026-06-16T19:39:36.829Z",
+      "action": "health_ack",
+      "description": "Alerta hr-303c8d58 reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-qj46-001",
+      "timestamp": "2026-06-16T19:39:53.286Z",
+      "action": "health_ack",
+      "description": "Alerta hr-34db55c8 reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-qj90-001",
+      "timestamp": "2026-06-16T19:39:53.460Z",
+      "action": "health_ack",
+      "description": "Alerta hr-105281c3 reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-qje8-001",
+      "timestamp": "2026-06-16T19:39:53.648Z",
+      "action": "health_ack",
+      "description": "Alerta hr-44d3ca03 reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-qvte-001",
+      "timestamp": "2026-06-16T19:40:09.746Z",
+      "action": "health_ack",
+      "description": "Alerta hr-457204c5 reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-vyrh-001",
+      "timestamp": "2026-06-16T19:44:06.845Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-vyrl-002",
+      "timestamp": "2026-06-16T19:44:06.849Z",
+      "action": "item_move",
+      "description": "Item ITEM-38 movido: Review → Done",
+      "itemId": "ITEM-38",
+      "acId": null,
+      "details": {
+        "from": "done",
+        "to": "done"
+      }
+    },
+    {
+      "id": "log-za34-001",
+      "timestamp": "2026-06-16T19:46:41.488Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-za37-002",
+      "timestamp": "2026-06-16T19:46:41.491Z",
+      "action": "item_move",
+      "description": "Item ITEM-37 movido: Review → Done",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {
+        "from": "done",
+        "to": "done"
+      }
+    },
+    {
+      "id": "log-zai4-001",
+      "timestamp": "2026-06-16T19:46:42.028Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-zai7-002",
+      "timestamp": "2026-06-16T19:46:42.031Z",
+      "action": "item_move",
+      "description": "Item ITEM-39 movido: Backlog → Review",
+      "itemId": "ITEM-39",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-0206-001",
+      "timestamp": "2026-06-16T19:47:17.670Z",
+      "action": "system",
+      "description": "workflow_updated via flow-ac",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-0209-002",
+      "timestamp": "2026-06-16T19:47:17.673Z",
+      "action": "ac_complete",
+      "description": "AC 1 marcado como concluído em loop-gaps",
+      "itemId": "ITEM-39",
+      "acId": "1",
+      "details": {}
+    },
+    {
+      "id": "log-02ky-001",
+      "timestamp": "2026-06-16T19:47:18.418Z",
+      "action": "system",
+      "description": "workflow_updated via flow-ac",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-02l0-002",
+      "timestamp": "2026-06-16T19:47:18.420Z",
+      "action": "ac_complete",
+      "description": "AC 2 marcado como concluído em loop-gaps",
+      "itemId": "ITEM-39",
+      "acId": "2",
+      "details": {}
+    },
+    {
+      "id": "log-02q7-001",
+      "timestamp": "2026-06-16T19:47:18.607Z",
+      "action": "system",
+      "description": "workflow_updated via flow-ac",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-02qa-002",
+      "timestamp": "2026-06-16T19:47:18.610Z",
+      "action": "ac_complete",
+      "description": "AC 3 marcado como concluído em loop-gaps",
+      "itemId": "ITEM-39",
+      "acId": "3",
+      "details": {}
+    },
+    {
+      "id": "log-02um-001",
+      "timestamp": "2026-06-16T19:47:18.766Z",
+      "action": "system",
+      "description": "workflow_updated via flow-ac",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-02up-002",
+      "timestamp": "2026-06-16T19:47:18.769Z",
+      "action": "ac_complete",
+      "description": "AC 4 marcado como concluído em loop-gaps",
+      "itemId": "ITEM-39",
+      "acId": "4",
+      "details": {}
+    },
+    {
+      "id": "log-036t-001",
+      "timestamp": "2026-06-16T19:47:19.205Z",
+      "action": "system",
+      "description": "workflow_updated via flow-ac",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-036v-002",
+      "timestamp": "2026-06-16T19:47:19.207Z",
+      "action": "ac_complete",
+      "description": "AC 4 marcado como concluído em write-sync",
+      "itemId": "ITEM-34",
+      "acId": "4",
+      "details": {}
+    },
+    {
+      "id": "log-03c6-001",
+      "timestamp": "2026-06-16T19:47:19.398Z",
+      "action": "system",
+      "description": "workflow_updated via flow-ac",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-03c9-002",
+      "timestamp": "2026-06-16T19:47:19.401Z",
+      "action": "ac_complete",
+      "description": "AC 11 marcado como concluído em item-claim",
+      "itemId": "ITEM-37",
+      "acId": "11",
+      "details": {}
+    },
+    {
+      "id": "log-1e1y-001",
+      "timestamp": "2026-06-16T19:48:19.942Z",
+      "action": "system",
+      "description": "workflow_updated via flow-backlog",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-1ks6-001",
+      "timestamp": "2026-06-16T19:48:28.662Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-1ks9-002",
+      "timestamp": "2026-06-16T19:48:28.665Z",
+      "action": "item_move",
+      "description": "Item ITEM-40 movido: Backlog → Design",
+      "itemId": "ITEM-40",
+      "acId": null,
+      "details": {
+        "from": "design",
+        "to": "design"
+      }
+    },
+    {
+      "id": "log-5bhb-001",
+      "timestamp": "2026-06-16T19:51:23.231Z",
+      "action": "system",
+      "description": "workflow_updated via flow-ac",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-5bhd-002",
+      "timestamp": "2026-06-16T19:51:23.233Z",
+      "action": "ac_complete",
+      "description": "AC 5 marcado como concluído em loop-gaps",
+      "itemId": "ITEM-39",
+      "acId": "5",
+      "details": {}
+    },
+    {
+      "id": "log-5bt5-001",
+      "timestamp": "2026-06-16T19:51:23.657Z",
+      "action": "health_scan",
+      "description": "Scan de saúde executado — 0 auto-correção(ões), 4 sugestão(ões)",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "fixes": 0,
+        "suggestions": 4
+      }
+    },
+    {
+      "id": "log-a5fo-001",
+      "timestamp": "2026-06-16T19:55:08.676Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-af05-002",
+      "timestamp": "2026-06-16T19:55:21.077Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-cjxy-003",
+      "timestamp": "2026-06-16T19:57:00.790Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-cley-004",
+      "timestamp": "2026-06-16T19:57:02.698Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-d4cg-005",
+      "timestamp": "2026-06-16T19:57:27.232Z",
+      "action": "system",
+      "description": "workflow_updated via stage-drift",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-d4cn-006",
+      "timestamp": "2026-06-16T19:57:27.239Z",
+      "action": "system",
+      "description": "workflow_updated via stage-drift",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-of6g-007",
+      "timestamp": "2026-06-16T20:34:14.104Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-7400-001",
+      "timestamp": "2026-06-16T20:48:46.080Z",
+      "action": "system",
+      "description": "workflow_updated via flow-backlog",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-7bqj-001",
+      "timestamp": "2026-06-16T20:48:56.107Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-7bqm-002",
+      "timestamp": "2026-06-16T20:48:56.110Z",
+      "action": "item_move",
+      "description": "Item ITEM-41 movido: Backlog → Design",
+      "itemId": "ITEM-41",
+      "acId": null,
+      "details": {
+        "from": "design",
+        "to": "design"
+      }
+    },
+    {
+      "id": "log-jlz5-001",
+      "timestamp": "2026-06-17T11:54:16.961Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-jlz7-002",
+      "timestamp": "2026-06-17T11:54:16.963Z",
+      "action": "item_move",
+      "description": "Item ITEM-41 movido: Design → Code",
+      "itemId": "ITEM-41",
+      "acId": null,
+      "details": {
+        "from": "code",
+        "to": "code"
+      }
+    },
+    {
+      "id": "log-f0tw-001",
+      "timestamp": "2026-06-17T12:18:42.548Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-f0ty-002",
+      "timestamp": "2026-06-17T12:18:42.551Z",
+      "action": "item_move",
+      "description": "Item ITEM-41 movido: Code → Review",
+      "itemId": "ITEM-41",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-ft5h-001",
+      "timestamp": "2026-06-17T12:19:19.253Z",
+      "action": "sitrep",
+      "description": "context.md atualizado com estado do workspace",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "hasItem": true,
+        "itemId": "ITEM-41",
+        "alertsNovo": 1
+      }
+    },
+    {
+      "id": "log-fxcu-001",
+      "timestamp": "2026-06-17T12:19:24.702Z",
+      "action": "health_ack",
+      "description": "Alerta hr-7ad9021f reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-z9z9-001",
+      "timestamp": "2026-06-17T13:02:27.141Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-z9zb-002",
+      "timestamp": "2026-06-17T13:02:27.143Z",
+      "action": "item_move",
+      "description": "Item ITEM-41 movido: Review → Done",
+      "itemId": "ITEM-41",
+      "acId": null,
+      "details": {
+        "from": "done",
+        "to": "done"
+      }
+    },
+    {
+      "id": "log-0lr2-001",
+      "timestamp": "2026-06-17T13:03:29.054Z",
+      "action": "system",
+      "description": "workflow_updated via flow-backlog",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-0pu9-001",
+      "timestamp": "2026-06-17T13:03:34.353Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-0pub-002",
+      "timestamp": "2026-06-17T13:03:34.355Z",
+      "action": "item_move",
+      "description": "Item ITEM-42 movido: Backlog → Design",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {
+        "from": "design",
+        "to": "design"
+      }
+    },
+    {
+      "id": "log-4jfi-001",
+      "timestamp": "2026-06-17T13:06:32.670Z",
+      "action": "system",
+      "description": "workflow_updated via flow-edit",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-4jfj-002",
+      "timestamp": "2026-06-17T13:06:32.671Z",
+      "action": "manual",
+      "description": "spec linked: ITEM-42 → harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-4r36-001",
+      "timestamp": "2026-06-17T13:06:42.594Z",
+      "action": "system",
+      "description": "workflow_updated via flow-edit",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-4r37-002",
+      "timestamp": "2026-06-17T13:06:42.595Z",
+      "action": "manual",
+      "description": "spec linked: ITEM-41 → npm-agnostic",
+      "itemId": "ITEM-41",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-nv94-001",
+      "timestamp": "2026-06-17T13:21:34.456Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-nv96-002",
+      "timestamp": "2026-06-17T13:21:34.458Z",
+      "action": "item_move",
+      "description": "Item ITEM-42 movido: Design → Code",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {
+        "from": "code",
+        "to": "code"
+      }
+    },
+    {
+      "id": "log-oy2l-001",
+      "timestamp": "2026-06-17T13:22:24.765Z",
+      "action": "system",
+      "description": "workflow_updated via flow-backlog",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-pmgl-001",
+      "timestamp": "2026-06-17T13:22:56.373Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-pmgr-002",
+      "timestamp": "2026-06-17T13:22:56.379Z",
+      "action": "item_move",
+      "description": "Item ITEM-43 movido: Backlog → Design",
+      "itemId": "ITEM-43",
+      "acId": null,
+      "details": {
+        "from": "design",
+        "to": "design"
+      }
+    },
+    {
+      "id": "log-us62-001",
+      "timestamp": "2026-06-17T13:26:57.050Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 340 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 340
+      }
+    },
+    {
+      "id": "log-g5sh-001",
+      "timestamp": "2026-06-17T13:43:34.481Z",
+      "action": "decision",
+      "description": "Decisão registrada: adapter-hermes-architecture",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "decisionFile": ".letra/decisions/adapter-hermes-architecture.md"
+      }
+    },
+    {
+      "id": "log-i96y-001",
+      "timestamp": "2026-06-17T13:45:12.202Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 324 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 324
+      }
+    },
+    {
+      "id": "log-wnoz-001",
+      "timestamp": "2026-06-17T13:56:24.179Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 324 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 324
+      }
+    },
+    {
+      "id": "log-62m1-001",
+      "timestamp": "2026-06-17T14:03:43.417Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-62m4-002",
+      "timestamp": "2026-06-17T14:03:43.420Z",
+      "action": "item_move",
+      "description": "Item ITEM-43 movido: Design → Code",
+      "itemId": "ITEM-43",
+      "acId": null,
+      "details": {
+        "from": "code",
+        "to": "code"
+      }
+    },
+    {
+      "id": "log-boml-001",
+      "timestamp": "2026-06-17T14:08:05.229Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-cejw-002",
+      "timestamp": "2026-06-17T14:08:38.828Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-chye-003",
+      "timestamp": "2026-06-17T14:08:43.238Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-n1ci-001",
+      "timestamp": "2026-06-17T14:16:54.930Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-n3p3-002",
+      "timestamp": "2026-06-17T14:16:57.975Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-n5eq-003",
+      "timestamp": "2026-06-17T14:17:00.194Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-n9qs-004",
+      "timestamp": "2026-06-17T14:17:05.812Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-shxf-001",
+      "timestamp": "2026-06-17T14:21:09.699Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-shxh-002",
+      "timestamp": "2026-06-17T14:21:09.701Z",
+      "action": "item_move",
+      "description": "Item ITEM-37 movido: Done → Code",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {
+        "from": "code",
+        "to": "code"
+      }
+    },
+    {
+      "id": "log-sond-001",
+      "timestamp": "2026-06-17T14:21:18.409Z",
+      "action": "focus_set",
+      "description": "Foco definido: item-claim",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-sz3s-005",
+      "timestamp": "2026-06-17T14:21:31.960Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-t16b-006",
+      "timestamp": "2026-06-17T14:21:34.643Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-t2dx-007",
+      "timestamp": "2026-06-17T14:21:36.213Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wct1-008",
+      "timestamp": "2026-06-17T14:24:09.685Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wdg3-009",
+      "timestamp": "2026-06-17T14:24:10.515Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wf02-00a",
+      "timestamp": "2026-06-17T14:24:12.530Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-2odw-00b",
+      "timestamp": "2026-06-17T14:29:04.628Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-2q50-00c",
+      "timestamp": "2026-06-17T14:29:06.900Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-2rot-00d",
+      "timestamp": "2026-06-17T14:29:08.909Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-9axw-001",
+      "timestamp": "2026-06-17T14:34:13.796Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 324 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 324
+      }
+    },
+    {
+      "id": "log-9rhw-001",
+      "timestamp": "2026-06-17T14:34:35.252Z",
+      "action": "sitrep",
+      "description": "context.md atualizado com estado do workspace",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "hasItem": true,
+        "itemId": "ITEM-43",
+        "alertsNovo": 1
+      }
+    },
+    {
+      "id": "log-ag0g-001",
+      "timestamp": "2026-06-17T14:35:07.024Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 324 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 324
+      }
+    },
+    {
+      "id": "log-ak6r-001",
+      "timestamp": "2026-06-17T14:35:12.435Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-ak6u-002",
+      "timestamp": "2026-06-17T14:35:12.438Z",
+      "action": "item_move",
+      "description": "Item ITEM-37 movido: Code → Review",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-anym-001",
+      "timestamp": "2026-06-17T14:35:17.326Z",
+      "action": "sitrep",
+      "description": "context.md atualizado com estado do workspace",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "hasItem": true,
+        "itemId": "ITEM-43",
+        "alertsNovo": 8
+      }
+    },
+    {
+      "id": "log-kdin-001",
+      "timestamp": "2026-06-17T14:42:50.351Z",
+      "action": "focus_set",
+      "description": "Foco definido: harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-pair-001",
+      "timestamp": "2026-06-17T14:46:39.747Z",
+      "action": "ac_complete",
+      "description": "AC AC5.1 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC5.1",
+      "details": {}
+    },
+    {
+      "id": "log-pamb-002",
+      "timestamp": "2026-06-17T14:46:39.875Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 323 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 323
+      }
+    },
+    {
+      "id": "log-par5-001",
+      "timestamp": "2026-06-17T14:46:40.049Z",
+      "action": "ac_complete",
+      "description": "AC AC5.2 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC5.2",
+      "details": {}
+    },
+    {
+      "id": "log-pav8-002",
+      "timestamp": "2026-06-17T14:46:40.196Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 322 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 322
+      }
+    },
+    {
+      "id": "log-pazh-001",
+      "timestamp": "2026-06-17T14:46:40.349Z",
+      "action": "ac_complete",
+      "description": "AC AC5.3 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC5.3",
+      "details": {}
+    },
+    {
+      "id": "log-pb47-002",
+      "timestamp": "2026-06-17T14:46:40.519Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 321 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 321
+      }
+    },
+    {
+      "id": "log-pb99-001",
+      "timestamp": "2026-06-17T14:46:40.701Z",
+      "action": "ac_complete",
+      "description": "AC AC6.1 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC6.1",
+      "details": {}
+    },
+    {
+      "id": "log-pba2-001",
+      "timestamp": "2026-06-17T14:46:40.730Z",
+      "action": "ac_complete",
+      "description": "AC AC8.1 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC8.1",
+      "details": {}
+    },
+    {
+      "id": "log-pbdq-002",
+      "timestamp": "2026-06-17T14:46:40.862Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 319 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 319
+      }
+    },
+    {
+      "id": "log-pbea-002",
+      "timestamp": "2026-06-17T14:46:40.882Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 319 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 319
+      }
+    },
+    {
+      "id": "log-pbid-001",
+      "timestamp": "2026-06-17T14:46:41.029Z",
+      "action": "ac_complete",
+      "description": "AC AC6.2 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC6.2",
+      "details": {}
+    },
+    {
+      "id": "log-pbj1-001",
+      "timestamp": "2026-06-17T14:46:41.053Z",
+      "action": "ac_complete",
+      "description": "AC AC8.2 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC8.2",
+      "details": {}
+    },
+    {
+      "id": "log-pbmc-002",
+      "timestamp": "2026-06-17T14:46:41.172Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 317 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 317
+      }
+    },
+    {
+      "id": "log-pbmy-002",
+      "timestamp": "2026-06-17T14:46:41.194Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 317 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 317
+      }
+    },
+    {
+      "id": "log-pbra-001",
+      "timestamp": "2026-06-17T14:46:41.350Z",
+      "action": "ac_complete",
+      "description": "AC AC6.3 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC6.3",
+      "details": {}
+    },
+    {
+      "id": "log-pbs6-001",
+      "timestamp": "2026-06-17T14:46:41.382Z",
+      "action": "ac_complete",
+      "description": "AC AC8.3 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC8.3",
+      "details": {}
+    },
+    {
+      "id": "log-pbwb-002",
+      "timestamp": "2026-06-17T14:46:41.531Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 315 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 315
+      }
+    },
+    {
+      "id": "log-pbww-002",
+      "timestamp": "2026-06-17T14:46:41.552Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 315 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 315
+      }
+    },
+    {
+      "id": "log-pc11-001",
+      "timestamp": "2026-06-17T14:46:41.701Z",
+      "action": "ac_complete",
+      "description": "AC AC9.1 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC9.1",
+      "details": {}
+    },
+    {
+      "id": "log-pc2h-001",
+      "timestamp": "2026-06-17T14:46:41.753Z",
+      "action": "ac_complete",
+      "description": "AC AC8.4 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC8.4",
+      "details": {}
+    },
+    {
+      "id": "log-pc58-002",
+      "timestamp": "2026-06-17T14:46:41.852Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 313 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 313
+      }
+    },
+    {
+      "id": "log-pc6h-002",
+      "timestamp": "2026-06-17T14:46:41.897Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 313 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 313
+      }
+    },
+    {
+      "id": "log-pc9s-001",
+      "timestamp": "2026-06-17T14:46:42.016Z",
+      "action": "ac_complete",
+      "description": "AC AC9.2 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC9.2",
+      "details": {}
+    },
+    {
+      "id": "log-pcda-002",
+      "timestamp": "2026-06-17T14:46:42.142Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 312 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 312
+      }
+    },
+    {
+      "id": "log-pcit-001",
+      "timestamp": "2026-06-17T14:46:42.341Z",
+      "action": "ac_complete",
+      "description": "AC AC9.3 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC9.3",
+      "details": {}
+    },
+    {
+      "id": "log-pclw-001",
+      "timestamp": "2026-06-17T14:46:42.452Z",
+      "action": "ac_complete",
+      "description": "AC AC10.2 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC10.2",
+      "details": {}
+    },
+    {
+      "id": "log-pcmq-002",
+      "timestamp": "2026-06-17T14:46:42.482Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 311 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 311
+      }
+    },
+    {
+      "id": "log-pcpn-002",
+      "timestamp": "2026-06-17T14:46:42.587Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 310 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 310
+      }
+    },
+    {
+      "id": "log-pcrs-001",
+      "timestamp": "2026-06-17T14:46:42.664Z",
+      "action": "ac_complete",
+      "description": "AC AC9.4 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC9.4",
+      "details": {}
+    },
+    {
+      "id": "log-pcvp-001",
+      "timestamp": "2026-06-17T14:46:42.805Z",
+      "action": "ac_complete",
+      "description": "AC AC10.3 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC10.3",
+      "details": {}
+    },
+    {
+      "id": "log-pcwg-002",
+      "timestamp": "2026-06-17T14:46:42.832Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 309 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 309
+      }
+    },
+    {
+      "id": "log-pczg-002",
+      "timestamp": "2026-06-17T14:46:42.940Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 308 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 308
+      }
+    },
+    {
+      "id": "log-pd1j-001",
+      "timestamp": "2026-06-17T14:46:43.015Z",
+      "action": "ac_complete",
+      "description": "AC AC9.5 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC9.5",
+      "details": {}
+    },
+    {
+      "id": "log-pd5c-001",
+      "timestamp": "2026-06-17T14:46:43.152Z",
+      "action": "ac_complete",
+      "description": "AC AC10.4 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC10.4",
+      "details": {}
+    },
+    {
+      "id": "log-pd6g-002",
+      "timestamp": "2026-06-17T14:46:43.192Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 307 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 307
+      }
+    },
+    {
+      "id": "log-pd8v-002",
+      "timestamp": "2026-06-17T14:46:43.279Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 306 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 306
+      }
+    },
+    {
+      "id": "log-pde0-001",
+      "timestamp": "2026-06-17T14:46:43.464Z",
+      "action": "ac_complete",
+      "description": "AC AC10.5 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC10.5",
+      "details": {}
+    },
+    {
+      "id": "log-pdi4-002",
+      "timestamp": "2026-06-17T14:46:43.612Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-pfg9-001",
+      "timestamp": "2026-06-17T14:46:46.137Z",
+      "action": "ac_complete",
+      "description": "AC AC12.1 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC12.1",
+      "details": {}
+    },
+    {
+      "id": "log-pfjz-002",
+      "timestamp": "2026-06-17T14:46:46.271Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 304 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 304
+      }
+    },
+    {
+      "id": "log-pfoo-001",
+      "timestamp": "2026-06-17T14:46:46.440Z",
+      "action": "ac_complete",
+      "description": "AC AC12.2 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC12.2",
+      "details": {}
+    },
+    {
+      "id": "log-pfs7-002",
+      "timestamp": "2026-06-17T14:46:46.567Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 303 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 303
+      }
+    },
+    {
+      "id": "log-pfws-001",
+      "timestamp": "2026-06-17T14:46:46.732Z",
+      "action": "ac_complete",
+      "description": "AC AC12.3 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC12.3",
+      "details": {}
+    },
+    {
+      "id": "log-pg0a-002",
+      "timestamp": "2026-06-17T14:46:46.858Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 302 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 302
+      }
+    },
+    {
+      "id": "log-pg4n-001",
+      "timestamp": "2026-06-17T14:46:47.015Z",
+      "action": "ac_complete",
+      "description": "AC AC12.4 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC12.4",
+      "details": {}
+    },
+    {
+      "id": "log-pg87-002",
+      "timestamp": "2026-06-17T14:46:47.143Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 301 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 301
+      }
+    },
+    {
+      "id": "log-pgdt-001",
+      "timestamp": "2026-06-17T14:46:47.345Z",
+      "action": "ac_complete",
+      "description": "AC AC12.5 marcado como concluído em harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": "AC12.5",
+      "details": {}
+    },
+    {
+      "id": "log-pghg-002",
+      "timestamp": "2026-06-17T14:46:47.476Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 300 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 300
+      }
+    },
+    {
+      "id": "log-pqyx-001",
+      "timestamp": "2026-06-17T14:47:01.065Z",
+      "action": "sitrep",
+      "description": "context.md atualizado com estado do workspace",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "hasItem": true,
+        "itemId": "ITEM-43",
+        "alertsNovo": 1
+      }
+    },
+    {
+      "id": "log-pveg-001",
+      "timestamp": "2026-06-17T14:47:06.808Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-pvei-002",
+      "timestamp": "2026-06-17T14:47:06.811Z",
+      "action": "item_move",
+      "description": "Item ITEM-42 movido: Code → Review",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-q4a6-001",
+      "timestamp": "2026-06-17T14:47:18.318Z",
+      "action": "focus_set",
+      "description": "Foco definido: item-claim",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-q4il-002",
+      "timestamp": "2026-06-17T14:47:18.621Z",
+      "action": "system",
+      "description": "workflow_updated via focus",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-q6qj-001",
+      "timestamp": "2026-06-17T14:47:21.499Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-0jmk-001",
+      "timestamp": "2026-06-17T14:55:24.764Z",
+      "action": "focus_set",
+      "description": "Foco definido: harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-0jvo-002",
+      "timestamp": "2026-06-17T14:55:25.092Z",
+      "action": "system",
+      "description": "workflow_updated via focus",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-4rcj-001",
+      "timestamp": "2026-06-17T14:58:41.395Z",
+      "action": "focus_set",
+      "description": "Foco definido: item-claim",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-4rl3-002",
+      "timestamp": "2026-06-17T14:58:41.703Z",
+      "action": "system",
+      "description": "workflow_updated via focus",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-6jmi-001",
+      "timestamp": "2026-06-17T15:00:04.698Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-9tu7-001",
+      "timestamp": "2026-06-17T15:02:37.903Z",
+      "action": "item_claim",
+      "description": "Auto-claim: ITEM-42",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-9tua-002",
+      "timestamp": "2026-06-17T15:02:37.906Z",
+      "action": "focus_set",
+      "description": "Foco definido: harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-9u4c-003",
+      "timestamp": "2026-06-17T15:02:38.268Z",
+      "action": "system",
+      "description": "workflow_updated via focus",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-a2x6-001",
+      "timestamp": "2026-06-17T15:02:49.674Z",
+      "action": "item_claim",
+      "description": "Auto-claim: ITEM-37",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-a2x9-002",
+      "timestamp": "2026-06-17T15:02:49.677Z",
+      "action": "focus_set",
+      "description": "Foco definido: item-claim",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-a378-003",
+      "timestamp": "2026-06-17T15:02:50.036Z",
+      "action": "system",
+      "description": "workflow_updated via focus",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-aryc-001",
+      "timestamp": "2026-06-17T15:03:22.116Z",
+      "action": "item_release",
+      "description": "Auto-release on refocus: ITEM-37",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-aryf-002",
+      "timestamp": "2026-06-17T15:03:22.119Z",
+      "action": "item_claim",
+      "description": "Auto-claim: ITEM-42",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-aryk-003",
+      "timestamp": "2026-06-17T15:03:22.124Z",
+      "action": "focus_set",
+      "description": "Foco definido: harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-as85-004",
+      "timestamp": "2026-06-17T15:03:22.469Z",
+      "action": "system",
+      "description": "workflow_updated via focus",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-b1ya-001",
+      "timestamp": "2026-06-17T15:03:35.074Z",
+      "action": "item_release",
+      "description": "Auto-release on refocus: ITEM-42",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-b1yf-002",
+      "timestamp": "2026-06-17T15:03:35.079Z",
+      "action": "item_claim",
+      "description": "Auto-claim: ITEM-37",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-b1yh-003",
+      "timestamp": "2026-06-17T15:03:35.081Z",
+      "action": "focus_set",
+      "description": "Foco definido: item-claim",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-b278-004",
+      "timestamp": "2026-06-17T15:03:35.396Z",
+      "action": "system",
+      "description": "workflow_updated via focus",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-dc0t-001",
+      "timestamp": "2026-06-17T15:05:21.437Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 300 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 300
+      }
+    },
+    {
+      "id": "log-dx10-001",
+      "timestamp": "2026-06-17T15:05:48.660Z",
+      "action": "sitrep",
+      "description": "context.md atualizado com estado do workspace",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "hasItem": true,
+        "itemId": "ITEM-43",
+        "alertsNovo": 1
+      }
+    },
+    {
+      "id": "log-e27w-001",
+      "timestamp": "2026-06-17T15:05:55.388Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-e281-002",
+      "timestamp": "2026-06-17T15:05:55.393Z",
+      "action": "item_move",
+      "description": "Item ITEM-37 movido: Code → Review",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-e873-001",
+      "timestamp": "2026-06-17T15:06:03.135Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-e876-002",
+      "timestamp": "2026-06-17T15:06:03.138Z",
+      "action": "item_move",
+      "description": "Item ITEM-37 movido: Review → Done",
+      "itemId": "ITEM-37",
+      "acId": null,
+      "details": {
+        "from": "done",
+        "to": "done"
+      }
+    },
+    {
+      "id": "log-gkfi-001",
+      "timestamp": "2026-06-17T15:07:52.302Z",
+      "action": "item_claim",
+      "description": "Auto-claim: ITEM-43",
+      "itemId": "ITEM-43",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-gkfl-002",
+      "timestamp": "2026-06-17T15:07:52.305Z",
+      "action": "focus_set",
+      "description": "Foco definido: adapter-hermes",
+      "itemId": "ITEM-43",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-gkom-003",
+      "timestamp": "2026-06-17T15:07:52.630Z",
+      "action": "system",
+      "description": "workflow_updated via focus",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-jj8x-001",
+      "timestamp": "2026-06-17T15:10:10.737Z",
+      "action": "item_claim",
+      "description": "Auto-claim: ITEM-43",
+      "itemId": "ITEM-43",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-jj91-002",
+      "timestamp": "2026-06-17T15:10:10.741Z",
+      "action": "focus_set",
+      "description": "Foco definido: adapter-hermes",
+      "itemId": "ITEM-43",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-jjhf-003",
+      "timestamp": "2026-06-17T15:10:11.043Z",
+      "action": "system",
+      "description": "workflow_updated via focus",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-pzsi-001",
+      "timestamp": "2026-06-17T15:15:12.114Z",
+      "action": "sitrep",
+      "description": "context.md atualizado com estado do workspace",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "hasItem": true,
+        "itemId": "ITEM-43",
+        "alertsNovo": 1
+      }
+    },
+    {
+      "id": "log-q3s7-001",
+      "timestamp": "2026-06-17T15:15:17.287Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-q3s9-002",
+      "timestamp": "2026-06-17T15:15:17.289Z",
+      "action": "item_move",
+      "description": "Item ITEM-43 movido: Code → Review",
+      "itemId": "ITEM-43",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-787k-001",
+      "timestamp": "2026-06-17T16:24:35.408Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-7gtj-002",
+      "timestamp": "2026-06-17T16:24:46.567Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-7h5a-003",
+      "timestamp": "2026-06-17T16:24:46.990Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-7hy2-004",
+      "timestamp": "2026-06-17T16:24:48.026Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-7tle-005",
+      "timestamp": "2026-06-17T16:25:03.122Z",
+      "action": "focus_set",
+      "description": "Focus set via UI: harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-821f-006",
+      "timestamp": "2026-06-17T16:25:14.067Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-87vf-007",
+      "timestamp": "2026-06-17T16:25:21.627Z",
+      "action": "focus_set",
+      "description": "Focus set via UI: web-health-alerts",
+      "itemId": "ITEM-35",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-8974-008",
+      "timestamp": "2026-06-17T16:25:23.344Z",
+      "action": "focus_set",
+      "description": "Focus set via UI: web-sync-button",
+      "itemId": "ITEM-36",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-b7ja-001",
+      "timestamp": "2026-06-17T16:27:41.158Z",
+      "action": "item_claim",
+      "description": "Auto-claim: ITEM-43",
+      "itemId": "ITEM-43",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-b7jd-002",
+      "timestamp": "2026-06-17T16:27:41.161Z",
+      "action": "focus_set",
+      "description": "Foco definido: adapter-hermes",
+      "itemId": "ITEM-43",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-b7sw-003",
+      "timestamp": "2026-06-17T16:27:41.504Z",
+      "action": "system",
+      "description": "workflow_updated via focus",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-cc68-009",
+      "timestamp": "2026-06-17T16:28:33.824Z",
+      "action": "focus_set",
+      "description": "Focus set via UI: web-sync-button",
+      "itemId": "ITEM-36",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-o8by-001",
+      "timestamp": "2026-06-17T16:37:48.718Z",
+      "action": "system",
+      "description": "workflow_updated via flow-backlog",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-ogvq-001",
+      "timestamp": "2026-06-17T16:37:59.799Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-ogvt-002",
+      "timestamp": "2026-06-17T16:37:59.801Z",
+      "action": "item_move",
+      "description": "Item ITEM-44 movido: Backlog → Design",
+      "itemId": "ITEM-44",
+      "acId": null,
+      "details": {
+        "from": "design",
+        "to": "design"
+      }
+    },
+    {
+      "id": "log-wf8c-001",
+      "timestamp": "2026-06-17T16:44:10.908Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wf8e-002",
+      "timestamp": "2026-06-17T16:44:10.910Z",
+      "action": "item_move",
+      "description": "Item ITEM-44 movido: Design → Code",
+      "itemId": "ITEM-44",
+      "acId": null,
+      "details": {
+        "from": "code",
+        "to": "code"
+      }
+    },
+    {
+      "id": "log-wwfg-001",
+      "timestamp": "2026-06-17T16:44:33.196Z",
+      "action": "health_ack",
+      "description": "Alerta hr-52d87d63 reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wwjg-001",
+      "timestamp": "2026-06-17T16:44:33.340Z",
+      "action": "health_ack",
+      "description": "Alerta hr-4652f8f0 reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wwni-001",
+      "timestamp": "2026-06-17T16:44:33.486Z",
+      "action": "health_ack",
+      "description": "Alerta hr-4103b765 reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wwrj-001",
+      "timestamp": "2026-06-17T16:44:33.631Z",
+      "action": "health_ack",
+      "description": "Alerta hr-dd77601 reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wwvh-001",
+      "timestamp": "2026-06-17T16:44:33.773Z",
+      "action": "health_ack",
+      "description": "Alerta hr-6380dc9e reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wwzf-001",
+      "timestamp": "2026-06-17T16:44:33.915Z",
+      "action": "health_ack",
+      "description": "Alerta hr-352219f2 reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wx3j-001",
+      "timestamp": "2026-06-17T16:44:34.063Z",
+      "action": "health_ack",
+      "description": "Alerta hr-10c56e78 reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-wx7j-001",
+      "timestamp": "2026-06-17T16:44:34.207Z",
+      "action": "health_ack",
+      "description": "Alerta hr-5af063dc reconhecido",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-xgc9-001",
+      "timestamp": "2026-06-17T16:44:59.001Z",
+      "action": "item_claim",
+      "description": "Auto-claim: ITEM-44",
+      "itemId": "ITEM-44",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-xgcb-002",
+      "timestamp": "2026-06-17T16:44:59.003Z",
+      "action": "focus_set",
+      "description": "Foco definido: harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-xgll-003",
+      "timestamp": "2026-06-17T16:44:59.337Z",
+      "action": "system",
+      "description": "workflow_updated via focus",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-ytgc-001",
+      "timestamp": "2026-06-17T16:46:02.652Z",
+      "action": "ac_complete",
+      "description": "AC AC3.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC3.1",
+      "details": {}
+    },
+    {
+      "id": "log-ytkg-002",
+      "timestamp": "2026-06-17T16:46:02.800Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-z5vj-001",
+      "timestamp": "2026-06-17T16:46:18.751Z",
+      "action": "ac_complete",
+      "description": "AC AC3.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC3.2",
+      "details": {}
+    },
+    {
+      "id": "log-z5yi-002",
+      "timestamp": "2026-06-17T16:46:18.858Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-z628-001",
+      "timestamp": "2026-06-17T16:46:18.992Z",
+      "action": "ac_complete",
+      "description": "AC AC3.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC3.3",
+      "details": {}
+    },
+    {
+      "id": "log-z65h-002",
+      "timestamp": "2026-06-17T16:46:19.109Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-z69c-001",
+      "timestamp": "2026-06-17T16:46:19.248Z",
+      "action": "ac_complete",
+      "description": "AC AC3.4 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC3.4",
+      "details": {}
+    },
+    {
+      "id": "log-z6cj-002",
+      "timestamp": "2026-06-17T16:46:19.363Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-z6gf-001",
+      "timestamp": "2026-06-17T16:46:19.503Z",
+      "action": "ac_complete",
+      "description": "AC AC3.5 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC3.5",
+      "details": {}
+    },
+    {
+      "id": "log-z6jc-002",
+      "timestamp": "2026-06-17T16:46:19.608Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-0lef-001",
+      "timestamp": "2026-06-17T16:47:25.527Z",
+      "action": "ac_complete",
+      "description": "AC AC7.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC7.1",
+      "details": {}
+    },
+    {
+      "id": "log-0lhx-002",
+      "timestamp": "2026-06-17T16:47:25.653Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-0lnk-001",
+      "timestamp": "2026-06-17T16:47:25.856Z",
+      "action": "ac_complete",
+      "description": "AC AC7.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC7.2",
+      "details": {}
+    },
+    {
+      "id": "log-0lqx-002",
+      "timestamp": "2026-06-17T16:47:25.977Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-0lvf-001",
+      "timestamp": "2026-06-17T16:47:26.139Z",
+      "action": "ac_complete",
+      "description": "AC AC7.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC7.3",
+      "details": {}
+    },
+    {
+      "id": "log-0lzo-002",
+      "timestamp": "2026-06-17T16:47:26.292Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-1yfz-001",
+      "timestamp": "2026-06-17T16:48:29.087Z",
+      "action": "ac_complete",
+      "description": "AC AC10.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC10.1",
+      "details": {}
+    },
+    {
+      "id": "log-1yja-002",
+      "timestamp": "2026-06-17T16:48:29.206Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-1ynu-001",
+      "timestamp": "2026-06-17T16:48:29.370Z",
+      "action": "ac_complete",
+      "description": "AC AC10.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC10.2",
+      "details": {}
+    },
+    {
+      "id": "log-1yra-002",
+      "timestamp": "2026-06-17T16:48:29.494Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-1yvq-001",
+      "timestamp": "2026-06-17T16:48:29.654Z",
+      "action": "ac_complete",
+      "description": "AC AC10.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC10.3",
+      "details": {}
+    },
+    {
+      "id": "log-1yz2-002",
+      "timestamp": "2026-06-17T16:48:29.774Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-3m6e-001",
+      "timestamp": "2026-06-17T16:49:46.502Z",
+      "action": "ac_complete",
+      "description": "AC AC9.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC9.1",
+      "details": {}
+    },
+    {
+      "id": "log-3m9x-002",
+      "timestamp": "2026-06-17T16:49:46.629Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-3mf1-001",
+      "timestamp": "2026-06-17T16:49:46.813Z",
+      "action": "ac_complete",
+      "description": "AC AC9.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC9.2",
+      "details": {}
+    },
+    {
+      "id": "log-3mia-002",
+      "timestamp": "2026-06-17T16:49:46.930Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-3mnh-001",
+      "timestamp": "2026-06-17T16:49:47.117Z",
+      "action": "ac_complete",
+      "description": "AC AC9.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC9.3",
+      "details": {}
+    },
+    {
+      "id": "log-3mrh-002",
+      "timestamp": "2026-06-17T16:49:47.261Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-ce1f-001",
+      "timestamp": "2026-06-17T16:56:35.859Z",
+      "action": "ac_complete",
+      "description": "AC AC2.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC2.1",
+      "details": {}
+    },
+    {
+      "id": "log-ce52-002",
+      "timestamp": "2026-06-17T16:56:35.990Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-ce9h-001",
+      "timestamp": "2026-06-17T16:56:36.149Z",
+      "action": "ac_complete",
+      "description": "AC AC2.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC2.2",
+      "details": {}
+    },
+    {
+      "id": "log-cect-002",
+      "timestamp": "2026-06-17T16:56:36.269Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cei8-001",
+      "timestamp": "2026-06-17T16:56:36.464Z",
+      "action": "ac_complete",
+      "description": "AC AC2.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC2.3",
+      "details": {}
+    },
+    {
+      "id": "log-cel9-002",
+      "timestamp": "2026-06-17T16:56:36.573Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cepg-001",
+      "timestamp": "2026-06-17T16:56:36.724Z",
+      "action": "ac_complete",
+      "description": "AC AC4.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC4.1",
+      "details": {}
+    },
+    {
+      "id": "log-cetf-002",
+      "timestamp": "2026-06-17T16:56:36.867Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cext-001",
+      "timestamp": "2026-06-17T16:56:37.025Z",
+      "action": "ac_complete",
+      "description": "AC AC4.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC4.2",
+      "details": {}
+    },
+    {
+      "id": "log-cf10-002",
+      "timestamp": "2026-06-17T16:56:37.140Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cf5n-001",
+      "timestamp": "2026-06-17T16:56:37.307Z",
+      "action": "ac_complete",
+      "description": "AC AC4.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC4.3",
+      "details": {}
+    },
+    {
+      "id": "log-cf8u-002",
+      "timestamp": "2026-06-17T16:56:37.422Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cfem-001",
+      "timestamp": "2026-06-17T16:56:37.630Z",
+      "action": "ac_complete",
+      "description": "AC AC4.4 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC4.4",
+      "details": {}
+    },
+    {
+      "id": "log-cfhx-002",
+      "timestamp": "2026-06-17T16:56:37.749Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cfnl-001",
+      "timestamp": "2026-06-17T16:56:37.953Z",
+      "action": "ac_complete",
+      "description": "AC AC11.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC11.1",
+      "details": {}
+    },
+    {
+      "id": "log-cfqy-002",
+      "timestamp": "2026-06-17T16:56:38.074Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cfxc-001",
+      "timestamp": "2026-06-17T16:56:38.304Z",
+      "action": "ac_complete",
+      "description": "AC AC11.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC11.2",
+      "details": {}
+    },
+    {
+      "id": "log-cg0n-002",
+      "timestamp": "2026-06-17T16:56:38.423Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cg5o-001",
+      "timestamp": "2026-06-17T16:56:38.604Z",
+      "action": "ac_complete",
+      "description": "AC AC11.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC11.3",
+      "details": {}
+    },
+    {
+      "id": "log-cg8t-002",
+      "timestamp": "2026-06-17T16:56:38.717Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cgdu-001",
+      "timestamp": "2026-06-17T16:56:38.898Z",
+      "action": "ac_complete",
+      "description": "AC AC12.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC12.1",
+      "details": {}
+    },
+    {
+      "id": "log-cghi-002",
+      "timestamp": "2026-06-17T16:56:39.030Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cgm8-001",
+      "timestamp": "2026-06-17T16:56:39.200Z",
+      "action": "ac_complete",
+      "description": "AC AC12.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC12.2",
+      "details": {}
+    },
+    {
+      "id": "log-cgp6-002",
+      "timestamp": "2026-06-17T16:56:39.307Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cgtx-001",
+      "timestamp": "2026-06-17T16:56:39.477Z",
+      "action": "ac_complete",
+      "description": "AC AC12.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC12.3",
+      "details": {}
+    },
+    {
+      "id": "log-cgwz-002",
+      "timestamp": "2026-06-17T16:56:39.587Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-ch2b-001",
+      "timestamp": "2026-06-17T16:56:39.779Z",
+      "action": "ac_complete",
+      "description": "AC AC12.4 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC12.4",
+      "details": {}
+    },
+    {
+      "id": "log-ch5y-002",
+      "timestamp": "2026-06-17T16:56:39.910Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-chb9-001",
+      "timestamp": "2026-06-17T16:56:40.101Z",
+      "action": "ac_complete",
+      "description": "AC AC7.4 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC7.4",
+      "details": {}
+    },
+    {
+      "id": "log-chel-002",
+      "timestamp": "2026-06-17T16:56:40.221Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cnx2-001",
+      "timestamp": "2026-06-17T16:56:48.662Z",
+      "action": "ac_complete",
+      "description": "AC AC6.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC6.1",
+      "details": {}
+    },
+    {
+      "id": "log-co0j-002",
+      "timestamp": "2026-06-17T16:56:48.787Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-co4t-001",
+      "timestamp": "2026-06-17T16:56:48.941Z",
+      "action": "ac_complete",
+      "description": "AC AC6.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC6.2",
+      "details": {}
+    },
+    {
+      "id": "log-co8f-002",
+      "timestamp": "2026-06-17T16:56:49.071Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cocr-001",
+      "timestamp": "2026-06-17T16:56:49.227Z",
+      "action": "ac_complete",
+      "description": "AC AC6.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC6.3",
+      "details": {}
+    },
+    {
+      "id": "log-cofy-002",
+      "timestamp": "2026-06-17T16:56:49.342Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-coko-001",
+      "timestamp": "2026-06-17T16:56:49.512Z",
+      "action": "ac_complete",
+      "description": "AC AC6.4 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC6.4",
+      "details": {}
+    },
+    {
+      "id": "log-conv-002",
+      "timestamp": "2026-06-17T16:56:49.627Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cosg-001",
+      "timestamp": "2026-06-17T16:56:49.792Z",
+      "action": "ac_complete",
+      "description": "AC AC6.5 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC6.5",
+      "details": {}
+    },
+    {
+      "id": "log-covg-002",
+      "timestamp": "2026-06-17T16:56:49.900Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cp01-001",
+      "timestamp": "2026-06-17T16:56:50.065Z",
+      "action": "ac_complete",
+      "description": "AC AC6.6 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC6.6",
+      "details": {}
+    },
+    {
+      "id": "log-cp3f-002",
+      "timestamp": "2026-06-17T16:56:50.187Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cp87-001",
+      "timestamp": "2026-06-17T16:56:50.359Z",
+      "action": "ac_complete",
+      "description": "AC AC6.7 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC6.7",
+      "details": {}
+    },
+    {
+      "id": "log-cpbd-002",
+      "timestamp": "2026-06-17T16:56:50.473Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cpfr-001",
+      "timestamp": "2026-06-17T16:56:50.631Z",
+      "action": "ac_complete",
+      "description": "AC AC13.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC13.1",
+      "details": {}
+    },
+    {
+      "id": "log-cpiu-002",
+      "timestamp": "2026-06-17T16:56:50.742Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cpn3-001",
+      "timestamp": "2026-06-17T16:56:50.895Z",
+      "action": "ac_complete",
+      "description": "AC AC13.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC13.2",
+      "details": {}
+    },
+    {
+      "id": "log-cpqs-002",
+      "timestamp": "2026-06-17T16:56:51.028Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-cpvf-001",
+      "timestamp": "2026-06-17T16:56:51.195Z",
+      "action": "ac_complete",
+      "description": "AC AC13.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC13.3",
+      "details": {}
+    },
+    {
+      "id": "log-cpyl-002",
+      "timestamp": "2026-06-17T16:56:51.309Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-k1mj-001",
+      "timestamp": "2026-06-17T17:02:33.019Z",
+      "action": "ac_complete",
+      "description": "AC AC1.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC1.1",
+      "details": {}
+    },
+    {
+      "id": "log-k1r1-002",
+      "timestamp": "2026-06-17T17:02:33.181Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-k1w7-001",
+      "timestamp": "2026-06-17T17:02:33.367Z",
+      "action": "ac_complete",
+      "description": "AC AC1.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC1.2",
+      "details": {}
+    },
+    {
+      "id": "log-k223-002",
+      "timestamp": "2026-06-17T17:02:33.579Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-k292-001",
+      "timestamp": "2026-06-17T17:02:33.830Z",
+      "action": "ac_complete",
+      "description": "AC AC1.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC1.3",
+      "details": {}
+    },
+    {
+      "id": "log-k2dm-002",
+      "timestamp": "2026-06-17T17:02:33.994Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-k2kf-001",
+      "timestamp": "2026-06-17T17:02:34.239Z",
+      "action": "ac_complete",
+      "description": "AC AC1.4 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC1.4",
+      "details": {}
+    },
+    {
+      "id": "log-k2oj-002",
+      "timestamp": "2026-06-17T17:02:34.387Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-k2u5-001",
+      "timestamp": "2026-06-17T17:02:34.589Z",
+      "action": "ac_complete",
+      "description": "AC AC1.5 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC1.5",
+      "details": {}
+    },
+    {
+      "id": "log-k2ye-002",
+      "timestamp": "2026-06-17T17:02:34.742Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-k34m-001",
+      "timestamp": "2026-06-17T17:02:34.966Z",
+      "action": "ac_complete",
+      "description": "AC AC1.6 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC1.6",
+      "details": {}
+    },
+    {
+      "id": "log-k390-002",
+      "timestamp": "2026-06-17T17:02:35.124Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-k3en-001",
+      "timestamp": "2026-06-17T17:02:35.327Z",
+      "action": "ac_complete",
+      "description": "AC AC1.7 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC1.7",
+      "details": {}
+    },
+    {
+      "id": "log-k3iu-002",
+      "timestamp": "2026-06-17T17:02:35.478Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-k3os-001",
+      "timestamp": "2026-06-17T17:02:35.692Z",
+      "action": "ac_complete",
+      "description": "AC AC1.8 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC1.8",
+      "details": {}
+    },
+    {
+      "id": "log-k3ti-002",
+      "timestamp": "2026-06-17T17:02:35.862Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-k3zb-001",
+      "timestamp": "2026-06-17T17:02:36.071Z",
+      "action": "ac_complete",
+      "description": "AC AC7.5 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC7.5",
+      "details": {}
+    },
+    {
+      "id": "log-k43o-002",
+      "timestamp": "2026-06-17T17:02:36.228Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-k49f-001",
+      "timestamp": "2026-06-17T17:02:36.435Z",
+      "action": "ac_complete",
+      "description": "AC AC7.6 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC7.6",
+      "details": {}
+    },
+    {
+      "id": "log-k4e0-002",
+      "timestamp": "2026-06-17T17:02:36.600Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-kovn-001",
+      "timestamp": "2026-06-17T17:03:03.155Z",
+      "action": "ac_done",
+      "description": "AC AC8.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC8.1",
+      "details": {
+        "spec": "harness-loop-realtime"
+      }
+    },
+    {
+      "id": "log-kp36-002",
+      "timestamp": "2026-06-17T17:03:03.426Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-kpbw-001",
+      "timestamp": "2026-06-17T17:03:03.740Z",
+      "action": "ac_done",
+      "description": "AC AC8.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC8.2",
+      "details": {
+        "spec": "harness-loop-realtime"
+      }
+    },
+    {
+      "id": "log-kpht-002",
+      "timestamp": "2026-06-17T17:03:03.953Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-kppz-001",
+      "timestamp": "2026-06-17T17:03:04.247Z",
+      "action": "ac_done",
+      "description": "AC AC8.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC8.3",
+      "details": {
+        "spec": "harness-loop-realtime"
+      }
+    },
+    {
+      "id": "log-kpv6-002",
+      "timestamp": "2026-06-17T17:03:04.434Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-mdu8-001",
+      "timestamp": "2026-06-17T17:04:22.160Z",
+      "action": "ac_done",
+      "description": "AC AC2.4 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC2.4",
+      "details": {
+        "spec": "harness-loop-realtime"
+      }
+    },
+    {
+      "id": "log-mdzj-002",
+      "timestamp": "2026-06-17T17:04:22.351Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-me77-001",
+      "timestamp": "2026-06-17T17:04:22.627Z",
+      "action": "ac_done",
+      "description": "AC AC2.5 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC2.5",
+      "details": {
+        "spec": "harness-loop-realtime"
+      }
+    },
+    {
+      "id": "log-mech-002",
+      "timestamp": "2026-06-17T17:04:22.817Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-mekl-001",
+      "timestamp": "2026-06-17T17:04:23.109Z",
+      "action": "ac_done",
+      "description": "AC AC5.1 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC5.1",
+      "details": {
+        "spec": "harness-loop-realtime"
+      }
+    },
+    {
+      "id": "log-mepy-002",
+      "timestamp": "2026-06-17T17:04:23.302Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-mexx-001",
+      "timestamp": "2026-06-17T17:04:23.589Z",
+      "action": "ac_done",
+      "description": "AC AC5.2 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC5.2",
+      "details": {
+        "spec": "harness-loop-realtime"
+      }
+    },
+    {
+      "id": "log-mf3k-002",
+      "timestamp": "2026-06-17T17:04:23.792Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-mfb7-001",
+      "timestamp": "2026-06-17T17:04:24.067Z",
+      "action": "ac_done",
+      "description": "AC AC5.3 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC5.3",
+      "details": {
+        "spec": "harness-loop-realtime"
+      }
+    },
+    {
+      "id": "log-mfgf-002",
+      "timestamp": "2026-06-17T17:04:24.255Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-mfoc-001",
+      "timestamp": "2026-06-17T17:04:24.540Z",
+      "action": "ac_done",
+      "description": "AC AC5.4 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC5.4",
+      "details": {
+        "spec": "harness-loop-realtime"
+      }
+    },
+    {
+      "id": "log-mftn-002",
+      "timestamp": "2026-06-17T17:04:24.731Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-mg05-001",
+      "timestamp": "2026-06-17T17:04:24.965Z",
+      "action": "ac_done",
+      "description": "AC AC5.5 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC5.5",
+      "details": {
+        "spec": "harness-loop-realtime"
+      }
+    },
+    {
+      "id": "log-mg5u-002",
+      "timestamp": "2026-06-17T17:04:25.170Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-mgdf-001",
+      "timestamp": "2026-06-17T17:04:25.443Z",
+      "action": "ac_done",
+      "description": "AC AC5.6 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC5.6",
+      "details": {
+        "spec": "harness-loop-realtime"
+      }
+    },
+    {
+      "id": "log-mgjc-002",
+      "timestamp": "2026-06-17T17:04:25.656Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-mgse-001",
+      "timestamp": "2026-06-17T17:04:25.982Z",
+      "action": "ac_done",
+      "description": "AC AC11.4 marcado como concluído em harness-loop-realtime",
+      "itemId": "ITEM-44",
+      "acId": "AC11.4",
+      "details": {
+        "spec": "harness-loop-realtime"
+      }
+    },
+    {
+      "id": "log-mgxj-002",
+      "timestamp": "2026-06-17T17:04:26.167Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-qxr0-001",
+      "timestamp": "2026-06-17T17:07:54.588Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-qxr4-002",
+      "timestamp": "2026-06-17T17:07:54.592Z",
+      "action": "item_move",
+      "description": "Item ITEM-44 movido: Code → Review",
+      "itemId": "ITEM-44",
+      "acId": null,
+      "details": {
+        "from": "review",
+        "to": "review"
+      }
+    },
+    {
+      "id": "log-tfh4-001",
+      "timestamp": "2026-06-17T17:09:50.872Z",
+      "action": "focus_set",
+      "description": "Foco definido: write-sync",
+      "itemId": "ITEM-34",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-tfsj-002",
+      "timestamp": "2026-06-17T17:09:51.283Z",
+      "action": "system",
+      "description": "workflow_updated via focus",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-yh3w-001",
+      "timestamp": "2026-06-17T17:13:46.268Z",
+      "action": "validate",
+      "description": "Validação executada — 1 passed, 0 failed, 305 warnings",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "passed": 1,
+        "failed": 0,
+        "warnings": 305
+      }
+    },
+    {
+      "id": "log-ymmo-001",
+      "timestamp": "2026-06-17T17:13:53.424Z",
+      "action": "sitrep",
+      "description": "context.md atualizado com estado do workspace",
+      "itemId": null,
+      "acId": null,
+      "details": {
+        "hasItem": true,
+        "itemId": "ITEM-44",
+        "alertsNovo": 0
+      }
+    },
+    {
+      "id": "log-yr80-001",
+      "timestamp": "2026-06-17T17:13:59.376Z",
+      "action": "system",
+      "description": "workflow_updated via flow-move",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-yr84-002",
+      "timestamp": "2026-06-17T17:13:59.380Z",
+      "action": "item_move",
+      "description": "Item ITEM-34 movido: Review → Done",
+      "itemId": "ITEM-34",
+      "acId": null,
+      "details": {
+        "from": "done",
+        "to": "done"
+      }
+    },
+    {
+      "id": "log-ytyh-00a",
+      "timestamp": "2026-06-17T17:14:02.921Z",
+      "action": "system",
+      "description": "workflow_updated via web-ui",
+      "itemId": null,
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-2qlr-00b",
+      "timestamp": "2026-06-17T17:17:05.199Z",
+      "action": "focus_set",
+      "description": "Focus set via UI: loop-gaps",
+      "itemId": "ITEM-39",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-aicb-001",
+      "timestamp": "2026-06-17T17:23:07.739Z",
+      "action": "focus_set",
+      "description": "Focus set via UI: harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-akd4-002",
+      "timestamp": "2026-06-17T17:23:10.360Z",
+      "action": "focus_set",
+      "description": "Focus set via UI: loop-gaps",
+      "itemId": "ITEM-39",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-dxwp-003",
+      "timestamp": "2026-06-17T17:25:47.881Z",
+      "action": "focus_set",
+      "description": "Focus set via UI: harness-optimization",
+      "itemId": "ITEM-42",
+      "acId": null,
+      "details": {}
+    },
+    {
+      "id": "log-jhlf-004",
+      "timestamp": "2026-06-17T17:30:06.675Z",
+      "action": "focus_set",
+      "description": "Focus set via UI: loop-gaps",
+      "itemId": "ITEM-39",
+      "acId": null,
+      "details": {}
+    }
+  ]
+}

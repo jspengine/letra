@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
-import { type Workflow, loadWorkflow, saveWorkflow } from "./flow-init.js";
+import { type Workflow, loadWorkflow, writeWorkflow } from "./flow-init.js";
 
 export function flowExport(root: string, options?: { minified?: boolean }): void {
 	const workflow = loadWorkflow(root);
@@ -67,7 +67,7 @@ export function flowImport(root: string, filePath: string): void {
 
 	imported.createdAt = now();
 	imported.updatedAt = now();
-	saveWorkflow(root, imported);
+	writeWorkflow(root, { workflow: imported, source: "flow-import", skipSitrep: true });
 
 	console.log(chalk.green(`Workflow imported: ${imported.name} (${imported.version})`));
 }

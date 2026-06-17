@@ -2,6 +2,8 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import ora from "ora";
+import { loadWorkflow, writeWorkflow } from "./flow-init.js";
+import { logEntry } from "../session-log.js";
 
 const builtInTemplates: Record<string, { spec: string; acceptance: string }> = {
 	"web-api": {
@@ -142,6 +144,37 @@ function findTemplate(root: string, type: string): { spec: string; acceptance: s
 
 function applyPlaceholders(content: string, name: string, date: string): string {
 	return content.replace(/\{\{name\}\}/g, name).replace(/\{\{date\}\}/g, date);
+}
+
+export function specLink(itemId: string, specName: string): void {
+	const root = resolve(process.cwd());
+	const workflow = loadWorkflow(root);
+	if (!workflow) {
+		console.log(chalk.red("No workflow found"));
+		process.exit(1);
+	}
+
+	const item = workflow.items.find((i) => i.id === itemId);
+	if (!item) {
+		console.log(chalk.red(`Item ${itemId} not found`));
+		process.exit(1);
+	}
+
+	const specDir = join(root, ".letra", "specs", specName);
+	if (!existsSync(specDir)) {
+		console.log(chalk.red(`Spec "${specName}" not found at .letra/specs/${specName}/`));
+		return;
+	}
+
+	item.spec = specName;
+	if (!workflow.specLinks) workflow.specLinks = {};
+	workflow.specLinks[specName] = { path: `.letra/specs/${specName}/spec.md` };
+	workflow.updatedAt = new Date().toISOString();
+
+	writeWorkflow(root, { workflow, source: "flow-edit", skipSitrep: true });
+	logEntry(root, "manual", `spec linked: ${itemId} → ${specName}`, { itemId });
+
+	console.log(`  ${chalk.green("✓")} ${itemId} → ${chalk.cyan(specName)}`);
 }
 
 export async function specNew(name: string, options?: { template?: string }) {

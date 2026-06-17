@@ -3,7 +3,7 @@
   "name": "letra",
   "description": "SDD-agnostic memory framework for AI coding agents",
   "createdAt": "2026-06-07T21:45:54.843Z",
-  "updatedAt": "2026-06-15T00:00:00.000Z",
+  "updatedAt": "2026-06-17T17:14:02.615Z",
   "stages": [
     {
       "id": "backlog",
@@ -41,7 +41,8 @@
       "id": "ITEM-1",
       "description": "Branding: header Letra no flow serve + 3 opções de logo",
       "stage": "done",
-      "createdAt": "2026-06-07T21:45:59.038Z"
+      "createdAt": "2026-06-07T21:45:59.038Z",
+      "spec": "flow-serve"
     },
     {
       "id": "ITEM-2",
@@ -187,7 +188,7 @@
       "id": "ITEM-22",
       "description": "item 7 automacoes",
       "spec": "item-7-automacoes",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-07T22:00:00.000Z"
     },
     {
@@ -257,15 +258,92 @@
       "id": "ITEM-32",
       "description": "diagnostics UI — badge, sugestões, histórico de correções e undo",
       "spec": "diagnostics-ui",
-      "stage": "design",
+      "stage": "done",
       "createdAt": "2026-06-14T14:56:00.000Z"
     },
     {
       "id": "ITEM-33",
       "description": "ruler header — DocumentView reutilizável com sticky header + régua de seções + fade no scroll",
       "spec": "ruler-header",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-14T15:33:00.000Z"
+    },
+    {
+      "id": "ITEM-34",
+      "description": "write-sync: motor de sincronização de memória",
+      "stage": "done",
+      "createdAt": "2026-06-16T14:03:20.110Z",
+      "spec": "write-sync"
+    },
+    {
+      "id": "ITEM-35",
+      "description": "web-health-alerts: alertas de saúde na web UI",
+      "stage": "design",
+      "createdAt": "2026-06-16T14:03:20.584Z",
+      "spec": "web-health-alerts"
+    },
+    {
+      "id": "ITEM-36",
+      "description": "web-sync-button: botão de sincronização na web UI",
+      "stage": "design",
+      "createdAt": "2026-06-16T14:03:21.014Z",
+      "spec": "web-sync-button"
+    },
+    {
+      "id": "ITEM-37",
+      "description": "Item Claim — Soft Lock de Atividade para Agentes",
+      "stage": "done",
+      "createdAt": "2026-06-16T16:28:42.448Z",
+      "spec": "item-claim"
+    },
+    {
+      "id": "ITEM-38",
+      "description": "Kanban UX — Card Enriquecido + Modal Full-Screen",
+      "stage": "done",
+      "createdAt": "2026-06-16T16:51:39.911Z",
+      "spec": "kanban-ux"
+    },
+    {
+      "id": "ITEM-39",
+      "description": "Loop Gaps — Correções no Ciclo de Desenvolvimento",
+      "stage": "review",
+      "createdAt": "2026-06-16T17:22:03.596Z",
+      "spec": "loop-gaps"
+    },
+    {
+      "id": "ITEM-40",
+      "description": "Arquitetura Domain-Agnostic — workspace isolado + abstração de domínio",
+      "stage": "backlog",
+      "createdAt": "2026-06-16T19:48:19.933Z",
+      "spec": "architecture-agnostic"
+    },
+    {
+      "id": "ITEM-41",
+      "description": "Remover dependência de npm para publish",
+      "stage": "done",
+      "createdAt": "2026-06-16T20:48:46.071Z",
+      "spec": "npm-agnostic"
+    },
+    {
+      "id": "ITEM-42",
+      "description": "Harness Optimization — Loop de Execução para Agentes",
+      "stage": "review",
+      "createdAt": "2026-06-17T13:03:29.031Z",
+      "spec": "harness-optimization"
+    },
+    {
+      "id": "ITEM-43",
+      "description": "Implementar adapter Hermes Agent",
+      "stage": "review",
+      "createdAt": "2026-06-17T13:22:24.748Z",
+      "spec": "adapter-hermes"
+    },
+    {
+      "id": "ITEM-44",
+      "description": "Melhorias no harness e loop de execução — sincronia, testes, disciplina, animação real",
+      "stage": "review",
+      "createdAt": "2026-06-17T16:37:48.435Z",
+      "spec": "harness-loop-realtime"
     }
   ],
   "specLinks": {
@@ -364,11 +442,42 @@
     },
     "ruler-header": {
       "path": ".letra/specs/ruler-header/spec.md"
+    },
+    "item-claim": {
+      "path": ".letra/specs/item-claim/spec.md"
+    },
+    "kanban-ux": {
+      "path": ".letra/specs/kanban-ux/spec.md"
+    },
+    "loop-gaps": {
+      "path": ".letra/specs/loop-gaps/spec.md"
+    },
+    "write-sync": {
+      "path": ".letra/specs/write-sync/spec.md"
+    },
+    "architecture-agnostic": {
+      "path": ".letra/specs/architecture-agnostic/spec.md"
+    },
+    "web-health-alerts": {
+      "path": ".letra/specs/web-health-alerts/spec.md"
+    },
+    "web-sync-button": {
+      "path": ".letra/specs/web-sync-button/spec.md"
+    },
+    "harness-optimization": {
+      "path": ".letra/specs/harness-optimization/spec.md"
+    },
+    "npm-agnostic": {
+      "path": ".letra/specs/npm-agnostic/spec.md"
+    },
+    "harness-loop-realtime": {
+      "path": ".letra/specs/harness-loop-realtime/spec.md"
     }
   },
   "tools": [
     "cursor",
     "opencode",
-    "vscode"
+    "vscode",
+    "hermes"
   ]
 }

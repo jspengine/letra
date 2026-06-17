@@ -11,20 +11,24 @@ interface Suggestion {
 
 interface Props {
 	name: string;
+	language?: string;
 	theme: "light" | "dark";
 	onThemeChange: (t: "light" | "dark") => void;
 	suggestions?: Suggestion[];
 	onApplySuggestion?: (s: Suggestion) => void;
 	onOpenHistory?: () => void;
+	claimedCount?: number;
 }
 
 export default function Header({
 	name,
+	language,
 	theme,
 	onThemeChange,
 	suggestions = [],
 	onApplySuggestion,
 	onOpenHistory,
+	claimedCount = 0,
 }: Props) {
 	return (
 		<header
@@ -60,6 +64,11 @@ export default function Header({
 				<span className="text-sm" style={{ color: "var(--muted-foreground)" }}>
 					Direção e processo de pensamento para Modelos de Linguagem.
 				</span>
+				{language && (
+					<Badge variant="secondary" className="text-xs">
+						{language}
+					</Badge>
+				)}
 			</div>
 
 			<div className="flex items-center gap-2">
@@ -89,9 +98,13 @@ export default function Header({
 				>
 					<Icon name={theme === "dark" ? "sun" : "moon"} size={16} />
 				</Button>
-				<Badge variant="success" className="animate-pulse-live">
-					live
-				</Badge>
+				{claimedCount > 0 ? (
+					<Badge variant="success" className="animate-pulse-live">
+						🤖 em andamento
+					</Badge>
+				) : (
+					<Badge variant="secondary">idle</Badge>
+				)}
 			</div>
 		</header>
 	);

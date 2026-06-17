@@ -1,6 +1,6 @@
 # Context
 
-> Updated: 2026-06-15
+> Updated: 2026-06-17T17:13:53.421Z
 > Owner: letra-dev
 
 ## Intent
@@ -14,18 +14,53 @@ Captura direção, intenção e contexto, enriquecendo prompts de agentes de có
 - **Público**: 1. Não-devs → 2. Devs → 3. Empresas (tarefas diversas)
 - **Stack**: TypeScript, Node.js 22+, React 19 + Vite (web UI), distribuído via npm (npx)
 
-## Estado Atual (2026-06-15)
+<!-- sitrep:start -->
+**Estágio**: Code
+**Item atual**: ITEM-43 — Implementar adapter Hermes Agent (spec: adapter-hermes)
+**ACs**: 5/5 pendentes | 0 feito(s)
+**Alertas**: 1 novo(s) · 4 em acompanhamento · 39 resolvido(s)
+**Últimas decisões**: "adapter hermes architecture" (17/06/2026), "write sync single source of truth" (16/06/2026), "harness composition model" (15/06/2026), "ux redesign ai memory hub" (14/06/2026)
+<!-- sitrep:end -->
 
-- **Estágio**: Review
-- **Itens correntes**: ITEM-33 (ruler header — revisão)
-- **Recente**: 
-  - SpecsView enriquecida (outcome, status, auto-validate, auto-select)
-  - Header rebranding (amber + logo + Space Grotesk + favicon)
-  - Scroll isolation corrigido (flex chain sem h-full)
-  - Testes flow-move corrigidos
-- **Web UI**: Flow designer, spec viewer, diagnostics dashboard, home health check
-- **CLI**: init, flow move, flow board, spec management, diagnostics validation
-- **Build**: 130/130 testes passando | Build limpo
+<!-- sitrep:start -->
+**Estágio**: Code
+**Item atual**: ITEM-43 — Implementar adapter Hermes Agent (spec: adapter-hermes)
+**ACs**: 5/5 pendentes | 0 feito(s)
+**Alertas**: 8 novo(s) · 4 em acompanhamento · 32 resolvido(s)
+**Últimas decisões**: "adapter hermes architecture" (17/06/2026), "write sync single source of truth" (16/06/2026), "harness composition model" (15/06/2026), "ux redesign ai memory hub" (14/06/2026)
+<!-- sitrep:end -->
+
+<!-- sitrep:start -->
+**Estágio**: Code
+**Item atual**: ITEM-43 — Implementar adapter Hermes Agent (spec: adapter-hermes)
+**ACs**: 5/5 pendentes | 0 feito(s)
+**Alertas**: 1 novo(s) · 4 em acompanhamento · 39 resolvido(s)
+**Últimas decisões**: "adapter hermes architecture" (17/06/2026), "write sync single source of truth" (16/06/2026), "harness composition model" (15/06/2026), "ux redesign ai memory hub" (14/06/2026)
+<!-- sitrep:end -->
+
+<!-- sitrep:start -->
+**Estágio**: Code
+**Item atual**: ITEM-43 — Implementar adapter Hermes Agent (spec: adapter-hermes)
+**ACs**: 5/5 pendentes | 0 feito(s)
+**Alertas**: 1 novo(s) · 4 em acompanhamento · 39 resolvido(s)
+**Últimas decisões**: "adapter hermes architecture" (17/06/2026), "write sync single source of truth" (16/06/2026), "harness composition model" (15/06/2026), "ux redesign ai memory hub" (14/06/2026)
+<!-- sitrep:end -->
+
+<!-- sitrep:start -->
+**Estágio**: Code
+**Item atual**: ITEM-43 — Implementar adapter Hermes Agent (spec: adapter-hermes)
+**ACs**: 5/5 pendentes | 0 feito(s)
+**Alertas**: 1 novo(s) · 4 em acompanhamento · 39 resolvido(s)
+**Últimas decisões**: "adapter hermes architecture" (17/06/2026), "write sync single source of truth" (16/06/2026), "harness composition model" (15/06/2026), "ux redesign ai memory hub" (14/06/2026)
+<!-- sitrep:end -->
+
+<!-- sitrep:start -->
+**Estágio**: Review
+**Item atual**: ITEM-44 — Melhorias no harness e loop de execução — sincronia, testes, disciplina, animação real (spec: harness-loop-realtime)
+**ACs**: 5/5 pendentes | 0 feito(s)
+**Alertas**: 5 em acompanhamento · 40 resolvido(s)
+**Últimas decisões**: "adapter hermes architecture" (17/06/2026), "write sync single source of truth" (16/06/2026), "harness composition model" (15/06/2026), "ux redesign ai memory hub" (14/06/2026)
+<!-- sitrep:end -->
 
 ## Stack
 

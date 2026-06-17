@@ -88,6 +88,12 @@ export const ICONS = {
 	],
 	"bar-chart": ["M3 21h18", "M5 21V10", "M9 21V6", "M13 21V3", "M17 21V8"],
 	code: ["M16 18l6-6-6-6", "M8 6l-6 6 6 6"],
+	"file-text": ["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z", "M14 2v6h6", "M16 13H8", "M16 17H8", "M10 9H8"],
+	"chevron-down": ["M6 9l6 6 6-6"],
+	clock: [
+		"M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2z",
+		"M12 6v6l4 2",
+	],
 } as const;
 
 export type IconName = keyof typeof ICONS;

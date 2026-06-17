@@ -193,6 +193,7 @@ Acesse via `letra init --serve` ou `letra flow serve` — abre em `http://localh
 | Windsurf | `.windsurfrules` | `flow move` |
 | VS Code Copilot | `.github/copilot-instructions.md` | `flow move` |
 | OpenCode | `AGENTS.md` | `flow move` |
+| Hermes Agent | `.hermes/instructions.md` | `flow move` |
 
 ## REST API (flow serve)
 

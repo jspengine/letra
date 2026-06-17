@@ -44,7 +44,7 @@ export function Progress({
 			)}
 			<div
 				className={cn("w-full rounded-full overflow-hidden", barClass)}
-				style={{ background: "var(--muted)" }}
+				style={{ background: "var(--secondary)" }}
 			>
 				<div
 					className={cn("rounded-full transition-all duration-300", barClass)}

@@ -1,10 +1,62 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { Workflow } from "../commands/flow-init.js";
 
 export interface FocusData {
 	specName: string;
 	itemId: string;
 	outcome: string;
+}
+
+export function syncFocus(rootDir: string, workflow: Workflow | null): { cleared: boolean; generated: boolean; diverged: boolean } {
+	const focusFile = join(rootDir, ".letra", "focus.md");
+	const focusData = readFocusFile(rootDir);
+	let cleared = false;
+	let generated = false;
+	let diverged = false;
+
+	if (focusData && workflow) {
+		const itemExists = workflow.items.some((i) => i.id === focusData.itemId);
+		if (!itemExists) {
+			clearFocusFile(rootDir);
+			cleared = true;
+		} else {
+			const item = workflow.items.find((i) => i.id === focusData.itemId);
+			if (item && item.spec && item.spec !== focusData.specName) {
+				diverged = true;
+			}
+		}
+	}
+
+	if (!focusData && workflow) {
+		const activeItem = findActiveItem(workflow);
+		if (activeItem?.spec) {
+			writeFocusFile(rootDir, activeItem.spec, activeItem.id);
+			generated = true;
+		}
+	}
+
+	if (focusData && !workflow) {
+		clearFocusFile(rootDir);
+		cleared = true;
+	}
+
+	return { cleared, generated, diverged };
+}
+
+function findActiveItem(workflow: Workflow) {
+	const activeStages = workflow.stages
+		.filter((s) => s.zone === "doing" || (!s.zone && s.order > 0 && s.order < workflow.stages.length - 1))
+		.map((s) => s.id);
+	const stageSet = new Set(activeStages);
+	if (stageSet.size === 0) {
+		const mid = Math.floor(workflow.stages.length / 2);
+		const stage = workflow.stages[mid];
+		if (stage) stageSet.add(stage.id);
+	}
+	const items = workflow.items.filter((i) => stageSet.has(i.stage));
+	if (items.length === 0) return null;
+	return items.reduce((a, b) => new Date(a.createdAt) > new Date(b.createdAt) ? a : b);
 }
 
 export function extractOutcome(rootDir: string, specName: string): string | null {
