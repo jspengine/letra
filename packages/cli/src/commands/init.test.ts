@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -54,9 +54,16 @@ describe("init command", () => {
 		expect(content).toContain(".letra/context.md");
 	});
 
-	it("should generate VSCode adapter files", async () => {
+	it("should generate VSCode adapter files for Node.js projects", async () => {
+		mkdirSync(tmpDir, { recursive: true });
+		writeFileSync(join(tmpDir, "package.json"), JSON.stringify({ name: "test" }));
 		await init(tmpDir);
 		expect(existsSync(join(tmpDir, ".github", "copilot-instructions.md"))).toBe(true);
 		expect(existsSync(join(tmpDir, ".vscode", "settings.json"))).toBe(true);
+	});
+
+	it("should not generate VSCode settings for non-Node projects", async () => {
+		await init(tmpDir);
+		expect(existsSync(join(tmpDir, ".vscode", "settings.json"))).toBe(false);
 	});
 });

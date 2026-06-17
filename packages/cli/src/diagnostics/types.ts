@@ -5,6 +5,7 @@ export interface DiagnosticResult {
 	description: string;
 	certainty: number;
 	detector: string;
+	devOnly?: boolean;
 	autoFix?: () => Promise<DiagnosticFix>;
 }
 
@@ -23,5 +24,6 @@ export interface Snapshot {
 
 export interface Detector {
 	name: string;
+	devOnly?: boolean;
 	run: (rootDir: string) => Promise<DiagnosticResult[]>;
 }

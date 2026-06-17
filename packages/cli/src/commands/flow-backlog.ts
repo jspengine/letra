@@ -1,6 +1,7 @@
-import { resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { resolve, join } from "node:path";
 import chalk from "chalk";
-import { type Item, type Workflow, loadWorkflow, saveWorkflow } from "./flow-init.js";
+import { type Item, type Workflow, loadWorkflow, writeWorkflow } from "./flow-init.js";
 
 function now(): string {
 	return new Date().toISOString();
@@ -22,10 +23,18 @@ function workflowExists(root: string): Workflow | null {
 	return loadWorkflow(root);
 }
 
-export function backlogAdd(root: string, description: string): void {
+export function backlogAdd(root: string, description: string, spec?: string): void {
 	if (!description) {
 		console.log(chalk.red("Description is required"));
 		process.exit(1);
+	}
+
+	if (spec) {
+		const specsDir = join(root, ".letra", "specs", spec);
+		if (!existsSync(specsDir)) {
+			console.log(chalk.red(`Spec "${spec}" not found at .letra/specs/${spec}/`));
+			return;
+		}
 	}
 
 	const workflow = workflowExists(root);
@@ -46,11 +55,19 @@ export function backlogAdd(root: string, description: string): void {
 		description,
 		stage: firstStage,
 		createdAt: now(),
+		spec: spec || undefined,
 	};
+
+	if (spec) {
+		if (!workflow.specLinks) workflow.specLinks = {};
+		if (!workflow.specLinks[spec]) {
+			workflow.specLinks[spec] = { path: `.letra/specs/${spec}/spec.md` };
+		}
+	}
 
 	workflow.items.push(item);
 	workflow.updatedAt = now();
-	saveWorkflow(root, workflow);
+	writeWorkflow(root, { workflow, source: "flow-backlog", primaryItemId: item.id, skipSitrep: true });
 
 	console.log(
 		`  ${chalk.green("✓")} Item ${chalk.cyan(item.id)} added to ${chalk.cyan(workflow.stages[0].name)}`,
@@ -73,11 +90,11 @@ export function backlogList(root: string): void {
 
 	console.log("");
 	console.log(
-		`  ${chalk.bold("ID")}       ${chalk.bold("Description".padEnd(30))} ${chalk.bold("Stage".padEnd(15))} ${chalk.bold("Age")}`,
-	);
-	console.log(`  ${"─".repeat(70)}`);
+			`  ${chalk.bold("ID")}       ${chalk.bold("Description".padEnd(30))} ${chalk.bold("Stage".padEnd(15))} ${chalk.bold("Age")}`,
+		);
+		console.log(`  ${"─".repeat(75)}`);
 
-	for (const item of workflow.items) {
+		for (const item of workflow.items) {
 		const stageName = stageNames.get(item.stage) || item.stage;
 		const created = new Date(item.createdAt);
 		const age = Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24));
@@ -88,16 +105,17 @@ export function backlogList(root: string): void {
 				? `${item.description.slice(0, 27)}…`
 				: item.description.padEnd(30);
 
+		const claimIcon = item.claimedBy ? "🤖" : "  ";
 		console.log(
-			`  ${chalk.cyan(item.id.padEnd(7))} ${desc} ${chalk.yellow(stageName.padEnd(15))} ${chalk.gray(ageStr)}`,
+			`  ${chalk.cyan(item.id.padEnd(7))} ${desc} ${claimIcon} ${chalk.yellow(stageName.padEnd(15))} ${chalk.gray(ageStr)}`,
 		);
 	}
 	console.log("");
 }
 
-export function backlogActionAdd(targetPath: string | undefined, description: string): void {
+export function backlogActionAdd(targetPath: string | undefined, description: string, spec?: string): void {
 	const root = resolve(process.cwd(), targetPath || ".");
-	backlogAdd(root, description);
+	backlogAdd(root, description, spec);
 }
 
 export function backlogActionList(targetPath: string | undefined): void {

@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ResolvedSpec, Workflow } from "@letra/types";
 import { Card, CardContent } from "@letra/ui";
-import { Badge, Icon, Progress } from "@letra/ui";
+import { Icon, Progress } from "@letra/ui";
 import { cn } from "../../lib/utils";
+import { MarchingBorder } from "./MarchingBorder";
+import type { Item } from "@letra/types";
+import { computeSlug, computeTypeTag, countACs, TYPE_COLORS, type ItemType } from "../../lib/item-utils";
 
 interface Props {
 	workflow: Workflow;
@@ -10,6 +13,7 @@ interface Props {
 	onItemMoved: () => void;
 	onDropItem?: (itemId: string, targetStageId: string) => void;
 	allowMoveToStage?: (item: Workflow["items"][0], targetStageId: string) => boolean;
+	specRefreshKey?: number;
 }
 
 function daysSince(dateStr: string): number {
@@ -34,16 +38,60 @@ function daysLabel(d: number): string {
 	return `${d}d`;
 }
 
+const slugCache = new Map<string, string>();
+const typeCache = new Map<string, ItemType>();
+
+function cachedSlug(item: Item, specs: ResolvedSpec[], workflow: Workflow): string {
+	const cached = slugCache.get(item.id);
+	if (cached) return cached;
+	const slug = computeSlug(item, specs, workflow);
+	slugCache.set(item.id, slug);
+	return slug;
+}
+
+function cachedType(item: Item): ItemType {
+	const cached = typeCache.get(item.id);
+	if (cached) return cached;
+	const type = computeTypeTag(item);
+	typeCache.set(item.id, type);
+	return type;
+}
+
+function truncate(text: string, max: number): string {
+	if (text.length <= max) return text;
+	return `${text.slice(0, max - 1)}…`;
+}
+
 export default function KanbanView({
 	workflow,
 	onSelectItem,
 	onItemMoved,
 	onDropItem,
 	allowMoveToStage,
+	specRefreshKey = 0,
 }: Props) {
 	const [dragOver, setDragOver] = useState<string | null>(null);
 	const [draggingId, setDraggingId] = useState<string | null>(null);
 	const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
+	const [itemAlerts, setItemAlerts] = useState<Record<string, number>>({});
+	const [focusItemId, setFocusItemId] = useState<string | null>(null);
+	const [loadingButtons, setLoadingButtons] = useState<Set<string>>(new Set());
+	const moveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const debouncedMove = useCallback(() => {
+		if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
+		moveTimerRef.current = setTimeout(() => onItemMoved(), 100);
+	}, [onItemMoved]);
+
+	function withLoading(key: string, fn: () => Promise<void>) {
+		setLoadingButtons((prev) => new Set(prev).add(key));
+		fn().finally(() => {
+			setLoadingButtons((prev) => {
+				const next = new Set(prev);
+				next.delete(key);
+				return next;
+			});
+		});
+	}
 
 	useEffect(() => {
 		fetch("/api/specs")
@@ -52,30 +100,20 @@ export default function KanbanView({
 				if (Array.isArray(data)) setSpecs(data);
 			})
 			.catch(() => {});
-	}, []);
-
-	function specStatus(itemId: string): "linked" | "valid" | null {
-		const item = workflow.items.find((it) => it.id === itemId);
-		if (!item?.spec) return null;
-		if (!workflow.specLinks?.[item.spec]) return null;
-		const spec = specs.find((s) => s.id === item.spec);
-		if (!spec) return "linked";
-		const hasOutcome = /## Outcome/.test(spec.content);
-		const hasConstraints = /## Constraints/.test(spec.content);
-		const hasAC = /## Acceptance Criteria/.test(spec.content);
-		return hasOutcome && hasConstraints && hasAC ? "valid" : "linked";
-	}
-
-	function specBadge(itemId: string) {
-		const status = specStatus(itemId);
-		if (!status) return null;
-		return (
-			<Badge variant={status === "valid" ? "success" : "warning"} className="shrink-0">
-				<Icon name={status === "valid" ? "check-circle" : "alert-circle"} size={12} />
-				<span className="ml-1">Spec</span>
-			</Badge>
-		);
-	}
+		fetch("/api/items/alerts")
+			.then((r) => r.json())
+			.then((data) => {
+				if (data?.itemAlerts) setItemAlerts(data.itemAlerts);
+			})
+			.catch(() => {});
+		fetch("/api/focus")
+			.then((r) => r.json())
+			.then((data) => {
+				if (data?.active && data?.itemId) setFocusItemId(data.itemId);
+				else setFocusItemId(null);
+			})
+			.catch(() => {});
+	}, [specRefreshKey]);
 
 	function handleDragStart(e: React.DragEvent, itemId: string) {
 		e.dataTransfer.setData("text/plain", itemId);
@@ -115,28 +153,16 @@ export default function KanbanView({
 		if (onDropItem) {
 			onDropItem(itemId, targetStageId);
 		} else {
-			fetch(`/api/items/${itemId}`, {
+			const p = fetch(`/api/items/${itemId}`, {
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ stage: targetStageId }),
-			}).then(() => onItemMoved());
+			});
+			const releaseP = item.claimedBy && targetStageId === "review"
+				? fetch(`/api/items/${itemId}/release`, { method: "POST" })
+				: Promise.resolve();
+			Promise.all([p, releaseP]).then(debouncedMove).catch(console.warn);
 		}
-	}
-
-	function tasksBar(itemId: string) {
-		const item = workflow.items.find((it) => it.id === itemId);
-		if (!item?.tasks || item.tasks.length === 0) return null;
-		const done = item.tasks.filter((t) => t.done).length;
-		const stage = workflow.stages.find((s) => s.id === item.stage);
-		return (
-			<Progress
-				value={done}
-				max={item.tasks.length}
-				size="xs"
-				showValue
-				barColor={stage?.color}
-			/>
-		);
 	}
 
 	return (
@@ -195,6 +221,16 @@ export default function KanbanView({
 								{stageItems.map((it) => {
 									const days = daysSince(it.createdAt);
 									const icon = daysIcon(days);
+									const isClaimed = !!it.claimedBy;
+									const isFocused = focusItemId === it.id;
+									const slug = cachedSlug(it, specs, workflow);
+									const typeTag = cachedType(it);
+									const typeColor = TYPE_COLORS[typeTag];
+									const linkedSpec = it.spec ? specs.find((s) => s.id === it.spec) : null;
+									const acCount = linkedSpec ? countACs(linkedSpec.content) : null;
+									const hasTasks = it.tasks && it.tasks.length > 0;
+									const progressMax = acCount ? acCount.total : hasTasks ? it.tasks!.length : 0;
+									const progressVal = acCount ? acCount.done : hasTasks ? it.tasks!.filter((t) => t.done).length : 0;
 									return (
 										<div
 											key={it.id}
@@ -202,50 +238,168 @@ export default function KanbanView({
 											onClick={() => onSelectItem(it.id)}
 											onDragStart={(e) => handleDragStart(e, it.id)}
 											onDragEnd={handleDragEnd}
-											className={cn(
-												"rounded-lg border text-card-foreground transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-sm hover:-translate-y-0.5",
-												draggingId === it.id && "opacity-40",
-												stage.color
-													? "bg-card/90 hover:border-transparent"
-													: "bg-card hover:border-primary/20",
-											)}
-											style={{
-												borderColor: stage.color
-													? `${stage.color}30`
-													: "var(--border)",
-												background: stage.color
-													? `color-mix(in srgb, ${stage.color}08, var(--card))`
-													: undefined,
-												boxShadow:
-													draggingId === it.id
-														? undefined
-														: stage.color
-															? `0 1px 3px ${stage.color}15`
-															: undefined,
-											}}
+												className={cn(
+													"relative group rounded-lg border text-card-foreground transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-sm hover:-translate-y-0.5",
+													draggingId === it.id && "opacity-40",
+													stage.color
+														? "bg-card/90 hover:border-transparent"
+														: "bg-card hover:border-primary/20",
+												)}
+												style={{
+													borderColor: isClaimed
+														? "transparent"
+														: isFocused
+															? "var(--border-focus)"
+															: stage.color
+																? `${stage.color}30`
+																: "var(--border)",
+													borderLeft: isFocused && !isClaimed ? "3px solid var(--border-focus)" : undefined,
+													background: stage.color
+														? `color-mix(in srgb, ${stage.color}08, var(--card))`
+														: undefined,
+												boxShadow: isClaimed
+													? undefined
+													: isFocused
+														? `0 0 8px color-mix(in srgb, var(--border-focus) 30%, transparent)`
+														: draggingId === it.id
+															? undefined
+															: stage.color
+																? `0 1px 3px ${stage.color}15`
+																: `0 1px 2px oklch(0 0 0 / 0.08)`,
+												}}
 										>
-											<div className="p-2.5 flex flex-col gap-1.5">
-												<div className="flex items-center justify-between gap-2">
-													<span className="font-medium text-xs">
-														{it.id}
+											{isClaimed && <MarchingBorder />}
+											<div className="p-2.5 flex flex-col gap-1">
+												<div className="flex items-center justify-between gap-1">
+													<span
+														className="font-medium text-xs truncate"
+														title={`${it.id} — ${it.description}`}
+													>
+														{isFocused && (
+															<span className="inline-block w-2 h-2 rounded-full mr-1 align-middle shrink-0"
+																style={{ background: "var(--border-focus)" }}
+															/>
+														)}
+														{slug}
 													</span>
 													<span
-														className="flex items-center gap-1 text-xs tabular-nums shrink-0"
-														style={{ color: daysColor(days) }}
+														className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 leading-none"
+														style={{
+															background: `color-mix(in srgb, ${typeColor} 15%, transparent)`,
+															color: typeColor,
+														}}
 													>
-														{icon && <Icon name={icon} size={12} />}
-														{daysLabel(days)}
+														{typeTag}
 													</span>
 												</div>
 												<div
 													className="truncate text-xs leading-relaxed"
 													style={{ color: "var(--muted-foreground)" }}
 												>
-													{it.description}
+													{truncate(it.description, 40)}
 												</div>
-												<div className="flex items-center gap-2 mt-0.5">
-													{tasksBar(it.id)}
-													{specBadge(it.id)}
+												{(progressMax > 0) && (
+													<Progress
+														value={progressVal}
+														max={progressMax}
+														size="xs"
+														showValue
+														barColor={stage.color}
+													/>
+												)}
+														<div className="flex items-center justify-between gap-1 mt-0.5">
+													<div className="flex items-center gap-1.5 text-[10px]"
+														style={{ color: "var(--muted-foreground)" }}
+													>
+														{itemAlerts[it.id] > 0 && (
+															<span className="text-red-500 font-semibold" title={`${itemAlerts[it.id]} alerta(s)`}>
+																⚠{itemAlerts[it.id]}
+															</span>
+														)}
+														{it.spec && (
+															<span title={it.spec}>📎{it.spec}</span>
+														)}
+													</div>
+													<div className="flex items-center gap-1.5">
+														{isClaimed && (
+															<span title={`Em andamento por ${it.claimedBy} desde ${it.claimedAt ? new Date(it.claimedAt).toLocaleTimeString() : "?"}`}
+																className="text-xs"
+															>🤖</span>
+														)}
+														<span
+															className="flex items-center gap-1 text-[10px] tabular-nums"
+															style={{ color: daysColor(days) }}
+														>
+															{icon && <Icon name={icon} size={10} />}
+															{daysLabel(days)}
+														</span>
+													</div>
+												</div>
+												<div className="hidden group-hover:flex items-center gap-1">
+													{isFocused ? (
+														<button
+															className="text-[10px] px-1.5 py-0.5 rounded"
+															style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}
+															disabled={loadingButtons.has(`focus-${it.id}`)}
+															onClick={(e) => {
+																e.stopPropagation();
+																withLoading(`focus-${it.id}`, async () => {
+																	await fetch("/api/focus", { method: "DELETE" });
+																	setFocusItemId(null);
+																	debouncedMove();
+																});
+															}}
+														>
+															{loadingButtons.has(`focus-${it.id}`) ? "⏳" : "★ Focus"}
+														</button>
+													) : (
+														<button
+															className="text-[10px] px-1.5 py-0.5 rounded"
+															style={{ background: "var(--border-focus)", color: "white" }}
+															disabled={loadingButtons.has(`focus-${it.id}`)}
+															onClick={(e) => {
+																e.stopPropagation();
+																withLoading(`focus-${it.id}`, async () => {
+																	await fetch(`/api/items/${it.id}/focus`, { method: "POST" });
+																	setFocusItemId(it.id);
+																	debouncedMove();
+																});
+															}}
+														>
+															{loadingButtons.has(`focus-${it.id}`) ? "⏳" : "☆ Focus"}
+														</button>
+													)}
+													{isClaimed ? (
+														<button
+															className="text-[10px] px-1.5 py-0.5 rounded"
+															style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}
+															disabled={loadingButtons.has(`release-${it.id}`)}
+															onClick={(e) => {
+																e.stopPropagation();
+																withLoading(`release-${it.id}`, async () => {
+																	await fetch(`/api/items/${it.id}/release`, { method: "POST" });
+																	debouncedMove();
+																});
+															}}
+														>
+															{loadingButtons.has(`release-${it.id}`) ? "⏳" : "Release"}
+														</button>
+													) : (
+														<button
+															className="text-[10px] px-1.5 py-0.5 rounded"
+															style={{ background: "var(--primary)", color: "white" }}
+															disabled={loadingButtons.has(`claim-${it.id}`)}
+															onClick={(e) => {
+																e.stopPropagation();
+																withLoading(`claim-${it.id}`, async () => {
+																	await fetch(`/api/items/${it.id}/claim`, { method: "POST" });
+																	debouncedMove();
+																});
+															}}
+														>
+															{loadingButtons.has(`claim-${it.id}`) ? "⏳" : "Claim"}
+														</button>
+													)}
 												</div>
 											</div>
 										</div>

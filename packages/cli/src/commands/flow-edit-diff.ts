@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
-import { type Workflow, loadWorkflow, saveWorkflow } from "./flow-init.js";
+import { type Workflow, loadWorkflow, writeWorkflow } from "./flow-init.js";
 
 function now(): string {
 	return new Date().toISOString();
@@ -82,7 +82,7 @@ export function flowEdit(root: string, options: { name?: string; desc?: string }
 
 	workflow.version = incrementVersion(workflow.version);
 	workflow.updatedAt = now();
-	saveWorkflow(root, workflow);
+	writeWorkflow(root, { workflow, source: "flow-edit", skipSitrep: true });
 
 	console.log(`  ${chalk.green("✓")} Workflow updated to v${workflow.version}`);
 	if (options.name !== undefined) {

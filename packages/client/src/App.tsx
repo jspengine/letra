@@ -9,6 +9,7 @@ import FlowView from "./components/Flow/FlowView";
 import ContextView from "./components/Context/ContextView";
 import UndoHistory from "./components/Diagnostics/UndoHistory";
 import { ToastProvider, SkeletonCard, useToast } from "@letra/ui";
+import { createEventSourceWithReconnect } from "./lib/withReconnect";
 
 type Tab = "home" | "specs" | "flow" | "context";
 
@@ -32,6 +33,7 @@ function AppContent() {
 		return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 	});
 	const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+	const [specRefreshKey, setSpecRefreshKey] = useState(0);
 	const [showHistory, setShowHistory] = useState(false);
 
 	useEffect(() => {
@@ -67,20 +69,28 @@ function AppContent() {
 
 		refreshDiagnostics();
 
-		const es = new EventSource("/events");
-		es.addEventListener("workflow-updated", () => refreshWorkflow());
-		es.addEventListener("diagnostics-updated", () => refreshDiagnostics());
+		const es = createEventSourceWithReconnect("/events");
+		es.addEventListener("workflow-updated", () => {
+			refreshWorkflow();
+			setSpecRefreshKey((k) => k + 1);
+		});
+		es.addEventListener("diagnostics-updated", () => {
+			refreshDiagnostics();
+			setSpecRefreshKey((k) => k + 1);
+		});
 		return () => es.close();
 	}, [refreshDiagnostics]);
 
 	async function handleApplySuggestion(suggestion: Suggestion) {
 		try {
-			if (suggestion.detector === "stage-drift") {
-				const res = await fetch("/api/diagnostics/scan", { method: "POST" });
-				const data = await res.json();
-				if (data.fixes?.length > 0) {
-					refreshWorkflow();
-					refreshDiagnostics();
+			const res = await fetch("/api/diagnostics/scan", { method: "POST" });
+			const data = await res.json();
+			if (data.fixes?.length > 0) {
+				refreshWorkflow();
+				refreshDiagnostics();
+				if (suggestion.detector === "harness-stale") {
+					toast("Adaptadores regenerados com L1", "success");
+				} else {
 					toast("Item movido automaticamente", "success");
 				}
 			}
@@ -124,7 +134,7 @@ function AppContent() {
 				return <SpecsView />;
 			case "flow":
 				return (
-					<FlowView workflow={wf} onItemMoved={refreshWorkflow} onTabChange={setTab} />
+					<FlowView workflow={wf} specRefreshKey={specRefreshKey} onItemMoved={refreshWorkflow} onTabChange={setTab} />
 				);
 			case "context":
 				return <ContextView />;
@@ -138,11 +148,13 @@ function AppContent() {
 		>
 			<Header
 				name={wf?.name || "Letra"}
+				language={wf?.language}
 				theme={theme}
 				onThemeChange={setTheme}
 				suggestions={suggestions}
 				onApplySuggestion={handleApplySuggestion}
 				onOpenHistory={() => setShowHistory(true)}
+				claimedCount={wf?.items.filter((i) => i.claimedBy).length ?? 0}
 			/>
 			<NavTabs activeTab={tab} onTabChange={setTab} />
 			<main className="flex-1 min-h-0 flex flex-col animate-fade-in">{renderPanel()}</main>

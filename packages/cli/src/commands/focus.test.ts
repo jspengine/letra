@@ -105,4 +105,54 @@ describe("focus command", () => {
 		expect(exitCode).toBe(1);
 		process.exit = originalExit;
 	});
+
+	it("should NOT claim item without --claim flag", async () => {
+		const specDir = join(tmpDir, ".letra", "specs", "auth");
+		mkdirSync(specDir, { recursive: true });
+		writeFileSync(join(specDir, "spec.md"), "# Spec: Auth\n\n## Outcome\nAuth flow.\n");
+
+		const workflow = {
+			version: "1.0",
+			name: "test",
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+			stages: [{ id: "code", name: "Code", order: 0, zone: "doing" }],
+			items: [{ id: "ITEM-1", description: "Auth feature", stage: "code", createdAt: new Date().toISOString(), spec: "auth" }],
+		};
+		writeFileSync(join(tmpDir, ".letra", "workflow.json"), JSON.stringify(workflow, null, 2));
+
+		const { default: focusCommand } = await import("./focus.js");
+		const cmd = focusCommand();
+		vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await cmd.parseAsync(["node", "test", "auth"]);
+
+		const updated = JSON.parse(readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"));
+		expect(updated.items[0].claimedBy).toBeUndefined();
+	});
+
+	it("should claim item with --claim flag", async () => {
+		const specDir = join(tmpDir, ".letra", "specs", "auth");
+		mkdirSync(specDir, { recursive: true });
+		writeFileSync(join(specDir, "spec.md"), "# Spec: Auth\n\n## Outcome\nAuth flow.\n");
+
+		const workflow = {
+			version: "1.0",
+			name: "test",
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+			stages: [{ id: "code", name: "Code", order: 0, zone: "doing" }],
+			items: [{ id: "ITEM-1", description: "Auth feature", stage: "code", createdAt: new Date().toISOString(), spec: "auth" }],
+		};
+		writeFileSync(join(tmpDir, ".letra", "workflow.json"), JSON.stringify(workflow, null, 2));
+
+		const { default: focusCommand } = await import("./focus.js");
+		const cmd = focusCommand();
+		vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await cmd.parseAsync(["node", "test", "auth", "--claim"]);
+
+		const updated = JSON.parse(readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"));
+		expect(updated.items[0].claimedBy).toBe("opencode");
+	});
 });

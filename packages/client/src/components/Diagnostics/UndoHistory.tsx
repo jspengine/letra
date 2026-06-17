@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Icon } from "@letra/ui";
+import { useToast } from "@letra/ui";
 
 interface Snapshot {
 	id: string;
@@ -15,6 +16,7 @@ interface UndoHistoryProps {
 }
 
 export default function UndoHistory({ visible, onClose }: UndoHistoryProps) {
+	const { toastWithOptions } = useToast();
 	const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
 	const [loading, setLoading] = useState(true);
 
@@ -33,18 +35,37 @@ export default function UndoHistory({ visible, onClose }: UndoHistoryProps) {
 		if (visible) loadSnapshots();
 	}, [visible]);
 
+	async function handleRedo(snapshotId: string) {
+		try {
+			const res = await fetch(`/api/diagnostics/redo/${snapshotId}`, { method: "POST" });
+			const data = await res.json();
+			if (data.ok) {
+				loadSnapshots();
+				toastWithOptions("Correção reaplicada", { type: "success", duration: 3000 });
+			} else {
+				toastWithOptions("Expirou — o snapshot foi limpo pelo TTL", { type: "error", duration: 5000 });
+			}
+		} catch {
+			toastWithOptions("Erro ao refazer correção", { type: "error", duration: 3000 });
+		}
+	}
+
 	async function handleUndo(snapshotId: string) {
 		try {
 			const res = await fetch(`/api/diagnostics/undo/${snapshotId}`, { method: "POST" });
 			const data = await res.json();
 			if (data.ok) {
 				loadSnapshots();
-				window.location.reload();
+				toastWithOptions("Correção desfeita", {
+					type: "success",
+					duration: 10000,
+					action: { label: "Refazer", onClick: () => handleRedo(snapshotId) },
+				});
 			} else {
-				alert("Falha ao desfazer: snapshot não encontrado");
+				toastWithOptions("Expirou — o snapshot foi limpo pelo TTL", { type: "error", duration: 5000 });
 			}
 		} catch {
-			alert("Erro ao desfazer correção");
+			toastWithOptions("Erro ao desfazer correção", { type: "error", duration: 3000 });
 		}
 	}
 
@@ -121,9 +142,7 @@ export default function UndoHistory({ visible, onClose }: UndoHistoryProps) {
 								{items.map((snap) => {
 									const icon = snap.diagnosticId.startsWith("missing-dir")
 										? "\uD83D\uDCC1"
-										: snap.diagnosticId.startsWith("dead-icons")
-											? "\uD83C\uDFA8"
-											: "\uD83D\uDCDD";
+										: "\uD83D\uDCDD";
 									return (
 										<div
 											key={snap.id}

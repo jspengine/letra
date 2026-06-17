@@ -1,21 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ResolvedSpec, Workflow } from "@letra/types";
 import KanbanView from "../Kanban/KanbanView";
-import { Markdown } from "../ui/markdown";
+import ItemDetailModal from "./ItemDetailModal";
 import {
-	Badge,
 	Button,
 	Checkbox,
 	Icon,
 	ConfirmDialog,
 	PromptDialog,
 	Dialog,
-	Input,
-	Alert,
 } from "@letra/ui";
 
 interface Props {
 	workflow: Workflow;
+	specRefreshKey?: number;
 	onItemMoved: () => void;
 	onTabChange?: (tab: "specs") => void;
 }
@@ -30,7 +28,7 @@ function nextStage(itemStage: string, stages: Workflow["stages"]): string | null
 	return stages[idx + 1].id;
 }
 
-export default function FlowView({ workflow, onItemMoved, onTabChange }: Props) {
+export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabChange }: Props) {
 	const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 	const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
 	const [showAddDialog, setShowAddDialog] = useState(false);
@@ -57,7 +55,7 @@ export default function FlowView({ workflow, onItemMoved, onTabChange }: Props) 
 
 	useEffect(() => {
 		loadSpecs();
-	}, [loadSpecs]);
+	}, [loadSpecs, specRefreshKey]);
 	useEffect(() => {
 		setEditingStages(workflow.stages);
 	}, [workflow.stages]);
@@ -328,6 +326,7 @@ export default function FlowView({ workflow, onItemMoved, onTabChange }: Props) 
 						setStagesEditMode(!stagesEditMode);
 						setWebhooksEditMode(false);
 					}}
+					style={{ display: "none" }}
 				>
 					Manage Stages
 				</Button>
@@ -338,6 +337,7 @@ export default function FlowView({ workflow, onItemMoved, onTabChange }: Props) 
 						setWebhooksEditMode(!webhooksEditMode);
 						setStagesEditMode(false);
 					}}
+					style={{ display: "none" }}
 				>
 					Webhooks
 				</Button>
@@ -749,130 +749,19 @@ export default function FlowView({ workflow, onItemMoved, onTabChange }: Props) 
 							onItemMoved={onItemMoved}
 							onDropItem={handleDropItem}
 							allowMoveToStage={allowMoveToStage}
+							specRefreshKey={specRefreshKey}
 						/>
 					</div>
 				)}
-				{!stagesEditMode && !webhooksEditMode && selectedItem && (
-					<div
-						className="w-96 border-l overflow-y-auto flex flex-col shrink-0 animate-slide-in-right"
-						style={{ borderColor: "var(--border)", background: "var(--card)" }}
-					>
-						<div
-							className="flex items-start gap-2.5 px-4 py-3 border-b shrink-0"
-							style={{ borderColor: "var(--border)" }}
-						>
-							<Icon name="flow" size={20} className="text-primary mt-0.5" />
-							<div className="flex-1 min-w-0">
-								<div className="flex items-center gap-2">
-									<h3 className="font-semibold text-sm">{selectedItem.id}</h3>
-									{selectedStage && (
-										<Badge variant="secondary">{selectedStage.name}</Badge>
-									)}
-								</div>
-								<p
-									className="text-xs mt-0.5 leading-relaxed"
-									style={{ color: "var(--muted-foreground)" }}
-								>
-									{selectedItem.description}
-								</p>
-							</div>
-							<button
-								onClick={() => setSelectedItemId(null)}
-								className="text-sm px-2 py-1 rounded hover:bg-muted/50 transition-colors shrink-0"
-								style={{ color: "var(--muted-foreground)" }}
-								aria-label="Close detail"
-							>
-								✕
-							</button>
-						</div>
-
-						<div
-							className="px-4 py-3 border-b flex items-center gap-2 flex-wrap"
-							style={{ borderColor: "var(--border)" }}
-						>
-							{nextStageId && (
-								<Button size="sm" onClick={handleMoveNext}>
-									Mover para {nextStageName}
-								</Button>
-							)}
-							{selectedItem.spec && (
-								<Button size="sm" variant="outline" onClick={handleOpenSpec}>
-									Abrir Spec
-								</Button>
-							)}
-							<Button
-								size="sm"
-								variant="outline"
-								onClick={() => setShowDeleteDialog(true)}
-								style={{ color: "var(--error)" }}
-							>
-								Excluir
-							</Button>
-						</div>
-
-						<div className="flex-1 overflow-y-auto p-4">
-							<div className="flex flex-col gap-4">
-								{selectedItem.tasks && selectedItem.tasks.length > 0 && (
-									<div className="flex flex-col gap-1">
-										<span
-											className="text-xs font-medium"
-											style={{ color: "var(--muted-foreground)" }}
-										>
-											Tasks ({selectedItem.tasks.filter((t) => t.done).length}
-											/{selectedItem.tasks.length})
-										</span>
-										{selectedItem.tasks.map((task) => (
-											<Checkbox
-												key={task.id}
-												checked={task.done}
-												label={task.description}
-												onChange={(e) =>
-													handleTaskToggle(task.id, e.target.checked)
-												}
-												style={{
-													textDecoration: task.done
-														? "line-through"
-														: undefined,
-												}}
-											/>
-										))}
-									</div>
-								)}
-
-								<div
-									className="flex items-center gap-2 text-xs"
-									style={{ color: "var(--muted-foreground)" }}
-								>
-									<span>Criado há {daysSince(selectedItem.createdAt)} dias</span>
-									{selectedItem.source && (
-										<>
-											<span>·</span>
-											<span>Fonte: {selectedItem.source}</span>
-										</>
-									)}
-								</div>
-
-								{linkedSpec && (
-									<div className="flex flex-col gap-2">
-										<div className="flex items-center gap-2">
-											<span
-												className="text-xs font-medium"
-												style={{ color: "var(--muted-foreground)" }}
-											>
-												Spec vinculada: {linkedSpec.id}
-											</span>
-										</div>
-										<div
-											className="rounded-lg p-3 text-sm max-h-60 overflow-y-auto"
-											style={{ background: "var(--muted)" }}
-										>
-											<Markdown content={linkedSpec.content} />
-										</div>
-									</div>
-								)}
-							</div>
-						</div>
-					</div>
+				{selectedItem && (
+					<ItemDetailModal
+						item={selectedItem}
+						workflow={workflow}
+						specs={specs}
+						onClose={() => setSelectedItemId(null)}
+						onItemMoved={onItemMoved}
+						onTabChange={onTabChange}
+					/>
 				)}
 			</div>
 

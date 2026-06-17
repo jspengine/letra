@@ -4,9 +4,24 @@ import { type IncomingMessage, type ServerResponse, createServer } from "node:ht
 
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadWorkflow, saveWorkflow, detectProjectName } from "./flow-init.js";
+import { loadWorkflow, writeWorkflow, detectProjectName } from "./flow-init.js";
 import type { Item, Workflow } from "./flow-init.js";
 import { DiagnosticEngine } from "../diagnostics/engine.js";
+import type { DiagnosticResult } from "../diagnostics/types.js";
+import { validateSpecStructure } from "../validation/structure.js";
+import {
+	loadHealthRecord,
+	saveHealthRecord,
+	mergeScanResults,
+	ackEntry,
+	dismissEntry,
+	getSummary,
+	getActiveEntries,
+} from "../health-record.js";
+import { logEntry, queryLog } from "../session-log.js";
+import { clearFocusFile, writeFocusFile } from "../adapters/focus-sync.js";
+import { pulse } from "./pulse.js";
+import { sitrep } from "./sitrep.js";
 
 const DEFAULT_PORT = 3000;
 
@@ -112,6 +127,7 @@ function createWorkflowFromTemplate(
 	return {
 		version: "1.0",
 		name: options?.name ?? detectProjectName(root) ?? t.name,
+		language: existing?.language,
 		createdAt: existing?.createdAt ?? new Date().toISOString(),
 		updatedAt: new Date().toISOString(),
 		stages,
@@ -124,6 +140,7 @@ function createWorkflowFromTemplate(
 export class FlowServer {
 	private server: ReturnType<typeof createServer> | undefined;
 	private watcher: ReturnType<typeof watch> | undefined;
+	private specsWatcher: ReturnType<typeof watch> | undefined;
 	private diagnosticsTimer: ReturnType<typeof setInterval> | undefined;
 	private clients: Set<ServerResponse> = new Set();
 	private root: string;
@@ -138,7 +155,7 @@ export class FlowServer {
 		this.engine = new DiagnosticEngine(root);
 	}
 
-	private handleRequest = (req: IncomingMessage, res: ServerResponse): void => {
+	private handleRequest = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
 		const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
 		const path = url.pathname;
 
@@ -183,6 +200,7 @@ export class FlowServer {
 						wf = {
 							version: "1.0",
 							name: data.name ?? detectProjectName(this.root) ?? "Personalizado",
+							language: existing?.language,
 							createdAt: existing?.createdAt ?? new Date().toISOString(),
 							updatedAt: new Date().toISOString(),
 							stages,
@@ -191,12 +209,18 @@ export class FlowServer {
 							tools: data.tools ?? existing?.tools ?? [],
 						};
 					} else {
+						const existing = loadWorkflow(this.root);
 						wf = createWorkflowFromTemplate(this.root, data.template, {
 							name: data.name,
 							tools: data.tools,
 						});
+						if (existing?.language && wf) {
+							wf.language = existing.language;
+						}
 					}
-					saveWorkflow(this.root, wf);
+					writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
+					// BROADCAST: workflow created/updated from template
+					this.broadcast();
 					res.writeHead(200, { "Content-Type": "application/json" });
 					res.end(JSON.stringify(wf));
 				} catch (e) {
@@ -237,13 +261,14 @@ export class FlowServer {
 					if (!existsSync(specDir)) mkdirSync(specDir, { recursive: true });
 					writeFileSync(join(specDir, "spec.md"), content, "utf-8");
 					const wf = this.loadWorkflow();
-					if (wf) {
-						if (!wf.specLinks) wf.specLinks = {};
-						wf.specLinks[id] = { path: `.letra/specs/${id}/spec.md` };
-						wf.updatedAt = new Date().toISOString();
-						saveWorkflow(this.root, wf);
-						this.broadcast();
-					}
+				if (wf) {
+					if (!wf.specLinks) wf.specLinks = {};
+					wf.specLinks[id] = { path: `.letra/specs/${id}/spec.md` };
+					wf.updatedAt = new Date().toISOString();
+					writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
+					// BROADCAST: spec created
+					this.broadcast();
+				}
 					res.writeHead(200, { "Content-Type": "application/json" });
 					res.end(JSON.stringify({ id, content }));
 				} catch (e) {
@@ -269,7 +294,8 @@ export class FlowServer {
 			if (wf?.specLinks) {
 				delete wf.specLinks[specId];
 				wf.updatedAt = new Date().toISOString();
-				saveWorkflow(this.root, wf);
+				writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
+				// BROADCAST: spec deleted
 				this.broadcast();
 			}
 			res.writeHead(200, { "Content-Type": "application/json" });
@@ -300,13 +326,14 @@ export class FlowServer {
 					if (!existsSync(specDir)) mkdirSync(specDir, { recursive: true });
 					writeFileSync(join(specDir, "spec.md"), content, "utf-8");
 					const wf = this.loadWorkflow();
-					if (wf) {
-						wf.updatedAt = new Date().toISOString();
-						saveWorkflow(this.root, wf);
-						this.broadcast();
-					}
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ id: specId, content }));
+				if (wf) {
+					wf.updatedAt = new Date().toISOString();
+					writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
+					// BROADCAST: spec updated
+					this.broadcast();
+				}
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ id: specId, content }));
 				} catch (e) {
 					res.writeHead(400);
 					res.end(JSON.stringify({ error: (e as Error).message }));
@@ -334,36 +361,9 @@ export class FlowServer {
 			}
 
 			const content = readFileSync(specFile, "utf-8");
-
-			const requiredSections = [
-				"Outcome",
-				"Constraints",
-				"Exclusions",
-				"Acceptance Criteria",
-				"Context",
-			];
-			for (const section of requiredSections) {
-				const re = new RegExp(`## ${section}`);
-				if (!re.test(content)) {
-					issues.push({ type: "error", msg: `Missing section: ## ${section}` });
-				}
-			}
-
-			const acMatch = content.match(/## Acceptance Criteria\s+([\s\S]*?)(?=\n## |$)/);
-			if (acMatch) {
-				const acSection = acMatch[1];
-				const items = [...acSection.matchAll(/-\s+\[(\s|x)\]\s+/g)];
-				if (items.length === 0) {
-					issues.push({
-						type: "warning",
-						msg: "Acceptance Criteria section has no checklist items",
-					});
-				}
-			}
-
-			if (content.length > 3000) {
-				issues.push({ type: "warning", msg: "Spec exceeds 3000 chars (should be thin)" });
-			}
+			const { errors: structErrors, warnings: structWarnings } = validateSpecStructure(specFile);
+			for (const e of structErrors) issues.push({ type: "error", msg: e });
+			for (const w of structWarnings) issues.push({ type: "warning", msg: w });
 
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(
@@ -404,16 +404,36 @@ export class FlowServer {
 						tasks: [],
 					};
 					wf.items.push(item);
-					wf.updatedAt = new Date().toISOString();
-					saveWorkflow(this.root, wf);
-					this.broadcast();
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify(item));
-				} catch (e) {
+				wf.updatedAt = new Date().toISOString();
+				writeWorkflow(this.root, { workflow: wf, source: "web-ui", primaryItemId: item.id, skipSitrep: true, quiet: true });
+				// BROADCAST: item created
+				this.broadcast();
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify(item));
+			} catch (e) {
 					res.writeHead(400, { "Content-Type": "application/json" });
 					res.end(JSON.stringify({ error: (e as Error).message }));
 				}
 			});
+			return;
+		}
+
+		if (path.match(/^\/api\/items\/[^/]+$/) && req.method === "GET") {
+			const itemId = path.replace("/api/items/", "");
+			const wf = this.loadWorkflow();
+			if (!wf) {
+				res.writeHead(404, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "No workflow" }));
+				return;
+			}
+			const item = wf.items.find((i) => i.id === itemId);
+			if (!item) {
+				res.writeHead(404, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Item not found" }));
+				return;
+			}
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify(item));
 			return;
 		}
 
@@ -442,10 +462,16 @@ export class FlowServer {
 					if (data.stage !== undefined) item.stage = data.stage;
 					if (data.description !== undefined) item.description = data.description;
 					if (data.tasks !== undefined) item.tasks = data.tasks;
-					wf.updatedAt = new Date().toISOString();
-					saveWorkflow(this.root, wf);
-					this.broadcast();
-					if (data.stage !== undefined && data.stage !== oldStage) {
+				wf.updatedAt = new Date().toISOString();
+				writeWorkflow(this.root, { workflow: wf, source: "web-ui", primaryItemId: itemId, skipSitrep: true, quiet: true });
+				// BROADCAST: item updated
+				this.broadcast();
+				if (data.stage !== undefined && data.stage !== oldStage) {
+						if (item.spec) {
+							writeFocusFile(this.root, item.spec, item.id);
+							logEntry(this.root, "focus_sync", `Focus synced to ${item.spec} via item move (${item.id})`, { itemId: item.id, spec: item.spec });
+							console.log(`  [focus] Synced to ${item.spec} via drag`);
+						}
 						this.fireWebhooks("item.moved", {
 							itemId: item.id,
 							itemDescription: item.description,
@@ -479,10 +505,93 @@ export class FlowServer {
 			}
 			wf.items.splice(idx, 1);
 			wf.updatedAt = new Date().toISOString();
-			saveWorkflow(this.root, wf);
+			writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
+			// BROADCAST: item deleted
 			this.broadcast();
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ deleted: itemId }));
+			return;
+		}
+
+		// ── Item Claim / Release ──────────────────────────────────
+		if (path.match(/^\/api\/items\/[^/]+\/claim$/) && req.method === "POST") {
+			const itemId = path.replace("/api/items/", "").replace("/claim", "");
+			const wf = this.loadWorkflow();
+			if (!wf) {
+				res.writeHead(404, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "No workflow" }));
+				return;
+			}
+			const item = wf.items.find((i: Item) => i.id === itemId);
+			if (!item) {
+				res.writeHead(404, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Item not found" }));
+				return;
+			}
+			const doneZones = new Set(wf.stages.filter((s) => s.zone === "done").map((s) => s.id));
+			if (doneZones.has(item.stage)) {
+				res.writeHead(400, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Cannot claim a completed item" }));
+				return;
+			}
+			item.claimedBy = "web-ui";
+			item.claimedAt = new Date().toISOString();
+			wf.updatedAt = new Date().toISOString();
+			writeWorkflow(this.root, { workflow: wf, source: "web-ui", primaryItemId: item.id, skipSitrep: true, quiet: true });
+			// BROADCAST: item claimed
+			this.broadcast();
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify(item));
+			return;
+		}
+
+		if (path.match(/^\/api\/items\/[^/]+\/release$/) && req.method === "POST") {
+			const itemId = path.replace("/api/items/", "").replace("/release", "");
+			const wf = this.loadWorkflow();
+			if (!wf) {
+				res.writeHead(404, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "No workflow" }));
+				return;
+			}
+			const item = wf.items.find((i: Item) => i.id === itemId);
+			if (!item) {
+				res.writeHead(404, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Item not found" }));
+				return;
+			}
+			delete item.claimedBy;
+			delete item.claimedAt;
+			wf.updatedAt = new Date().toISOString();
+			writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
+			// BROADCAST: item released
+			this.broadcast();
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify(item));
+			return;
+		}
+
+		// ── Item Focus (set/clear via UI) ──────────────────────────
+		if (path.match(/^\/api\/items\/[^/]+\/focus$/) && req.method === "POST") {
+			const itemId = path.replace("/api/items/", "").replace("/focus", "");
+			const wf = this.loadWorkflow();
+			if (!wf) {
+				res.writeHead(404, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "No workflow" }));
+				return;
+			}
+			const item = wf.items.find((i: Item) => i.id === itemId);
+			if (!item) {
+				res.writeHead(404, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Item not found" }));
+				return;
+			}
+			const specName = item.spec || itemId;
+			writeFocusFile(this.root, specName, item.id);
+			logEntry(this.root, "focus_set", `Focus set via UI: ${specName}`, { itemId });
+			// BROADCAST: item focus set
+			this.broadcast();
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ itemId, spec: specName }));
 			return;
 		}
 
@@ -504,11 +613,12 @@ export class FlowServer {
 					if (data.stages !== undefined) wf.stages = data.stages;
 					if (data.name !== undefined) wf.name = data.name;
 					if (data.description !== undefined) wf.description = data.description;
-					wf.updatedAt = new Date().toISOString();
-					saveWorkflow(this.root, wf);
-					this.broadcast();
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify(wf));
+				wf.updatedAt = new Date().toISOString();
+				writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
+				// BROADCAST: workflow config updated
+				this.broadcast();
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify(wf));
 				} catch (e) {
 					res.writeHead(400, { "Content-Type": "application/json" });
 					res.end(JSON.stringify({ error: (e as Error).message }));
@@ -528,7 +638,8 @@ export class FlowServer {
 					if (item) {
 						item.stage = stage;
 						wf.updatedAt = new Date().toISOString();
-						saveWorkflow(this.root, wf);
+						writeWorkflow(this.root, { workflow: wf, source: "web-ui", primaryItemId: itemId, skipSitrep: true, quiet: true });
+						// BROADCAST: item moved via legacy endpoint
 						this.broadcast();
 					}
 				}
@@ -539,15 +650,48 @@ export class FlowServer {
 		}
 
 		if (path === "/api/focus") {
+			if (req.method === "DELETE") {
+				clearFocusFile(this.root);
+				logEntry(this.root, "focus_clear", "Focus cleared via UI");
+				// BROADCAST: focus cleared
+				this.broadcast();
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ active: false }));
+				return;
+			}
+			if (req.method === "POST") {
+				let body = "";
+				req.on("data", (chunk: string) => { body += chunk; });
+				req.on("end", () => {
+					try {
+						const data = JSON.parse(body);
+						const specName = data.spec || "unknown";
+						const itemId = data.itemId || "";
+						writeFocusFile(this.root, specName, itemId);
+						logEntry(this.root, "focus_set", `Focus set via UI: ${specName}`, { itemId });
+						// BROADCAST: focus set via POST
+						this.broadcast();
+						res.writeHead(200, { "Content-Type": "application/json" });
+						res.end(JSON.stringify({ active: true, spec: specName, itemId }));
+					} catch (e) {
+						res.writeHead(400, { "Content-Type": "application/json" });
+						res.end(JSON.stringify({ error: (e as Error).message }));
+					}
+				});
+				return;
+			}
+			// GET
 			const focusFile = join(this.root, ".letra", "focus.md");
 			if (existsSync(focusFile)) {
 				const content = readFileSync(focusFile, "utf-8");
 				res.writeHead(200, { "Content-Type": "application/json" });
 				const lines = content.split("\n").filter((l) => l.trim());
+				const itemMatch = content.match(/\*\*Item\*\*:\s*(.+)/);
 				res.end(
 					JSON.stringify({
 						active: true,
 						spec: lines[0]?.replace(/^#\s*/, "") || "",
+						itemId: itemMatch ? itemMatch[1].trim() : null,
 						content,
 					}),
 				);
@@ -606,9 +750,20 @@ export class FlowServer {
 		}
 
 		if (path === "/api/diagnostics/snapshots" && req.method === "GET") {
-			const snapshots = this.engine.listSnapshots();
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ snapshots }));
+			let snapshots = this.engine.listSnapshots();
+			const total = snapshots.length;
+			const limitParam = url.searchParams.get("limit");
+			const offsetParam = url.searchParams.get("offset");
+			if (limitParam !== null || offsetParam !== null) {
+				const limit = limitParam ? parseInt(limitParam, 10) : total;
+				const offset = offsetParam ? parseInt(offsetParam, 10) : 0;
+				snapshots = snapshots.slice(offset, offset + limit);
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ snapshots, total, limit, offset }));
+			} else {
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ snapshots }));
+			}
 			return;
 		}
 
@@ -637,6 +792,7 @@ export class FlowServer {
 						res.end(JSON.stringify({ error: "Snapshot not found" }));
 						return;
 					}
+					// BROADCAST: diagnostic undo
 					this.broadcast();
 					res.writeHead(200, { "Content-Type": "application/json" });
 					res.end(JSON.stringify(result));
@@ -645,6 +801,175 @@ export class FlowServer {
 					res.writeHead(500, { "Content-Type": "application/json" });
 					res.end(JSON.stringify({ error: e.message }));
 				});
+			return;
+		}
+
+		if (path.match(/^\/api\/diagnostics\/redo\/[^/]+$/) && req.method === "POST") {
+			const snapshotId = path.replace("/api/diagnostics/redo/", "");
+			this.engine
+				.redo(snapshotId)
+				.then((result) => {
+					if (!result.ok) {
+						res.writeHead(404, { "Content-Type": "application/json" });
+						res.end(JSON.stringify({ error: "Snapshot not found" }));
+						return;
+					}
+					// BROADCAST: diagnostic redo
+					this.broadcast();
+					res.writeHead(200, { "Content-Type": "application/json" });
+					res.end(JSON.stringify(result));
+				})
+				.catch((e) => {
+					res.writeHead(500, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ error: e.message }));
+				});
+			return;
+		}
+
+		// ── Health Record API ─────────────────────────────────────────
+		if (path === "/api/health" && req.method === "GET") {
+			const record = loadHealthRecord(this.root);
+			const summary = getSummary(record);
+			const active = getActiveEntries(record);
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ summary, entries: record.entries, active }));
+			return;
+		}
+
+		if (path === "/api/health/alerts" && req.method === "GET") {
+			const record = loadHealthRecord(this.root);
+			const alerts = record.entries.filter((e) => e.status === "novo");
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify(alerts));
+			return;
+		}
+
+		if (path === "/api/health/scan" && req.method === "POST") {
+			this.engine
+				.runAll()
+				.then((output) => {
+					const suggestions: DiagnosticResult[] = output.suggestions.map((s) => ({
+						id: s.id,
+						type: s.type,
+						title: s.title,
+						description: s.description,
+						certainty: 0.8,
+						detector: s.detector,
+					}));
+					const record = loadHealthRecord(this.root);
+					mergeScanResults(record, suggestions);
+					saveHealthRecord(this.root, record);
+					this.broadcastDiagnostics(output);
+					res.writeHead(200, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ fixes: output.fixes.length, suggestions: output.suggestions.length }));
+				})
+				.catch((e) => {
+					res.writeHead(500, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ error: e.message }));
+				});
+			return;
+		}
+
+		if (path === "/api/health/ack" && req.method === "POST") {
+			let body = "";
+			req.on("data", (chunk: string) => { body += chunk; });
+			req.on("end", () => {
+				try {
+					const { id } = JSON.parse(body);
+					const record = loadHealthRecord(this.root);
+					if (ackEntry(record, id)) {
+						saveHealthRecord(this.root, record);
+						// BROADCAST: health entry acknowledged
+						this.broadcast();
+						res.writeHead(200, { "Content-Type": "application/json" });
+						res.end(JSON.stringify({ acked: id }));
+					} else {
+						res.writeHead(404, { "Content-Type": "application/json" });
+						res.end(JSON.stringify({ error: "Entry not found" }));
+					}
+				} catch (e) {
+					res.writeHead(400, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ error: (e as Error).message }));
+				}
+			});
+			return;
+		}
+
+		if (path === "/api/health/dismiss" && req.method === "POST") {
+			let body = "";
+			req.on("data", (chunk: string) => { body += chunk; });
+			req.on("end", () => {
+				try {
+					const { id, reason } = JSON.parse(body);
+					const record = loadHealthRecord(this.root);
+					if (dismissEntry(record, id, reason)) {
+						saveHealthRecord(this.root, record);
+						// BROADCAST: health entry dismissed
+						this.broadcast();
+						res.writeHead(200, { "Content-Type": "application/json" });
+						res.end(JSON.stringify({ dismissed: id }));
+					} else {
+						res.writeHead(404, { "Content-Type": "application/json" });
+						res.end(JSON.stringify({ error: "Entry not found" }));
+					}
+				} catch (e) {
+					res.writeHead(400, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ error: (e as Error).message }));
+				}
+			});
+			return;
+		}
+
+		// ── Item Alerts API (AC10) ──────────────────────────────────────
+		if (path === "/api/items/alerts" && req.method === "GET") {
+			const record = loadHealthRecord(this.root);
+			const itemAlerts: Record<string, number> = {};
+			for (const entry of record.entries) {
+				if (entry.status !== "novo") continue;
+				const match = entry.id.match(/_([A-Z]+-\d+)_/);
+				if (match) {
+					const itemId = match[1];
+					itemAlerts[itemId] = (itemAlerts[itemId] || 0) + 1;
+				}
+			}
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ itemAlerts }));
+			return;
+		}
+
+		// ── Session Log API ──────────────────────────────────────────
+		if (path === "/api/log" && req.method === "GET") {
+			const itemId = url.searchParams.get("item") ?? undefined;
+			const action = url.searchParams.get("action") ?? undefined;
+			const since = url.searchParams.get("since") ?? undefined;
+			const all = url.searchParams.get("all") === "true";
+			const limitParam = url.searchParams.get("limit");
+			const entries = queryLog(this.root, {
+				all,
+				itemId,
+				action,
+				since,
+				limit: limitParam ? parseInt(limitParam, 10) : 50,
+			});
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ entries }));
+			return;
+		}
+
+		// ── Sitrep API ────────────────────────────────────────────────
+		if (path === "/api/sitrep" && req.method === "POST") {
+			const dryRun = url.searchParams.get("dryRun") === "true";
+			await sitrep(this.root, { dryRun });
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ ok: true }));
+			return;
+		}
+
+		// ── Workspace Pulse API ───────────────────────────────────────
+		if (path === "/api/pulse" && req.method === "GET") {
+			const data = await pulse(this.root, { json: false });
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify(data));
 			return;
 		}
 
@@ -771,7 +1096,7 @@ export class FlowServer {
 			}
 			wh.lastSentAt = new Date().toISOString();
 		}
-		saveWorkflow(this.root, wf);
+		writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipAdapters: true, skipSitrep: true, skipLog: true, quiet: true });
 	}
 
 	start(): Promise<void> {
@@ -785,12 +1110,30 @@ export class FlowServer {
 					} catch {}
 				}
 
+				const specsDir = join(this.root, ".letra", "specs");
+				if (existsSync(specsDir)) {
+					try {
+						this.specsWatcher = watch(specsDir, { recursive: true }, () => this.broadcast());
+					} catch {}
+				}
+
 				// First diagnostic scan immediately after starting
 				this.engine.ensureDirs();
 				this.engine
 					.runAll()
 					.then((output) => {
 						this.broadcastDiagnostics(output);
+						const suggestions: DiagnosticResult[] = output.suggestions.map((s) => ({
+							id: s.id,
+							type: s.type,
+							title: s.title,
+							description: s.description,
+							certainty: 0.8,
+							detector: s.detector,
+						}));
+						const record = loadHealthRecord(this.root);
+						mergeScanResults(record, suggestions);
+						saveHealthRecord(this.root, record);
 					})
 					.catch(() => {
 						/* silent */
@@ -802,6 +1145,17 @@ export class FlowServer {
 						.runAll()
 						.then((output) => {
 							this.broadcastDiagnostics(output);
+							const suggestions: DiagnosticResult[] = output.suggestions.map((s) => ({
+								id: s.id,
+								type: s.type,
+								title: s.title,
+								description: s.description,
+								certainty: 0.8,
+								detector: s.detector,
+							}));
+							const record = loadHealthRecord(this.root);
+							mergeScanResults(record, suggestions);
+							saveHealthRecord(this.root, record);
 						})
 						.catch(() => {
 							/* silent */
@@ -816,6 +1170,7 @@ export class FlowServer {
 
 	stop(): void {
 		if (this.watcher) this.watcher.close();
+		if (this.specsWatcher) this.specsWatcher.close();
 		if (this.diagnosticsTimer) clearInterval(this.diagnosticsTimer);
 		if (this.server) this.server.close();
 		for (const client of this.clients) {

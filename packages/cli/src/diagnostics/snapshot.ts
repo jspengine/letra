@@ -12,7 +12,7 @@ import type { Snapshot } from "./types.js";
 
 const SNAPSHOTS_DIR = ".letra/snapshots";
 const MAX_SNAPSHOTS = 20;
-const TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export class SnapshotStore {
 	private rootDir: string;
@@ -68,8 +68,22 @@ export class SnapshotStore {
 			writeFileSync(absolutePath, file.before, "utf-8");
 			restoredFiles.push(file.path);
 		}
-		rmSync(filePath);
 		return { ok: true, restoredFiles };
+	}
+
+	async redo(snapshotId: string): Promise<{ ok: boolean; redoneFiles: string[] }> {
+		const filePath = join(this.snapshotsDir, `${snapshotId}.json`);
+		if (!existsSync(filePath)) {
+			return { ok: false, redoneFiles: [] };
+		}
+		const snapshot: Snapshot = JSON.parse(readFileSync(filePath, "utf-8"));
+		const redoneFiles: string[] = [];
+		for (const file of snapshot.files) {
+			const absolutePath = join(this.rootDir, file.path);
+			writeFileSync(absolutePath, file.after, "utf-8");
+			redoneFiles.push(file.path);
+		}
+		return { ok: true, redoneFiles };
 	}
 
 	list(): Snapshot[] {

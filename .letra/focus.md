@@ -1,5 +1,5 @@
-# design-system
+# Focus: loop-gaps
 
-**Spec**: design-system
-**Outcome**: Design system consistente e documentado para o Letra Flow UI, com tokens de design, componentes primitivos, e diretrizes visuais que garantem coerência entre telas e facilitam a manutenção.
-**Item**: ITEM-25 — UX Redesign (Setup wizard inline, Home full-width, cards centralizados)
+**Path**: .letra/specs/loop-gaps/
+**Item**: ITEM-39
+**Outcome**: Os gaps identificados durante o ITEM-37 são corrigidos: criação de item com sugestão de spec, pulse alerta sobre spec faltante, comando `letra spec link`, e dashboard reflete claim state. O loop de desenvolvimento fica mais apertado — menos steps manuais entre criar um item e ter tudo linkado.

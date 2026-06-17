@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Detector, DiagnosticResult } from "../types.js";
 
@@ -8,6 +8,7 @@ const ADAPTER_FILES: Record<string, { path: string; format: "at" | "text" }> = {
 	windsurf: { path: ".windsurfrules", format: "at" },
 	vscode: { path: ".github/copilot-instructions.md", format: "text" },
 	opencode: { path: "AGENTS.md", format: "text" },
+	hermes: { path: ".hermes/instructions.md", format: "text" },
 };
 
 export const harnessStaleDetector: Detector = {
@@ -16,16 +17,31 @@ export const harnessStaleDetector: Detector = {
 		const results: DiagnosticResult[] = [];
 		const workflowFile = join(rootDir, ".letra", "workflow.json");
 
-		let tools: string[] = ["cursor", "opencode", "vscode"]; // defaults
+		let tools: string[] = ["cursor", "opencode", "vscode"];
+		let workflow:
+			| {
+					name: string;
+					stages: { id: string; name: string; zone?: string }[];
+					items: {
+						id: string;
+						description: string;
+						stage: string;
+						spec?: string;
+						tasks?: { id: string; description: string; done: boolean }[];
+					}[];
+			  }
+			| undefined;
 		if (existsSync(workflowFile)) {
 			try {
 				const wf = JSON.parse(readFileSync(workflowFile, "utf-8"));
 				if (Array.isArray(wf.tools)) {
 					tools = wf.tools;
 				}
+				workflow = wf;
 			} catch {}
 		}
 
+		const staleTools: string[] = [];
 		for (const tool of tools) {
 			const info = ADAPTER_FILES[tool];
 			if (!info) continue;
@@ -52,16 +68,71 @@ export const harnessStaleDetector: Detector = {
 				}
 			}
 
-			if (isStale) {
-				results.push({
-					id: `harness-stale_${tool}`,
-					type: "warning",
-					title: `Adapter desatualizado: ${tool}`,
-					description: `O adaptador ${info.path} do ${tool} existe mas está sem as referências de contexto globais (L1). Execute 'letra flow move' ou 'letra focus' para regenerá-lo.`,
-					certainty: 0.85,
-					detector: "harness-stale",
-				});
+			if (isStale) staleTools.push(tool);
+		}
+
+		if (staleTools.length > 0) {
+			const doneStageIds = new Set(
+				(workflow?.stages || [])
+					.filter((s) => s.id === "done" || s.zone === "done")
+					.map((s) => s.id),
+			);
+			const backlogStageIds = new Set(
+				(workflow?.stages || [])
+					.filter((s) => s.id === "backlog" || s.zone === "todo")
+					.map((s) => s.id),
+			);
+			let activeStageId: string | undefined;
+			let primaryItemId: string | undefined;
+			if (workflow) {
+				const activeItem = workflow.items.find(
+					(i) => !doneStageIds.has(i.stage) && !backlogStageIds.has(i.stage),
+				);
+				if (activeItem) {
+					activeStageId = activeItem.stage;
+					primaryItemId = activeItem.id;
+				}
 			}
+
+			results.push({
+				id: "harness-stale_all",
+				type: "info",
+				title: `Adaptadores desatualizados: ${staleTools.join(", ")}`,
+				description: `Regenerando ${staleTools.length} adaptador(es) sem referências L1.`,
+				certainty: 1.0,
+				detector: "harness-stale",
+				autoFix: async () => {
+					const files: { path: string; before: string; after: string }[] = [];
+					for (const tool of staleTools) {
+						const info = ADAPTER_FILES[tool];
+						if (!info) continue;
+						const fp = join(rootDir, info.path);
+						if (existsSync(fp)) {
+							files.push({
+								path: info.path.replace(/\\/g, "/"),
+								before: readFileSync(fp, "utf-8"),
+								after: "",
+							});
+						}
+					}
+
+					const { generateAdapters } = await import("../../adapters/generate.js");
+					generateAdapters(rootDir, tools, {
+						source: "flow-move",
+						workflow,
+						activeStageId,
+						primaryItemId,
+						quiet: true,
+						verb: "Updated",
+					});
+
+					for (const file of files) {
+						file.after = readFileSync(join(rootDir, file.path), "utf-8");
+					}
+
+					return { files, snapshotId: "" };
+				},
+			});
 		}
 
 		return results;

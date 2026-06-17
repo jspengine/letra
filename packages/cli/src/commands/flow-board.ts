@@ -1,4 +1,5 @@
-import { resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { loadWorkflow } from "./flow-init.js";
 
@@ -16,6 +17,31 @@ export function flowBoard(root: string): void {
 	}
 
 	console.log(`\n  ${chalk.bold("Board")} — ${chalk.cyan(workflow.name)}\n`);
+
+	if (workflow.items.length === 0) {
+		console.log(`  ${chalk.gray("Nenhum item no board. Adicione via:")}`);
+		console.log(`    ${chalk.cyan("letra flow backlog add <desc>")}\n`);
+	}
+
+	// Load health alerts for badge display
+	const healthPath = join(root, ".letra", "health-record.json");
+	let itemAlerts = new Map<string, number>();
+	try {
+		if (existsSync(healthPath)) {
+			const health = JSON.parse(readFileSync(healthPath, "utf-8"));
+			const entries = health.entries || [];
+			for (const entry of entries) {
+				if (entry.status !== "novo") continue;
+				const match = entry.id.match(/_([A-Z]+-\d+)_/);
+				if (match) {
+					const itemId = match[1];
+					itemAlerts.set(itemId, (itemAlerts.get(itemId) || 0) + 1);
+				}
+			}
+		}
+	} catch {
+		// Silently ignore health record errors
+	}
 
 	const stageMap = new Map(workflow.stages.map((s) => [s.id, s]));
 	const itemsByStage = new Map<string, typeof workflow.items>();
@@ -41,13 +67,37 @@ export function flowBoard(root: string): void {
 
 		console.log(`  ${chalk.bold(stage.name)} ${countLabel}`);
 
+		const backlogStageIds = new Set(
+				workflow.stages
+					.filter((s) => s.zone === "todo" || s.id === "backlog")
+					.map((s) => s.id),
+			);
+
 		for (const item of items) {
 			const desc =
 				item.description.length > 50
 					? `${item.description.slice(0, 49)}…`
 					: item.description;
+			const claimIcon = item.claimedBy ? chalk.cyan("🤖") : "";
+
+			let specInfo = "";
+			if (item.spec) {
+				const specLink = workflow.specLinks?.[item.spec];
+				if (specLink) {
+					const specPath = join(root, specLink.path);
+					specInfo = existsSync(specPath) ? chalk.cyan(`📎${item.spec}`) : chalk.red(`⚠spec?`);
+				} else {
+					specInfo = chalk.red(`⚠reg?`);
+				}
+			} else if (!backlogStageIds.has(item.stage)) {
+				specInfo = chalk.yellow("⚠sem");
+			}
+
+			const alertCount = itemAlerts.get(item.id) || 0;
+			const alertBadge = alertCount > 0 ? chalk.red(` ⚠${alertCount}`) : "";
+
 			console.log(
-				`    ${chalk.cyan(item.id.padEnd(7))} ${desc} ${chalk.gray(ageLabel(item.createdAt))}`,
+				`    ${chalk.cyan(item.id.padEnd(7))} ${desc} ${claimIcon}${specInfo}${alertBadge} ${chalk.gray(ageLabel(item.createdAt))}`,
 			);
 		}
 

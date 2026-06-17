@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
+import { logEntry } from "../session-log.js";
 
 function sanitizeTitle(title: string): string {
 	return title
@@ -55,6 +56,9 @@ What are the trade-offs? What does this enable or prevent?
 `;
 
 			writeFileSync(filePath, content);
+			logEntry(root, "decision", `Decisão registrada: ${title}`, {
+				details: { decisionFile: `.letra/decisions/${slug}.md` },
+			});
 			console.log(chalk.green(`Decision "${slug}" created at .letra/decisions/${slug}.md`));
 		});
 

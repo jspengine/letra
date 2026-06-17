@@ -13,13 +13,30 @@ html {
 	to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes pulse-live {
-	0%, 100% { box-shadow: 0 0 0 0 oklch(0.627 0.194 149.214 / 0.4); }
-	50% { box-shadow: 0 0 0 4px oklch(0.627 0.194 149.214 / 0); }
+@keyframes border-breathe {
+	0%, 100% {
+		border-color: var(--live);
+		box-shadow: 0 0 4px color-mix(in srgb, var(--live) 15%, transparent);
+	}
+	50% {
+		border-color: color-mix(in srgb, var(--live) 70%, white);
+		box-shadow: 0 0 10px color-mix(in srgb, var(--live) 30%, transparent);
+	}
 }
 
-.animate-pulse-live {
-	animation: pulse-live 2s ease-in-out infinite;
+@keyframes dash-march {
+	to {
+		stroke-dashoffset: -24;
+	}
+}
+
+.animate-dash-march {
+	animation: dash-march 0.4s linear infinite;
+}
+
+.animate-border-claim {
+	border: 2px dashed var(--live) !important;
+	animation: border-breathe 2s ease-in-out infinite !important;
 }
 
 @keyframes slide-in-from-right {

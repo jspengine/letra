@@ -13,11 +13,14 @@ const PENDING_PATTERN = /-\s*\[ \]\s*\*\*(.+?)\*\*/g;
 const DONE_PATTERN = /-\s*\[[xX]\]\s*\*\*(.+?)\*\*/g;
 
 function countInText(text: string): { pending: number; total: number } {
-	const pendingMatches = text.match(PENDING_PATTERN) || [];
-	const doneMatches = text.match(DONE_PATTERN) || [];
-	const pending = pendingMatches.length;
-	const total = pending + doneMatches.length;
-	return { pending, total };
+	const boldPending = text.match(PENDING_PATTERN) || [];
+	const boldDone = text.match(DONE_PATTERN) || [];
+	if (boldPending.length > 0 || boldDone.length > 0) {
+		return { pending: boldPending.length, total: boldPending.length + boldDone.length };
+	}
+	const genericPending = text.match(/^- \[ \]/gm) || [];
+	const genericDone = text.match(/^- \[[xX]\]/gm) || [];
+	return { pending: genericPending.length, total: genericPending.length + genericDone.length };
 }
 
 export function countACs(specDir: string): ACCount {

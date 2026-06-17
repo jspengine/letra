@@ -23,7 +23,7 @@ Usuário edita metadados do workflow diretamente via CLI (nome, descrição) e v
 - [ ] **Versionamento**: incrementa (1.0.0 → 1.1.0) a cada edição
 - [ ] **Backup**: da versão anterior é salvo
 - [ ] **`flow diff`**: mostra diferenças entre atual e último backup
-- [ ] **`flow diff v1.0.0 v1.1.0`**: compara versões específicas
+- [x] **`flow diff v1.0.0 v1.1.0`**: compara versões específicas
 - [ ] **Testado localmente**: antes do PR
 
 ## Context

@@ -5,9 +5,15 @@ import { Command } from "commander";
 import decisionCommand from "./commands/decision.js";
 import flowCommand from "./commands/flow.js";
 import focus from "./commands/focus.js";
+import healthCommand from "./commands/health.js";
+import logCommand from "./commands/log.js";
+import pulseCommand from "./commands/pulse.js";
+import sitrepCommand from "./commands/sitrep.js";
+import syncCommand from "./commands/sync.js";
+import acCommand from "./commands/ac.js";
 import { init } from "./commands/init.js";
 import { lint } from "./commands/lint.js";
-import { specNew } from "./commands/spec.js";
+import { specLink, specNew } from "./commands/spec.js";
 import { validate } from "./commands/validate.js";
 import { diagnose } from "./commands/diagnose.js";
 
@@ -36,6 +42,11 @@ specCmd
 	.description("Create a new spec from template")
 	.action((name, options) => specNew(name, { ...options }));
 
+specCmd
+	.command("link <item-id> <spec-name>")
+	.description("Link an existing spec to an item")
+	.action((itemId, specName) => specLink(itemId, specName));
+
 program.command("lint [path]").description("Validate spec format and completeness").action(lint);
 
 program
@@ -50,8 +61,14 @@ program
 	.description("Detect and fix drifts between specs, code, and workflow")
 	.action((path) => diagnose(path));
 
+program.addCommand(acCommand());
 program.addCommand(decisionCommand());
 program.addCommand(flowCommand());
 program.addCommand(focus());
+program.addCommand(healthCommand());
+program.addCommand(logCommand());
+program.addCommand(pulseCommand());
+program.addCommand(sitrepCommand());
+program.addCommand(syncCommand());
 
 program.parse();

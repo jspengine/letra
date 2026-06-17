@@ -23,6 +23,8 @@ export interface Item {
 	sourceUrl?: string;
 	spec?: string;
 	tasks?: Task[];
+	claimedBy?: string;
+	claimedAt?: string;
 }
 
 export interface SpecLink {
@@ -43,6 +45,7 @@ export interface Workflow {
 	version: string;
 	name: string;
 	description?: string;
+	language?: string;
 	specLinks?: Record<string, SpecLink>;
 	createdAt: string;
 	updatedAt: string;
