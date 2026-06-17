@@ -1,45 +1,44 @@
-1|{
-2|	"name": "letra",
-3|	"version": "0.5.3",
-4|	"private": true,
-5|	"description": "SDD-agnostic memory framework for AI coding agents",
-6|	"type": "module",
-7|	"bin": {
-8|		"letra": "packages/cli/dist/index.js"
-9|	},
-10|	"workspaces": [
-11|		"packages/types",
-12|		"packages/client",
-13|		"packages/cli",
-14|		"packages/ui",
-15|		"packages/design-toolkit"
-16|	],
-17|	"scripts": {
-18|		"dev": "node scripts/dev.mjs",
-19|		"dev:client": "npm -w packages/client run dev",
-20|		"dev:cli": "npm -w packages/cli run dev",
-21|		"build": "node scripts/build-cli.mjs",
-22|		"build:client": "npm -w packages/client run build",
-23|		"lint": "biome check packages/",
-24|		"typecheck": "npm -w packages/cli run typecheck && npm -w packages/ui run typecheck",
-25|		"test": "npm -w packages/cli run test",
-26|		"test:client": "npm -w packages/client run test",
-27|		"ds:playground": "npm -w packages/design-toolkit run playground",
-28|		"ds:check": "npm -w packages/design-toolkit run check",
-29|		"ds:validate": "npm -w packages/design-toolkit run validate"
-30|	},
-31|	"devDependencies": {
-32|		"@biomejs/biome": "^1.9.4",
-33|		"@types/node": "^22.19.17",
-34|		"fast-check": "^4.8.0",
-35|		"pkg": "^5.8.1",
-36|		"tsup": "^8.5.0",
-37|		"tsx": "^4.20.6",
-38|		"typescript": "^5.8.3",
-39|		"vitest": "^3.2.4"
-40|	},
-41|	"engines": {
-42|		"node": ">=22.0.0"
-43|	}
-44|}
-45|
+{
+	"name": "letra",
+	"version": "0.5.1",
+	"private": true,
+	"description": "SDD-agnostic memory framework for AI coding agents",
+	"type": "module",
+	"bin": {
+		"letra": "packages/cli/dist/index.js"
+	},
+	"workspaces": [
+		"packages/types",
+		"packages/client",
+		"packages/cli",
+		"packages/ui",
+		"packages/design-toolkit"
+	],
+	"scripts": {
+		"dev": "node scripts/dev.mjs",
+		"dev:client": "npm -w packages/client run dev",
+		"dev:cli": "npm -w packages/cli run dev",
+		"build": "node scripts/build-cli.mjs",
+		"build:client": "npm -w packages/client run build",
+		"lint": "biome check packages/",
+		"typecheck": "npm -w packages/cli run typecheck && npm -w packages/ui run typecheck",
+		"test": "npm -w packages/cli run test",
+		"test:client": "npm -w packages/client run test",
+		"ds:playground": "npm -w packages/design-toolkit run playground",
+		"ds:check": "npm -w packages/design-toolkit run check",
+		"ds:validate": "npm -w packages/design-toolkit run validate"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@types/node": "^22.19.17",
+		"fast-check": "^4.8.0",
+		"pkg": "^5.8.1",
+		"tsup": "^8.5.0",
+		"tsx": "^4.20.6",
+		"typescript": "^5.8.3",
+		"vitest": "^3.2.4"
+	},
+	"engines": {
+		"node": ">=22.0.0"
+	}
+}
