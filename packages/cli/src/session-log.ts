@@ -15,6 +15,8 @@ export type LogAction =
 	| "decision"
 	| "sitrep"
 	| "focus_set"
+	| "focus_sync"
+	| "focus_clear"
 	| "manual"
 	| "system"
 	| "session_end";
@@ -74,6 +76,8 @@ export function saveSessionLog(root: string, log: SessionLog): void {
 export interface LogEntryOptions {
 	itemId?: string;
 	acId?: string;
+	by?: string;
+	spec?: string;
 	details?: Record<string, unknown>;
 }
 

@@ -1,4 +1,4 @@
-export type AdapterSource = "init" | "flow-move" | "focus";
+export type AdapterSource = "init" | "flow-move" | "focus" | "flow-ac";
 
 export interface HarnessItem {
 	id: string;
@@ -23,7 +23,7 @@ export interface HarnessSnapshot {
 	lastSession?: {
 		lastDate: string;
 		actionsSummary: string;
-	};
+	} | null;
 	alerts?: Array<{ id: string; severity: string; title: string; source: string; detectedAt: string }>;
 }
 

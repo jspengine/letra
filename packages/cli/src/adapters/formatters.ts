@@ -1,4 +1,4 @@
-import type { AdapterFormat, HarnessSnapshot } from "./types.js";
+import type { AdapterFormat, AdapterSource, HarnessSnapshot } from "./types.js";
 
 const L1_FILES = [".letra/context.md", ".letra/constitution.md", ".letra/glossary.md", ".letra/constraints.md"] as const;
 
@@ -193,7 +193,7 @@ function formatContinuity(snapshot: HarnessSnapshot): string | null {
 export function formatAdapterContent(
 	snapshot: HarnessSnapshot,
 	format: AdapterFormat,
-	options: { source: "init" | "flow-move" | "focus"; displayName: string },
+	options: { source: AdapterSource; displayName: string },
 ): string {
 	const title = snapshot.hasWorkflow
 		? `# Letra Session — ${snapshot.workflowName}`

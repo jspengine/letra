@@ -13,11 +13,9 @@ export interface Stage {
 	name: string;
 	order: number;
 	zone?: "todo" | "doing" | "done";
-	/** Stage IDs allowed as transition targets. Empty array = no transitions allowed. Omitted = all allowed. */
+	stageId?: string;
 	allow?: string[];
-	/** Validation checklist items that must be completed before moving an item out of this stage. */
 	validate?: string[];
-	/** Accent color for the stage column header, border, and cards. */
 	color?: string;
 }
 
@@ -66,6 +64,7 @@ export interface Workflow {
 	items: Item[];
 	tools: string[];
 	webhooks?: WebhookConfig[];
+	primaryItemId?: string;
 }
 
 function askText(query: string, defaultValue: string): Promise<string> {

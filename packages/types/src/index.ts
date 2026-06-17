@@ -53,6 +53,7 @@ export interface Workflow {
 	items: Item[];
 	tools: string[];
 	webhooks?: WebhookConfig[];
+	primaryItemId?: string;
 }
 
 export interface ResolvedSpec {

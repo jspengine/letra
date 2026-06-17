@@ -95,10 +95,11 @@ describe("harness-stale detector", () => {
 		expect(results).toHaveLength(1);
 		expect(results[0].autoFix).toBeDefined();
 
-		const fix = await results[0].autoFix?.();
-		expect(fix.files.length).toBeGreaterThan(0);
+		const fixFn = results[0].autoFix!;
+		const applied = await fixFn();
+		expect(applied.files.length).toBeGreaterThan(0);
 
-		for (const file of fix.files) {
+		for (const file of applied.files) {
 			expect(file.before).toContain("No references here");
 			expect(file.after).toContain(".letra/context.md");
 			expect(file.after).toContain(".letra/constitution.md");
@@ -119,9 +120,10 @@ describe("harness-stale detector", () => {
 		const results = await harnessStaleDetector.run(tmpDir);
 		expect(results).toHaveLength(1);
 
-		const fix = await results[0].autoFix?.();
-		const cursorFile = fix.files.find((f) => f.path === ".cursorrules");
-		const agentsFile = fix.files.find((f) => f.path === "AGENTS.md");
+		const fixFn = results[0].autoFix!;
+		const applied = await fixFn();
+		const cursorFile = applied.files.find((f) => f.path === ".cursorrules");
+		const agentsFile = applied.files.find((f) => f.path === "AGENTS.md");
 		expect(cursorFile).toBeDefined();
 		expect(cursorFile?.before).not.toBe(cursorFile?.after);
 		expect(agentsFile).toBeUndefined();
