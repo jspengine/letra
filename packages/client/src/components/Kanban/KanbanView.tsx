@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ResolvedSpec, Workflow } from "@letra/types";
 import { Card, CardContent } from "@letra/ui";
-import { Icon, Progress } from "@letra/ui";
+import { Icon, Progress, Button } from "@letra/ui";
 import { cn } from "../../lib/utils";
 import { MarchingBorder } from "./MarchingBorder";
 import type { Item } from "@letra/types";
@@ -186,7 +186,7 @@ export default function KanbanView({
 			</div>
 		) : (
 			<div className="flex flex-1 min-h-0 gap-3 p-3 overflow-x-auto">
-				{workflow.stages.map((stage) => {
+			{workflow.stages.map((stage) => {
 				const stageItems = workflow.items.filter((it) => it.stage === stage.id);
 				const isOver = dragOver === stage.id;
 				const isOverDenied =
@@ -430,5 +430,6 @@ export default function KanbanView({
 				);
 			})}
 		</div>
-	);
+	)
+		);
 }
