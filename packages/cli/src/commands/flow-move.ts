@@ -5,6 +5,7 @@ import { loadWorkflow, writeWorkflow } from "./flow-init.js";
 import { writeFocusFile } from "../adapters/focus-sync.js";
 import { logEntry } from "../session-log.js";
 import { queryLog } from "../session-log.js";
+import { loadHarness, resolveHarnessRoot } from "../harness/loader.js";
 
 function now(): string {
 	return new Date().toISOString();
@@ -30,8 +31,8 @@ export async function flowMove(root: string, itemId: string, targetStageInput: s
 	}
 
 	const item =
-		workflow.items.find((i) => i.id === itemId) ||
-		workflow.items.find((i) => i.description === itemId);
+		workflow.items.find((i) => i.id.toLowerCase() === itemId.toLowerCase()) ||
+		workflow.items.find((i) => i.description.toLowerCase() === itemId.toLowerCase());
 	if (!item) {
 		console.log(chalk.red(`Item "${itemId}" not found`));
 		process.exit(1);
@@ -71,8 +72,54 @@ export async function flowMove(root: string, itemId: string, targetStageInput: s
 					const acLogEntries = queryLog(root, { itemId, action: "ac_done", limit: 999 });
 					if (acLogEntries.length < doneACs.length) {
 						console.log(chalk.yellow(`⚠ ${doneACs.length - acLogEntries.length} AC(s) marked [x] without "ac done" log entry.`));
-						console.log(chalk.yellow(`  Run \`letra ac done <ID>\` for each completed AC.`));
+						console.log(chalk.yellow(`  Run letra ac done <ID> for each completed AC.`));
 					}
+				}
+			}
+		}
+	}
+
+	// AC12: validate spec before moving (non-auto flows)
+	if (!options?.auto && !options?.force && item.spec) {
+		const specFile = join(root, ".letra", "specs", item.spec, "spec.md");
+		if (existsSync(specFile)) {
+			const content = readFileSync(specFile, "utf-8");
+			const pendingACs = content.match(/^- \[ \]/gm) || [];
+			if (pendingACs.length > 0) {
+				console.log(chalk.yellow(`⚠ Item ${itemId} has ${pendingACs.length} pending AC(s) in "${item.spec}"`));
+				console.log(chalk.yellow(`  Use --force to move anyway, or complete ACs first.`));
+				return;
+			}
+			const doneACs = content.match(/^- \[[xX]\]/gm) || [];
+			if (doneACs.length > 0) {
+				const acLogEntries = queryLog(root, { itemId, action: "ac_done", limit: 999 });
+				if (acLogEntries.length < doneACs.length) {
+					console.log(chalk.yellow(`⚠ ${doneACs.length - acLogEntries.length} AC(s) marked [x] without "ac done" log entry.`));
+					console.log(chalk.yellow(`  Run letra ac done <ID> for each completed AC.`));
+				}
+			}
+		}
+	}
+
+	// Gate enforcement via harness (humano sempre bloqueia; automated avisa)
+	{
+		const harness = loadHarness(resolveHarnessRoot(root));
+		const template = harness?.flows?.sdlc;
+		if (template) {
+			const targetDef = template.stages.find((s) => s.id === targetStageInput);
+			if (targetDef?.gate) {
+				const gateId = targetDef.gate.replace(/^.*[\\/]/, "").replace(/\.yaml$/, "");
+				const gate = harness?.gates?.[gateId];
+				if (gate?.type === "human" && gate.blocking) {
+					const resolvedTarget = resolveStage(workflow, targetStageInput) || targetStageInput;
+					console.log(chalk.red(`Gate bloqueante: ${gate.name}`));
+					console.log(chalk.yellow(`  Aprovação humana necessária para entrar em "${resolvedTarget}".`));
+					return;
+				}
+				if (gate?.type === "automated" && gate.blocking) {
+					console.log(chalk.yellow(`⛔ Gate automated bloqueante: ${gate.name}`));
+					console.log(chalk.yellow(`  Valide as condições antes de avançar.`));
+					// TODO: implementar check automático
 				}
 			}
 		}
@@ -146,6 +193,6 @@ export function flowMoveAction(
 	if (options.auto) {
 		flowMove(root, normalized, options.to || "", { auto: true, force: options.force });
 	} else {
-		flowMove(root, normalized, options.to || "");
+		flowMove(root, normalized, options.to || "", { force: options.force });
 	}
 }

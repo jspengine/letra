@@ -43,6 +43,7 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 		pendingChecks: boolean[];
 	} | null>(null);
 	const [dragStageIdx, setDragStageIdx] = useState<number | null>(null);
+	const [humanGateStages, setHumanGateStages] = useState<Set<string>>(new Set());
 
 	const loadSpecs = useCallback(() => {
 		fetch("/api/specs")
@@ -62,6 +63,26 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 	useEffect(() => {
 		setEditingWebhooks(workflow.webhooks ?? []);
 	}, [workflow.webhooks]);
+	useEffect(() => {
+		fetch("/api/harness/templates")
+			.then((r) => r.json())
+			.then((templates) => {
+				const sdlc = templates.find((t: any) => t.id === "sdlc");
+				if (!sdlc) return;
+				const stages = new Set<string>();
+				for (const stage of sdlc.stages ?? []) {
+					const gate = stage.gate
+						? String(stage.gate).replace(/^.*[\\/]/, "").replace(/\.ya?ml$/, "")
+						: null;
+					if (gate) {
+						const gateData = sdlc.gates?.find((g: any) => g.id === gate);
+						if (gateData?.type === "human") stages.add(stage.id);
+					}
+				}
+				setHumanGateStages(stages);
+			})
+			.catch(() => {});
+	}, [workflow.stages]);
 
 	const selectedItem = selectedItemId
 		? workflow.items.find((it) => it.id === selectedItemId)
@@ -81,7 +102,9 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 	function allowMoveToStage(item: Workflow["items"][0], targetStageId: string): boolean {
 		const srcStage = workflow.stages.find((s) => s.id === item.stage);
 		if (!srcStage || !srcStage.allow || srcStage.allow.length === 0) return true;
-		return srcStage.allow.includes(targetStageId);
+		if (!srcStage.allow.includes(targetStageId)) return false;
+		if (humanGateStages.has(targetStageId)) return false;
+		return true;
 	}
 
 	function getValidateChecks(item: Workflow["items"][0]): string[] {
@@ -750,6 +773,7 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 							onDropItem={handleDropItem}
 							allowMoveToStage={allowMoveToStage}
 							specRefreshKey={specRefreshKey}
+							onAddItem={() => setShowAddDialog(true)}
 						/>
 					</div>
 				)}

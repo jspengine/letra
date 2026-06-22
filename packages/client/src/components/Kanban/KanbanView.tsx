@@ -14,6 +14,7 @@ interface Props {
 	onDropItem?: (itemId: string, targetStageId: string) => void;
 	allowMoveToStage?: (item: Workflow["items"][0], targetStageId: string) => boolean;
 	specRefreshKey?: number;
+	onAddItem?: () => void;
 }
 
 function daysSince(dateStr: string): number {
@@ -69,6 +70,7 @@ export default function KanbanView({
 	onDropItem,
 	allowMoveToStage,
 	specRefreshKey = 0,
+	onAddItem,
 }: Props) {
 	const [dragOver, setDragOver] = useState<string | null>(null);
 	const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -166,8 +168,25 @@ export default function KanbanView({
 	}
 
 	return (
-		<div className="flex flex-1 min-h-0 gap-3 p-3 overflow-x-auto">
-			{workflow.stages.map((stage) => {
+		workflow.items.length === 0 ? (
+			<div className="flex flex-1 items-center justify-center p-6">
+				<div className="flex flex-col items-center gap-3 text-center">
+					<p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+						Nenhum item no board.
+					</p>
+					<p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+						Adicione seu primeiro item via <code className="px-1 py-0.5 rounded bg-muted">letra flow backlog add &lt;desc&gt;</code>
+					</p>
+					{onAddItem && (
+						<Button size="sm" onClick={onAddItem}>
+							Add Item
+						</Button>
+					)}
+				</div>
+			</div>
+		) : (
+			<div className="flex flex-1 min-h-0 gap-3 p-3 overflow-x-auto">
+				{workflow.stages.map((stage) => {
 				const stageItems = workflow.items.filter((it) => it.stage === stage.id);
 				const isOver = dragOver === stage.id;
 				const isOverDenied =

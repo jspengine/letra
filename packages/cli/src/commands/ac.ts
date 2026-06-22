@@ -8,9 +8,12 @@ import { validate } from "./validate.js";
 import { generateAdapters } from "../adapters/generate.js";
 
 export function findAcByPattern(lines: string[], acId: string): number | null {
-	const pattern = new RegExp(`^- \\[ \\] \\*\\*${escapeRegex(acId)}\\*\\*`);
+	const normalized = acId.trim();
 	for (let i = 0; i < lines.length; i++) {
-		if (pattern.test(lines[i].trim())) return i;
+		const line = lines[i].trim();
+		if (!/^- \[ \]/.test(line)) continue;
+		const text = line.replace(/^- \[ \]/, "").trim();
+		if (text.toLowerCase().includes(normalized.toLowerCase())) return i;
 	}
 	return null;
 }
@@ -21,10 +24,21 @@ function escapeRegex(s: string): string {
 
 export function listPendingACs(lines: string[]): { lineIdx: number; id: string; text: string }[] {
 	const result: { lineIdx: number; id: string; text: string }[] = [];
-	const pattern = /^- \[ \] \*\*(AC[\d.]+)\*\*: (.+)$/;
+	const explicit = /^- \[ \] \*\*(AC[\d.]+)\*\*: (.+)$/;
+	const plain = /^- \[ \] (.+)$/;
 	for (let i = 0; i < lines.length; i++) {
-		const match = lines[i].trim().match(pattern);
-		if (match) result.push({ lineIdx: i, id: match[1], text: match[2] });
+		const line = lines[i].trim();
+		let match = line.match(explicit);
+		if (match) {
+			result.push({ lineIdx: i, id: match[1], text: match[2] });
+			continue;
+		}
+		match = line.match(plain);
+		if (match) {
+			const text = match[1];
+			const id = `AC-${i + 1}`;
+			result.push({ lineIdx: i, id, text });
+		}
 	}
 	return result;
 }

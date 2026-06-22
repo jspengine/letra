@@ -6,6 +6,8 @@ import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadWorkflow, writeWorkflow, detectProjectName } from "./flow-init.js";
 import type { Item, Workflow } from "./flow-init.js";
+import { loadHarness, resolveHarnessRoot } from "../harness/loader";
+import type { FlowTemplate, HarnessManifest } from "../harness/types";
 import { DiagnosticEngine } from "../diagnostics/engine.js";
 import type { DiagnosticResult } from "../diagnostics/types.js";
 import { validateSpecStructure } from "../validation/structure.js";
@@ -108,8 +110,19 @@ function createWorkflowFromTemplate(
 	root: string,
 	templateId: string,
 	options?: { name?: string; tools?: string[] },
+	harness?: HarnessManifest | null,
 ): Workflow {
-	const t = TEMPLATES[templateId];
+	const t = harness?.flows?.[templateId]
+		? {
+				name: harness.flows[templateId].name,
+				stages: harness.flows[templateId].stages.map((s) => ({
+					id: s.id,
+					name: s.name,
+					order: s.order,
+					zone: s.zone,
+				})),
+		  }
+		: TEMPLATES[templateId];
 	if (!t) {
 		throw new Error(
 			`Template "${templateId}" not found. Available: ${Object.keys(TEMPLATES).join(", ")}`,
@@ -147,12 +160,15 @@ export class FlowServer {
 	private port: number;
 	private loadWorkflow;
 	private engine: DiagnosticEngine;
+	private harness: HarnessManifest | null;
 
 	constructor(root: string, port: number = DEFAULT_PORT) {
 		this.root = root;
 		this.port = port;
 		this.loadWorkflow = () => loadWorkflow(root);
 		this.engine = new DiagnosticEngine(root);
+		const harnessRoot = resolveHarnessRoot(root);
+		this.harness = loadHarness(harnessRoot);
 	}
 
 	private handleRequest = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -213,7 +229,7 @@ export class FlowServer {
 						wf = createWorkflowFromTemplate(this.root, data.template, {
 							name: data.name,
 							tools: data.tools,
-						});
+						}, this.harness);
 						if (existing?.language && wf) {
 							wf.language = existing.language;
 						}
@@ -228,6 +244,59 @@ export class FlowServer {
 					res.end(JSON.stringify({ error: (e as Error).message }));
 				}
 			});
+			return;
+		}
+
+		if (path === "/api/harness/templates" && req.method === "GET") {
+			const templates = this.harness
+				? Object.values(this.harness.flows).map((f) => {
+						const gateIds = new Set(
+							f.stages
+								.map((s) => s.gate)
+								.filter((g): g is string => !!g)
+								.map((g) => {
+									// suporta tanto id puro quanto caminho relativo "gates/id.yaml"
+									const base = g.replace(/^.*[\\/]/, "").replace(/\.ya?ml$/, "");
+									return base;
+								}),
+						);
+						const gates = gateIds.size
+							? [...gateIds]
+								.map((id) => this.harness?.gates?.[id])
+								.filter((g): g is NonNullable<typeof g> => !!g)
+							: [];
+
+						const roleIds = new Set(
+							f.stages.flatMap((s) => (Array.isArray(s.agents) ? s.agents : [])),
+						);
+						const roles = roleIds.size
+							? [...roleIds]
+								.map((id) => this.harness?.roles?.[id])
+								.filter((r): r is NonNullable<typeof r> => !!r)
+							: [];
+
+						const policyRefs = new Set<string>();
+						for (const g of gates) {
+							if (g.policyRef) policyRefs.add(g.policyRef.replace(/^.*[\\/]/, "").replace(/\.json$/, ""));
+						}
+						const policies = [...policyRefs]
+							.map((ref) => this.harness?.policies?.[ref])
+							.filter((p): p is NonNullable<typeof p> => !!p);
+
+						return {
+							id: f.id,
+							version: f.version,
+							name: f.name,
+							description: f.description,
+							stages: f.stages,
+							gates,
+							roles,
+							policies,
+						};
+					})
+				: [];
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify(templates));
 			return;
 		}
 
@@ -459,7 +528,26 @@ export class FlowServer {
 						return;
 					}
 					const oldStage = item.stage;
-					if (data.stage !== undefined) item.stage = data.stage;
+					if (data.stage !== undefined && data.stage !== oldStage) {
+						// Gate enforcement via harness
+						const template = this.harness?.flows?.sdlc;
+						console.log("[PATCH] stage change", itemId, oldStage, "->", data.stage, "has_harness:", !!this.harness, "has_template:", !!template);
+						if (template) {
+							const targetStage = template.stages.find((s: { id?: string }) => s.id === data.stage);
+							console.log("[PATCH] targetStage gate:", targetStage?.gate);
+							if (targetStage?.gate) {
+								const gateId = targetStage.gate.replace(/^.*[\\/]/, "").replace(/\.yaml$/, "");
+								const gate = this.harness?.gates?.[gateId];
+								console.log("[PATCH] gateId:", gateId, "gate:", gate);
+								if (gate && gate.type === "human") {
+									res.writeHead(422, { "Content-Type": "application/json" });
+									res.end(JSON.stringify({ error: `Gate bloqueante: ${gate.name}. Aprovação humana necessária para entrar em "${targetStage.name}".` }));
+									return;
+								}
+							}
+						}
+						item.stage = data.stage;
+					}
 					if (data.description !== undefined) item.description = data.description;
 					if (data.tasks !== undefined) item.tasks = data.tasks;
 				wf.updatedAt = new Date().toISOString();

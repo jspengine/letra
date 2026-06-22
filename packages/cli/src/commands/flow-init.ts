@@ -1,12 +1,14 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import chalk from "chalk";
 import ora from "ora";
 import { generateAdapters } from "../adapters/generate.js";
+import { generateHermesAdapter } from "../adapters/hermes.js";
 import { logEntry } from "../session-log.js";
 import { DiagnosticEngine } from "../diagnostics/engine.js";
 import { loadHealthRecord, mergeScanResults, saveHealthRecord } from "../health-record.js";
+import { loadHarness, resolveHarnessRoot } from "../harness/loader.js";
 
 export interface Stage {
 	id: string;
@@ -65,6 +67,10 @@ export interface Workflow {
 	tools: string[];
 	webhooks?: WebhookConfig[];
 	primaryItemId?: string;
+	state?: {
+		currentStage?: string;
+		locked?: boolean;
+	};
 }
 
 function askText(query: string, defaultValue: string): Promise<string> {
@@ -81,12 +87,12 @@ function askText(query: string, defaultValue: string): Promise<string> {
 
 export function detectExistingTools(root: string): string[] {
 	const tools: string[] = [];
+	if (existsSync(join(root, ".hermes", "instructions.md"))) tools.push("hermes");
 	if (existsSync(join(root, ".cursorrules"))) tools.push("cursor");
 	if (existsSync(join(root, "CLAUDE.md"))) tools.push("claude-code");
 	if (existsSync(join(root, ".windsurfrules"))) tools.push("windsurf");
 	if (existsSync(join(root, "AGENTS.md"))) tools.push("opencode");
 	if (existsSync(join(root, ".github", "copilot-instructions.md"))) tools.push("vscode");
-	if (existsSync(join(root, ".hermes", "instructions.md"))) tools.push("hermes");
 	return tools;
 }
 
@@ -95,7 +101,7 @@ export function detectProjectName(root: string): string {
 	if (existsSync(pkgPath)) {
 		try {
 			const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
-			if (pkg.name) return pkg.name.replace(/^@[^/]+\//, "");
+			if (pkg.name) return pkg.name.replace(/^@[^/]+/, "");
 		} catch {}
 	}
 	return resolve(root).split(/[\\/]/).pop() || "meu-projeto";
@@ -255,6 +261,19 @@ export async function writeWorkflow(root: string, options: WriteWorkflowOptions)
 			primaryItemId: primaryItemId || workflow.items[0]?.id,
 			graveIssueCount: graveIssueCount > 0 ? graveIssueCount : undefined,
 		});
+
+		// Hermes-specific writing when selected
+		if (workflow.tools.includes("hermes")) {
+			const hermesContent = generateHermesAdapter(root);
+			if (hermesContent) {
+				const hermesPath = join(root, ".hermes", "instructions.md");
+				const hermesDir = join(hermesPath, "..");
+				if (!existsSync(hermesDir)) mkdirSync(hermesDir, { recursive: true });
+				writeFileSync(hermesPath, hermesContent, "utf-8");
+				filesUpdated.push(".hermes/instructions.md");
+			}
+		}
+
 		for (const tool of workflow.tools) {
 			const target = ADAPTER_TARGETS[tool];
 			if (target) filesUpdated.push(target);
@@ -297,7 +316,7 @@ export async function flowInit(root: string, options?: { quick?: boolean }): Pro
 	const stages = stagesFromInput(stagesInput);
 
 	const detected = detectExistingTools(root);
-	const defaultTools = detected.length > 0 ? detected.join(", ") : "cursor, opencode";
+	const defaultTools = detected.length > 0 ? detected.join(", ") : "hermes, opencode";
 	const toolsInput = await askText("Tools (comma-separated)?", defaultTools);
 	const tools = toolsInput
 		.split(",")
@@ -319,9 +338,13 @@ export async function flowInit(root: string, options?: { quick?: boolean }): Pro
 
 async function flowInitQuick(root: string): Promise<Workflow> {
 	const defaultName = detectProjectName(root);
-	const defaultStagesList = "backlog, design, code, review, done";
+	const harness = loadHarness(resolveHarnessRoot(root));
+	const sdlcStages = harness?.flows?.sdlc?.stages;
+	const defaultStagesList = sdlcStages && sdlcStages.length > 0
+		? sdlcStages.map((s) => s.name).join(", ")
+		: "backlog, design, code, review, done";
 	const detected = detectExistingTools(root);
-	const defaultTools = detected.length > 0 ? detected.join(", ") : "cursor, opencode";
+	const defaultTools = detected.length > 0 ? detected.join(", ") : "hermes, opencode";
 
 	const name = await askText("Workflow name?", defaultName);
 	const stagesInput = await askText("Stages (comma-separated)?", defaultStagesList);

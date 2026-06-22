@@ -1,19 +1,15 @@
-# Gerado por letra flow move. Nao edite manualmente.
-
-### ⚠ ATENÇÃO: 2 problema(s) grave(s) detectado(s) pelo diagnóstico automático
-Execute `letra health` para detalhes e `letra health ack <id>` para reconhecer.
-# Letra Session — letra
+# Letra Session — Letra Self-Management
 
 PASSO OBRIGATÓRIO #1: letra pulse — verificar estado do workspace
 PASSO OBRIGATÓRIO #2: Leia .letra/context.md — contexto completo do projeto
 PASSO OBRIGATÓRIO #3: Leia .letra/focus.md — foco e outcome da sessão
-PASSO OBRIGATÓRIO #4: Leia .letra/specs/write-sync/spec.md — ACs do item
+PASSO OBRIGATÓRIO #4: Leia .letra/specs/harness-loader-implementation/spec.md — ACs do item
 
 ## Foco Atual
 
-Item: ITEM-1 · Branding: header Letra no flow serve + 3 opções de logo
-Spec: write-sync
-Estágio: Done
+Item: item-1 · workspace-discovery
+Spec: harness-loader-implementation
+Estágio: Spec Review → Code
 
 ## Alertas
 
@@ -21,35 +17,35 @@ Alerta · severidade baixa
   ID: hr-4652f8f0
   O que: AC "flow diff" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 17/06/2026, 14:13:59
+  Desde: 22/06/2026, 11:10:40
   Ação: `letra health ack hr-4652f8f0`
 
 Alerta · severidade baixa
   ID: hr-4103b765
   O que: AC "flow visualize" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 17/06/2026, 14:13:59
+  Desde: 22/06/2026, 11:10:40
   Ação: `letra health ack hr-4103b765`
 
 Alerta · severidade baixa
   ID: hr-dd77601
   O que: AC "flow export" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 17/06/2026, 14:13:59
+  Desde: 22/06/2026, 11:10:40
   Ação: `letra health ack hr-dd77601`
 
 Alerta · severidade baixa
   ID: hr-6380dc9e
   O que: AC "GET /" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 17/06/2026, 14:13:59
+  Desde: 22/06/2026, 11:10:40
   Ação: `letra health ack hr-6380dc9e`
 
 Alerta · severidade baixa
   ID: hr-352219f2
   O que: AC "letra sitrep" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 17/06/2026, 14:13:59
+  Desde: 22/06/2026, 11:10:40
   Ação: `letra health ack hr-352219f2`
 
   e mais 3 alertas
