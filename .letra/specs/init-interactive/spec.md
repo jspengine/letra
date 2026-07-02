@@ -1,4 +1,6 @@
-# Spec — Init Interativo
+# Spec: init-interactive
+
+> Updated: 2026-06-22
 
 ## Outcome
 

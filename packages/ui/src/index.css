@@ -1,26 +1,43 @@
 :root {
+	/* ── Typography ── */
+	--font-body: 'Inter', system-ui, -apple-system, sans-serif;
+	--font-code: 'JetBrains Mono', 'Fira Code', monospace;
+
 	/* ── Surfaces ── */
 	--surface-1: oklch(1 0 0);
 	--surface-2: oklch(0.965 0 0);
 	--surface-3: oklch(0.922 0 0);
 	--surface-input: oklch(0.985 0 0);
+	--surface-50: oklch(0.985 0 0);
+	--surface-100: oklch(0.965 0 0);
+	--surface-200: oklch(0.94 0 0);
+	--surface-300: oklch(0.87 0 0);
+	--surface-400: oklch(0.78 0 0);
+	--surface-500: oklch(0.65 0 0);
+	--surface-600: oklch(0.55 0 0);
+	--surface-700: oklch(0.4 0 0);
+	--surface-800: oklch(0.33 0 0);
+	--surface-900: oklch(0.27 0 0);
+	--surface-950: oklch(0.145 0 0);
 
 	/* ── Text ── */
 	--text-primary: oklch(0.145 0 0);
 	--text-secondary: oklch(0.556 0 0);
 	--text-disabled: oklch(0.556 0 0 / 0.5);
-	--text-link: oklch(0.546 0.245 262.881);
+	--text-link: oklch(0.56 0.179 58.318);
 	--text-inverse: oklch(1 0 0);
 
 	/* ── Border ── */
 	--border-default: oklch(0.922 0 0);
 	--border-hover: oklch(0.87 0 0);
-	--border-focus: oklch(0.546 0.245 262.881);
+	--border-focus: oklch(0.666 0.179 58.318);
 	--border-disabled: oklch(0.922 0 0 / 0.5);
 
 	/* ── Legacy aliases (keep for compat) ── */
 	--background: var(--surface-1);
 	--foreground: var(--text-primary);
+	--popover: var(--surface-1);
+	--popover-foreground: var(--text-primary);
 	--muted: var(--surface-2);
 	--muted-foreground: var(--text-secondary);
 	--border: var(--border-default);
@@ -28,26 +45,38 @@
 	--card-foreground: var(--text-primary);
 	--secondary: var(--surface-3);
 	--secondary-foreground: var(--text-primary);
-	--ring: oklch(0.546 0.245 262.881 / 0.3);
+	--ring: oklch(0.666 0.179 58.318 / 0.3);
 
-	/* ── Brand ── */
-	--primary: oklch(0.546 0.245 262.881);
-	--primary-foreground: oklch(1 0 0);
-	--accent: oklch(0.715 0.143 215.42);
-	--accent-foreground: oklch(0.985 0 0);
+	/* ── Brand (Amber) ── */
+	--primary: oklch(0.72 0.18 75);
+	--primary-foreground: oklch(0.145 0 0);
+	--accent: oklch(0.72 0.18 75);
+	--accent-foreground: oklch(0.145 0 0);
+
+	/* ── Gate Tokens ── */
+	--gate-waiting: var(--warning);
+	--gate-available: var(--error);
+	--gate-approved: var(--success);
+	--gate-blocked: oklch(0.35 0.22 30);
+
+	/* ── Shadows ── */
+	--shadow-sm: 0 1px 2px oklch(0 0 0 / 0.05);
+	--shadow-md: 0 4px 6px -1px oklch(0 0 0 / 0.08), 0 2px 4px -2px oklch(0 0 0 / 0.04);
+	--shadow-lg: 0 10px 15px -3px oklch(0 0 0 / 0.1), 0 4px 6px -4px oklch(0 0 0 / 0.05);
+	--shadow-xl: 0 20px 25px -5px oklch(0 0 0 / 0.15), 0 8px 10px -6px oklch(0 0 0 / 0.04);
 
 	/* ── Overlay ── */
 	--overlay: oklch(0 0 0 / 0.4);
 
 	/* ── Semantic ── */
 	--success: oklch(0.627 0.194 149.214);
-	--success-foreground: oklch(1 0 0);
+	--success-foreground: oklch(0.145 0 0);
 	--warning: oklch(0.769 0.188 70.08);
-	--warning-foreground: oklch(1 0 0);
+	--warning-foreground: oklch(0.145 0 0);
 	--error: oklch(0.577 0.245 27.325);
 	--error-foreground: oklch(1 0 0);
-	--info: oklch(0.546 0.245 262.881);
-	--info-foreground: oklch(1 0 0);
+	--info: oklch(0.666 0.179 58.318);
+	--info-foreground: oklch(0.145 0 0);
 	--live: oklch(0.7 0.18 80);
 }
 
@@ -57,23 +86,36 @@
 	--surface-2: oklch(0.27 0 0);
 	--surface-3: oklch(0.33 0 0);
 	--surface-input: oklch(0.17 0 0);
+	--surface-50: oklch(0.985 0 0);
+	--surface-100: oklch(0.965 0 0);
+	--surface-200: oklch(0.94 0 0);
+	--surface-300: oklch(0.87 0 0);
+	--surface-400: oklch(0.78 0 0);
+	--surface-500: oklch(0.65 0 0);
+	--surface-600: oklch(0.55 0 0);
+	--surface-700: oklch(0.4 0 0);
+	--surface-800: oklch(0.33 0 0);
+	--surface-900: oklch(0.27 0 0);
+	--surface-950: oklch(0.145 0 0);
 
 	/* ── Text ── */
 	--text-primary: oklch(0.985 0 0);
 	--text-secondary: oklch(0.708 0 0);
 	--text-disabled: oklch(0.708 0 0 / 0.5);
-	--text-link: oklch(0.685 0.246 262.881);
+	--text-link: oklch(0.828 0.189 84.429);
 	--text-inverse: oklch(0.145 0 0);
 
 	/* ── Border ── */
 	--border-default: oklch(0.4 0 0);
 	--border-hover: oklch(0.46 0 0);
-	--border-focus: oklch(0.685 0.246 262.881);
+	--border-focus: oklch(0.828 0.189 84.429);
 	--border-disabled: oklch(0.4 0 0 / 0.4);
 
 	/* ── Legacy aliases ── */
 	--background: var(--surface-1);
 	--foreground: var(--text-primary);
+	--popover: var(--surface-1);
+	--popover-foreground: var(--text-primary);
 	--muted: var(--surface-2);
 	--muted-foreground: var(--text-secondary);
 	--border: var(--border-default);
@@ -81,25 +123,53 @@
 	--card-foreground: var(--text-primary);
 	--secondary: var(--surface-3);
 	--secondary-foreground: var(--text-primary);
-	--ring: oklch(0.685 0.246 262.881 / 0.3);
+	--ring: oklch(0.828 0.189 84.429 / 0.3);
 
-	/* ── Brand ── */
-	--primary: oklch(0.685 0.246 262.881);
-	--primary-foreground: oklch(0.985 0 0);
-	--accent: oklch(0.685 0.246 262.881);
-	--accent-foreground: oklch(0.985 0 0);
+	/* ── Brand (Amber) ── */
+	--primary: oklch(0.78 0.18 75);
+	--primary-foreground: oklch(0.145 0 0);
+	--accent: oklch(0.78 0.18 75);
+	--accent-foreground: oklch(0.145 0 0);
+
+	/* ── Gate Tokens ── */
+	--gate-waiting: var(--warning);
+	--gate-available: var(--error);
+	--gate-approved: var(--success);
+	--gate-blocked: oklch(0.35 0.22 30);
+
+	/* ── Shadows ── */
+	--shadow-sm: 0 1px 3px oklch(0 0 0 / 0.3);
+	--shadow-md: 0 4px 6px -1px oklch(0 0 0 / 0.35), 0 2px 4px -2px oklch(0 0 0 / 0.25);
+	--shadow-lg: 0 10px 15px -3px oklch(0 0 0 / 0.4), 0 4px 6px -4px oklch(0 0 0 / 0.3);
+	--shadow-xl: 0 20px 25px -5px oklch(0 0 0 / 0.45), 0 8px 10px -6px oklch(0 0 0 / 0.35);
 
 	/* ── Overlay ── */
 	--overlay: oklch(0 0 0 / 0.4);
 
 	/* ── Semantic ── */
 	--success: oklch(0.627 0.194 149.214);
-	--success-foreground: oklch(1 0 0);
+	--success-foreground: oklch(0.145 0 0);
 	--warning: oklch(0.769 0.188 70.08);
-	--warning-foreground: oklch(1 0 0);
+	--warning-foreground: oklch(0.145 0 0);
 	--error: oklch(0.577 0.245 27.325);
 	--error-foreground: oklch(1 0 0);
-	--info: oklch(0.685 0.246 262.881);
-	--info-foreground: oklch(1 0 0);
+	--info: oklch(0.828 0.189 84.429);
+	--info-foreground: oklch(0.145 0 0);
 	--live: oklch(0.65 0.18 80);
+}
+
+:where(button, a, input, textarea, select, [role="button"], [tabindex]):focus-visible {
+	outline: 2px solid var(--primary);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
 }

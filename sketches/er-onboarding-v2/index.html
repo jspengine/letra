@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Letra — ER Onboarding v2 (Gates + Agentes)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #08090a;
+    --surface: #0e0f12;
+    --border: #1f2937;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --accent: #5e6ad2;
+    --accent2: #7b88f0;
+    --success: #22c55e;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --purple: #a78bfa;
+    --cyan: #22d3ee;
+    --orange: #fb923c;
+    --pink: #f472b6;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px 24px;
+    line-height: 1.5;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+
+  .section { margin-bottom: 28px; }
+  .section-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .erdiagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 28px;
+    overflow: auto;
+  }
+  .entities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+    position: relative;
+  }
+  .entity {
+    background: #0b0c10;
+    border: 1.5px solid #374151;
+    border-radius: 10px;
+    min-width: 190px;
+    max-width: 240px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  }
+  .entity-header {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: .02em;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .entity-header .dot { width: 8px; height: 8px; border-radius: 999px; }
+  .entity-body { padding: 9px 12px 12px; font-family: var(--mono); font-size: 11px; }
+  .attr {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 2px 0;
+    color: #cbd5e1;
+  }
+  .attr .name { font-weight: 600; }
+  .attr .type { color: var(--muted); font-size: 10px; }
+  .attr .pk { color: var(--warn); font-weight: 800; font-size: 10px; }
+  .attr .fk { color: var(--accent2); font-weight: 700; font-size: 10px; }
+  .no-attr { color: var(--muted); font-style: italic; font-size: 11px; padding: 4px 0; }
+
+  .rel-layer {
+    margin-top: 16px;
+    border-top: 1px dashed #2d3748;
+    padding-top: 12px;
+  }
+  .relationships { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .rel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    color: #cbd5e1;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: #0a0c10;
+    border: 1px solid #1f2937;
+    flex-wrap: wrap;
+  }
+  .rel .from { font-family: var(--mono); color: var(--cyan); font-weight: 600; }
+  .rel .arrow { color: var(--muted); font-size: 15px; }
+  .rel .card { color: var(--muted); font-weight: 700; font-size: 10px; letter-spacing: .04em; }
+  .rel .to { font-family: var(--mono); color: var(--cyan); font-weight: 600; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 14px;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend .dot { width: 8px; height: 8px; border-radius: 999px; }
+
+  .schemas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 900px) { .schemas { grid-template-columns: 1fr; } }
+  .schema {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .schema-header {
+    padding: 9px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border-bottom: 1px solid var(--border);
+  }
+  .schema-header .dot { width: 8px; height: 8px; border-radius: 999px; }
+  .schema-body { padding: 12px; overflow-x: auto; }
+  .schema-body pre {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #cbd5e1;
+    line-height: 1.55;
+    margin: 0;
+    white-space: pre;
+  }
+  .k { color: #7dd3fc; }
+  .s { color: #fbbf24; }
+  .n { color: #f472b6; }
+  .c { color: #34d399; }
+  .p { color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Modelo de dados — Onboarding & Controle de Fluxo (v1)</h1>
+  <p class="subtitle">Entidades, relacionamentos e schema JSON. Foco: configuração do projeto + política de agentes/humanos.</p>
+
+  <div class="erdiagram">
+    <div class="entities">
+      <!-- Workspace -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#22d3ee"></div>Workspace</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">uuid</span></div>
+          <div class="attr"><span class="name">name</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">rootPath</span><span class="type">path</span></div>
+          <div class="attr"><span class="name">createdAt</span><span class="type">iso8601</span></div>
+        </div>
+      </div>
+
+      <!-- Project -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#5e6ad2"></div>Project</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">uuid</span></div>
+          <div class="attr"><span class="name">workspaceId</span><span class="type">uuid <span class="fk">FK</span></span></div>
+          <div class="attr"><span class="name">name</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">slug</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">templateId</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">manifestPath</span><span class="type">path</span></div>
+          <div class="no-attr">(sem flows[] — instância separada)</div>
+        </div>
+      </div>
+
+      <!-- Repository -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#34d399"></div>Repository</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">uuid</span></div>
+          <div class="attr"><span class="name">projectId</span><span class="type">uuid <span class="fk">FK</span></span></div>
+          <div class="attr"><span class="name">localPath</span><span class="type">path</span></div>
+          <div class="attr"><span class="name">remoteUrl</span><span class="type">string?</span></div>
+          <div class="attr"><span class="name">kind</span><span class="type">enum</span></div>
+        </div>
+      </div>
+
+      <!-- FlowTemplate -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#fbbf24"></div>FlowTemplate</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">version</span><span class="type">semver</span></div>
+          <div class="attr"><span class="name">stages</span><span class="type">StageDef[]</span></div>
+          <div class="no-attr">(fonte: harness/flows/*.yaml)</div>
+        </div>
+      </div>
+
+      <!-- Gate -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#fb923c"></div>Gate</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">name</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">type</span><span class="type">enum</span></div>
+          <div class="attr"><span class="name">blocking</span><span class="type">boolean</span></div>
+          <div class="attr"><span class="name">policyRef</span><span class="type">string?</span></div>
+        </div>
+      </div>
+
+      <!-- AgentRole -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#f472b6"></div>AgentRole</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">label</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">allowedStages</span><span class="type">string[]</span></div>
+          <div class="no-attr">ex: reviewer, security, analyst</div>
+        </div>
+      </div>
+
+      <!-- Capability -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#a78bfa"></div>Capability</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">action</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">scope</span><span class="type">enum</span></div>
+          <div class="no-attr">ex: comment, approve, close</div>
+        </div>
+      </div>
+
+      <!-- AgentCapability -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#22d3ee"></div>AgentCapability</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">uuid</span></div>
+          <div class="attr"><span class="name">roleId</span><span class="type">string <span class="fk">FK</span></span></div>
+          <div class="attr"><span class="name">capabilityId</span><span class="type">string <span class="fk">FK</span></span></div>
+          <div class="attr"><span class="name">gateId</span><span class="type">string <span class="fk">FK</span></span></div>
+          <div class="attr"><span class="name">allow</span><span class="type">boolean</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Relationships -->
+    <div class="rel-layer">
+      <div class="section-title">Relacionamentos</div>
+      <div class="relationships">
+        <div class="rel">
+          <span class="from">Workspace</span>
+          <span class="arrow">1 ──── N</span>
+          <span class="card">CONTÉM</span>
+          <span class="arrow">N ──── 1</span>
+          <span class="to">Project</span>
+        </div>
+        <div class="rel">
+          <span class="from">Project</span>
+          <span class="arrow">1 ──── N</span>
+          <span class="card">ESCANEIA</span>
+          <span class="arrow">N ──── 1</span>
+          <span class="to">Repository</span>
+        </div>
+        <div class="rel">
+          <span class="from">Project</span>
+          <span class="arrow">N ──── N</span>
+          <span class="card">APLICA</span>
+          <span class="arrow">N ──── 1</span>
+          <span class="to">Gate (via ProjectGate)</span>
+        </div>
+        <div class="rel">
+          <span class="from">Gate</span>
+          <span class="arrow">1 ──── N</span>
+          <span class="card">PERMITE</span>
+          <span class="arrow">N ──── 1</span>
+          <span class="to">AgentCapability</span>
+        </div>
+        <div class="rel">
+          <span class="from">AgentRole</span>
+          <span class="arrow">1 ──── N</span>
+          <span class="card">POSSUI</span>
+          <span class="arrow">N ──── 1</span>
+          <span class="to">AgentCapability</span>
+        </div>
+        <div class="rel">
+          <span class="from">Capability</span>
+          <span class="arrow">1 ──── N</span>
+          <span class="card">É USADA EM</span>
+          <span class="arrow">N ──── 1</span>
+          <span class="to">AgentCapability</span>
+        </div>
+        <div class="rel">
+          <span class="from">Capability</span>
+          <span class="arrow">define ação</span>
+          <span class="card">EM</span>
+          <span class="arrow">scope</span>
+          <span class="to">(comment/approve/close)</span>
+        </div>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:#22d3ee"></span>Workspace / AgentCapability</span>
+        <span><span class="dot" style="background:#5e6ad2"></span>Project</span>
+        <span><span class="dot" style="background:#34d399"></span>Repository</span>
+        <span><span class="dot" style="background:#fbbf24"></span>FlowTemplate</span>
+        <span><span class="dot" style="background:#fb923c"></span>Gate</span>
+        <span><span class="dot" style="background:#f472b6"></span>AgentRole</span>
+        <span><span class="dot" style="background:#a78bfa"></span>Capability</span>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="font-size:16px; font-weight:600; margin-bottom:12px;">Schema JSON — Instâncias de exemplo</h2>
+  <p class="subtitle" style="margin-bottom:14px;">Formato dos arquivos/registros persistidos no workspace.</p>
+
+  <div class="schemas">
+    <!-- Workspace -->
+    <div class="schema">
+      <div class="schema-header"><div class="dot" style="background:#22d3ee"></div>workspace.yaml</div>
+      <div class="schema-body">
+<pre>{
+  <span class="k">"id"</span>: <span class="s">"ws_8f3a12"</span>,
+  <span class="k">"name"</span>: <span class="s">"default"</span>,
+  <span class="k">"rootPath"</span>: <span class="s">"/home/user/.letra/workspace"</span>
+}</pre>
+      </div>
+    </div>
+
+    <!-- Project -->
+    <div class="schema">
+      <div class="schema-header"><div class="dot" style="background:#5e6ad2"></div>projects/{slug}.json</div>
+      <div class="schema-body">
+<pre>{
+  <span class="k">"id"</span>: <span class="s">"proj_9b2c44"</span>,
+  <span class="k">"workspaceId"</span>: <span class="s">"ws_8f3a12"</span>,
+  <span class="k">"name"</span>: <span class="s">"plataforma-pagamentos"</span>,
+  <span class="k">"slug"</span>: <span class="s">"plataforma-pagamentos"</span>,
+  <span class="k">"templateId"</span>: <span class="s">"sdlc"</span>
+}</pre>
+      </div>
+    </div>
+
+    <!-- Repository -->
+    <div class="schema">
+      <div class="schema-header"><div class="dot" style="background:#34d399"></div>repositories/{id}.json</div>
+      <div class="schema-body">
+<pre>{
+  <span class="k">"id"</span>: <span class="s">"repo_1a7d09"</span>,
+  <span class="k">"projectId"</span>: <span class="s">"proj_9b2c44"</span>,
+  <span class="k">"localPath"</span>: <span class="s">"C:\\projetos\\plataforma"</span>,
+  <span class="k">"remoteUrl"</span>: <span class="s">"https://github.com/org/plataforma"</span>,
+  <span class="k">"kind"</span>: <span class="s">"mono"</span>
+}</pre>
+      </div>
+    </div>
+
+    <!-- Gate -->
+    <div class="schema">
+      <div class="schema-header"><div class="dot" style="background:#fb923c"></div>harness/gates/{id}.yaml</div>
+      <div class="schema-body">
+<pre><span class="p">// Gate: human-approved-code</span>
+{
+  <span class="k">"id"</span>: <span class="s">"human-approved-code"</span>,
+  <span class="k">"name"</span>: <span class="s">"Aprovação Humana (Code)"</span>,
+  <span class="k">"type"</span>: <span class="s">"human"</span>,
+  <span class="k">"blocking"</span>: <span class="n">true</span>,
+  <span class="k">"policyRef"</span>: <span class="s">"policies/code-review.json"</span>
+}</pre>
+      </div>
+    </div>
+
+    <!-- AgentRole -->
+    <div class="schema">
+      <div class="schema-header"><div class="dot" style="background:#f472b6"></div>harness/roles/{id}.yaml</div>
+      <div class="schema-body">
+<pre><span class="p">// AgentRole: reviewer</span>
+{
+  <span class="k">"id"</span>: <span class="s">"reviewer"</span>,
+  <span class="k">"label"</span>: <span class="s">"Code Reviewer"</span>,
+  <span class="k">"allowedStages"</span>: [<span class="s">"code-review"</span>, <span class="s">"security"</span>]
+}</pre>
+      </div>
+    </div>
+
+    <!-- Capability -->
+    <div class="schema">
+      <div class="schema-header"><span class="dot" style="background:#a78bfa"></div>harness/capabilities/{id}.yaml</div>
+      <div class="schema-body">
+<pre><span class="p">// Capability: approve-pr</span>
+{
+  <span class="k">"id"</span>: <span class="s">"approve-pr"</span>,
+  <span class="k">"action"</span>: <span class="s">"pull_request.approve"</span>,
+  <span class="k">"scope"</span>: <span class="s">"pr"</span>
+}
+
+<span class="p">// Capability: comment-review</span>
+{
+  <span class="k">"id"</span>: <span class="s">"comment-review"</span>,
+  <span class="k">"action"</span>: <span class="s">"pull_request.review.comment"</span>,
+  <span class="k">"scope"</span>: <span class="s">"pr"</span>
+}</pre>
+      </div>
+    </div>
+
+    <!-- AgentCapability + Policy -->
+    <div class="schema">
+      <div class="schema-header"><span class="dot" style="background:#22d3ee"></div>agent_capabilities + policy</div>
+      <div class="schema-body">
+<pre><span class="p">// AgentCapability</span>
+{
+  <span class="k">"id"</span>: <span class="s">"ac_01"</span>,
+  <span class="k">"roleId"</span>: <span class="s">"reviewer"</span>,
+  <span class="k">"capabilityId"</span>: <span class="s">"approve-pr"</span>,
+  <span class="k">"gateId"</span>: <span class="s">"human-approved-code"</span>,
+  <span class="k">"allow"</span>: <span class="n">false</span>
+}
+
+<span class="p">// policy/code-review.json</span>
+{
+  <span class="k">"minReviewers"</span>: <span class="n">1</span>,
+  <span class="k">"requireHuman"</span>: <span class="n">true</span>,
+  <span class="k">"allowAgentToComment"</span>: <span class="n">true</span>,
+  <span class="k">"allowAgentToApprove"</span>: <span class="n">false</span>
+}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

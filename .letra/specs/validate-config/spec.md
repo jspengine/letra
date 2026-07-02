@@ -1,4 +1,6 @@
-# Spec — Validate Config & Opt-out
+# Spec: validate-config
+
+> Updated: 2026-06-22
 
 ## Outcome
 

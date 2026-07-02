@@ -1,6 +1,6 @@
-# Spec: Spec-Code Drift Detector
+# Spec: spec-code-drift
 
-> Updated: 2026-06-15
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -13,15 +13,11 @@ Um AC marcado como `[x]` (feito) no spec pode ficar defasado se o código é rem
 - Usa o mesmo `searchInSource` do `ac-false-pos` mas varre spec inteiro, não só o acceptance.md
 - Escaneia specs em estágio `code`, `review`, `done` (ignora `design` e `backlog` — ACs ainda não implementados)
 
-## Architecture
+## Exclusions
 
-```
-detectors/spec-code-drift.ts
-  → Lê cada spec com ACs `[x]`
-  → Extrai command/name do AC (ex: "flow visualize")
-  → Busca no source (camelCase, PascalCase, kebab-case)
-  → Se não encontrado e spec está em code/review/done, sugere reverter para `[ ]`
-```
+- Análise semântica (AST, type checking) — busca textual apenas
+- Verificação de cobertura de testes (escopo de validate-ac-signal)
+- Drift reverso (código existe mas AC `[ ]` — já coberto por ac-stale)
 
 ## Acceptance Criteria
 
@@ -29,12 +25,6 @@ detectors/spec-code-drift.ts
 - [x] **Ignora design/backlog**: ACs em specs não implementados não são verificados
 - [x] **Suggest-only**: Certeza 0.7, não auto-corrige
 - [x] **Testes**: Spec com AC `[x]` sem código → sugestão; spec com AC `[x]` com código → silêncio
-
-## Exclusions
-
-- Análise semântica (AST, type checking) — busca textual apenas
-- Verificação de cobertura de testes (escopo de validate-ac-signal)
-- Drift reverso (código existe mas AC `[ ]` — já coberto por ac-stale)
 
 ## Context
 

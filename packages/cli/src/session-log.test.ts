@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { loadSessionLog, logEntry, queryLog } from "./session-log.js";
+import { loadSessionLog, logEntry, queryLog, queryLogWithMeta } from "./session-log.js";
 import type { SessionLog } from "./session-log.js";
 
 describe("session-log", () => {
@@ -76,13 +76,13 @@ describe("session-log", () => {
 			expect(entry.details).toEqual({ passed: 5, failed: 0 });
 		});
 
-		it("should enforce FIFO limit of 500 entries", () => {
+		it("should preserve all entries (append-only, no FIFO limit)", () => {
 			for (let i = 0; i < 510; i++) {
 				logEntry(tmpDir, "manual", `Entry ${i}`);
 			}
 			const log = loadSessionLog(tmpDir);
-			expect(log.entries.length).toBeLessThanOrEqual(500);
-			expect(log.entries[0].description).toBe("Entry 10");
+			expect(log.entries.length).toBe(510);
+			expect(log.entries[0].description).toBe("Entry 0");
 			expect(log.entries[log.entries.length - 1].description).toBe("Entry 509");
 		});
 	});
@@ -135,6 +135,77 @@ describe("session-log", () => {
 				expect(new Date(entries[i - 1].timestamp).getTime())
 					.toBeGreaterThanOrEqual(new Date(entries[i].timestamp).getTime());
 			}
+		});
+	});
+
+	describe("queryLog — text search", () => {
+		beforeEach(() => {
+			logEntry(tmpDir, "manual", "Working on authentication");
+			logEntry(tmpDir, "validate", "Validation passed for auth module");
+			logEntry(tmpDir, "item_move", "Move ITEM-42 to review");
+		});
+
+		it("should filter by text query matching description", () => {
+			const entries = queryLog(tmpDir, { all: true, q: "auth" });
+			expect(entries).toHaveLength(2);
+		});
+
+		it("should filter by text query matching action", () => {
+			const entries = queryLog(tmpDir, { all: true, q: "validate" });
+			expect(entries).toHaveLength(1);
+			expect(entries[0].action).toBe("validate");
+		});
+
+		it("should return empty when no match", () => {
+			const entries = queryLog(tmpDir, { all: true, q: "zzzzz" });
+			expect(entries).toHaveLength(0);
+		});
+	});
+
+	describe("queryLog — date range", () => {
+		it("should filter by from date", () => {
+			const future = new Date(Date.now() + 86400000).toISOString();
+			const entries = queryLog(tmpDir, { all: true, from: future });
+			expect(entries).toHaveLength(0);
+		});
+
+		it("should filter by to date", () => {
+			const past = new Date(Date.now() - 86400000).toISOString();
+			const entries = queryLog(tmpDir, { all: true, to: past });
+			expect(entries).toHaveLength(0);
+		});
+	});
+
+	describe("queryLogWithMeta", () => {
+		beforeEach(() => {
+			for (let i = 0; i < 5; i++) {
+				logEntry(tmpDir, "manual", `Entry ${i}`);
+			}
+		});
+
+		it("should return total count without pagination slicing", () => {
+			const result = queryLogWithMeta(tmpDir, { limit: 2 });
+			expect(result.total).toBe(5);
+			expect(result.entries).toHaveLength(2);
+		});
+
+		it("should compute facets", () => {
+			logEntry(tmpDir, "system", "System event", {
+				details: { systemAction: true, outcome: "failed" },
+			});
+			const result = queryLogWithMeta(tmpDir, { all: true });
+			expect(result.facets.actions.manual).toBeGreaterThanOrEqual(5);
+			expect(result.facets.actions.system).toBe(1);
+		});
+	});
+
+	describe("preservation (append-only)", () => {
+		it("should not cap entries at previous limit", () => {
+			for (let i = 0; i < 600; i++) {
+				logEntry(tmpDir, "manual", `Bulk entry ${i}`);
+			}
+			const log = loadSessionLog(tmpDir);
+			expect(log.entries.length).toBeGreaterThan(500);
 		});
 	});
 });

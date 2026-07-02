@@ -1,4 +1,6 @@
-# Spec: CI/CD Pipeline
+# Spec: ci-cd-pipeline
+
+> Updated: 2026-06-22
 
 ## Outcome
 

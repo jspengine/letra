@@ -7,6 +7,7 @@ const DONE_AC_PATTERN = /-\s\[x\]\s\*\*`([^`]+)`\*\*/g;
 
 export const acFalsePosDetector: Detector = {
 	name: "ac-false-pos",
+	devOnly: true,
 	async run(rootDir: string): Promise<DiagnosticResult[]> {
 		const results: DiagnosticResult[] = [];
 		const specsDir = join(rootDir, ".letra", "specs");

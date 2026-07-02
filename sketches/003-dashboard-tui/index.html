@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Letra — Dashboard TUI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --border: #2a2a2a;
+    --muted: #6b6b6b;
+    --fg: #e6e6e6;
+    --accent: #5c7cfa;
+    --accent-dim: #3b5bdb;
+    --success: #2f9e44;
+    --danger: #fa5252;
+    --warn: #fcc419;
+    --stage-spec: #9c5ce0;
+    --stage-code: #5c7cfa;
+    --stage-review: #fcc419;
+    --stage-security: #fd7e14;
+    --stage-done: #2f9e44;
+    --font: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 8px;
+    overflow: hidden;
+  }
+  .app {
+    max-width: 1400px;
+    margin: 0 auto;
+    height: 98vh;
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-columns: 220px 1fr 300px;
+    grid-template-areas:
+      "header header header"
+      "metrics metrics metrics"
+      "sidebar board feed"
+      "footer footer footer";
+    gap: 8px;
+  }
+  /* Header */
+  .header {
+    grid-area: header;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .brand { color: var(--accent); font-weight: 700; font-size: 14px; }
+  .workspace-context { display: flex; gap: 12px; align-items: center; }
+  .workspace-name { font-weight: 600; font-size: 13px; }
+  .workspace-meta { color: var(--muted); font-size: 11px; }
+  .header-actions { display: flex; gap: 8px; }
+  .btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--fg); }
+  .btn.primary { background: var(--success); }
+  /* Metrics */
+  .metrics {
+    grid-area: metrics;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .metric-label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+  .metric-value { font-size: 18px; font-weight: 700; margin-top: 2px; }
+  .metric-delta { font-size: 10px; margin-top: 2px; }
+  .metric-delta.up { color: var(--success); }
+  .metric-delta.down { color: var(--danger); }
+  /* Sidebar */
+  .sidebar {
+    grid-area: sidebar;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    overflow-y: auto;
+  }
+  .sidebar-title { color: var(--muted); font-size: 10px; text-transform: uppercase; margin-bottom: 6px; }
+  .workspace-item {
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 2px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .workspace-item:hover { background: #1a1a1a; }
+  .workspace-item.active { background: #1a1f36; border: 1px solid var(--accent-dim); }
+  .workspace-item .wname { font-size: 12px; }
+  .workspace-item .wstatus { font-size: 10px; color: var(--muted); }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .status-dot.active { background: var(--success); }
+  .status-dot.idle { background: var(--warn); }
+  .status-dot.empty { background: var(--muted); }
+  /* Board */
+  .board {
+    grid-area: board;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    overflow-x: auto;
+  }
+  .stage {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    min-height: 300px;
+  }
+  .stage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .stage-name { font-weight: 600; font-size: 12px; }
+  .stage-count { color: var(--muted); font-size: 10px; background: #1a1a1a; padding: 1px 6px; border-radius: 999px; }
+  .stage-card {
+    background: #1a1a1a;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+  }
+  .stage-card:hover { border-color: var(--accent-dim); }
+  .stage-card .title { font-size: 12px; margin-bottom: 4px; }
+  .stage-card .meta { color: var(--muted); font-size: 10px; display: flex; justify-content: space-between; }
+  .gate-indicator {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 4px;
+    display: inline-block;
+  }
+  .gate-indicator.locked { background: #2a1a1a; color: var(--danger); border: 1px solid var(--danger); }
+  .gate-indicator.open { background: #1a2a1a; color: var(--success); border: 1px solid var(--success); }
+  .gate-indicator.pending { background: #2a2a1a; color: var(--warn); border: 1px solid var(--warn); }
+  /* Feed */
+  .feed {
+    grid-area: feed;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .feed-title { color: var(--muted); font-size: 10px; text-transform: uppercase; margin-bottom: 8px; }
+  .feed-list { flex: 1; overflow-y: auto; }
+  .feed-item {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .feed-item:last-child { border-bottom: none; }
+  .feed-time { color: var(--muted); font-size: 10px; }
+  .feed-user { font-weight: 600; }
+  .feed-action { color: var(--fg); margin-top: 2px; }
+  /* Footer */
+  .footer {
+    grid-area: footer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 10px;
+  }
+  .footer kbd {
+    background: #1a1a1a;
+    border: 1px solid var(--border);
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: var(--fg);
+    font-family: inherit;
+  }
+  .stage-spec { border-top: 2px solid var(--stage-spec); }
+  .stage-code { border-top: 2px solid var(--stage-code); }
+  .stage-review { border-top: 2px solid var(--stage-review); }
+  .stage-security { border-top: 2px solid var(--stage-security); }
+  .stage-done { border-top: 2px solid var(--stage-done); }
+  .badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .badge.success { background: #1a2a1a; color: var(--success); border: 1px solid var(--success); }
+  .badge.warn { background: #2a2a1a; color: var(--warn); border: 1px solid var(--warn); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="brand">letra.</div>
+    <div class="workspace-context">
+      <div>
+        <div class="workspace-name">📁 pix-credito</div>
+        <div class="workspace-meta">3 repositórios · SDLC · gates: spec-review, code-review</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn secondary">letra workspace switch</button>
+      <button class="btn primary">letra flow start</button>
+      <button class="btn">letra review</button>
+      <button class="btn secondary">letra pr</button>
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div class="metrics">
+    <div class="metric-card">
+      <div class="metric-label">Cycle Time</div>
+      <div class="metric-value">2.3d</div>
+      <div class="metric-delta down">+0.4d vs média</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Review Wait</div>
+      <div class="metric-value">4.2h</div>
+      <div class="metric-delta up">-1.2h vs média</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Rejection Rate</div>
+      <div class="metric-value">12%</div>
+      <div class="metric-delta up">-3% vs média</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Throughput</div>
+      <div class="metric-value">8 <span style="font-size:11px;color:var(--muted)">/sem</span></div>
+      <div class="metric-delta up">+2 vs semana</div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-title">Workspaces</div>
+    <div class="workspace-item active">
+      <div>
+        <div class="wname">📁 pix-credito</div>
+        <div class="wstatus">Em andamento</div>
+      </div>
+      <span class="status-dot active"></span>
+    </div>
+    <div class="workspace-item">
+      <div>
+        <div class="wname">📁 auth-redesign</div>
+        <div class="wstatus">Pausado</div>
+      </div>
+      <span class="status-dot idle"></span>
+    </div>
+    <div class="workspace-item">
+      <div>
+        <div class="wname">📁 migracao-v2</div>
+        <div class="wstatus">Pendente</div>
+      </div>
+      <span class="status-dot empty"></span>
+    </div>
+    <div style="margin-top:12px" class="sidebar-title">Ações</div>
+    <button class="btn" style="width:100%;margin-bottom:4px">+ Novo workspace</button>
+    <button class="btn secondary" style="width:100%">letra sync</button>
+  </div>
+
+  <!-- Board -->
+  <div class="board">
+    <div class="stage stage-spec">
+      <div class="stage-header">
+        <div class="stage-name">Spec Draft</div>
+        <div class="stage-count">1</div>
+      </div>
+      <div class="stage-card">
+        <div class="title">Especificar gateway PIX</div>
+        <div class="meta"><span>#142</span><span>hoje</span></div>
+        <div class="gate-indicator open">✓ spec-review aprovado</div>
+      </div>
+    </div>
+    <div class="stage stage-code">
+      <div class="stage-header">
+        <div class="stage-name">Code</div>
+        <div class="stage-count">2</div>
+      </div>
+      <div class="stage-card">
+        <div class="title">Implementar endpoint /pix</div>
+        <div class="meta"><span>#145</span><span>2h atrás</span></div>
+        <div class="gate-indicator pending">⏳ code-review pendente</div>
+      </div>
+      <div class="stage-card">
+        <div class="title">Atualizar schema shared-lib</div>
+        <div class="meta"><span>#148</span><span>ontem</span></div>
+      </div>
+    </div>
+    <div class="stage stage-review">
+      <div class="stage-header">
+        <div class="stage-name">Review</div>
+        <div class="stage-count">1</div>
+      </div>
+      <div class="stage-card">
+        <div class="title">CR #142 — gateway</div>
+        <div class="meta"><span>aguardando</span><span>3h</span></div>
+        <div class="gate-indicator pending">⏳ aguardando aprovação</div>
+      </div>
+    </div>
+    <div class="stage stage-security">
+      <div class="stage-header">
+        <div class="stage-name">Security</div>
+        <div class="stage-count">0</div>
+      </div>
+      <div style="color:var(--muted);font-size:11px;padding:8px">Nenhum item</div>
+    </div>
+    <div class="stage stage-done">
+      <div class="stage-header">
+        <div class="stage-name">Done</div>
+        <div class="stage-count">3</div>
+      </div>
+      <div class="stage-card">
+        <div class="title">Setup workspace</div>
+        <div class="meta"><span>#1</span><span>21/06</span></div>
+        <span class="badge success">merged</span>
+      </div>
+      <div class="stage-card">
+        <div class="title">CI/CD pipeline</div>
+        <div class="meta"><span>#2</span><span>21/06</span></div>
+        <span class="badge success">merged</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feed -->
+  <div class="feed">
+    <div class="feed-title">Interações recentes</div>
+    <div class="feed-list">
+      <div class="feed-item">
+        <div class="feed-time">14:32</div>
+        <div class="feed-user">letra</div>
+        <div class="feed-action">PR #145 aberto → Code Review</div>
+      </div>
+      <div class="feed-item">
+        <div class="feed-time">14:15</div>
+        <div class="feed-user">letra</div>
+        <div class="feed-action">Stage Code → Review (gate: code-review)</div>
+      </div>
+      <div class="feed-item">
+        <div class="feed-time">13:45</div>
+        <div class="feed-user">Ana</div>
+        <div class="feed-action">Aprovou spec #142 (spec-review)</div>
+      </div>
+      <div class="feed-item">
+        <div class="feed-time">11:00</div>
+        <div class="feed-user">letra</div>
+        <div class="feed-action">Workspace pix-credito criado</div>
+      </div>
+      <div class="feed-item">
+        <div class="feed-time">10:30</div>
+        <div class="feed-user">letra</div>
+        <div class="feed-action">Harness v0.1.0 sincronizado</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div>
+      <kbd>↑↓</kbd> navegar · <kbd>Enter</kbd> abrir · <kbd>?</kbd> ajuda · <kbd>Ctrl+C</kbd> sair
+    </div>
+    <div>letra v0.5.3 · workspace: pix-credito · harness: v0.1.0</div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,4 +1,6 @@
-# Spec: CLI Letra — Skeleton
+# Spec: cli-skeleton
+
+> Updated: 2026-06-22
 
 ## Outcome
 

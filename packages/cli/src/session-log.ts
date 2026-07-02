@@ -38,7 +38,6 @@ export interface SessionLog {
 
 const LOG_FILE = "session-log.json";
 const SCHEMA_VERSION = 1;
-const MAX_ENTRIES = 500;
 
 let logCounter = 0;
 
@@ -98,11 +97,6 @@ export function logEntry(
 		details: options?.details ?? {},
 	};
 	log.entries.push(entry);
-
-	if (log.entries.length > MAX_ENTRIES) {
-		log.entries = log.entries.slice(log.entries.length - MAX_ENTRIES);
-	}
-
 	saveSessionLog(root, log);
 	return entry;
 }
@@ -114,32 +108,96 @@ export interface LogQuery {
 	action?: LogAction | string;
 	since?: string;
 	all?: boolean;
+	q?: string;
+	from?: string;
+	to?: string;
+	spec?: string;
+}
+
+export interface LogQueryResult {
+	entries: LogEntry[];
+	total: number;
+	facets: {
+		actions: Record<string, number>;
+		statuses: Record<string, number>;
+	};
+}
+
+function matchesTextSearch(entry: LogEntry, query: string): boolean {
+	const lower = query.toLowerCase();
+	return (
+		entry.id.toLowerCase().includes(lower) ||
+		entry.action.toLowerCase().includes(lower) ||
+		entry.description.toLowerCase().includes(lower) ||
+		(entry.itemId ?? "").toLowerCase().includes(lower) ||
+		(entry.acId ?? "").toLowerCase().includes(lower) ||
+		JSON.stringify(entry.details).toLowerCase().includes(lower)
+	);
+}
+
+function computeFacets(entries: LogEntry[]): LogQueryResult["facets"] {
+	const actions: Record<string, number> = {};
+	const statuses: Record<string, number> = {};
+	for (const e of entries) {
+		const action = e.action || "unknown";
+		actions[action] = (actions[action] || 0) + 1;
+		const outcome = typeof e.details?.outcome === "string" ? e.details.outcome : "completed";
+		statuses[outcome] = (statuses[outcome] || 0) + 1;
+	}
+	return { actions, statuses };
 }
 
 export function queryLog(root: string, query?: LogQuery): LogEntry[] {
 	const log = loadSessionLog(root);
-	let entries = [...log.entries];
+	return _queryLog(log.entries, query);
+}
 
-	if (query?.itemId) {
-		entries = entries.filter((e) => e.itemId === query.itemId);
+export function queryLogWithMeta(root: string, query?: LogQuery): LogQueryResult {
+	const log = loadSessionLog(root);
+	const allEntries = _applyFilters(log.entries, query);
+	const total = allEntries.length;
+	const limit = query?.limit ?? 50;
+	const offset = query?.offset ?? 0;
+	const page = query?.all ? allEntries : allEntries.slice(offset, offset + limit);
+	return {
+		entries: page,
+		total,
+		facets: computeFacets(allEntries),
+	};
+}
+
+function _applyFilters(allEntries: LogEntry[], query?: LogQuery): LogEntry[] {
+	let entries = [...allEntries];
+	if (query?.itemId) entries = entries.filter((e) => e.itemId === query.itemId);
+	if (query?.action) entries = entries.filter((e) => e.action === query.action);
+	if (query?.spec) {
+		const spec = query.spec.toLowerCase();
+		entries = entries.filter((e) => {
+			const specVal = typeof e.details?.spec === "string" ? e.details.spec : "";
+			return specVal.toLowerCase() === spec;
+		});
 	}
-
-	if (query?.action) {
-		entries = entries.filter((e) => e.action === query.action);
-	}
-
+	if (query?.q) entries = entries.filter((e) => matchesTextSearch(e, query.q!));
 	if (query?.since) {
 		const sinceDate = new Date(query.since).getTime();
 		entries = entries.filter((e) => new Date(e.timestamp).getTime() >= sinceDate);
 	}
-
-	entries.reverse();
-
-	if (!query?.all) {
-		const limit = query?.limit ?? 10;
-		const offset = query?.offset ?? 0;
-		entries = entries.slice(offset, offset + limit);
+	if (query?.from) {
+		const fromDate = new Date(query.from).getTime();
+		entries = entries.filter((e) => new Date(e.timestamp).getTime() >= fromDate);
 	}
-
+	if (query?.to) {
+		const toDate = new Date(query.to).getTime();
+		entries = entries.filter((e) => new Date(e.timestamp).getTime() <= toDate);
+	}
+	entries.reverse();
 	return entries;
+}
+
+function _queryLog(allEntries: LogEntry[], query?: LogQuery): LogEntry[] {
+	const entries = _applyFilters(allEntries, query);
+	if (query?.all) return entries;
+	const limit = query?.limit ?? 10;
+	const offset = query?.offset ?? 0;
+	return entries.slice(offset, offset + limit);
 }

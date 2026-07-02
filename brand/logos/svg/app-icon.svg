@@ -1,0 +1,28 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="flowAmber" x1="30" y1="72" x2="208" y2="132" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE08A"/>
+      <stop offset="0.48" stop-color="#FFB800"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
+    <filter id="ambientGlow" x="-15%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 0.72 0 0 0  0 0 0 0 0  0 0 0 0.22 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="#0B0D12"/>
+  <g filter="url(#ambientGlow)">
+    <circle cx="48" cy="84" r="16" fill="url(#flowAmber)"/>
+    <path d="M68 84H104L120 98H150L166 112H208" stroke="url(#flowAmber)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="120" cy="98" r="12" fill="url(#flowAmber)"/>
+    <circle cx="166" cy="112" r="12" fill="url(#flowAmber)"/>
+    <rect x="208" y="94" width="30" height="30" rx="7" transform="rotate(45 208 94)" fill="url(#flowAmber)"/>
+  </g>
+  <circle cx="42" cy="78" r="3" fill="#FFF3D0" opacity="0.82"/>
+  <circle cx="114" cy="92" r="2.5" fill="#FFF3D0" opacity="0.76"/>
+  <circle cx="160" cy="106" r="2.5" fill="#FFF3D0" opacity="0.76"/>
+</svg>

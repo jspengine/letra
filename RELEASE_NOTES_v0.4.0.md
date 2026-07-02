@@ -11,8 +11,8 @@ This release transforms Letra from a CLI-only spec tool into a full **AI Memory 
 ## New CLI Commands
 
 ### `letra decision`
-- `letra decision new <title>` — Architecture Decision Records com template Contexto → Decisão → Consequências
-- `letra decision list` — Lista todos os ADRs em `.letra/decisions/`
+- `letra decision new <title>` — Registro de Decisão com template Contexto → Decisão → Consequências
+- `letra decision list` — Lista todos os registros em `.letra/decisions/`
 
 ### `letra focus`
 - `letra focus <spec>` — Define o foco da sessão atual, extrai o Outcome da spec

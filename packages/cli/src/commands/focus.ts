@@ -59,7 +59,7 @@ export default function () {
 
 				const workflow = loadWorkflow(root);
 				let itemId = "";
-				let activeStageId = "code";
+				let activeStageId = "";
 
 				if (workflow) {
 					const itemWithSpec = workflow.items.find((item) => item.spec === spec);
@@ -67,10 +67,10 @@ export default function () {
 						itemId = itemWithSpec.id;
 						activeStageId = itemWithSpec.stage;
 					} else {
-						const codeStage = workflow.stages.find(
-							(s) => s.id === "code" || s.name.toLowerCase() === "code",
-						);
-						activeStageId = codeStage ? codeStage.id : workflow.stages[0]?.id;
+						const devStage = workflow.stages.find((s) => s.zone === "doing")
+							?? workflow.stages.find((s) => s.order > 0 && s.zone !== "done")
+							?? workflow.stages[0];
+						activeStageId = devStage?.id ?? workflow.stages[0]?.id;
 					}
 				}
 

@@ -1,4 +1,6 @@
-# Spec — Adapter VSCode
+# Spec: adapter-vscode
+
+> Updated: 2026-06-22
 
 ## Outcome
 

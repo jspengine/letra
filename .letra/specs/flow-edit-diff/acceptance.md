@@ -1,7 +1,9 @@
-# Acceptance Criteria — flow-edit-diff
+## Acceptance Criteria
 
-- [ ] **Instalação**: CLI executável via npx/npm install -g sem erros.
-- [ ] **--help**: Roda sem argumentos, exibe ajuda com subcomandos.
-- [ ] **Subcomando**: Subcomando principal executa sem erros e exibe output.
-- [ ] **Erro**: Subcomando inválido exibe erro amigável e exit 1.
-- [ ] **Cross-platform**: Funciona em Windows (cmd/powershell), macOS (zsh) e Linux (bash).
+- [ ] **`letra flow edit --name "Novo"`**: atualiza nome e versiona
+- [ ] **`letra flow edit --desc "Desc"`**: atualiza descrição
+- [ ] **Versionamento**: incrementa (1.0.0 → 1.1.0) a cada edição
+- [ ] **Backup**: da versão anterior é salvo
+- [ ] **`flow diff`**: mostra diferenças entre atual e último backup
+- [x] **`flow diff v1.0.0 v1.1.0`**: compara versões específicas
+- [ ] **Testado localmente**: antes do PR

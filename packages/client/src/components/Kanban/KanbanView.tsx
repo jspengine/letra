@@ -6,9 +6,17 @@ import { cn } from "../../lib/utils";
 import { MarchingBorder } from "./MarchingBorder";
 import type { Item } from "@letra/types";
 import { computeSlug, computeTypeTag, countACs, TYPE_COLORS, type ItemType } from "../../lib/item-utils";
+import {
+	humanGateStageIds,
+	orderedStages,
+	stagePresentation,
+	type ActiveFlowDefinition,
+} from "../../lib/active-flow";
+import { PhaseBadge } from "./PhaseBadge";
 
 interface Props {
 	workflow: Workflow;
+	activeFlow?: ActiveFlowDefinition | null;
 	onSelectItem: (id: string) => void;
 	onItemMoved: () => void;
 	onDropItem?: (itemId: string, targetStageId: string) => void;
@@ -65,6 +73,7 @@ function truncate(text: string, max: number): string {
 
 export default function KanbanView({
 	workflow,
+	activeFlow = null,
 	onSelectItem,
 	onItemMoved,
 	onDropItem,
@@ -160,7 +169,7 @@ export default function KanbanView({
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ stage: targetStageId }),
 			});
-			const releaseP = item.claimedBy && targetStageId === "review"
+			const releaseP = item.claimedBy && humanGateStageIds(workflow, activeFlow).has(targetStageId)
 				? fetch(`/api/items/${itemId}/release`, { method: "POST" })
 				: Promise.resolve();
 			Promise.all([p, releaseP]).then(debouncedMove).catch(console.warn);
@@ -186,8 +195,9 @@ export default function KanbanView({
 			</div>
 		) : (
 			<div className="flex flex-1 min-h-0 gap-3 p-3 overflow-x-auto">
-			{workflow.stages.map((stage) => {
+			{orderedStages(workflow, activeFlow).map((stage) => {
 				const stageItems = workflow.items.filter((it) => it.stage === stage.id);
+				const stageColor = stagePresentation(stage).color;
 				const isOver = dragOver === stage.id;
 				const isOverDenied =
 					isOver && draggingId && allowMoveToStage
@@ -196,14 +206,14 @@ export default function KanbanView({
 								stage.id,
 							)
 						: false;
-				const accentBorder = stage.color ? `2px solid ${stage.color}40` : undefined;
-				const accentHeader = stage.color ? stage.color : undefined;
+				const accentBorder = `2px solid ${stageColor}40`;
+				const accentHeader = stageColor;
 				return (
 					<Card
 						key={stage.id}
 						className={cn(
-							"flex-1 min-w-[220px] transition-all border-muted/60",
-							isOver && !isOverDenied && "ring-2 ring-primary/50 border-primary",
+							"flex flex-col flex-1 min-w-[220px] min-h-0 transition-all border-muted/60",
+							isOver && !isOverDenied && "border-2 border-dashed border-primary/30",
 							isOverDenied && "ring-2 ring-red-500/50 border-red-500 opacity-60",
 						)}
 						style={accentBorder ? { borderTop: accentBorder } : undefined}
@@ -212,23 +222,25 @@ export default function KanbanView({
 						onDragLeave={handleDragLeave}
 						onDrop={(e) => handleDrop(e, stage.id)}
 					>
-						<CardContent className="p-3">
-							<h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-								{accentHeader && (
+						<CardContent className="p-0 flex flex-col flex-1 min-h-0">
+							<div className="shrink-0 p-3 pb-2 border-b" style={{ borderColor: "var(--border)" }}>
+								<h3 className="text-sm font-semibold flex items-center gap-2">
+									{accentHeader && (
+										<span
+											className="w-2 h-2 rounded-full shrink-0"
+											style={{ background: accentHeader }}
+										/>
+									)}
+									{stage.name}
 									<span
-										className="w-2 h-2 rounded-full shrink-0"
-										style={{ background: accentHeader }}
-									/>
-								)}
-								{stage.name}
-								<span
-									className="text-xs font-normal"
-									style={{ color: "var(--muted-foreground)" }}
-								>
-									{stageItems.length}
-								</span>
-							</h3>
-							<div className="flex flex-col gap-2 min-h-[60px]">
+										className="text-xs font-normal"
+										style={{ color: "var(--muted-foreground)" }}
+									>
+										{stageItems.length}
+									</span>
+								</h3>
+							</div>
+							<div className="flex flex-col gap-2 p-3 pt-2 min-h-[60px] flex-1 overflow-y-auto">
 								{stageItems.length === 0 && (
 									<p
 										className="text-xs"
@@ -254,13 +266,22 @@ export default function KanbanView({
 										<div
 											key={it.id}
 											draggable="true"
+											role="button"
+											tabIndex={0}
+											aria-label={`Abrir ${it.id}: ${slug}`}
 											onClick={() => onSelectItem(it.id)}
+											onKeyDown={(event) => {
+												if (event.key === "Enter" || event.key === " ") {
+													event.preventDefault();
+													onSelectItem(it.id);
+												}
+											}}
 											onDragStart={(e) => handleDragStart(e, it.id)}
 											onDragEnd={handleDragEnd}
 												className={cn(
-													"relative group rounded-lg border text-card-foreground transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-sm hover:-translate-y-0.5",
-													draggingId === it.id && "opacity-40",
-													stage.color
+													"relative group rounded-lg border text-card-foreground transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-sm hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+													draggingId === it.id && "opacity-70 scale-[1.02] shadow-md",
+													stageColor
 														? "bg-card/90 hover:border-transparent"
 														: "bg-card hover:border-primary/20",
 												)}
@@ -269,12 +290,12 @@ export default function KanbanView({
 														? "transparent"
 														: isFocused
 															? "var(--border-focus)"
-															: stage.color
-																? `${stage.color}30`
+															: stageColor
+																? `${stageColor}30`
 																: "var(--border)",
 													borderLeft: isFocused && !isClaimed ? "3px solid var(--border-focus)" : undefined,
-													background: stage.color
-														? `color-mix(in srgb, ${stage.color}08, var(--card))`
+													background: stageColor
+														? `color-mix(in srgb, ${stageColor}08, var(--card))`
 														: undefined,
 												boxShadow: isClaimed
 													? undefined
@@ -282,8 +303,8 @@ export default function KanbanView({
 														? `0 0 8px color-mix(in srgb, var(--border-focus) 30%, transparent)`
 														: draggingId === it.id
 															? undefined
-															: stage.color
-																? `0 1px 3px ${stage.color}15`
+															: stageColor
+																? `0 1px 3px ${stageColor}15`
 																: `0 1px 2px oklch(0 0 0 / 0.08)`,
 												}}
 										>
@@ -310,6 +331,12 @@ export default function KanbanView({
 													>
 														{typeTag}
 													</span>
+													{it.currentPhase && stage.phases?.states?.[it.currentPhase] && (
+														<PhaseBadge phase={{
+															id: it.currentPhase,
+															label: stage.phases.states[it.currentPhase].label,
+														}} />
+													)}
 												</div>
 												<div
 													className="truncate text-xs leading-relaxed"
@@ -323,7 +350,7 @@ export default function KanbanView({
 														max={progressMax}
 														size="xs"
 														showValue
-														barColor={stage.color}
+														barColor={stageColor}
 													/>
 												)}
 														<div className="flex items-center justify-between gap-1 mt-0.5">
@@ -356,7 +383,7 @@ export default function KanbanView({
 												</div>
 												<div className="hidden group-hover:flex items-center gap-1">
 													{isFocused ? (
-														<button
+														<Button
 															className="text-[10px] px-1.5 py-0.5 rounded"
 															style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}
 															disabled={loadingButtons.has(`focus-${it.id}`)}
@@ -370,9 +397,9 @@ export default function KanbanView({
 															}}
 														>
 															{loadingButtons.has(`focus-${it.id}`) ? "⏳" : "★ Focus"}
-														</button>
+														</Button>
 													) : (
-														<button
+														<Button
 															className="text-[10px] px-1.5 py-0.5 rounded"
 															style={{ background: "var(--border-focus)", color: "white" }}
 															disabled={loadingButtons.has(`focus-${it.id}`)}
@@ -386,10 +413,10 @@ export default function KanbanView({
 															}}
 														>
 															{loadingButtons.has(`focus-${it.id}`) ? "⏳" : "☆ Focus"}
-														</button>
+														</Button>
 													)}
 													{isClaimed ? (
-														<button
+														<Button
 															className="text-[10px] px-1.5 py-0.5 rounded"
 															style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}
 															disabled={loadingButtons.has(`release-${it.id}`)}
@@ -402,9 +429,9 @@ export default function KanbanView({
 															}}
 														>
 															{loadingButtons.has(`release-${it.id}`) ? "⏳" : "Release"}
-														</button>
+														</Button>
 													) : (
-														<button
+														<Button
 															className="text-[10px] px-1.5 py-0.5 rounded"
 															style={{ background: "var(--primary)", color: "white" }}
 															disabled={loadingButtons.has(`claim-${it.id}`)}
@@ -417,7 +444,7 @@ export default function KanbanView({
 															}}
 														>
 															{loadingButtons.has(`claim-${it.id}`) ? "⏳" : "Claim"}
-														</button>
+														</Button>
 													)}
 												</div>
 											</div>

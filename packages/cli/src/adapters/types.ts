@@ -8,6 +8,19 @@ export interface HarnessItem {
 	claimedAt?: string;
 }
 
+export interface HandoffStep {
+	command: string;
+	label: string;
+	recovery?: string;
+}
+
+export interface HandoffData {
+	steps: HandoffStep[];
+	primaryItemId: string;
+	nextStageName?: string;
+	disabled?: boolean;
+}
+
 export interface HarnessSnapshot {
 	workflowName: string;
 	hasWorkflow: boolean;
@@ -25,6 +38,22 @@ export interface HarnessSnapshot {
 		actionsSummary: string;
 	} | null;
 	alerts?: Array<{ id: string; severity: string; title: string; source: string; detectedAt: string }>;
+	currentPhase?: {
+		id: string;
+		label: string;
+		description: string;
+		harness?: {
+			instructions?: string;
+			checks?: string[];
+		};
+	};
+	handoff?: HandoffData;
+}
+
+export interface HandoffWorkflowConfig {
+	enabled?: boolean;
+	customSteps?: HandoffStep[];
+	skipSteps?: string[];
 }
 
 export interface GenerateOptions {
@@ -40,11 +69,14 @@ export interface GenerateOptions {
 			tasks?: Array<{ id: string; description: string; done: boolean }>;
 			claimedBy?: string;
 			claimedAt?: string;
+			currentPhase?: string;
 		}>;
+		handoff?: HandoffWorkflowConfig | boolean;
 	};
 	activeStageId?: string;
 	primaryItemId?: string;
 	graveIssueCount?: number;
+	workspaceDir?: string;
 }
 
 export type AdapterFormat = "at" | "text";

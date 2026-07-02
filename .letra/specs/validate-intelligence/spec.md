@@ -1,4 +1,6 @@
-# Spec — Validate Intelligence
+# Spec: validate-intelligence
+
+> Updated: 2026-06-22
 
 ## Outcome
 

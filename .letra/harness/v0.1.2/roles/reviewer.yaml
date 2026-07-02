@@ -1,0 +1,10 @@
+id: reviewer
+label: Revisor de Código
+description: Analisa diffs, comenta e sugere melhorias.
+allowedStages:
+  - code-review
+  - security
+capabilities:
+  - read_code
+  - comment_pr
+  - suggest_changes

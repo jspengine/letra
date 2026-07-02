@@ -1,6 +1,6 @@
-# Spec: Cross-Spec Dependency Detector
+# Spec: cross-spec-dep
 
-> Updated: 2026-06-15
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -13,15 +13,11 @@ Specs podem depender uns dos outros (ex: ITEM-32 diagnostics UI depende de ITEM-
 - Não requer configuração manual de dependências — inferência automática
 - Alerta quando spec A (code) referencia spec B (done) e B foi modificado após A entrar em code
 
-## Architecture
+## Exclusions
 
-```
-detectors/cross-spec-dep.ts
-  → Lê todos os specs
-  → Procura padrões: "ITEM-\d+", "spec:", "/api/\w+", "acceptance.md" de outros specs
-  → Constrói grafo de dependências
-  → Se spec A referencia spec B e B tem updatedAt > A.updatedAt, sugere revisão
-```
+- Dependências cíclicas — o grafo ignora ciclos (alerta apenas o mais recente)
+- Dependências externas (npm, APIs de terceiros) — escopo só intra-projeto
+- Resolução automática — suggest-only
 
 ## Acceptance Criteria
 
@@ -29,12 +25,6 @@ detectors/cross-spec-dep.ts
 - [x] **Grafo temporal**: Compara `updatedAt` entre specs dependentes
 - [x] **Alerta de drift**: Se spec B mudou depois de spec A referenciá-la, sugere revisão de A
 - [x] **Testes**: Spec A referencia B, B alterado → alerta; B não alterado → silêncio
-
-## Exclusions
-
-- Dependências cíclicas — o grafo ignora ciclos (alerta apenas o mais recente)
-- Dependências externas (npm, APIs de terceiros) — escopo só intra-projeto
-- Resolução automática — suggest-only
 
 ## Context
 

@@ -1,4 +1,6 @@
-# Spec — Validate Watch
+# Spec: validate-watch
+
+> Updated: 2026-06-22
 
 ## Outcome
 

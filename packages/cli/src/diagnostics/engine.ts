@@ -32,6 +32,7 @@ export interface DiagnosticOutput {
 export class DiagnosticEngine {
   private rootDir: string;
   private snapshots: SnapshotStore;
+  private projectType: string;
   private detectors = [
     acStaleDetector,
     acFalsePosDetector,
@@ -48,8 +49,9 @@ export class DiagnosticEngine {
   private lastResults: import("./types.js").DiagnosticResult[] = [];
   private appliedFixes = new Set<string>();
 
-  constructor(rootDir: string) {
+  constructor(rootDir: string, projectType = "software") {
     this.rootDir = rootDir;
+    this.projectType = projectType;
     this.snapshots = new SnapshotStore(rootDir);
   }
 
@@ -63,6 +65,9 @@ export class DiagnosticEngine {
     const allResults: import("./types.js").DiagnosticResult[] = [];
 
     for (const detector of this.detectors) {
+      if (detector.devOnly && this.projectType !== "software") {
+        continue;
+      }
       try {
         const results = await detector.run(this.rootDir);
         allResults.push(...results);

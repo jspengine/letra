@@ -1,6 +1,6 @@
-# Spec: Web Health Alerts — Alertas de Saúde na Web UI
+# Spec: web-health-alerts
 
-> Updated: 2026-06-16
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -14,55 +14,12 @@ O usuário vê os alertas do health record diretamente no dashboard da web app, 
 - Não duplica o DiagnosticsIndicator (que mostra sugestões do diagnostic engine)
 - Design consistente com o sistema de design existente (OKLCH tokens, Tailwind v4)
 
-## Architecture
+## Exclusions
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  Header                                                 │
-│  [logo]  Home  Specs  Flow  Context  🔔(3)  [avatar]   │
-│                                       ↑                 │
-│                              Badge de alertas não lidos  │
-└─────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────┐
-│  Home Dashboard                                         │
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐                   │
-│  │Specs │ │Drift │ │Focus │ │Saúde │← card novo        │
-│  │  12  │ │   3  │ │  ok  │ │ 3 al │                   │
-│  └──────┘ └──────┘ └──────┘ └──────┘                   │
-│                                                         │
-│  ┌─ Alertas ──────────────────────────────────────────┐ │
-│  │ 🔴 alta   AC "flow diff v1.0 v1.1" não encontrado │ │
-│  │ 🟡 média  AC "spec new" não encontrado             │ │
-│  │           [ack] [dismiss]  ─── desde 15/06         │ │
-│  └────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Fluxo de dados
-
-```
-Web App                    flow-serve                File System
-  │                            │                        │
-  │── GET /api/health/alerts ──→── read health-record.json
-  │←── { entries[] } ──────────│                        │
-  │                            │                        │
-  │── POST /api/health/ack ───→── write health-record.json
-  │←── { ok } ────────────────│                        │
-```
-
-### Componentes
-
-- **HealthBadge** — ícone 🔔 no header com contagem de alertas novos. Dropdown com preview dos 3 primeiros.
-- **HealthCard** — 4º card métrico na Home com contagem total de alertas ativos + breakdown por severidade.
-- **AlertList** — Lista expandida de alertas com:
-  - Ícone de severidade (🔴 alta, 🟡 média, 🔵 info)
-  - Título + descrição
-  - Fonte + data de detecção
-  - Botões Acknowledge / Dismiss
-  - Filtro: "Novos" / "Em acompanhamento" / "Todos"
-- **AlertService** — Hook/função para chamar os endpoints e manter estado
+- Edição/criação de alertas (só leitura e ack/dismiss)
+- Webhook notifications ou email
+- Histórico de alertas resolvidos/descartados (API já retorna, UI começa só com novos)
+- Versão mobile responsiva (futuro)
 
 ## Acceptance Criteria
 
@@ -77,13 +34,6 @@ Web App                    flow-serve                File System
 - [ ] **Estilo**: Usa cores do design system (severity: alta → red, média → amber, info → blue)
 - [ ] **Testes**: Componentes testados com Vitest + React Testing Library
 - [ ] **Nada quebrado**: DiagnosticsIndicator existente continua funcionando normalmente
-
-## Exclusions
-
-- Edição/criação de alertas (só leitura e ack/dismiss)
-- Webhook notifications ou email
-- Histórico de alertas resolvidos/descartados (API já retorna, UI começa só com novos)
-- Versão mobile responsiva (futuro)
 
 ## Context
 

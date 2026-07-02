@@ -1,6 +1,6 @@
-# Spec: Loop Gaps — Correções no Ciclo de Desenvolvimento
+# Spec: loop-gaps
 
-> Updated: 2026-06-16
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -12,6 +12,12 @@ Os gaps identificados durante o ITEM-37 são corrigidos: criação de item com s
 - `letra spec link` usa `writeWorkflow()` com source `"spec-link"`
 - Dashboard web: badge de claim apenas se item estiver em destaque e claimed
 - Pulse: warning silencioso (não quebra output JSON)
+
+## Exclusions
+
+- Claim TTL/heartbeat (mantido como exclusion do ITEM-37)
+- Quiet mode error handling (requer refatoração maior no writeWorkflow)
+- Múltiplos agentes simultâneos
 
 ## Acceptance Criteria
 
@@ -47,8 +53,6 @@ Os gaps identificados durante o ITEM-37 são corrigidos: criação de item com s
 - [ ] Testes existentes passam
 - [ ] `letra validate` OK
 
-## Exclusions
+## Context
 
-- Claim TTL/heartbeat (mantido como exclusion do ITEM-37)
-- Quiet mode error handling (requer refatoração maior no writeWorkflow)
-- Múltiplos agentes simultâneos
+-

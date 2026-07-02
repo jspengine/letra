@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
+import { execSync } from "node:child_process";
 
 import chalk from "chalk";
 import { Command } from "commander";
@@ -7,6 +8,7 @@ import { loadWorkflow } from "./flow-init.js";
 import type { Workflow, Item } from "./flow-init.js";
 import { loadHealthRecord, getSummary } from "../health-record.js";
 import { readFocusFile, syncFocus } from "../adapters/focus-sync.js";
+import { resolveWorkspaceRoot } from "../workspace/resolver.js";
 
 export interface PulseData {
 	workspace: string;
@@ -45,7 +47,7 @@ function daysInStage(item: Item): number {
 
 function findCurrentItem(workflow: Workflow): Item | null {
 	const activeStages = workflow.stages
-		.filter((s) => s.zone === "doing" || (!s.zone && (s.id === "code" || s.id === "review" || s.order > 0 && s.order < workflow.stages.length - 1)))
+		.filter((s) => s.zone === "doing" || (!s.zone && s.order > 0 && s.order < workflow.stages.length - 1))
 		.map((s) => s.id);
 	const stageSet = new Set(activeStages);
 	if (stageSet.size === 0) {
@@ -70,8 +72,11 @@ function getStageName(workflow: Workflow, stageId: string): string {
 	return workflow.stages.find((s) => s.id === stageId)?.name ?? stageId;
 }
 
-function countSpecACs(root: string, specName: string): { pending: number; done: number; total: number } {
-	const specDir = join(root, ".letra", "specs", specName);
+function countSpecACs(stateDir: string, specName: string): { pending: number; done: number; total: number } {
+	let specDir = join(stateDir, "specs", specName);
+	if (!existsSync(specDir)) {
+		specDir = join(stateDir, ".letra", "specs", specName);
+	}
 	const specFile = join(specDir, "spec.md");
 	if (!existsSync(specFile)) return { pending: 0, done: 0, total: 0 };
 	try {
@@ -97,9 +102,11 @@ function getTaskCounts(item: Item): { open: number; done: number; total: number 
 
 export async function pulse(
 	rootPath: string,
-	options?: { json?: boolean },
+	options?: { json?: boolean; build?: boolean; test?: boolean },
 ): Promise<PulseData> {
-	const workflow = loadWorkflow(rootPath);
+	const resolution = resolveWorkspaceRoot(rootPath);
+	const statePath = resolution.workspaceDir;
+	const workflow = loadWorkflow(resolution.targetDir);
 	const name = workflow?.name ?? "meu-projeto";
 
 	if (!workflow) {
@@ -120,13 +127,14 @@ export async function pulse(
 		return empty;
 	}
 
-	const healthRecord = loadHealthRecord(rootPath);
+	const healthRecord = loadHealthRecord(resolution.type === "local" ? rootPath : statePath);
 	const summary = getSummary(healthRecord);
 	const currentItem = findCurrentItem(workflow);
 
 	let acCounts = { pending: 0, done: 0, total: 0 };
 	if (currentItem?.spec) {
-		acCounts = countSpecACs(rootPath, currentItem.spec);
+		const specRoot = resolution.type === "local" ? rootPath : statePath;
+		acCounts = countSpecACs(specRoot, currentItem.spec);
 	}
 
 	const pulseData: PulseData = {
@@ -164,12 +172,13 @@ export async function pulse(
 			: null,
 	};
 
-	const focusResult = syncFocus(rootPath, workflow);
+	const focusRoot = resolution.type === "local" ? rootPath : statePath;
+	const focusResult = syncFocus(focusRoot, workflow);
 	if (focusResult.cleared) {
 		console.log(chalk.yellow("  focus.md limpo — item referenciado não encontrado no workflow"));
 	}
 
-	const focusData = readFocusFile(rootPath);
+	const focusData = readFocusFile(focusRoot);
 	let focusDiverged = false;
 	if (focusData && currentItem?.spec && focusData.specName !== currentItem.spec) {
 		focusDiverged = true;
@@ -242,15 +251,41 @@ function renderPulseText(data: PulseData, focusDiverged?: boolean): void {
 	console.log();
 }
 
+function runTargetCommand(root: string, label: string, cmdStr: string | null | undefined): string | null {
+	if (!cmdStr) return null;
+	try {
+		const out = execSync(cmdStr, { cwd: root, encoding: "utf-8", timeout: 60000 });
+		const lines = out.trim().split("\n").slice(-3).join("\n");
+		return `${label}: OK\n${lines}`;
+	} catch (e: any) {
+		return `${label}: FALHA — ${e.stderr?.slice(0, 200) || e.message?.slice(0, 200) || "erro"}`;
+	}
+}
+
 export default function () {
 	const cmd = new Command("pulse")
 		.description("Pulse do workspace — overview de uma olhada só");
 
 	cmd
 		.option("--json", "Output in JSON format")
-		.action(async (options: { json?: boolean }) => {
+		.option("--build", "Run build command from target config")
+		.option("--test", "Run test command from target config")
+		.action(async (options: { json?: boolean; build?: boolean; test?: boolean }) => {
 			const root = resolve(process.cwd());
-			await pulse(root, options);
+			const data = await pulse(root, options);
+			if (options.build || options.test) {
+				const resolution = resolveWorkspaceRoot(root);
+				const workflow = loadWorkflow(resolution.targetDir);
+				const target = workflow?.targets?.[0];
+				if (options.build) {
+					const result = runTargetCommand(target?.path || root, "Build", target?.buildCommand ?? null);
+					if (result) console.log(chalk.gray(result));
+				}
+				if (options.test) {
+					const result = runTargetCommand(target?.path || root, "Test", target?.testCommand ?? null);
+					if (result) console.log(chalk.gray(result));
+				}
+			}
 		});
 
 	return cmd;

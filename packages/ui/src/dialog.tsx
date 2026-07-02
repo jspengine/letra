@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, type Ref, useEffect, useRef } from "react";
 import { cn } from "./utils";
 
 interface DialogProps {
@@ -7,9 +7,25 @@ interface DialogProps {
 	title: string;
 	children: ReactNode;
 	actions?: ReactNode;
+	variant?: "default" | "fullscreen";
+	hideHeader?: boolean;
+	className?: string;
+	bodyClassName?: string;
+	contentRef?: Ref<HTMLDialogElement>;
 }
 
-export function Dialog({ open, onClose, title, children, actions }: DialogProps) {
+export function Dialog({
+	open,
+	onClose,
+	title,
+	children,
+	actions,
+	variant = "default",
+	hideHeader = false,
+	className,
+	bodyClassName,
+	contentRef,
+}: DialogProps) {
 	const overlayRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -36,27 +52,47 @@ export function Dialog({ open, onClose, title, children, actions }: DialogProps)
 			}}
 		>
 			<dialog
+				ref={contentRef}
 				open
-				className="w-full max-w-md mx-4 rounded-xl border shadow-lg"
-				style={{ background: "var(--card)", borderColor: "var(--border)" }}
+				className={cn(
+					"border shadow-lg",
+					variant === "fullscreen"
+						? "m-0 flex h-screen max-h-none w-screen max-w-none flex-col overflow-hidden rounded-none"
+						: "mx-4 w-full max-w-md rounded-xl",
+					className,
+				)}
+				style={{
+					background: "var(--card)",
+					borderColor: "var(--border)",
+					color: "var(--foreground)",
+				}}
 				aria-label={title}
 			>
-				<div
-					className="flex items-center justify-between px-4 py-3 border-b"
-					style={{ borderColor: "var(--border)" }}
-				>
-					<h2 className="text-sm font-semibold">{title}</h2>
-					<button
-						type="button"
-						onClick={onClose}
-						className="text-sm px-2 py-1 rounded hover:bg-muted/50 transition-colors"
-						style={{ color: "var(--muted-foreground)" }}
-						aria-label="Fechar"
+				{!hideHeader && (
+					<div
+						className="flex items-center justify-between px-4 py-3 border-b"
+						style={{ borderColor: "var(--border)" }}
 					>
-						✕
-					</button>
+						<h2 className="text-sm font-semibold">{title}</h2>
+						<button
+							type="button"
+							onClick={onClose}
+							className="text-sm px-2 py-1 rounded hover:bg-muted/50 transition-colors"
+							style={{ color: "var(--muted-foreground)" }}
+							aria-label="Fechar"
+						>
+							✕
+						</button>
+					</div>
+				)}
+				<div
+					className={cn(
+						variant === "fullscreen" ? "flex min-h-0 flex-1 flex-col" : "px-4 py-3",
+						bodyClassName,
+					)}
+				>
+					{children}
 				</div>
-				<div className="px-4 py-3">{children}</div>
 				{actions && (
 					<div
 						className="flex justify-end gap-2 px-4 py-3 border-t"

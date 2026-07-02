@@ -1,6 +1,5 @@
 import type { Item, Workflow } from "@letra/types";
-import { Badge } from "../ui/badge";
-import { Card, CardContent } from "../ui/card";
+import { Badge, Card, CardContent } from "@letra/ui";
 
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 

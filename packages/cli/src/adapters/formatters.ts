@@ -225,6 +225,11 @@ export function formatAdapterContent(
 		sections.push(`## Foco Atual\n\n${focus}`);
 	}
 
+	const phase = formatPhase(snapshot);
+	if (phase) {
+		sections.push(`## Fase Atual\n\n${phase}`);
+	}
+
 	// Grave alerts go right after protocol
 	const hasGrave = snapshot.alerts?.some((a) => a.severity === "alta");
 	if (hasGrave) {
@@ -248,6 +253,11 @@ export function formatAdapterContent(
 		sections.push(`## Fluxo de Execução\n\n${formatExecutionFlow()}`);
 	}
 
+	const handoffStr = formatHandoff(snapshot);
+	if (handoffStr) {
+		sections.push(`## Após completar uma ação\n\n${handoffStr}`);
+	}
+
 	sections.push(`## Comandos\n\n${formatCommands()}`);
 
 	const continuity = formatContinuity(snapshot);
@@ -262,6 +272,35 @@ export function formatAdapterContent(
 	sections.push(`## Arquivos de Contexto\n\n${refs}`);
 
 	return `${sections.join("\n\n")}\n`;
+}
+
+function formatPhase(snapshot: HarnessSnapshot): string | null {
+	if (!snapshot.currentPhase) return null;
+	const p = snapshot.currentPhase;
+	let out = `${p.label} — ${p.description}`;
+	if (p.harness?.instructions) {
+		out += `\n  Instruções: ${p.harness.instructions}`;
+	}
+	if (p.harness?.checks && p.harness.checks.length > 0) {
+		out += `\n  Verificações:\n    ${p.harness.checks.map((c) => `- ${c}`).join("\n    ")}`;
+	}
+	return out;
+}
+
+function formatHandoff(snapshot: HarnessSnapshot): string | null {
+	if (!snapshot.handoff || snapshot.handoff.disabled) return null;
+	const h = snapshot.handoff;
+	const lines: string[] = [];
+	for (const step of h.steps) {
+		lines.push(`- \`${step.command}\` — ${step.label}`);
+		if (step.recovery) {
+			lines.push(`  ❌ Se falhar: ${step.recovery}`);
+		}
+	}
+	if (h.nextStageName) {
+		lines.push("", `Após mover, verifique o novo estágio com \`letra pulse\``);
+	}
+	return lines.join("\n");
 }
 
 function formatRulesText(): string {

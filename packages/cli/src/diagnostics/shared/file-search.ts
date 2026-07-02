@@ -1,10 +1,14 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-const SEARCH_DIRS = ["packages/cli/src", "packages/client/src", "packages/ui/src"];
-
-export function searchInSource(rootDir: string, terms: string[], extensions = [".ts", ".tsx"]): boolean {
-	for (const searchDir of SEARCH_DIRS) {
+export function searchInSource(
+	rootDir: string,
+	terms: string[],
+	extensions = [".ts", ".tsx"],
+	targetDirs?: string[],
+): boolean {
+	const searchDirs = targetDirs ?? ["packages/cli/src", "packages/client/src", "packages/ui/src"];
+	for (const searchDir of searchDirs) {
 		const dir = join(rootDir, searchDir);
 		if (!existsSync(dir)) continue;
 		try {
@@ -18,6 +22,17 @@ export function searchInSource(rootDir: string, terms: string[], extensions = ["
 		} catch {}
 	}
 	return false;
+}
+
+export function buildTargetSearchDirs(workflow: { targets?: Array<{ path: string; projectType?: string }> } | null): { dirs: string[]; isGeneral: boolean } {
+	if (!workflow?.targets || workflow.targets.length === 0) {
+		return { dirs: [".", "packages/cli/src", "packages/client/src", "packages/ui/src"], isGeneral: false };
+	}
+	const isGeneral = workflow.targets.some((t) => t.projectType === "general");
+	return {
+		dirs: workflow.targets.map((t) => t.path),
+		isGeneral,
+	};
 }
 
 export function walkDir(dir: string, extensions = [".ts", ".tsx"]): string[] {

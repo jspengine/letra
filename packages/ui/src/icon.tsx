@@ -90,17 +90,64 @@ export const ICONS = {
 	code: ["M16 18l6-6-6-6", "M8 6l-6 6 6 6"],
 	"file-text": ["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z", "M14 2v6h6", "M16 13H8", "M16 17H8", "M10 9H8"],
 	"chevron-down": ["M6 9l6 6 6-6"],
+	"chevron-up": ["M18 15l-6-6-6 6"],
 	clock: [
 		"M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2z",
 		"M12 6v6l4 2",
 	],
+	folder: [
+		"M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z",
+	],
+	box: [
+		"M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z",
+	],
+	cpu: [
+		"M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2",
+		"M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z",
+		"M13 13h2",
+		"M9 13h.01",
+	],
+	book: [
+		"M4 19.5A2.5 2.5 0 0 1 6.5 17H20",
+		"M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z",
+		"M8 7h8",
+		"M8 11h6",
+	],
+	"pen-tool": [
+		"M12 19l7-7 3 3-7 7-3-3z",
+		"M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z",
+		"M2 2l7.586 7.586",
+		"M11 11l-4 4",
+	],
+	"git-branch": [
+		"M6 3v12",
+		"M6 3a4 4 0 0 1 4 4v0a4 4 0 0 1-4 4",
+		"M6 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
+		"M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+		"M18 9v1a2 2 0 0 1-2 2H10",
+	],
+	activity: [
+		"M22 12h-4l-3 9L9 3l-3 9H2",
+	],
+	shield: [
+		"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+	],
+	copy: [
+		"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2",
+		"M12 11h4",
+		"M12 16h4",
+		"M8 11h.01",
+		"M8 16h.01",
+		"M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z",
+	],
+	circle: ["M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"],
 } as const;
 
 export type IconName = keyof typeof ICONS;
 
 interface IconProps extends SVGAttributes<SVGSVGElement> {
 	name: IconName;
-	size?: 10 | 12 | 14 | 16 | 20 | 24;
+	size?: 10 | 12 | 14 | 16 | 18 | 20 | 24;
 }
 
 export function Icon({ name, size = 16, className, ...props }: IconProps) {
@@ -112,7 +159,7 @@ export function Icon({ name, size = 16, className, ...props }: IconProps) {
 			viewBox="0 0 24 24"
 			fill="none"
 			stroke="currentColor"
-			strokeWidth="2"
+			strokeWidth="1.75"
 			strokeLinecap="round"
 			strokeLinejoin="round"
 			width={size}

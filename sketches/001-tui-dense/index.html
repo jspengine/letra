@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Letra — Init Wizard (TUI)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --border: #2a2a2a;
+    --muted: #6b6b6b;
+    --fg: #e6e6e6;
+    --accent: #5c7cfa;
+    --accent-dim: #3b5bdb;
+    --success: #2f9e44;
+    --danger: #fa5252;
+    --warn: #fcc419;
+    --font: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.55;
+    padding: 18px;
+    overflow: hidden;
+  }
+  .term {
+    max-width: 860px;
+    margin: 0 auto;
+    height: 96vh;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .logo {
+    color: var(--accent);
+    white-space: pre;
+    font-size: 11px;
+    line-height: 1.25;
+    user-select: none;
+  }
+  .box {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 10px 12px;
+    border-radius: 6px;
+  }
+  .step-title {
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  input[type="text"] {
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    color: var(--fg);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    min-width: 320px;
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  .menu { display: flex; gap: 8px; }
+  .menu-item {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 4px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .menu-item.active {
+    border-color: var(--accent);
+    color: var(--fg);
+    background: #1a1f36;
+  }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .tag {
+    background: #1f2a3d;
+    border: 1px solid var(--accent-dim);
+    color: var(--fg);
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tag .x { color: var(--danger); cursor: pointer; }
+  .checks { display: flex; gap: 12px; flex-wrap: wrap; }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    cursor: pointer;
+  }
+  .check input { accent-color: var(--accent); }
+  .preview-tree {
+    color: #b0b0b0;
+    white-space: pre;
+    font-size: 12px;
+  }
+  .actions {
+    margin-top: auto;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+  .btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--fg); }
+  .hint { color: var(--muted); font-size: 11px; }
+  .hint kbd {
+    background: #1a1a1a;
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--fg);
+    font-family: inherit;
+  }
+  .progress { color: var(--muted); font-size: 11px; }
+  .progress b { color: var(--fg); }
+  .error { color: var(--danger); font-size: 12px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="term">
+  <div class="logo" id="logo"></div>
+
+  <div class="box">
+    <div class="progress">Passo <b id="step-current">1</b> de 4</div>
+    <div class="step-title" id="step-title">Nome do workspace</div>
+    <div id="step-body"></div>
+    <div class="error" id="error"></div>
+  </div>
+
+  <div class="actions">
+    <div class="hint">
+      <kbd>↑↓</kbd> navegar · <kbd>Enter</kbd> confirmar · <kbd>Esc</kbd> voltar · <kbd>?</kbd> ajuda · <kbd>Ctrl+C</kbd> abortar
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn secondary" id="btn-back" onclick="back()">Voltar</button>
+      <button class="btn" id="btn-next" onclick="next()">Próximo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const logo = `
+ ██╗██╗     ███████╗██████╗  ██████╗ ███╗   ██╗███████╗
+ ██╔╝██║     ██╔════╝██╔══██╗██╔═══██╗████╗  ██║██╔════╝
+ ██╔╝ ██║     █████╗  ██████╔╝██║   ██║██╔██╗ ██║█████╗
+ ╚██╗ ██║     ██╔══╝  ██╔══██╗██║   ██║██║╚██╗██║██╔══╝
+  ███╗███████╗███████╗██║  ██║╚██████╔╝██║ ╚████║███████╗
+  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝`;
+document.getElementById('logo').textContent = logo;
+
+const state = {
+  step: 0,
+  name: '',
+  folders: [],     // pastas selecionadas
+  gates: ['spec-review', 'code-review'],
+  nextId: 1
+};
+
+const steps = [
+  { title: 'Nome do workspace', render: renderName },
+  { title: 'Selecionar pastas', render: renderFolders },
+  { title: 'Template + Gates', render: renderGates },
+  { title: 'Preview e confirmação', render: renderPreview }
+];
+
+const gateLabels = { 'spec-review': 'Spec Review (humano aprova spec)', 'code-review': 'Code Review (humano aprova código)', 'all-acs-passing': 'All ACS Passing (CI verde)', 'security-clear': 'Security Clear (scan sem críticos)' };
+
+function render() {
+  document.getElementById('step-current').textContent = state.step + 1;
+  document.getElementById('step-title').textContent = steps[state.step].title;
+  document.getElementById('error').textContent = '';
+  document.getElementById('btn-back').style.visibility = state.step === 0 ? 'hidden' : 'visible';
+  document.getElementById('btn-next').textContent = state.step === steps.length - 1 ? 'Aplicar' : 'Próximo';
+  steps[state.step].render();
+}
+
+function renderName() {
+  document.getElementById('step-body').innerHTML = `
+    <div class="field">
+      <label>Nome do workspace</label>
+      <input id="name" type="text" value="${state.name}" placeholder="pix-credito" autofocus />
+    </div>`;
+  setTimeout(() => document.getElementById('name').select(), 0);
+  document.getElementById('name').addEventListener('input', e => state.name = e.target.value);
+  document.getElementById('name').addEventListener('keydown', e => { if (e.key === 'Enter') next(); });
+}
+function renderFolders() {
+  const detected = [
+    '~/code/creditos-api',
+    '~/code/pix-gateway',
+    '~/code/bb-shared',
+    '~/work/outro-projeto',
+    '~/personal/side-project'
+  ];
+  const labelFor = f => f.split('/').pop() || f;
+  document.getElementById('step-body').innerHTML = `
+    <div class="field">
+      <label>Selecione os repositórios/pastas deste workspace</label>
+    </div>
+    <div class="checks">
+      ${detected.map(f => `
+        <label class="check">
+          <input type="checkbox" ${state.folders.includes(f)?'checked':''} data-folder="${f}" /> ${labelFor(f)} <span style="color:var(--muted);font-size:11px">${f}</span>
+        </label>`).join('')}
+    </div>
+    <div style="margin-top:6px;color:var(--muted);font-size:11px">Nenhuma pasta selecionada? Use <kbd>--path</kbd> na linha de comando.</div>`;
+  document.querySelectorAll('input[data-folder]').forEach(el => {
+    el.onchange = () => {
+      state.folders = Array.from(document.querySelectorAll('input[data-folder]')).filter(i => i.checked).map(i => i.dataset.folder);
+    };
+  });
+}
+function renderGates() {
+  document.getElementById('step-body').innerHTML = `
+    <div class="checks">
+      ${Object.entries(gateLabels).map(([k,v]) => `
+        <label class="check">
+          <input type="checkbox" ${state.gates.includes(k)?'checked':''} data-gate="${k}" /> ${v}
+        </label>`).join('')}
+    </div>`;
+  document.querySelectorAll('input[data-gate]').forEach(el => {
+    el.onchange = () => {
+      state.gates = Array.from(document.querySelectorAll('input[data-gate]')).filter(i => i.checked).map(i => i.dataset.gate);
+    };
+  });
+}
+function renderPreview() {
+  const tree = document.getElementById('step-body');
+  tree.innerHTML = `
+    <div class="preview-tree">┌─ letra workspace create (dry-run)
+├── ~/.letra/workspace/${state.name || 'meu-workspace'}/
+│   ├── workspace.yaml
+│   └── flows/
+│       └── sdlc.json
+├── ~/.letra/harness/v0.1.0/
+│   └── flows/
+│       └── sdlc.yaml
+└── Repositórios:
+    ${state.folders.map(f => `    ├── ${f}/`).join('\n')}
+        └── letra.link → workspace</div>`;
+}
+function showError(msg) { document.getElementById('error').textContent = msg; }
+
+function next() {
+  if (state.step === 0 && !state.name.trim()) { showError('Nome é obrigatório.'); return; }
+  if (state.step === 2 && state.folders.length === 0) { showError('Selecione pelo menos uma pasta.'); return; }
+  if (state.step === steps.length - 1) { apply(); return; }
+  state.step++;
+  render();
+}
+function back() {
+  if (state.step > 0) { state.step--; render(); }
+}
+function apply() {
+  document.getElementById('step-body').innerHTML = '<div style="color:var(--accent)">⠋ Aplicando...</div>';
+  document.getElementById('btn-next').disabled = true;
+  setTimeout(() => {
+    document.getElementById('step-body').innerHTML = `
+      <div style="color:var(--success)">✔ Workspace criado com sucesso</div>
+      <div style="margin-top:6px;color:var(--muted)">
+        ~/.letra/workspace/${state.name || 'meu-workspace'}/<br/>
+        ~/.letra/harness/v0.1.0/<br/>
+        ${state.folders.length} repositórios vinculados:<br/>
+        ${state.folders.map(f => `${f}/ → letra.link`).join('<br/>')}
+      </div>
+      <div style="margin-top:8px;color:var(--fg)">Próximo passo: <b>letra flow start</b></div>`;
+    document.getElementById('btn-next').textContent = 'Fechar';
+    document.getElementById('btn-next').disabled = false;
+  }, 1400);
+}
+
+render();
+</script>
+</body>
+</html>

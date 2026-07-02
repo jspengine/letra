@@ -16,6 +16,14 @@ Fluxo oficial do projeto letra. Siga na ordem: pulse -> context -> focus -> spec
 - Após criar a spec, faça release imediato do item e aguarde aprovação humana antes de Code
 - Quando não houver mais estágios, mova para Done manualmente
 
+## Regras de branch e release
+- Nunca fazer commit direto em `main`
+- Toda linha de trabalho deve sair de `development`
+- Para cada item/feature, crie uma branch `feature/{nome-feature}`
+- Desenvolva, valide e commit **apenas** dentro dessa `feature/*`
+- Quando estiver pronta, abra um PR `feature/* -> development`
+- Após revisão/merge na `development`, o release deve ser gerado a partir dela
+
 ## Release / Publish (regra obrigatória)
 - O publish **deve** ser feito a partir de um checkout limpo de `main`
 - Passos:

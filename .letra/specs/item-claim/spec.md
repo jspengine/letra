@@ -1,6 +1,6 @@
-# Spec: Item Claim — Soft Lock de Atividade para Agentes
+# Spec: item-claim
 
-> Updated: 2026-06-16
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -16,29 +16,9 @@ Quando um agente IA pega uma atividade para executar, o item fica visualmente ma
 - Claim expira? Não por enquanto — agente libera explicitamente ou ao mover o item pra done
 - Pipeline CI/CD não é afetada
 
-## Architecture
+## Exclusions
 
-```
-Item claim state flow:
-
-  Agente pega item              Usuário arrasta no kanban
-       │                                │
-       ▼                                ▼
-  flow claim ITEM-34              POST /api/items/:id/PATCH
-       │                                │
-       ▼                                ▼
-  claimedBy: "opencode"           stage muda, claim preservado
-  claimedAt: "2026-06-16T..."           │
-       │                                ▼
-       ▼                           workflow.json atualizado
-  writeWorkflow() ──► workflow.json     │
-       │                                ▼
-       ▼                           adapters regenerados
-  adapters regenerados                  │
-       │                                ▼
-       ▼                           SSE broadcast → UI atualiza
-  SSE broadcast → UI atualiza
-```
+- Nenhuma no momento.
 
 ## Acceptance Criteria
 
@@ -137,9 +117,6 @@ Item claim state flow:
 - [x] **AC13.3**: Mover item no kanban preserva claim
 - [x] **AC13.4**: `letra validate` não reclama dos novos campos
 
-## Exclusions (não faz parte desta spec)
+## Context
 
-- Heartbeat / TTL / expiração automática de claim
-- Múltiplos agentes simultâneos com claims diferentes
-- Histórico de claims no session-log
-- Notificação push quando item é movido externamente
+-

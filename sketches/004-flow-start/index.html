@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Letra — Flow Start</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --border: #2a2a2a;
+    --muted: #6b6b6b;
+    --fg: #e6e6e6;
+    --accent: #5c7cfa;
+    --success: #2f9e44;
+    --warn: #fcc419;
+    --font: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .modal {
+    width: min(680px, 100%);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+  }
+  .step-title {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  select, input[type="text"] {
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    color: var(--fg);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    width: 100%;
+    outline: none;
+  }
+  select:focus, input[type="text"]:focus { border-color: var(--accent); }
+  .checks { display: flex; gap: 12px; flex-wrap: wrap; }
+  .check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .check input { accent-color: var(--accent); }
+  .preview {
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 12px;
+    white-space: pre;
+    font-size: 12px;
+    color: #b0b0b0;
+  }
+  .actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--fg); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { color: var(--muted); font-size: 11px; }
+  .hint kbd {
+    background: #1a1a1a;
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--fg);
+    font-family: inherit;
+  }
+  .error { color: var(--danger); font-size: 12px; margin-top: 4px; }
+  .success { color: var(--success); }
+  .gate-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .gate-row:last-child { border-bottom: none; }
+  .gate-status {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .gate-status.locked { background: #2a1a1a; color: var(--danger); border: 1px solid var(--danger); }
+  .gate-status.open { background: #1a2a1a; color: var(--success); border: 1px solid var(--success); }
+</style>
+</head>
+<body>
+<div class="modal">
+  <div class="step-title">Iniciar fluxo — pix-credito</div>
+  <div class="field">
+    <label>Template</label>
+    <select id="template">
+      <option>SDLC (built-in)</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Stages (ordem do fluxo)</label>
+    <div class="preview">1. Backlog
+2. Spec Draft
+3. Spec Review (gate: spec-review)
+4. Code
+5. Code Review (gate: code-review)
+6. Security
+7. Ready to PR
+8. Done</div>
+  </div>
+  <div class="field">
+    <label>Workflow inicial</label>
+    <div class="preview">Stage inicial: Backlog
+Condição de saída: nenhuma (primeiro estágio)</div>
+  </div>
+  <div class="field">
+    <label>Gates ativos</label>
+    <div class="gate-row">
+      <span>spec-review</span>
+      <span class="gate-status open">aberto (humano aprova spec)</span>
+    </div>
+    <div class="gate-row">
+      <span>code-review</span>
+      <span class="gate-status open">aberto (humano aprova código)</span>
+    </div>
+  </div>
+  <div class="actions">
+    <div class="hint"><kbd>Esc</kbd> cancelar · <kbd>Enter</kbd> iniciar</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn secondary" onclick="document.getElementById('result').textContent='Cancelado'">Cancelar</button>
+      <button class="btn" onclick="start()">Iniciar fluxo</button>
+    </div>
+  </div>
+  <div id="result" style="margin-top:10px;"></div>
+</div>
+<script>
+function start() {
+  const r = document.getElementById('result');
+  r.innerHTML = '<div class="success">✔ Fluxo SDLC iniciado · instance: flw-20260621-01 · stage atual: Backlog</div>';
+  document.querySelector('.btn:not(.secondary)').disabled = true;
+}
+</script>
+</body>
+</html>

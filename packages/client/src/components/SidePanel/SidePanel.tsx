@@ -1,6 +1,6 @@
 import type { Item, Workflow } from "@letra/types";
 import { useState } from "react";
-import { Badge, Button } from "@letra/ui";
+import { Badge, Button, Checkbox, Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@letra/ui";
 
 interface Props {
 	workflow: Workflow | null;
@@ -67,8 +67,7 @@ function SidePanelContent({ item, workflow }: { item: Item; workflow: Workflow }
 								key={t.id}
 								className="flex items-center gap-2 text-xs cursor-pointer"
 							>
-								<input
-									type="checkbox"
+								<Checkbox
 									checked={t.done}
 									onChange={() => {
 										fetch(`/api/items/${item.id}/tasks/${t.id}`, {
@@ -94,22 +93,18 @@ function SidePanelContent({ item, workflow }: { item: Item; workflow: Workflow }
 			<div>
 				<h3 className="text-sm font-semibold mb-1">Move</h3>
 				<div className="flex gap-2">
-					<select
-						value={selectedStage}
-						onChange={(e) => setSelectedStage(e.target.value)}
-						className="flex-1 rounded px-2 py-1 text-xs"
-						style={{
-							background: "var(--background)",
-							border: "1px solid var(--border)",
-							color: "var(--foreground)",
-						}}
-					>
+					<Select value={selectedStage} onValueChange={(value) => setSelectedStage(value)}>
+					<SelectTrigger className="flex-1 rounded px-2 py-1 text-xs" style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)" }}>
+						<SelectValue placeholder="Select stage" />
+					</SelectTrigger>
+					<SelectContent>
 						{workflow.stages.map((s) => (
-							<option key={s.id} value={s.id}>
+							<SelectItem key={s.id} value={s.id}>
 								{s.name}
-							</option>
+							</SelectItem>
 						))}
-					</select>
+					</SelectContent>
+				</Select>
 					<Button variant="default" size="sm" onClick={handleMove}>
 						Move
 					</Button>
@@ -134,7 +129,7 @@ export default function SidePanel({ workflow, itemId, onClose }: Props) {
 				color: "var(--foreground)",
 			}}
 		>
-			<button
+			<Button
 				type="button"
 				onClick={onClose}
 				className="absolute top-2 right-2 p-1 rounded text-xs leading-none"
@@ -147,7 +142,7 @@ export default function SidePanel({ workflow, itemId, onClose }: Props) {
 				title="Close"
 			>
 				✕
-			</button>
+			</Button>
 			<SidePanelContent item={item} workflow={workflow} />
 		</div>
 	);

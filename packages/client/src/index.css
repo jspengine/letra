@@ -3,59 +3,341 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ── Sidebar Theme (shadcn) ── */
+:root {
+	--color-sidebar: oklch(0.965 0 0);
+	--color-sidebar-foreground: oklch(0.145 0 0);
+	--color-sidebar-accent: oklch(0.72 0.18 75 / 0.1);
+	--color-sidebar-accent-foreground: oklch(0.72 0.18 75);
+	--color-sidebar-border: oklch(0.922 0 0);
+	--color-sidebar-ring: oklch(0.72 0.18 75 / 0.3);
+	--sidebar-width: 308px;
+	--sidebar-width-icon: 3rem;
+}
+
+.dark {
+	--color-sidebar: oklch(0.27 0 0);
+	--color-sidebar-foreground: oklch(0.985 0 0);
+	--color-sidebar-accent: oklch(0.72 0.18 75 / 0.15);
+	--color-sidebar-accent-foreground: oklch(0.65 0.18 80);
+	--color-sidebar-border: oklch(0.4 0 0);
+	--color-sidebar-ring: oklch(0.828 0.189 84.429 / 0.3);
+}
+
 html {
-	background: var(--surface-1);
-	color: var(--text-primary);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+code,
+pre,
+.font-code {
+  font-family: var(--font-code);
 }
 
 @keyframes fade-in {
-	from { opacity: 0; transform: translateY(4px); }
-	to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes border-breathe {
-	0%, 100% {
-		border-color: var(--live);
-		box-shadow: 0 0 4px color-mix(in srgb, var(--live) 15%, transparent);
-	}
-	50% {
-		border-color: color-mix(in srgb, var(--live) 70%, white);
-		box-shadow: 0 0 10px color-mix(in srgb, var(--live) 30%, transparent);
-	}
+  0%,
+  100% {
+    border-color: var(--live);
+    box-shadow: 0 0 4px color-mix(in srgb, var(--live) 15%, transparent);
+  }
+  50% {
+    border-color: color-mix(in srgb, var(--live) 70%, white);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--live) 30%, transparent);
+  }
 }
 
 @keyframes dash-march {
-	to {
-		stroke-dashoffset: -24;
-	}
+  to {
+    stroke-dashoffset: -24;
+  }
 }
 
 .animate-dash-march {
-	animation: dash-march 0.4s linear infinite;
+  animation: dash-march 0.4s linear infinite;
 }
 
 .animate-border-claim {
-	border: 2px dashed var(--live) !important;
-	animation: border-breathe 2s ease-in-out infinite !important;
+  border: 2px dashed var(--live) !important;
+  animation: border-breathe 2s ease-in-out infinite !important;
 }
 
 @keyframes slide-in-from-right {
-	from { opacity: 0; transform: translateX(100%); }
-	to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .animate-fade-in {
-	animation: fade-in 0.2s ease-out;
+  animation: fade-in 0.2s ease-out;
 }
 
 .animate-slide-in-right {
-	animation: slide-in-from-right 0.3s ease-out;
+  animation: slide-in-from-right 0.3s ease-out;
+}
+
+@keyframes validating-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+.animate-validating-bar {
+  animation: validating-bar 1.5s ease-in-out infinite;
+}
+
+@keyframes drift-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-drift-pulse {
+  animation: drift-pulse 1s ease-in-out infinite;
+  color: var(--primary);
+}
+
+@keyframes pulse-gate-waiting {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0
+      color-mix(in oklch, var(--gate-waiting) 30%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px
+      color-mix(in oklch, var(--gate-waiting) 15%, transparent);
+  }
+}
+
+@keyframes pulse-gate-urgent {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0
+      color-mix(in oklch, var(--gate-available) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 8px
+      color-mix(in oklch, var(--gate-available) 20%, transparent);
+  }
+}
+
+@keyframes agent-thinking {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes sidebar-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-pulse-gate-waiting {
+  animation: pulse-gate-waiting 2s ease-in-out infinite;
+}
+
+.animate-pulse-gate-urgent {
+  animation: pulse-gate-urgent 1s ease-in-out infinite;
+}
+
+.animate-agent-thinking {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--surface-3) 50%,
+    var(--surface-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: agent-thinking 1.5s linear infinite;
+}
+
+.animate-sidebar-enter {
+  animation: sidebar-enter 0.3s ease-out;
+}
+
+@keyframes progress-stripes {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 20px 0;
+  }
+}
+
+@keyframes agent-running {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes agent-breathe {
+  0%,
+  100% {
+    border-color: var(--live);
+  }
+  50% {
+    border-color: color-mix(in oklch, var(--live) 60%, transparent);
+  }
+}
+
+@keyframes shimmer-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes timeline-dot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary) 15%, transparent);
+  }
+}
+
+@keyframes human-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0
+      color-mix(in oklch, var(--gate-available) 50%, transparent);
+    background-color: color-mix(
+      in oklch,
+      var(--gate-available) 8%,
+      transparent
+    );
+  }
+  50% {
+    box-shadow: 0 0 0 12px
+      color-mix(in oklch, var(--gate-available) 20%, transparent);
+    background-color: color-mix(
+      in oklch,
+      var(--gate-available) 15%,
+      transparent
+    );
+  }
+}
+
+.animate-progress-stripes {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 5px,
+    rgba(255, 255, 255, 0.1) 5px,
+    rgba(255, 255, 255, 0.1) 10px
+  );
+  background-size: 20px 20px;
+  animation: progress-stripes 0.6s linear infinite;
+}
+
+.animate-agent-running {
+  animation: agent-running 1.5s ease-in-out infinite;
+}
+
+.animate-agent-breathe {
+  animation: agent-breathe 2s ease-in-out infinite;
+}
+
+.animate-shimmer-slide {
+  animation: shimmer-slide 1.2s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.animate-timeline-dot {
+  animation: timeline-dot 2s ease-in-out infinite;
+}
+
+.animate-human-pulse {
+  animation: human-pulse 2s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-	*, *::before, *::after {
-		animation-duration: 0.01ms !important;
-		animation-iteration-count: 1 !important;
-		transition-duration: 0.01ms !important;
-	}
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+.goldman-regular {
+  font-family: "Goldman", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.goldman-bold {
+  font-family: "Goldman", sans-serif;
+  font-weight: 700;
+  font-style: normal;
 }

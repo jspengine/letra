@@ -1,6 +1,6 @@
-# Spec: Harness Meta-Test
+# Spec: harness-meta-test
 
-> Updated: 2026-06-15
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -14,16 +14,11 @@ O próprio harness de diagnóstico não é validado automaticamente. Se um detec
 - Roda como primeiro detector (garantir que o harness está íntegro antes de diagnosticar o projeto)
 - Não depende de rede externa ou LLM
 
-## Architecture
+## Exclusions
 
-```
-detectors/harness-meta-test.ts   // devOnly: true
-  → engine.ts: verifica se todos os detectores do schema (ac-stale, ac-false-pos, harness-stale, missing-dir, dead-icons, stage-drift) estão registrados na array `this.detectors`
-  → snapshot.ts: verifica se TTL_MS == 30 * 24 * 60 * 60 * 1000
-  → snapshot.ts: verifica se MAX_SNAPSHOTS >= 20
-  → Formato: cada detector registrado exporta { name, certainty, hasAutoFix } — confere se certainty ≥ 0.9 tem autoFix e < 0.9 não tem
-→ engine.ts: verifica que detectores com devOnly: true são pulados se !isLetraRepo()
-```
+- Validação de qualidade dos detectores (só verifica presença e formato)
+- Testes de integração (cada detector tem seus próprios testes)
+- Performance dos detectores (fora de escopo)
 
 ## Acceptance Criteria
 
@@ -33,12 +28,6 @@ detectors/harness-meta-test.ts   // devOnly: true
 - [x] **Auto-fix**: Se detector faltando, adiciona placeholder comentado (para desenvolvedor implementar)
 - [x] **Testes**: Meta-teste verifica que harness-meta-test detecta intencionalmente um detector removido
 - [x] **DevOnly filter**: Meta-teste verifica que detectores com `devOnly: true` são pulados quando `isLetraRepo()` retorna `false`
-
-## Exclusions
-
-- Validação de qualidade dos detectores (só verifica presença e formato)
-- Testes de integração (cada detector tem seus próprios testes)
-- Performance dos detectores (fora de escopo)
 
 ## Context
 

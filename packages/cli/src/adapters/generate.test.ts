@@ -791,5 +791,200 @@ describe("adapters", () => {
       );
       expect(vscode).toContain("- .letra/context.md");
     });
+
+    describe("handoff section", () => {
+      it("AC1: appears when there is a primary item", () => {
+        const snapshot = buildHarnessSnapshot(tmpDir, {
+          source: "flow-move",
+          workflow: {
+            name: "test",
+            stages: [
+              { id: "backlog", name: "Backlog", order: 0 },
+              { id: "code", name: "Code", order: 1 },
+              { id: "review", name: "Review", order: 2 },
+            ],
+            items: [
+              { id: "ITEM-1", description: "Task A", stage: "code" },
+            ],
+          },
+          activeStageId: "code",
+          primaryItemId: "ITEM-1",
+        });
+        const content = formatAdapterContent(snapshot, "text", { source: "flow-move", displayName: "Test" });
+        expect(content).toContain("Após completar uma ação");
+        expect(content).toContain("letra flow move ITEM-1");
+        expect(content).toContain("review");
+      });
+
+      it("AC5: does not appear without primary item", () => {
+        const snapshot = buildHarnessSnapshot(tmpDir, {
+          source: "flow-move",
+          workflow: {
+            name: "test",
+            stages: [
+              { id: "backlog", name: "Backlog" },
+              { id: "code", name: "Code" },
+            ],
+            items: [],
+          },
+          activeStageId: "code",
+        });
+        const content = formatAdapterContent(snapshot, "text", { source: "flow-move", displayName: "Test" });
+        expect(content).not.toContain("Após completar uma ação");
+      });
+
+      it("AC6: disabled via handoff: false", () => {
+        const snapshot = buildHarnessSnapshot(tmpDir, {
+          source: "flow-move",
+          workflow: {
+            name: "test",
+            stages: [
+              { id: "backlog", name: "Backlog", order: 0 },
+              { id: "code", name: "Code", order: 1 },
+            ],
+            items: [
+              { id: "ITEM-1", description: "Task", stage: "code" },
+            ],
+            handoff: false as any,
+          },
+          activeStageId: "code",
+          primaryItemId: "ITEM-1",
+        });
+        const content = formatAdapterContent(snapshot, "text", { source: "flow-move", displayName: "Test" });
+        expect(content).not.toContain("Após completar uma ação");
+      });
+
+      it("AC7: customSteps appear in output", () => {
+        const snapshot = buildHarnessSnapshot(tmpDir, {
+          source: "flow-move",
+          workflow: {
+            name: "test",
+            stages: [
+              { id: "backlog", name: "Backlog", order: 0 },
+              { id: "code", name: "Code", order: 1 },
+            ],
+            items: [
+              { id: "ITEM-1", description: "Task", stage: "code" },
+            ],
+            handoff: {
+              customSteps: [{ command: "letra test", label: "custom step", recovery: "fix it" }],
+            },
+          },
+          activeStageId: "code",
+          primaryItemId: "ITEM-1",
+        });
+        const content = formatAdapterContent(snapshot, "text", { source: "flow-move", displayName: "Test" });
+        expect(content).toContain("letra test");
+        expect(content).toContain("custom step");
+        expect(content).toContain("fix it");
+      });
+
+      it("AC8: skipSteps removes default steps", () => {
+        const snapshot = buildHarnessSnapshot(tmpDir, {
+          source: "flow-move",
+          workflow: {
+            name: "test",
+            stages: [
+              { id: "backlog", name: "Backlog", order: 0 },
+              { id: "code", name: "Code", order: 1 },
+            ],
+            items: [
+              { id: "ITEM-1", description: "Task", stage: "code" },
+            ],
+            handoff: {
+              skipSteps: ["build"],
+            },
+          },
+          activeStageId: "code",
+          primaryItemId: "ITEM-1",
+        });
+        const content = formatAdapterContent(snapshot, "text", { source: "flow-move", displayName: "Test" });
+        expect(content).not.toContain("npm run build");
+        expect(content).toContain("letra validate");
+      });
+
+      it("AC4: recovery paths present for each step", () => {
+        const snapshot = buildHarnessSnapshot(tmpDir, {
+          source: "flow-move",
+          workflow: {
+            name: "test",
+            stages: [
+              { id: "backlog", name: "Backlog", order: 0 },
+              { id: "code", name: "Code", order: 1 },
+            ],
+            items: [
+              { id: "ITEM-1", description: "Task", stage: "code" },
+            ],
+          },
+          activeStageId: "code",
+          primaryItemId: "ITEM-1",
+        });
+        const content = formatAdapterContent(snapshot, "text", { source: "flow-move", displayName: "Test" });
+        expect(content).toContain("❌ Se falhar");
+        expect(content).toContain("letra diagnose");
+      });
+
+      it("AC9: uses item ID in flow move command", () => {
+        const snapshot = buildHarnessSnapshot(tmpDir, {
+          source: "flow-move",
+          workflow: {
+            name: "test",
+            stages: [
+              { id: "backlog", name: "Backlog", order: 0 },
+              { id: "code", name: "Code", order: 1 },
+              { id: "review", name: "Review", order: 2 },
+            ],
+            items: [
+              { id: "ITEM-42", description: "Special task", stage: "code" },
+            ],
+          },
+          activeStageId: "code",
+          primaryItemId: "ITEM-42",
+        });
+        const content = formatAdapterContent(snapshot, "text", { source: "flow-move", displayName: "Test" });
+        expect(content).toContain("ITEM-42");
+        expect(content).toContain("review");
+      });
+
+      it("AC10: regenerated when item changes (different ID)", () => {
+        const snapshot1 = buildHarnessSnapshot(tmpDir, {
+          source: "flow-move",
+          workflow: {
+            name: "test",
+            stages: [
+              { id: "backlog", name: "Backlog", order: 0 },
+              { id: "code", name: "Code", order: 1 },
+              { id: "review", name: "Review", order: 2 },
+            ],
+            items: [
+              { id: "ITEM-A", description: "Old", stage: "code" },
+            ],
+          },
+          activeStageId: "code",
+          primaryItemId: "ITEM-A",
+        });
+        const snapshot2 = buildHarnessSnapshot(tmpDir, {
+          source: "flow-move",
+          workflow: {
+            name: "test",
+            stages: [
+              { id: "backlog", name: "Backlog", order: 0 },
+              { id: "code", name: "Code", order: 1 },
+              { id: "review", name: "Review", order: 2 },
+            ],
+            items: [
+              { id: "ITEM-B", description: "New", stage: "code" },
+            ],
+          },
+          activeStageId: "code",
+          primaryItemId: "ITEM-B",
+        });
+        const c1 = formatAdapterContent(snapshot1, "text", { source: "flow-move", displayName: "Test" });
+        const c2 = formatAdapterContent(snapshot2, "text", { source: "flow-move", displayName: "Test" });
+        expect(c1).toContain("ITEM-A");
+        expect(c2).toContain("ITEM-B");
+        expect(c1).not.toEqual(c2);
+      });
+    });
   });
 });

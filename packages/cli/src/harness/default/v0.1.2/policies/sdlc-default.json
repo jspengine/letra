@@ -1,0 +1,20 @@
+{
+  "id": "sdlc-default",
+  "version": "0.1.0",
+  "review": {
+    "minReviewers": 1,
+    "requireHuman": true,
+    "allowAgentToComment": true,
+    "allowAgentToApprove": false
+  },
+  "security": {
+    "blockOnCritical": true,
+    "blockOnHigh": true,
+    "allowAgentToOverride": false
+  },
+  "pr": {
+    "requireDescription": true,
+    "requireChecksPassing": true,
+    "allowAgentToMerge": false
+  }
+}

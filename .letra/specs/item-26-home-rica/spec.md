@@ -1,6 +1,6 @@
-# Spec: Home Rica
+# Spec: item-26-home-rica
 
-> Updated: 2026-06-13
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -13,6 +13,12 @@ Home do flow serve transformada em dashboard visual e interativa: métricas de s
 - Reutilizar componentes Vibe-inspired de `@letra/ui`
 - SSE broadcast já existe — usar para live updates após drag
 
+## Exclusions
+
+- Não alterar Flow/Kanban views
+- Não adicionar gráficos (será ITEM-10)
+- Não adicionar automações (será ITEM-7)
+
 ## Acceptance Criteria
 
 - [ ] **Métricas**: Cards de Specs (total/válidas/incompletas), Drift (desatualizadas), Foco (spec ativa), Health (stale/healthy) com tooltips explicativos
@@ -23,12 +29,6 @@ Home do flow serve transformada em dashboard visual e interativa: métricas de s
 - [ ] **Decisões Recentes**: Lista das últimas 4 decisões, link para Context view
 - [ ] **Métricas avançadas**: Tabela por estágio com avg days, max days, badge "bottleneck" quando avg > 5
 - [ ] **Vibe styling**: Cards consistentes (border-muted/60, hover suave, stage.color como accent)
-
-## Exclusions
-
-- Não alterar Flow/Kanban views
-- Não adicionar gráficos (será ITEM-10)
-- Não adicionar automações (será ITEM-7)
 
 ## Context
 

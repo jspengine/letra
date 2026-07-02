@@ -2,18 +2,19 @@
 
 ### ⚠ ATENÇÃO: 2 problema(s) grave(s) detectado(s) pelo diagnóstico automático
 Execute `letra health` para detalhes e `letra health ack <id>` para reconhecer.
-# Letra Session — letra
+# Letra Session — MyApp
 
 PASSO OBRIGATÓRIO #1: letra pulse — verificar estado do workspace
 PASSO OBRIGATÓRIO #2: Leia .letra/context.md — contexto completo do projeto
 PASSO OBRIGATÓRIO #3: Leia .letra/focus.md — foco e outcome da sessão
-PASSO OBRIGATÓRIO #4: Leia .letra/specs/write-sync/spec.md — ACs do item
+PASSO OBRIGATÓRIO #4: Leia .letra/specs/multi-folder/spec.md — ACs do item
 
 ## Foco Atual
 
-Item: ITEM-1 · Branding: header Letra no flow serve + 3 opções de logo
-Spec: write-sync
+Item: ITEM-45 · Multi-folder: visualizar, alternar e operar em pastas gerenciadas do workspace no Web UI
+Spec: multi-folder
 Estágio: Done
+ACs: 0/8 pendentes
 
 ## Alertas
 
@@ -21,35 +22,35 @@ Alerta · severidade baixa
   ID: hr-4652f8f0
   O que: AC "flow diff" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 17/06/2026, 14:13:59
+  Desde: 25/06/2026, 14:00:23
   Ação: `letra health ack hr-4652f8f0`
 
 Alerta · severidade baixa
   ID: hr-4103b765
   O que: AC "flow visualize" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 17/06/2026, 14:13:59
+  Desde: 25/06/2026, 14:00:23
   Ação: `letra health ack hr-4103b765`
 
 Alerta · severidade baixa
   ID: hr-dd77601
   O que: AC "flow export" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 17/06/2026, 14:13:59
+  Desde: 25/06/2026, 14:00:23
   Ação: `letra health ack hr-dd77601`
 
 Alerta · severidade baixa
   ID: hr-6380dc9e
   O que: AC "GET /" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 17/06/2026, 14:13:59
+  Desde: 25/06/2026, 14:00:23
   Ação: `letra health ack hr-6380dc9e`
 
 Alerta · severidade baixa
   ID: hr-352219f2
   O que: AC "letra sitrep" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 17/06/2026, 14:13:59
+  Desde: 25/06/2026, 14:00:23
   Ação: `letra health ack hr-352219f2`
 
   e mais 3 alertas
@@ -77,6 +78,19 @@ Alerta · severidade baixa
   → `letra sitrep` — atualiza context.md
   → `letra flow move <ITEM-ID> --auto` — avança para próximo estágio
 
+## Após completar uma ação
+
+- `letra validate` — validate
+  ❌ Se falhar: letra diagnose — encontrar e corrigir problemas
+- `letra pulse` — pulse
+  ❌ Se falhar: letra health — checar alertas ativos
+- `letra sitrep` — sitrep
+  ❌ Se falhar: corrija o erro e tente novamente
+- `letra flow move ITEM-45 --to proximo_estagio` — flow move
+  ❌ Se falhar: letra validate — verificar ACs pendentes
+- `npm run build` — build
+  ❌ Se falhar: corrija erros de compilação
+
 ## Comandos
 
 **Leitura (seguro — não muda nada):**
@@ -97,13 +111,13 @@ Alerta · severidade baixa
 
 ## Continuidade
 
-Última atividade: 15/06/2026, 17:55:27
+Última atividade: 17/06/2026, 14:04:24
 Ações:
-  • item_move: Item ITEM-49 movido: Backlog → Done
-  • item_move: Item ITEM-44 movido: Backlog → Code
-  • item_move: Item ITEM-44 movido: Code → Review
-  • item_move: Item ITEM-44 movido: Review → Done
-  • validate: Validação executada — 26 passed, 0 failed, 248 war
+  • ac_done: AC AC5.5 marcado como concluído em harness-loop-re
+  • validate: Validação executada — 1 passed, 0 failed, 305 warn
+  • ac_done: AC AC5.6 marcado como concluído em harness-loop-re
+  • validate: Validação executada — 1 passed, 0 failed, 305 warn
+  • ac_done: AC AC11.4 marcado como concluído em harness-loop-r
 
 ## Checklist de Encerramento
 

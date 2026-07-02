@@ -1,6 +1,6 @@
-# Spec: Diagnostics Web
+# Spec: diagnostics-web
 
-> Updated: 2026-06-14
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -13,32 +13,11 @@ O `flow serve` expõe os resultados do Self-Diagnosis Engine via SSE e REST. A U
 - Nenhum endpoint de diagnóstico pode quebrar o fluxo normal do servidor
 - Snapshot restore deve ser atômico — ou restaura tudo ou nada
 
-## API
+## Exclusions
 
-### SSE Events (canal `/events`)
-
-```json
-event: diagnostics-updated
-data: { "fixes": 2, "suggestions": 1, "snapshots": [ "1718300000_ac-stale" ] }
-```
-
-### REST Endpoints
-
-```
-GET  /api/diagnostics
-  → { "fixes": Diagnostic[], "suggestions": Diagnostic[], "timestamp": "..." }
-
-GET  /api/diagnostics/snapshots
-  → { "snapshots": SnapshotSummary[] }   // lista para undo history
-
-POST /api/diagnostics/scan
-  → re-executa engine.runAll(), força SSE broadcast
-  → { "fixes": [...], "suggestions": [...] }
-
-POST /api/diagnostics/undo/:snapshotId
-  → restaura arquivos do snapshot
-  → { "ok": true, "restoredFiles": ["..."], "snapshotId": "..." }
-```
+- Autenticação ou autorização — servidor local, sem necessidade
+- Cache ou rate limiting de SSE — poucos eventos, clientes leves
+- Endpoint para configurar quais detectores rodam — configuração via config.json (futuro)
 
 ## Acceptance Criteria
 
@@ -50,12 +29,6 @@ POST /api/diagnostics/undo/:snapshotId
 - [ ] **Undo atômico**: Se restore falhar em um arquivo, nenhum arquivo é modificado (transacional)
 - [ ] **Snapshot inválido**: Se snapshotId não existe, retorna 404 sem modificar nada
 - [ ] **Sem degradação**: Rodar scan manual ou receber SSE não afeta tempo de resposta de outras rotas
-
-## Exclusions
-
-- Autenticação ou autorização — servidor local, sem necessidade
-- Cache ou rate limiting de SSE — poucos eventos, clientes leves
-- Endpoint para configurar quais detectores rodam — configuração via config.json (futuro)
 
 ## Context
 

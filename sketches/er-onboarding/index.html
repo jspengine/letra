@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Letra — ER Onboarding v1</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #08090a;
+    --surface: #0e0f12;
+    --border: #1f2937;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --accent: #5e6ad2;
+    --accent2: #7b88f0;
+    --success: #22c55e;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --purple: #a78bfa;
+    --cyan: #22d3ee;
+    --orange: #fb923c;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px 24px;
+    line-height: 1.5;
+  }
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .erdiagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 28px;
+    overflow: auto;
+  }
+  .entities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    justify-content: center;
+    position: relative;
+  }
+  .entity {
+    background: #0b0c10;
+    border: 1.5px solid #374151;
+    border-radius: 10px;
+    min-width: 210px;
+    max-width: 260px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  }
+  .entity-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: .02em;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .entity-header .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+  }
+  .entity-body {
+    padding: 10px 14px 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .attr {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 3px 0;
+    color: #cbd5e1;
+  }
+  .attr .name { font-weight: 500; }
+  .attr .type { color: var(--muted); font-size: 11px; }
+  .attr .pk { color: var(--warn); font-weight: 700; }
+  .attr .fk { color: var(--accent2); font-weight: 600; font-size: 11px; }
+  .no-attr {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 12px;
+    padding: 6px 0;
+  }
+  .rel-layer {
+    margin-top: 18px;
+    border-top: 1px dashed #2d3748;
+    padding-top: 14px;
+  }
+  .relationships {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .rel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: #cbd5e1;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #0a0c10;
+    border: 1px solid #1f2937;
+  }
+  .rel .from { font-family: var(--mono); color: var(--cyan); font-weight: 500; }
+  .rel .arrow { color: var(--muted); font-size: 16px; }
+  .rel .card { color: var(--muted); font-weight: 600; font-size: 11px; letter-spacing: .04em; }
+  .rel .to { font-family: var(--mono); color: var(--cyan); font-weight: 500; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 18px;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+  }
+  .schemas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 860px) {
+    .schemas { grid-template-columns: 1fr; }
+  }
+  .schema {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .schema-header {
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .schema-header .dot { width: 8px; height: 8px; border-radius: 999px; }
+  .schema-body {
+    padding: 14px;
+    overflow-x: auto;
+  }
+  .schema-body pre {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.6;
+    margin: 0;
+    white-space: pre;
+  }
+  .k { color: #7dd3fc; }
+  .s { color: #fbbf24; }
+  .n { color: #f472b6; }
+  .c { color: #34d399; }
+  .p { color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Modelo de dados — Onboarding & Configuração (v1)</h1>
+  <p class="subtitle">Entidades, relacionamentos e schema JSON correspondente. Foco: primeira execução do letra.</p>
+
+  <div class="erdiagram">
+    <div class="entities">
+      <!-- Workspace -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#22d3ee"></div>Workspace</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">uuid</span></div>
+          <div class="attr"><span class="name">name</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">rootPath</span><span class="type">path</span></div>
+          <div class="attr"><span class="name">createdAt</span><span class="type">iso8601</span></div>
+          <div class="attr"><span class="name">updatedAt</span><span class="type">iso8601</span></div>
+        </div>
+      </div>
+
+      <!-- Project -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#5e6ad2"></div>Project</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">uuid</span></div>
+          <div class="attr"><span class="name">workspaceId</span><span class="type">uuid <span class="fk">FK</span></span></div>
+          <div class="attr"><span class="name">name</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">slug</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">templateId</span><span class="type">string <span class="fk">FK</span></span></div>
+          <div class="attr"><span class="name">manifestPath</span><span class="type">path</span></div>
+          <div class="attr"><span class="name">status</span><span class="type">enum</span></div>
+        </div>
+      </div>
+
+      <!-- Repository -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#34d399"></div>Repository</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">uuid</span></div>
+          <div class="attr"><span class="name">projectId</span><span class="type">uuid <span class="fk">FK</span></span></div>
+          <div class="attr"><span class="name">localPath</span><span class="type">path</span></div>
+          <div class="attr"><span class="name">remoteUrl</span><span class="type">string?</span></div>
+          <div class="attr"><span class="name">branch</span><span class="type">string?</span></div>
+          <div class="attr"><span class="name">kind</span><span class="type">enum</span></div>
+        </div>
+      </div>
+
+      <!-- FlowTemplate -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#fbbf24"></div>FlowTemplate</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">version</span><span class="type">semver</span></div>
+          <div class="attr"><span class="name">label</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">stages</span><span class="type">StageDef[]</span></div>
+          <div class="no-attr">(source: harness/flows/*.yaml)</div>
+        </div>
+      </div>
+
+      <!-- Gate -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#fb923c"></div>Gate</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">name</span><span class="type">string</span></div>
+          <div class="attr"><span class="name">type</span><span class="type">enum</span></div>
+          <div class="attr"><span class="name">blocking</span><span class="type">boolean</span></div>
+        </div>
+      </div>
+
+      <!-- ProjectGate -->
+      <div class="entity">
+        <div class="entity-header"><div class="dot" style="background:#a78bfa"></div>ProjectGate</div>
+        <div class="entity-body">
+          <div class="attr"><span class="name pk">id</span><span class="type">uuid</span></div>
+          <div class="attr"><span class="name">projectId</span><span class="type">uuid <span class="fk">FK</span></span></div>
+          <div class="attr"><span class="name">gateId</span><span class="type">string <span class="fk">FK</span></span></div>
+          <div class="attr"><span class="name">required</span><span class="type">boolean</span></div>
+          <div class="attr"><span class="name">order</span><span class="type">int?</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Relationships -->
+    <div class="rel-layer">
+      <div style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px;">Relacionamentos</div>
+      <div class="relationships">
+        <div class="rel"><span class="from">Workspace</span><span class="arrow">1 ──── N</span><span class="card">CONTÉM</span><span class="arrow">N ──── 1</span><span class="to">Project</span></div>
+        <div class="rel"><span class="from">Project</span><span class="arrow">1 ──── 1</span><span class="card">TEM</span><span class="arrow">1 ──── 1</span><span class="to">FlowTemplate (via templateId)</span></div>
+        <div class="rel"><span class="from">Project</span><span class="arrow">1 ──── N</span><span class="card">ESCANEIA</span><span class="arrow">N ──── 1</span><span class="to">Repository</span></div>
+        <div class="rel"><span class="from">Project</span><span class="arrow">N ──── N</span><span class="card">APLICA</span><span class="arrow">N ──── 1</span><span class="to">Gate (via ProjectGate)</span></div>
+        <div class="rel"><span class="from">FlowTemplate</span><span class="arrow">1 ──── N</span><span class="card">DEFINE</span><span class="arrow">N ──── 1</span><span class="to">StageDef</span></div>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:#22d3ee"></span>Workspace</span>
+        <span><span class="dot" style="background:#5e6ad2"></span>Project</span>
+        <span><span class="dot" style="background:#34d399"></span>Repository</span>
+        <span><span class="dot" style="background:#fbbf24"></span>FlowTemplate</span>
+        <span><span class="dot" style="background:#fb923c"></span>Gate</span>
+        <span><span class="dot" style="background:#a78bfa"></span>ProjectGate</span>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="font-size:16px; font-weight:600; margin-bottom:12px;">Schema JSON — Instâncias de exemplo</h2>
+  <p class="subtitle" style="margin-bottom:16px;">Formato dos arquivos/registros que serão persistidos no workspace.</p>
+
+  <div class="schemas">
+    <!-- Workspace -->
+    <div class="schema">
+      <div class="schema-header"><div class="dot" style="background:#22d3ee"></div>workspace.yaml</div>
+      <div class="schema-body">
+<pre>{
+  <span class="k">"id"</span>: <span class="s">"ws_8f3a12"</span>,
+  <span class="k">"name"</span>: <span class="s">"default"</span>,
+  <span class="k">"rootPath"</span>: <span class="s">"/home/user/.letra/workspace"</span>,
+  <span class="k">"createdAt"</span>: <span class="s">"2026-06-22T10:00:00Z"</span>,
+  <span class="k">"updatedAt"</span>: <span class="s">"2026-06-22T10:00:00Z"</span>
+}</pre>
+      </div>
+    </div>
+
+    <!-- Project -->
+    <div class="schema">
+      <div class="schema-header"><div class="dot" style="background:#5e6ad2"></div>projects/{slug}.json</div>
+      <div class="schema-body">
+<pre>{
+  <span class="k">"id"</span>: <span class="s">"proj_9b2c44"</span>,
+  <span class="k">"workspaceId"</span>: <span class="s">"ws_8f3a12"</span>,
+  <span class="k">"name"</span>: <span class="s">"plataforma-pagamentos"</span>,
+  <span class="k">"slug"</span>: <span class="s">"plataforma-pagamentos"</span>,
+  <span class="k">"templateId"</span>: <span class="s">"sdlc"</span>,
+  <span class="k">"manifestPath"</span>: <span class="s">"../repos/plataforma/.letra/manifest.json"</span>,
+  <span class="k">"status"</span>: <span class="s">"active"</span>
+}</pre>
+      </div>
+    </div>
+
+    <!-- Repository -->
+    <div class="schema">
+      <div class="schema-header"><div class="dot" style="background:#34d399"></div>repositories/{id}.json</div>
+      <div class="schema-body">
+<pre>{
+  <span class="k">"id"</span>: <span class="s">"repo_1a7d09"</span>,
+  <span class="k">"projectId"</span>: <span class="s">"proj_9b2c44"</span>,
+  <span class="k">"localPath"</span>: <span class="s">"C:\\projetos\\plataforma"</span>,
+  <span class="k">"remoteUrl"</span>: <span class="s">"https://github.com/org/plataforma"</span>,
+  <span class="k">"branch"</span>: <span class="s">"main"</span>,
+  <span class="k">"kind"</span>: <span class="s">"mono"</span>
+}</pre>
+      </div>
+    </div>
+
+    <!-- Manifest -->
+    <div class="schema">
+      <div class="schema-header"><div class="dot" style="background:#fbbf24"></div>letra.manifest.json</div>
+      <div class="schema-body">
+<pre>{
+  <span class="k">"schemaVersion"</span>: <span class="s">"1.0"</span>,
+  <span class="k">"projectId"</span>: <span class="s">"proj_9b2c44"</span>,
+  <span class="k">"templateId"</span>: <span class="s">"sdlc"</span>,
+  <span class="k">"harnessVersion"</span>: <span class="s">"0.1.0"</span>,
+  <span class="k">"repositories"</span>: [
+    { <span class="k">"id"</span>: <span class="s">"repo_1a7d09"</span>, <span class="k">"path"</span>: <span class="s">"../../"</span> }
+  ],
+  <span class="k">"gates"</span>: [
+    <span class="s">"human-approved-spec"</span>,
+    <span class="s">"human-approved-code"</span>
+  ]
+}</pre>
+      </div>
+    </div>
+
+    <!-- FlowTemplate -->
+    <div class="schema">
+      <div class="schema-header"><div class="dot" style="background:#fb923c"></div>harness/flows/sdlc.yaml</div>
+      <div class="schema-body">
+<pre>{
+  <span class="k">"id"</span>: <span class="s">"sdlc"</span>,
+  <span class="k">"version"</span>: <span class="s">"0.1.0"</span>,
+  <span class="k">"label"</span>: <span class="s">"SDLC"</span>,
+  <span class="k">"stages"</span>: [
+    { <span class="k">"id"</span>: <span class="s">"backlog"</span>, <span class="k">"label"</span>: <span class="s">"Backlog"</span> },
+    { <span class="k">"id"</span>: <span class="s">"spec-draft"</span>, <span class="k">"label"</span>: <span class="s">"Spec Draft"</span> },
+    { <span class="k">"id"</span>: <span class="s">"spec-review"</span>, <span class="k">"label"</span>: <span class="s">"Spec Review"</span> },
+    { <span class="k">"id"</span>: <span class="s">"code"</span>, <span class="k">"label"</span>: <span class="s">"Code"</span> },
+    { <span class="k">"id"</span>: <span class="s">"code-review"</span>, <span class="k">"label"</span>: <span class="s">"Code Review"</span> },
+    { <span class="k">"id"</span>: <span class="s">"security"</span>, <span class="k">"label"</span>: <span class="s">"Security"</span> },
+    { <span class="k">"id"</span>: <span class="s">"ready-to-pr"</span>, <span class="k">"label"</span>: <span class="s">"Ready to PR"</span> },
+    { <span class="k">"id"</span>: <span class="s">"done"</span>, <span class="k">"label"</span>: <span class="s">"Done"</span> }
+  ]
+}</pre>
+      </div>
+    </div>
+
+    <!-- Gate + ProjectGate -->
+    <div class="schema">
+      <div class="schema-header"><div class="dot" style="background:#a78bfa"></div>gates + project_gates</div>
+      <div class="schema-body">
+<pre><span class="p">// Gate (do harness)</span>
+{
+  <span class="k">"id"</span>: <span class="s">"human-approved-spec"</span>,
+  <span class="k">"name"</span>: <span class="s">"Aprovação Humana (Spec)"</span>,
+  <span class="k">"type"</span>: <span class="s">"human"</span>,
+  <span class="k">"blocking"</span>: <span class="n">true</span>
+}
+
+<span class="p">// ProjectGate (instância)</span>
+{
+  <span class="k">"id"</span>: <span class="s">"pg_4e5f01"</span>,
+  <span class="k">"projectId"</span>: <span class="s">"proj_9b2c44"</span>,
+  <span class="k">"gateId"</span>: <span class="s">"human-approved-spec"</span>,
+  <span class="k">"required"</span>: <span class="n">true</span>,
+  <span class="k">"order"</span>: <span class="n">1</span>
+}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

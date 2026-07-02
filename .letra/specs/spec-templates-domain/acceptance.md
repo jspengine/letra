@@ -1,4 +1,4 @@
-# Acceptance Criteria — spec-templates-domain
+## Acceptance Criteria
 
 - [x] **Flag --template**: `letra spec new <nome> --template web-api` usa template específico.
 - [x] **3 Built-ins**: `web-api`, `cli-tool`, `mobile-feature` disponíveis por padrão.

@@ -1,7 +1,8 @@
-# Acceptance Criteria — flow-export-import
+## Acceptance Criteria
 
-- [ ] **Instalação**: CLI executável via npx/npm install -g sem erros.
-- [ ] **--help**: Roda sem argumentos, exibe ajuda com subcomandos.
-- [ ] **Subcomando**: Subcomando principal executa sem erros e exibe output.
-- [ ] **Erro**: Subcomando inválido exibe erro amigável e exit 1.
-- [ ] **Cross-platform**: Funciona em Windows (cmd/powershell), macOS (zsh) e Linux (bash).
+- [ ] **`letra flow export`**: imprime JSON formatado no stdout
+- [ ] **`letra flow export --minified`**: imprime JSON sem indentação
+- [ ] **`letra flow import workflow.json`**: importa e cria backup
+- [ ] **Backup**: salvo como `.letra/workflow.v1.0.0.json`
+- [ ] **Import**: valida estrutura (rejeita JSON inválido ou sem stages)
+- [ ] **Testado localmente**: antes do PR

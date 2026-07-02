@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { flowBoard } from "./flow-board.js";
+import { flowBoard, resolveBoardStages } from "./flow-board.js";
 import { type Workflow, saveWorkflow } from "./flow-init.js";
 
 function createTestWorkflow(extraItems = 0): Workflow {
@@ -54,6 +54,33 @@ describe("flow-board", () => {
 	});
 
 	describe("flowBoard", () => {
+		it("includes resolved harness stages and keeps unmapped item stages visible", () => {
+			const workflow = createTestWorkflow();
+			workflow.items.push({
+				id: "ITEM-2",
+				description: "Security audit",
+				stage: "security",
+				createdAt: "2026-01-01T00:00:00.000Z",
+			});
+
+			const stages = resolveBoardStages(workflow, [
+				{ id: "backlog", name: "Backlog", order: 0, zone: "todo" },
+				{ id: "security", name: "Security", order: 1, zone: "doing" },
+				{ id: "done", name: "Done", order: 2, zone: "done" },
+			]);
+
+			expect(stages.map((stage) => stage.id)).toEqual(["backlog", "security", "done"]);
+		});
+
+		it("adds an unknown item stage instead of hiding its items", () => {
+			const workflow = createTestWorkflow();
+			workflow.items[0].stage = "external-review";
+
+			const stages = resolveBoardStages(workflow, workflow.stages);
+
+			expect(stages.some((stage) => stage.id === "external-review")).toBe(true);
+		});
+
 		it("should show warning when no workflow exists", () => {
 			flowBoard(tmpDir);
 			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("No workflow found"));

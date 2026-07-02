@@ -18,14 +18,14 @@ const variantIcons: Record<string, IconName> = {
 };
 
 export function Alert({ title, children, variant = "info", className }: AlertProps) {
+	const token = variant === "error" ? "error" : variant === "warning" ? "warning" : "info";
 	return (
 		<div
 			className={cn("flex gap-2.5 p-3 rounded-lg border", className)}
 			style={{
-				background: `var(--${variant === "error" ? "error" : variant === "warning" ? "warning" : "info"})`,
-				borderColor: `var(--${variant === "error" ? "error" : variant === "warning" ? "warning" : "info"})`,
-				color: `var(--${variant === "error" ? "error" : variant === "warning" ? "warning" : "info"}-foreground)`,
-				opacity: 0.15,
+				background: `color-mix(in srgb, var(--${token}) 12%, transparent)`,
+				borderColor: `color-mix(in srgb, var(--${token}) 35%, transparent)`,
+				color: `var(--${token}-foreground)`,
 			}}
 		>
 			<Icon
@@ -33,7 +33,7 @@ export function Alert({ title, children, variant = "info", className }: AlertPro
 				size={16}
 				className="shrink-0 mt-0.5"
 				style={{
-					color: `var(--${variant === "error" ? "error" : variant === "warning" ? "warning" : "info"})`,
+					color: `var(--${token})`,
 				}}
 			/>
 			<div className="text-sm" style={{ color: "var(--foreground)" }}>

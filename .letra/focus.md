@@ -1,5 +1,5 @@
-# Focus: loop-gaps
+# Focus: harness-viewer
 
-**Path**: .letra/specs/loop-gaps/
-**Item**: ITEM-39
-**Outcome**: Os gaps identificados durante o ITEM-37 são corrigidos: criação de item com sugestão de spec, pulse alerta sobre spec faltante, comando `letra spec link`, e dashboard reflete claim state. O loop de desenvolvimento fica mais apertado — menos steps manuais entre criar um item e ter tudo linkado.
+**Path**: .letra/specs/harness-viewer/
+**Item**: ITEM-27
+**Outcome**: O desenvolvedor consegue visualizar na Web UI a pilha exata de contexto (camadas L1 a L4) compilada pelo LETRA, facilitando o entendimento de quais instruções e critérios de aceitação estão sendo consumidos pelas ferramentas de IA no momento.

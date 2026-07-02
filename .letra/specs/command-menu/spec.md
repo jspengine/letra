@@ -1,20 +1,10 @@
-# Cardápio de Comandos — Ferramentas que o Agente Tem
+# Spec: command-menu
 
-> Updated: 2026-06-15
+> Updated: 2026-06-22
 
 ## Outcome
 
 O agente sabe exatamente quais comandos Letra estão disponíveis, categorizados por propósito (leitura, escrita, setup), sem precisar adivinhar ou rodar `--help`. O adaptador lista o cardápio em formato conciso: comando + descrição de uma linha. O agente consulta e usa.
-
-## Linguagem (UX)
-
-| Termo Técnico | Termo Humano | Seção no Adaptador |
-|---|---|---|
-| command menu | cardápio de comandos | `## Comandos Disponíveis` |
-| safe commands | leitura (seguro) | Categoria: não mudam estado |
-| write commands | escrita (muda estado) | Categoria: alteram workflow/prontuário |
-| setup commands | configuração | Categoria: init, focus |
-| pipeline commands | fluxo | Categoria: flow commands |
 
 ## Constraints
 
@@ -26,78 +16,12 @@ O agente sabe exatamente quais comandos Letra estão disponíveis, categorizados
 - A seção é gerada automaticamente junto com os adaptadores
 - Ferramentas diferentes podem ter comandos diferentes? Não — mesmo conjunto para todas
 
-## Architecture
+## Exclusions
 
-### Seção no Adaptador
-
-```markdown
-## Comandos Disponíveis
-
-Leitura (seguro — não muda nada):
-  letra pulse                    — Overview do workspace
-  letra health                   — Alertas ativos
-  letra health --all             — Alertas incluindo resolvidos
-  letra sitrep --dry-run         — Simular atualização de contexto
-  letra flow board               — Todas as colunas do fluxo
-  letra flow backlog             — Itens no backlog
-
-Escrita (muda estado):
-  letra health ack <id>          — Reconhecer alerta
-  letra health dismiss <id>      — Descartar alerta
-  letra health scan              — Re-executar verificações
-  letra sitrep                   — Atualizar context.md
-  letra flow move <id> --to <s>  — Mover item entre estágios
-  letra focus <spec>             — Definir foco
-
-Setup:
-  letra validate                 — Validar specs e ACs
-  letra focus --clear            — Limpar foco
-```
-
-### Lógica de Geração
-
-```typescript
-function buildCommandMenu(): string {
-  return [
-    "## Comandos Disponíveis",
-    "",
-    "Leitura (seguro — não muda nada):",
-    "  `letra pulse`                    — Overview do workspace",
-    "  `letra health`                   — Alertas ativos",
-    "  `letra health --all`             — Alertas incluindo resolvidos",
-    "  `letra sitrep --dry-run`         — Simular atualização de contexto",
-    "  `letra flow board`               — Todas as colunas do fluxo",
-    "  `letra flow backlog`             — Itens no backlog",
-    "",
-    "Escrita (muda estado):",
-    "  `letra health ack <id>`          — Reconhecer alerta",
-    "  `letra health dismiss <id>`      — Descartar alerta",
-    "  `letra health scan`              — Re-executar verificações",
-    "  `letra sitrep`                   — Atualizar context.md",
-    "  `letra flow move <id> --to <s>`  — Mover item entre estágios",
-    "  `letra focus <spec>`             — Definir foco",
-    "",
-    "Setup:",
-    "  `letra validate`                 — Validar specs e ACs",
-    "  `letra focus --clear`            — Limpar foco",
-  ].join("\n");
-}
-```
-
-### Integração com a Ordem do Adaptador
-
-```
-L5: Checklist de Início        — "por onde começar"
-L6: Comandos Disponíveis       — "quais ferramentas"     
-L7: Pendências Detectadas      — "o que está errado" (se houver)
-L8: Regras de Handoff          — "o que fazer depois" (se item ativo)
-```
-
-### Evolução do Cardápio
-
-O cardápio é a única seção que deve ser atualizada quando novos comandos são adicionados ao Letra. É a responsabilidade mais simples de manter — uma lista plana.
-
-Ferramentas podem **estender** o cardápio nos próprios adaptadores específicos (ex: "OpenCode: use `/think` para refletir antes de executar"), mas o núcleo é sempre o mesmo.
+- Descrição detalhada de cada comando (flags, opções) — `letra <cmd> --help` para isso
+- Comandos específicos de ferramentas (ex: atalhos do Cursor) — responsabilidade do adapter da ferramenta
+- Exemplos de uso — apenas descrição de uma linha
+- Comandos de inicialização (init, spec new) — usados apenas no setup inicial
 
 ## Acceptance Criteria
 
@@ -110,13 +34,6 @@ Ferramentas podem **estender** o cardápio nos próprios adaptadores específico
 - [x] **Sem dependência**: Funciona sem health-record, sem situation-room
 - [x] **Regeneração automática**: Atualizada quando adapters são gerados
 - [x] **Testes**: Cardápio completo, comandos categorizados, sem duplicação
-
-## Exclusions
-
-- Descrição detalhada de cada comando (flags, opções) — `letra <cmd> --help` para isso
-- Comandos específicos de ferramentas (ex: atalhos do Cursor) — responsabilidade do adapter da ferramenta
-- Exemplos de uso — apenas descrição de uma linha
-- Comandos de inicialização (init, spec new) — usados apenas no setup inicial
 
 ## Context
 

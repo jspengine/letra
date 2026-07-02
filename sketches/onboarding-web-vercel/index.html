@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Letra — Setup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111;
+    --border: #27272a;
+    --text: #ededed;
+    --muted: #888;
+    --accent: #0070f3;
+    --accent2: #3291ff;
+    --success: #0070f3;
+    --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .container { width: 100%; max-width: 680px; }
+  .logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 32px;
+    text-align: center;
+    line-height: 1.4;
+    white-space: pre;
+    color: #ededed;
+  }
+  h1 { font-size: 24px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+  .step-indicator {
+    display: flex; gap: 8px; margin-bottom: 24px;
+  }
+  .step {
+    height: 2px; flex: 1; background: var(--border);
+    border-radius: 1px;
+  }
+  .step.active { background: var(--accent); }
+  .step.done { background: var(--success); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+  input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: var(--font);
+    outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  .hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .dir-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-family: var(--mono);
+    margin: 4px 6px 4px 0;
+  }
+  .dir-tag .x { color: var(--muted); cursor: pointer; }
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 24px;
+  }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  button:hover { background: var(--accent2); }
+  button.ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  button.ghost:hover { color: var(--text); border-color: #444; }
+  .hidden { display: none; }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .k { color: var(--muted); }
+  .v { font-family: var(--mono); font-size: 12px; }
+  .empty-state {
+    text-align: center;
+    padding: 32px 24px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .metric-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .metric-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .metric-value {
+    font-size: 28px;
+    font-weight: 600;
+    font-family: var(--mono);
+  }
+  .metric-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 10px;
+    overflow: hidden;
+  }
+  .metric-bar > i {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+██╗     ██╗ ██████╗██████╗ ██╗   ██╗████████╗██╗   ██╗
+██║     ██║██╔════╝██╔══██╗██║   ██║╚══██╔══╝██║   ██║
+██║     ██║██║     ██████╔╝██║   ██║   ██║   ██║   ██║
+██║     ██║██║     ██╔══██╗██║   ██║   ██║   ██║   ██║
+███████╗██║╚██████╗██║  ██║╚██████╔╝   ██║   ╚██████╔╝
+╚══════╝╚═╝ ╚═════╝╚═╝  ╚═╝ ╚═════╝    ╚═╝    ╚═════╝
+  </div>
+
+  <!-- STEP 1 -->
+  <div id="step1" class="step-panel">
+    <h1>Qual o nome do seu projeto?</h1>
+    <p class="subtitle">Será usado como identificador no workspace do letra.</p>
+    <div class="card">
+      <label for="projectName">Nome do projeto</label>
+      <input id="projectName" placeholder="ex: plataforma-pagamentos" autofocus>
+      <p class="hint">Letras minúsculas, números e hífens. Sem espaços.</p>
+    </div>
+    <div class="actions">
+      <div></div>
+      <button onclick="go(2)">Continuar →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div id="step2" class="step-panel hidden">
+    <h1>Quais diretórios escanear?</h1>
+    <p class="subtitle">O letra vai procurar repositórios git nesses caminhos. Pode ser URL ou caminho local.</p>
+    <div class="card">
+      <label for="dirInput">Adicionar diretório</label>
+      <input id="dirInput" placeholder="C:\projetos\meu-app ou https://github.com/org/repo">
+      <button class="ghost" style="margin-top:10px" onclick="addDir()">+ Adicionar</button>
+      <div id="dirList" style="margin-top:12px"></div>
+      <p class="hint">Pressione Enter para adicionar. O letra detecta automaticamente o tipo de cada repositório.</p>
+    </div>
+    <div class="actions">
+      <button class="ghost" onclick="go(1)">← Voltar</button>
+      <button onclick="go(3)">Continuar →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div id="step3" class="step-panel hidden">
+    <h1>Fluxo e regras</h1>
+    <p class="subtitle">Escolha o template de fluxo e os gates obrigatórios.</p>
+    <div class="card">
+      <label for="templateSelect">Template</label>
+      <select id="templateSelect">
+        <option value="sdlc">SDLC (padrão)</option>
+        <option value="support">Suporte</option>
+        <option value="infra">Infra</option>
+      </select>
+    </div>
+    <div class="card">
+      <label>Gates (filtros obrigatórios)</label>
+      <div class="checkbox-row">
+        <input type="checkbox" id="g1" checked>
+        <label for="g1" style="margin:0">human-approved-spec</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="g2" checked>
+        <label for="g2" style="margin:0">human-approved-code</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="g3">
+        <label for="g3" style="margin:0">security-clear</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="g4">
+        <label for="g4" style="margin:0">all-acs-passing</label>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="ghost" onclick="go(2)">← Voltar</button>
+      <button onclick="go(4)">Revisar →</button>
+    </div>
+  </div>
+
+  <!-- REVIEW -->
+  <div id="step4" class="step-panel hidden">
+    <h1>Tudo certo?</h1>
+    <p class="subtitle">Revise antes de criar o workspace.</p>
+    <div class="card">
+      <div id="reviewContent"></div>
+    </div>
+    <div class="actions">
+      <button class="ghost" onclick="go(3)">← Voltar</button>
+      <button onclick="finish()">Criar projeto →</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="step-panel hidden">
+    <div class="card" style="background: var(--surface);">
+      <p style="font-size:12px; text-transform:uppercase; letter-spacing:.08em; color: var(--muted); margin-bottom:12px;">Próximo passo</p>
+      <div style="font-size:18px; font-weight:600; margin-bottom:6px;">Comece o primeiro flow</div>
+      <div style="color: var(--muted); font-size:14px; margin-bottom:16px;">Rode <code style="background:#000; padding:2px 6px; border-radius:4px; font-family:var(--mono); font-size:12px;">letra flow start --template sdlc</code> no terminal.</div>
+      <button onclick="reset()">Novo projeto</button>
+    </div>
+    <div class="metric-grid">
+      <div class="metric">
+        <div class="metric-label">Cycle Time</div>
+        <div class="metric-value">—</div>
+        <div class="metric-bar"><i style="width:0%"></i></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Review Wait</div>
+        <div class="metric-value">—</div>
+        <div class="metric-bar"><i style="width:0%"></i></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Rejection Rate</div>
+        <div class="metric-value">—</div>
+        <div class="metric-bar"><i style="width:0%"></i></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Throughput</div>
+        <div class="metric-value">—</div>
+        <div class="metric-bar"><i style="width:0%"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let dirs = [];
+  function $(id) { return document.getElementById(id); }
+  function hideAll() {
+    document.querySelectorAll('.step-panel').forEach(el => el.classList.add('hidden'));
+  }
+  function go(n) {
+    if (n === 3 && dirs.length === 0) {
+      alert('Adicione ao menos um diretório ou repositório.');
+      return;
+    }
+    if (n === 4) buildReview();
+    hideAll();
+    $('step' + n).classList.remove('hidden');
+  }
+  function addDir() {
+    const v = $('dirInput').value.trim();
+    if (!v) return;
+    dirs.push(v);
+    $('dirInput').value = '';
+    renderDirs();
+  }
+  function renderDirs() {
+    const box = $('dirList');
+    box.innerHTML = dirs.map((t,i) =>
+      `<div class="dir-tag">${t} <span class="x" onclick="removeDir(${i})">×</span></div>`
+    ).join('');
+  }
+  function removeDir(i) {
+    dirs.splice(i,1);
+    renderDirs();
+  }
+  function buildReview() {
+    const t = $('templateSelect');
+    const gs = [1,2,3,4].filter(i => $('g'+i).checked).map(i => $('g'+i).nextElementSibling.textContent.trim());
+    $('reviewContent').innerHTML = [
+      mkRow('Projeto', $('projectName').value),
+      mkRow('Diretórios', dirs.length + (dirs.length===1?' alvo':' alvos')),
+      mkRow('Template', t.options[t.selectedIndex].text),
+      mkRow('Gates', gs.join(', ') || 'nenhum'),
+    ].join('');
+  }
+  function mkRow(k,v) {
+    return `<div class="summary-row"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+  }
+  function finish() {
+    hideAll();
+    $('dashboard').classList.remove('hidden');
+  }
+  function reset() {
+    dirs = [];
+    $('projectName').value = '';
+    renderDirs();
+    go(1);
+  }
+  $('dirInput').addEventListener('keydown', e => { if (e.key==='Enter') addDir(); });
+</script>
+</body>
+</html>

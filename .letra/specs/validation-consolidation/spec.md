@@ -1,6 +1,6 @@
-# Spec: Validation Consolidation — Unificação da Validação
+# Spec: validation-consolidation
 
-> Updated: 2026-06-15
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -14,80 +14,12 @@ Três sistemas paralelos de validação (`lint.ts`, `validate.ts`, e os detector
 - Módulos shared são funções puras (sem estado, sem efeito colateral)
 - Import paths seguem o padrão ESM existente (`import { x } from "../shared/file-search.js"`)
 
-## Architecture
+## Exclusions
 
-### Antes:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  ac-stale.ts      ac-false-pos.ts   spec-code-drift.ts      │
-│  ┌──────────┐     ┌──────────┐      ┌──────────┐            │
-│  │searchInSrc│     │searchInSrc│      │searchInSrc│           │
-│  │walkDir    │     │walkDir    │      │walkDir    │           │
-│  └──────────┘     └──────────┘      └──────────┘            │
-├─────────────────────────────────────────────────────────────┤
-│  lint.ts                     flow-serve.ts                   │
-│  ┌──────────────────┐       ┌──────────────────────┐        │
-│  │REQUIRED_SECTIONS │       │checkRequiredSections │        │
-│  │check sections    │       │(inline, duplicado)   │        │
-│  │check length      │       └──────────────────────┘        │
-│  │check checklist   │                                       │
-│  └──────────────────┘                                       │
-├─────────────────────────────────────────────────────────────┤
-│  validate.ts                    cross-spec-dep.ts            │
-│  ┌──────────────────┐       ┌──────────────────────┐        │
-│  │checkConflicts()  │       │findReferences()      │        │
-│  │(heuristic match) │       │(item/api/name match) │        │
-│  └──────────────────┘       └──────────────────────┘        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Depois:
-
-```
-packages/cli/src/
-├── validation/
-│   ├── index.ts              ← barrel export
-│   ├── structure.ts          ← checkRequiredSections, checkSpecLength, checkChecklist
-│   └── content.ts            ← checkSpecContent, checkConflicts, checkBinaryCriteria
-│
-├── diagnostics/
-│   └── shared/
-│       ├── index.ts          ← barrel export
-│       ├── file-search.ts    ← searchInSource, walkDir (extraído de 3 detectores)
-│       └── spec-reader.ts    ← loadSpecs, parseACs, countACs
-│
-├── commands/
-│   ├── lint.ts               ← thin wrapper: validation/structure.ts → chalk output
-│   ├── validate.ts           ← thin wrapper: validation/content.ts → format output
-│   ├── flow-serve.ts         ← usa validation/structure.ts import { checkRequiredSections }
-│   └── (diagnostics/)        ← detectores usam diagnostics/shared/file-search.ts
-```
-
-### Módulo: `validation/structure.ts`
-
-```typescript
-// Extraído de lint.ts:5-11 + flow-serve.ts:318-377
-export const REQUIRED_SECTIONS = ["## Outcome", /* ... */];
-
-export interface StructureResult {
-    errors: string[];
-    warnings: string[];
-}
-
-export function checkRequiredSections(content: string): string[];
-export function checkSpecLength(content: string, maxChars?: number): string | null;
-export function checkChecklist(content: string): string | null;
-export function validateSpecStructure(specFile: string): StructureResult;
-```
-
-### Módulo: `diagnostics/shared/file-search.ts`
-
-```typescript
-// Extraído de ac-stale.ts:81-121, ac-false-pos.ts:61-95, spec-code-drift.ts:82-116
-export function searchInSource(rootDir: string, terms: string[]): boolean;
-export function walkDir(dir: string, extensions?: string[]): string[];
-```
+- Refatoração de `flow-serve.ts:handleRequest` (routing) — escopo separado
+- Unificação de `checkConflicts` e `crossSpecDepDetector` — abordagens diferentes (heuristic vs item-ref)
+- Mudança na ordem de execução dos detectores
+- Novos detectores
 
 ## Acceptance Criteria
 
@@ -103,13 +35,6 @@ export function walkDir(dir: string, extensions?: string[]): string[];
 - [ ] **diagnostics/shared/spec-reader.ts**: Exporta `loadSpecs`, `parseACs`, `countACs`
 - [ ] **Todos os testes existentes passam** sem modificação
 - [ ] **Nenhuma mudança de output** em lint/validate CLI
-
-## Exclusions
-
-- Refatoração de `flow-serve.ts:handleRequest` (routing) — escopo separado
-- Unificação de `checkConflicts` e `crossSpecDepDetector` — abordagens diferentes (heuristic vs item-ref)
-- Mudança na ordem de execução dos detectores
-- Novos detectores
 
 ## Context
 

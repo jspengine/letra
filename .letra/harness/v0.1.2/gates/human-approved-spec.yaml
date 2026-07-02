@@ -1,0 +1,8 @@
+id: human-approved-spec
+name: Aprovação Humana (Spec)
+type: human
+blocking: true
+policyRef: policies/sdlc-default.json
+description: >
+  Requer aprovação explícita de um humano antes de avançar
+  da especificação para implementação.

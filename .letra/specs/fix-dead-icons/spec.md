@@ -1,6 +1,6 @@
-# Spec: Fix Dead-Icons Detector
+# Spec: fix-dead-icons
 
-> Updated: 2026-06-15
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -14,17 +14,17 @@ O detector dead-icons existente tem dois bugs que impedem auto-correções corre
 - `ICON_DEF_PATTERN` deve reconhecer definições existentes no formato `"nome": [...]` (colchetes)
 - Testes existentes devem continuar passando
 
+## Exclusions
+
+- Revisão de outros detectores — escopo limitado ao dead-icons
+- Mudança na estrutura do ICONS map (continua `Record<string, string[]>`)
+
 ## Acceptance Criteria
 
 - [x] **Placeholder string[]**: `dead-icons.ts` autoFix adiciona `"iconName": ["M12..."]` em vez de `"iconName": () => <svg...>`
 - [x] **ICON_DEF_PATTERN corrigido**: Regex muda de `\(` para `\[` para capturar definições no ICONS map; também suporta nomes com e sem aspas
 - [x] **Teste de formato**: Teste verifica que autoFix adiciona placeholder no formato `string[]` e o build não quebra
 - [x] **Snapshot de rollback**: Se autoFix rodou antes do bug, undo restaura o arquivo ao estado anterior (já coberto pelo engine)
-
-## Exclusions
-
-- Revisão de outros detectores — escopo limitado ao dead-icons
-- Mudança na estrutura do ICONS map (continua `Record<string, string[]>`)
 
 ## Context
 

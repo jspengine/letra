@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ResolvedSpec } from "@letra/types";
-import { Badge, Button, Input, Textarea, Checkbox, Icon } from "@letra/ui";
+import { Badge, Button, Input, Textarea, Checkbox, Icon, ConfirmDialog, useToast } from "@letra/ui";
 import type { IconName } from "@letra/ui";
 import { cn } from "../../lib/utils";
-import { useToast } from "../Toast/Toast";
-import { Markdown } from "../ui/markdown";
-import { MarkdownView, extractMarkdownSections } from "../ui/MarkdownView";
+import { DocumentEditor, extractMarkdownSections } from "../ui/DocumentEditor";
 
 type Filter = "all" | "errors" | "warnings" | "valid";
 
@@ -118,6 +116,7 @@ export default function SpecsView() {
 	const [creating, setCreating] = useState(false);
 	const [newName, setNewName] = useState("");
 	const [validations, setValidations] = useState<Map<string, SpecValidation>>(new Map());
+	const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 	const validatedRef = useRef<Set<string>>(new Set());
 	const load = useCallback(() => {
 		fetch("/api/specs")
@@ -231,14 +230,19 @@ export default function SpecsView() {
 	}
 
 	function handleDelete(id: string) {
-		if (!window.confirm("Tem certeza que deseja excluir esta spec?")) return;
-		fetch(`/api/specs/${id}`, { method: "DELETE" }).then(() => {
-			if (selected === id) {
+		setConfirmDelete(id);
+	}
+
+	function executeDelete() {
+		if (!confirmDelete) return;
+		fetch(`/api/specs/${confirmDelete}`, { method: "DELETE" }).then(() => {
+			if (selected === confirmDelete) {
 				setSelected(null);
 				setEditing(false);
 			}
 			load();
 			toast("Spec excluída", "success");
+			setConfirmDelete(null);
 		});
 	}
 
@@ -358,7 +362,7 @@ export default function SpecsView() {
 						).map((f, i) => {
 							const active = filter === f.id;
 							return (
-								<button
+								<Button
 									key={f.id}
 									onClick={() => setFilter(f.id)}
 									className={cn(
@@ -402,7 +406,7 @@ export default function SpecsView() {
 									)}
 									<span className="truncate">{f.label}</span>
 									<span className="opacity-70">{filterCount(f.id)}</span>
-								</button>
+								</Button>
 							);
 						})}
 					</div>
@@ -444,7 +448,7 @@ export default function SpecsView() {
 						const truncatedOutcome =
 							outcome.length > 60 ? outcome.slice(0, 60) + "…" : outcome;
 						return (
-							<button
+							<Button
 								key={spec.id}
 								onClick={() => handleSelect(spec.id)}
 								onContextMenu={(e) => {
@@ -530,7 +534,7 @@ export default function SpecsView() {
 										{outcome}
 									</div>
 								)}
-							</button>
+							</Button>
 						);
 					})}
 					{filtered.length === 0 && !creating && (
@@ -545,106 +549,10 @@ export default function SpecsView() {
 			</div>
 
 			<div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
-				{editing && selectedSpec ? (
-					<div className="animate-fade-in flex flex-col gap-4 p-6 max-w-3xl mx-auto w-full">
-						<div className="flex items-center gap-2">
-							<Input
-								value={editName}
-								onChange={(e) => setEditName(e.target.value)}
-								className="text-lg font-bold flex-1"
-								aria-label="Nome da spec"
-							/>
-						</div>
-						<div className="flex flex-col gap-2">
-							{parseACs(editContent).map((ac) => (
-								<Checkbox
-									key={ac.line}
-									checked={ac.checked}
-									label={ac.text}
-									onChange={(e) => handleACChange(e.target.checked, ac.line)}
-								/>
-							))}
-						</div>
-						<Textarea
-							value={editContent}
-							onChange={(e) => setEditContent(e.target.value)}
-							className="min-h-[400px]"
-							spellCheck={false}
-						/>
-						<div className="flex gap-2">
-							<Button onClick={handleSave}>Salvar</Button>
-							<Button
-								variant="ghost"
-								onClick={() => {
-									setEditing(false);
-									setEditContent(selectedSpec.content);
-								}}
-							>
-								Cancelar
-							</Button>
-							<div className="flex-1" />
-							<Button variant="outline" onClick={() => handleValidate(selected!)}>
-								Validar
-							</Button>
-							<Button
-								variant="outline"
-								onClick={() => handleDelete(selected!)}
-								style={{ color: "var(--error)" }}
-							>
-								Excluir
-							</Button>
-						</div>
-						{validations.get(selected!) && (
-							<div className="flex flex-col gap-1">
-								{validations.get(selected!)?.issues.map((issue, i) => (
-									<div
-										key={i}
-										className="text-sm px-3 py-2 rounded-lg"
-										style={{
-											background: "var(--muted)",
-											color:
-												issue.type === "error"
-													? "var(--error)"
-													: "var(--warning)",
-										}}
-									>
-										{issue.type === "error" ? "✗" : "⚠"} {issue.msg}
-									</div>
-								))}
-								{validations.get(selected!)?.issues.length === 0 && (
-									<div
-										className="text-sm px-3 py-2 rounded-lg"
-										style={{ color: "var(--success)" }}
-									>
-										✅ Spec válida
-									</div>
-								)}
-							</div>
-						)}
-					</div>
-				) : selectedSpec ? (
-					<MarkdownView
-						key={selectedSpec.id}
-						title={selectedSpec.id}
-						description="Spec de funcionalidade — define objetivo, constraints, critérios de aceitação e contexto."
-						sections={specSections}
-						actions={
-							<>
-								<Button
-									size="sm"
-									variant="outline"
-									onClick={() => handleValidate(selectedSpec.id)}
-								>
-									Validar
-								</Button>
-								<Button size="sm" onClick={() => handleEdit(selectedSpec)}>
-									Editar
-								</Button>
-							</>
-						}
-					>
+				{selectedSpec ? (
+					<>
 						{validations.get(selectedSpec.id) && (
-							<div className="flex flex-wrap gap-2 mb-4">
+							<div className="flex flex-wrap gap-2 px-6 pt-4 pb-0 shrink-0">
 								{validations.get(selectedSpec.id)?.issues.map((issue, i) => (
 									<Badge key={i} variant="warning">
 										{issue.type === "error" ? "✗" : "⚠"} {issue.msg}
@@ -655,7 +563,7 @@ export default function SpecsView() {
 								)}
 							</div>
 						)}
-						<div className="flex flex-col gap-2 mb-6">
+						<div className="flex flex-col gap-2 px-6 pt-4 pb-2 shrink-0">
 							{parseACs(selectedSpec.content).map((ac) => (
 								<Checkbox
 									key={ac.line}
@@ -677,8 +585,23 @@ export default function SpecsView() {
 								/>
 							))}
 						</div>
-						<Markdown content={selectedSpec.content} />
-					</MarkdownView>
+						<DocumentEditor
+							key={selectedSpec.id}
+							file={selectedSpec.id}
+							initialContent={selectedSpec.content}
+							onSave={async (newContent) => {
+								const content = updateSpecName(newContent, selectedSpec.id);
+								await fetch(`/api/specs/${selectedSpec.id}`, {
+									method: "PUT",
+									headers: { "Content-Type": "application/json" },
+									body: JSON.stringify({ content }),
+								});
+								load();
+							}}
+							title={selectedSpec.id}
+							description="Spec de funcionalidade — define objetivo, constraints, critérios de aceitação e contexto."
+						/>
+					</>
 				) : (
 					<div className="flex items-center justify-center flex-1 min-h-0">
 						<p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
@@ -687,6 +610,17 @@ export default function SpecsView() {
 					</div>
 				)}
 			</div>
+
+			<ConfirmDialog
+				open={!!confirmDelete}
+				onClose={() => setConfirmDelete(null)}
+				onConfirm={executeDelete}
+				title="Excluir spec"
+				message="Tem certeza que deseja excluir esta spec?"
+				confirmLabel="Excluir"
+				cancelLabel="Cancelar"
+				variant="danger"
+			/>
 		</div>
 	);
 }

@@ -13,7 +13,8 @@
 		"noEmit": true,
 		"paths": {
 			"@letra/types": ["../types/src/index.ts"],
-			"@letra/ui": ["../ui/src/index.ts"]
+			"@letra/ui": ["../ui/src/index.ts"],
+			"@/*": ["./src/*"]
 		}
 	},
 	"include": ["src"]

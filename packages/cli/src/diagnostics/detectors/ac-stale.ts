@@ -18,6 +18,7 @@ function toPascalCase(words: string[]): string {
 
 export const acStaleDetector: Detector = {
 	name: "ac-stale",
+	devOnly: true,
 	async run(rootDir: string): Promise<DiagnosticResult[]> {
 		const results: DiagnosticResult[] = [];
 		const specsDir = join(rootDir, ".letra", "specs");

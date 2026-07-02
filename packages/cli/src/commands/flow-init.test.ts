@@ -144,5 +144,18 @@ describe("flow-init", () => {
 			expect(workflow.tools).toContain("opencode");
 			expect(workflow.tools).toContain("cursor");
 		});
+
+		it("should preserve an unknown template id while using the explicit bootstrap fallback", async () => {
+			const workflow = await flowInit(tmpDir, { quick: true, template: "custom-flow" });
+
+			expect(workflow.template).toBe("custom-flow");
+			expect(workflow.stages.map((stage) => stage.id)).toEqual([
+				"backlog",
+				"design",
+				"code",
+				"review",
+				"done",
+			]);
+		});
 	});
 });

@@ -1,0 +1,9 @@
+id: builder
+label: Desenvolvedor
+description: Implementa mudanças aprovadas em código.
+allowedStages:
+  - code
+capabilities:
+  - read_code
+  - write_code
+  - run_tests

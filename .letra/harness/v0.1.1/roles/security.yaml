@@ -1,0 +1,8 @@
+id: security
+label: Engenheiro de Segurança
+description: Roda scanners e reporta vulnerabilidades.
+allowedStages:
+  - security
+capabilities:
+  - scan_dependencies
+  - report_findings

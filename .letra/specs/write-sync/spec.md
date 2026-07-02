@@ -1,6 +1,6 @@
-# Spec: Write Sync — Motor de Sincronização de Memória
+# Spec: write-sync
 
-> Updated: 2026-06-16
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -16,67 +16,14 @@ Toda mutação de `workflow.json` passa por um único gateway `writeWorkflow()` 
 - Compatibilidade total com workflow.json existente — sem quebra de schema
 - Performance: sitrep update é opcional (`skipSitrep`) porque roda testes; default é `skipSitrep: true` para mutações rápidas
 
-## Architecture
+## Exclusions
 
-```
-writeWorkflow(root, { workflow, source, skipSitrep? })
-    │
-    ├─ 1. validate(workflow) — schema check
-    │     └─ throw se inválido (comandos CLI capturam e mostram erro)
-    │
-    ├─ 2. saveWorkflow(root, workflow) — write + backup
-    │     └─ workflow.json atualizado
-    │
-    ├─ 3. generateAdapters(root, workflow.tools, { snapshot })
-    │     └─ AGENTS.md, .cursorrules, etc. (sem L2/L3)
-    │
-    ├─ 4. sitrepUpdate(root) — se !skipSitrep
-    │     └─ context.md atualizado
-    │
-    └─ 5. logEntry(root, "workflow_updated", source)
-          └─ session log
-```
-
-### Adapter files sem L2/L3
-
-As seções removidas do adapter:
-
-| Seção | Removida? | Substituída por |
-|---|---|---|
-| L1 — Referências context/constitution/glossary/focus | ✅ Mantida | — |
-| L2 — Lista de itens no estágio atual | ❌ Removida | `letra pulse` / `letra flow board` |
-| L3 — Sinais de trabalho (ACs, tasks) | ❌ Removida | `letra pulse --json` |
-| L4 — Regras do agente | ✅ Mantida | — |
-| L5 — Pendências Detectadas (health alerts) | ✅ Mantida | — |
-| Kickoff checklist | ✅ Mantida | — |
-| Command menu | ✅ Mantida | — |
-| Completion checklist | ✅ Mantida | — |
-
-### Comandos afetados
-
-| Comando | Mudança | Linhas |
-|---|---|---|
-| `flow-backlog.ts` | `saveWorkflow()` → `writeWorkflow()` | 1 |
-| `flow-move.ts` | `saveWorkflow()+generateAdapters()` → `writeWorkflow()` | 2 → 1 |
-| `flow-edit-diff.ts` | `saveWorkflow()` → `writeWorkflow()` | 1 |
-| `flow-export-import.ts` | `saveWorkflow()` → `writeWorkflow()` | 1 |
-| `flow-import-issues.ts` | `saveWorkflow()` → `writeWorkflow()` (2 locais) | 2 |
-| `flow-init.ts` | `saveWorkflow()` → `writeWorkflow()` no init | 1 |
-| `stage-drift.ts` (detector) | `writeFileSync` → `writeWorkflow()` via engine | ~15 |
-| `formatters.ts` | Remover `formatL2()` e `formatL3()` | ~75 |
-| `builder.ts` | Simplificar lógica de items (sem L2/L3) | ~35 |
-| `flow-move.ts` import | Remover `import { generateAdapters }` | 1 |
-
-### Novo comando: `letra sync`
-
-```text
-letra sync [path]
-  Reconcilia estado: lê workflow.json, regenera adapters (sem L2/L3),
-  atualiza context.md, valida focus.md.
-
-  --dry-run    Mostra o que seria feito sem executar
-  --fix        Aplica correções (reconciliação total)
-```
+- Refatoração do `health-record.ts` — estado separado, fora do gateway
+- Integração com watcher de arquivo (`fs.watch`) — futuro
+- Migração do `focus.ts` e `health.ts` para o gateway — eles não escrevem workflow
+- Mudanças no schema do `workflow.json`
+- Mudanças na Web UI (`packages/client/`)
+- Mudanças no sistema de detectores (exceto `stage-drift`)
 
 ## Acceptance Criteria
 
@@ -134,15 +81,6 @@ letra sync [path]
 - [x] Web UI (`flow serve`) continua funcionando (lê via HTTP API)
 - [x] Testes existentes continuam passando (246 testes, sem regressão)
 - [x] Build CLI e UI continuam limpos
-
-## Exclusions
-
-- Refatoração do `health-record.ts` — estado separado, fora do gateway
-- Integração com watcher de arquivo (`fs.watch`) — futuro
-- Migração do `focus.ts` e `health.ts` para o gateway — eles não escrevem workflow
-- Mudanças no schema do `workflow.json`
-- Mudanças na Web UI (`packages/client/`)
-- Mudanças no sistema de detectores (exceto `stage-drift`)
 
 ## Context
 

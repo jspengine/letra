@@ -1,18 +1,40 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ResolvedSpec, Workflow } from "@letra/types";
-import KanbanView from "../Kanban/KanbanView";
+import type { ActiveFlowDefinition } from "../../lib/active-flow";
+import KanbanBoard from "./KanbanBoard";
+import ActivityTimeline from "./ActivityTimeline";
 import ItemDetailModal from "./ItemDetailModal";
+import { cn } from "../../lib/utils";
 import {
 	Button,
 	Checkbox,
 	Icon,
+	Input,
 	ConfirmDialog,
 	PromptDialog,
 	Dialog,
+	Badge,
+	Avatar,
+	Progress,
+	Separator,
+	Tabs,
+	Tooltip,
+	Card,
+	CardContent,
 } from "@letra/ui";
+import {
+	doneStageIds,
+	humanGateStageIds,
+	itemOperationalState,
+	nextStageId,
+	orderedStages,
+	pipelineProjection,
+	stageActionLabel,
+} from "../../lib/active-flow";
 
 interface Props {
 	workflow: Workflow;
+	activeFlow: ActiveFlowDefinition | null;
 	specRefreshKey?: number;
 	onItemMoved: () => void;
 	onTabChange?: (tab: "specs") => void;
@@ -22,13 +44,7 @@ function daysSince(dateStr: string): number {
 	return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function nextStage(itemStage: string, stages: Workflow["stages"]): string | null {
-	const idx = stages.findIndex((s) => s.id === itemStage);
-	if (idx < 0 || idx >= stages.length - 1) return null;
-	return stages[idx + 1].id;
-}
-
-export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabChange }: Props) {
+export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemMoved, onTabChange }: Props) {
 	const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 	const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
 	const [showAddDialog, setShowAddDialog] = useState(false);
@@ -43,7 +59,10 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 		pendingChecks: boolean[];
 	} | null>(null);
 	const [dragStageIdx, setDragStageIdx] = useState<number | null>(null);
-	const [humanGateStages, setHumanGateStages] = useState<Set<string>>(new Set());
+	const [activeFilter, setActiveFilter] = useState("all");
+	const humanGateStages = humanGateStageIds(workflow, activeFlow);
+	const doneStages = doneStageIds(workflow, activeFlow);
+	const resolvedStages = orderedStages(workflow, activeFlow);
 
 	const loadSpecs = useCallback(() => {
 		fetch("/api/specs")
@@ -63,40 +82,19 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 	useEffect(() => {
 		setEditingWebhooks(workflow.webhooks ?? []);
 	}, [workflow.webhooks]);
-	useEffect(() => {
-		fetch("/api/harness/templates")
-			.then((r) => r.json())
-			.then((templates) => {
-				const sdlc = templates.find((t: any) => t.id === "sdlc");
-				if (!sdlc) return;
-				const stages = new Set<string>();
-				for (const stage of sdlc.stages ?? []) {
-					const gate = stage.gate
-						? String(stage.gate).replace(/^.*[\\/]/, "").replace(/\.ya?ml$/, "")
-						: null;
-					if (gate) {
-						const gateData = sdlc.gates?.find((g: any) => g.id === gate);
-						if (gateData?.type === "human") stages.add(stage.id);
-					}
-				}
-				setHumanGateStages(stages);
-			})
-			.catch(() => {});
-	}, [workflow.stages]);
-
 	const selectedItem = selectedItemId
 		? workflow.items.find((it) => it.id === selectedItemId)
 		: null;
 
 	const selectedStage = selectedItem
-		? workflow.stages.find((s) => s.id === selectedItem.stage)
+		? resolvedStages.find((stage) => stage.id === selectedItem.stage)
 		: null;
 
 	const linkedSpec = selectedItem?.spec ? specs.find((s) => s.id === selectedItem.spec) : null;
 
-	const nextStageId = selectedItem ? nextStage(selectedItem.stage, workflow.stages) : null;
-	const nextStageName = nextStageId
-		? workflow.stages.find((s) => s.id === nextStageId)?.name
+	const upcomingStageId = selectedItem ? nextStageId(selectedItem.stage, workflow, activeFlow) : null;
+	const nextStageName = upcomingStageId
+		? resolvedStages.find((stage) => stage.id === upcomingStageId)?.name
 		: null;
 
 	function allowMoveToStage(item: Workflow["items"][0], targetStageId: string): boolean {
@@ -140,18 +138,18 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 	}
 
 	function handleMoveNext() {
-		if (!selectedItem || !nextStageId) return;
-		if (!allowMoveToStage(selectedItem, nextStageId)) return;
+		if (!selectedItem || !upcomingStageId) return;
+		if (!allowMoveToStage(selectedItem, upcomingStageId)) return;
 		const validateChecks = getValidateChecks(selectedItem);
 		if (validateChecks.length > 0) {
 			setValidateDialogItem({
 				itemId: selectedItem.id,
-				targetStage: nextStageId,
+				targetStage: upcomingStageId,
 				pendingChecks: validateChecks.map(() => false),
 			});
 			return;
 		}
-		doMoveItem(selectedItem.id, nextStageId);
+		doMoveItem(selectedItem.id, upcomingStageId);
 	}
 
 	function handleValidateConfirm() {
@@ -185,7 +183,7 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 	}
 
 	function handleAddItem(name: string) {
-		const firstStage = workflow.stages[0]?.id;
+		const firstStage = resolvedStages[0]?.id;
 		if (!firstStage) return;
 		fetch("/api/items", {
 			method: "POST",
@@ -329,458 +327,353 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 		return null;
 	};
 
+	const totalItems = workflow.items.length;
+	const doneItems = workflow.items.filter((it) => doneStages.has(it.stage)).length;
+	const pctComplete = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
+	const activeAgents = workflow.items.filter((it) => it.claimedBy && !doneStages.has(it.stage)).length;
+	const waitingHuman = workflow.items.filter((it) => humanGateStages.has(it.stage)).length;
+	const blockedItems = workflow.items.filter(
+		(item) => itemOperationalState(item, workflow, activeFlow) === "blocked",
+	).length;
+	const avgDays = totalItems > 0
+		? Math.round(workflow.items.reduce((sum, it) => sum + daysSince(it.createdAt), 0) / totalItems)
+		: 0;
+	const uniqueLLMs = new Set(workflow.items.filter((it) => it.claimedBy).map((it) => it.claimedBy)).size;
+	const runningItems = workflow.items.filter((it) => it.claimedBy && !humanGateStages.has(it.stage) && !doneStages.has(it.stage)).length;
+
+	const pipelineStages = pipelineProjection(workflow, activeFlow).map((stage) => ({
+		...stage,
+		pct: stage.status === "done" ? 100 : 0,
+		isRunning: stage.status === "running",
+		isHumanGate: stage.presentation.isHumanGate,
+	}));
+
+	const currentStageIdx = pipelineStages.findIndex(
+		(s) => s.itemCount > 0 && !doneStages.has(s.id) && s.zone !== "todo",
+	);
+
+	const agentItems = workflow.items
+		.filter((it) => it.claimedBy)
+		.reduce<Record<string, typeof workflow.items>>((acc, it) => {
+			(acc[it.claimedBy!] = acc[it.claimedBy!] || []).push(it);
+			return acc;
+		}, {});
+
+	const AGENT_COLORS = ["var(--primary)", "var(--warning)", "var(--live)", "var(--success)", "var(--error)"];
+
+	const filterCounts = {
+		all: totalItems,
+		running: runningItems,
+		waiting: waitingHuman,
+		blocked: blockedItems,
+		error: 0,
+		done: doneItems,
+	};
+
 	return (
-		<div className="flex flex-col flex-1 min-h-0">
-			<div
-				className="flex items-center gap-2.5 px-4 py-3 border-b shrink-0"
-				style={{ borderColor: "var(--border)" }}
-			>
-				<Icon name="flow" size={20} className="text-primary" />
-				<div className="flex-1 min-w-0">
-					<h2 className="text-sm font-semibold">Flow</h2>
-					<p className="text-xs truncate" style={{ color: "var(--muted-foreground)" }}>
-						Pipeline de desenvolvimento — estágios, itens e specs associadas
-					</p>
+		<div className="flex flex-col flex-1 min-h-0" style={{ background: "var(--background)" }}>
+			{/* ─── 1. Mission Control Header ─── */}
+			<div className="shrink-0 border-b" style={{ borderColor: "var(--border)", background: "color-mix(in oklch, var(--card) 70%, transparent)" }}>
+				<div className="flex items-center gap-3 px-5 py-2.5">
+					<div className="flex items-center gap-2.5">
+						<div className="w-6 h-6 rounded-md bg-[var(--primary)] flex items-center justify-center shadow-sm">
+							<span className="text-xs font-bold text-white">L</span>
+						</div>
+						<div>
+							<div className="flex items-center gap-2">
+								<span className="text-sm font-semibold">{workflow.name || "Letra"}</span>
+								<span className="text-[10px] px-1.5 py-0.5 rounded-full font-mono" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>flow-main</span>
+							</div>
+							<div className="flex items-center gap-2 text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+								<span>main</span>
+								<span>·</span>
+								<span>{totalItems} itens</span>
+								<span>·</span>
+								<span>{doneItems} done</span>
+							</div>
+						</div>
+					</div>
+					<div className="flex items-center gap-3 ml-auto">
+						<div className="flex items-center gap-2 text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+							<div className="flex items-center gap-1">
+								<div className="w-1.5 h-1.5 rounded-full bg-[var(--live)] animate-pulse" />
+								<span className="tabular-nums font-medium" style={{ color: "var(--live)" }}>{activeAgents}</span>
+								<span>agentes</span>
+							</div>
+							<span className="opacity-30">|</span>
+							<span>{uniqueLLMs} LLMs</span>
+							<span className="opacity-30">|</span>
+							<span>sync: SSE</span>
+							<span className="opacity-30">|</span>
+							<span>up 12m</span>
+						</div>
+						<Button size="sm" variant="ghost" onClick={() => { setStagesEditMode(!stagesEditMode); setWebhooksEditMode(false); }} className="text-[10px] h-7 px-2">
+							<Icon name="list-three" size={12} /> Stages
+						</Button>
+						{!stagesEditMode && !webhooksEditMode && (
+							<Button size="sm" onClick={() => setShowAddDialog(true)} className="text-[10px] h-7 px-2">
+								<Icon name="plus" size={12} /> Item
+							</Button>
+						)}
+					</div>
 				</div>
-				<Button
-					size="sm"
-					variant={stagesEditMode ? "default" : "outline"}
-					onClick={() => {
-						setStagesEditMode(!stagesEditMode);
-						setWebhooksEditMode(false);
-					}}
-					style={{ display: "none" }}
-				>
-					Manage Stages
-				</Button>
-				<Button
-					size="sm"
-					variant={webhooksEditMode ? "default" : "outline"}
-					onClick={() => {
-						setWebhooksEditMode(!webhooksEditMode);
-						setStagesEditMode(false);
-					}}
-					style={{ display: "none" }}
-				>
-					Webhooks
-				</Button>
-				{!stagesEditMode && !webhooksEditMode && (
-					<Button size="sm" onClick={() => setShowAddDialog(true)}>
-						+ Add Item
-					</Button>
-				)}
 			</div>
+
 			<div className="flex-1 flex overflow-hidden">
 				{stagesEditMode ? (
-					<div className="flex-1 overflow-y-auto p-4">
+					<div className="flex-1 overflow-y-auto p-5">
 						<div className="flex flex-col gap-3 max-w-2xl">
-							<p
-								className="text-xs font-medium"
-								style={{ color: "var(--muted-foreground)" }}
-							>
-								Arraste os stages para reordenar. Configure permissões de transição
-								e validação.
-							</p>
+							<p className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>Arraste os stages para reordenar. Configure permissões de transição e validação.</p>
 							{editingStages.map((stage, idx) => (
-								<div
-									key={stage.id}
-									draggable
-									onDragStart={() => handleStageDragStart(idx)}
-									onDragOver={(e) => handleStageDragOver(e, idx)}
-									onDragEnd={handleStageDragEnd}
-									className={cn(
-										"rounded-xl border p-3 transition-all",
-										dragStageIdx === idx && "opacity-40",
-									)}
-									style={{
-										borderColor: "var(--border)",
-										background: "var(--card)",
-									}}
-								>
+								<div key={stage.id} draggable onDragStart={() => handleStageDragStart(idx)} onDragOver={(e) => handleStageDragOver(e, idx)} onDragEnd={handleStageDragEnd}
+									className={cn("rounded-xl border p-3 transition-all", dragStageIdx === idx && "opacity-40")} style={{ borderColor: "var(--border)", background: "var(--card)" }}>
 									<div className="flex items-start gap-3">
 										<div className="flex-1 flex flex-col gap-2">
 											<div className="flex items-center gap-2">
-												<Icon
-													name="list-three"
-													size={16}
-													className="cursor-grab"
-													style={{ color: "var(--muted-foreground)" }}
-												/>
-												<input
-													value={stage.name}
-													onChange={(e) =>
-														handleUpdateStage(
-															idx,
-															"name",
-															e.target.value,
-														)
-													}
-													className="flex-1 text-sm font-medium px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-													style={{
-														background: "var(--muted)",
-														color: "var(--foreground)",
-													}}
-												/>
-												<span
-													className="text-xs px-2 py-0.5 rounded-full"
-													style={{
-														background: "var(--muted)",
-														color: "var(--muted-foreground)",
-													}}
-												>
-													{stage.id}
-												</span>
-												<button
-													onClick={() => handleRemoveStage(idx)}
-													className="text-xs px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-													style={{ color: "var(--error)" }}
-													aria-label={`Remover ${stage.name}`}
-												>
-													✕
-												</button>
-											</div>
-											<div className="flex items-center gap-3 text-xs flex-wrap">
-												<label className="flex items-center gap-1.5">
-													<span
-														style={{ color: "var(--muted-foreground)" }}
-													>
-														Zona:
-													</span>
-													<select
-														value={stage.zone ?? "doing"}
-														onChange={(e) =>
-															handleUpdateStage(
-																idx,
-																"zone",
-																e.target.value,
-															)
-														}
-														className="px-2 py-1 rounded border text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
-														style={{
-															borderColor: "var(--border)",
-															background: "var(--background)",
-															color: "var(--foreground)",
-														}}
-													>
-														<option value="todo">Todo</option>
-														<option value="doing">Doing</option>
-														<option value="done">Done</option>
-													</select>
-												</label>
-												<label className="flex items-center gap-1.5">
-													<span
-														style={{ color: "var(--muted-foreground)" }}
-													>
-														Cor:
-													</span>
-													<input
-														type="color"
-														value={stage.color ?? "#6b7280"}
-														onChange={(e) =>
-															handleUpdateStage(
-																idx,
-																"color",
-																e.target.value === "#6b7280"
-																	? undefined
-																	: e.target.value,
-															)
-														}
-														className="w-7 h-7 p-0.5 rounded border cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30"
-														style={{
-															borderColor: "var(--border)",
-															background: "var(--background)",
-														}}
-													/>
-												</label>
-												<label className="flex items-center gap-1.5">
-													<span
-														style={{ color: "var(--muted-foreground)" }}
-													>
-														Permite mover para:
-													</span>
-													<select
-														multiple
-														value={stage.allow ?? []}
-														onChange={(e) => {
-															const opts = Array.from(
-																e.target.selectedOptions,
-																(o) => o.value,
-															);
-															handleUpdateStage(
-																idx,
-																"allow",
-																opts.length > 0 ? opts : undefined,
-															);
-														}}
-														className="px-2 py-1 rounded border text-xs min-w-[120px] focus:outline-none focus:ring-2 focus:ring-primary/30"
-														style={{
-															borderColor: "var(--border)",
-															background: "var(--background)",
-															color: "var(--foreground)",
-														}}
-													>
-														{editingStages
-															.filter((s) => s.id !== stage.id)
-															.map((s) => (
-																<option key={s.id} value={s.id}>
-																	{s.name}
-																</option>
-															))}
-													</select>
-												</label>
-											</div>
-											<div className="flex flex-col gap-1">
-												<span
-													className="text-xs"
-													style={{ color: "var(--muted-foreground)" }}
-												>
-													Validação ao sair:
-												</span>
-												{(stage.validate ?? []).map((v, vi) => (
-													<div
-														key={vi}
-														className="flex items-center gap-1"
-													>
-														<input
-															value={v}
-															onChange={(e) => {
-																const newValidate = [
-																	...(editingStages[idx]
-																		.validate ?? []),
-																];
-																newValidate[vi] = e.target.value;
-																handleUpdateStage(
-																	idx,
-																	"validate",
-																	newValidate,
-																);
-															}}
-															className="flex-1 text-xs px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-															style={{
-																background: "var(--muted)",
-																color: "var(--foreground)",
-															}}
-															placeholder="Ex: Código revisado"
-														/>
-														<button
-															onClick={() => {
-																const newValidate = editingStages[
-																	idx
-																].validate?.filter(
-																	(_, i) => i !== vi,
-																);
-																handleUpdateStage(
-																	idx,
-																	"validate",
-																	newValidate &&
-																		newValidate.length > 0
-																		? newValidate
-																		: undefined,
-																);
-															}}
-															className="text-xs px-1.5 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30"
-															style={{ color: "var(--error)" }}
-														>
-															✕
-														</button>
-													</div>
-												))}
-												<button
-													onClick={() => {
-														const newValidate = [
-															...(editingStages[idx].validate ?? []),
-															"",
-														];
-														handleUpdateStage(
-															idx,
-															"validate",
-															newValidate,
-														);
-													}}
-													className="text-xs self-start px-2 py-1 rounded hover:bg-muted/50 transition-colors"
-													style={{ color: "var(--muted-foreground)" }}
-												>
-													+ Add check
-												</button>
+												<Icon name="list-three" size={16} className="cursor-grab" style={{ color: "var(--muted-foreground)" }} />
+												<Input value={stage.name} onChange={(e) => handleUpdateStage(idx, "name", e.target.value)}
+													className="flex-1 text-sm font-medium px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-primary/30" style={{ background: "var(--muted)", color: "var(--foreground)" }} />
+												<span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>{stage.id}</span>
+												<Button onClick={() => handleRemoveStage(idx)} className="text-xs px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30" style={{ color: "var(--error)" }}>✕</Button>
 											</div>
 										</div>
 									</div>
 								</div>
 							))}
 							<div className="flex gap-2">
-								<Button size="sm" variant="outline" onClick={handleAddStage}>
-									+ Add Stage
-								</Button>
-								<Button size="sm" onClick={handleSaveStages}>
-									Salvar
-								</Button>
-								<Button
-									size="sm"
-									variant="outline"
-									onClick={() => {
-										setStagesEditMode(false);
-										setEditingStages(workflow.stages);
-									}}
-								>
-									Cancelar
-								</Button>
+								<Button size="sm" variant="outline" onClick={handleAddStage}>+ Add Stage</Button>
+								<Button size="sm" onClick={handleSaveStages}>Salvar</Button>
+								<Button size="sm" variant="outline" onClick={() => { setStagesEditMode(false); setEditingStages(workflow.stages); }}>Cancelar</Button>
 							</div>
 						</div>
 					</div>
 				) : webhooksEditMode ? (
-					<div className="flex-1 overflow-y-auto p-4">
+					<div className="flex-1 overflow-y-auto p-5">
 						<div className="flex flex-col gap-3 max-w-2xl">
-							<p
-								className="text-xs font-medium"
-								style={{ color: "var(--muted-foreground)" }}
-							>
-								Configure webhooks para receber notificações quando itens forem
-								movidos entre estágios.
-							</p>
+							<p className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>Configure webhooks para receber notificações quando itens forem movidos entre estágios.</p>
 							{editingWebhooks.map((wh, idx) => (
-								<div
-									key={wh.id}
-									className="rounded-xl border p-3"
-									style={{
-										borderColor: "var(--border)",
-										background: "var(--card)",
-									}}
-								>
+								<div key={wh.id} className="rounded-xl border p-3" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
 									<div className="flex flex-col gap-2">
 										<div className="flex items-center gap-2">
-											<input
-												value={wh.label ?? ""}
-												onChange={(e) =>
-													handleUpdateWebhook(
-														idx,
-														"label",
-														e.target.value || undefined,
-													)
-												}
-												placeholder="Label (ex: Slack #geral)"
-												className="flex-1 text-sm px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-												style={{
-													background: "var(--muted)",
-													color: "var(--foreground)",
-												}}
-											/>
-											{wh.lastStatus && (
-												<span
-													className="text-xs"
-													style={{
-														color:
-															wh.lastStatus === "ok"
-																? "var(--success)"
-																: "var(--error)",
-													}}
-												>
-													{wh.lastStatus === "ok" ? "✅" : "❌"}
-												</span>
-											)}
-											{wh.lastSentAt && (
-												<span
-													className="text-xs"
-													style={{ color: "var(--muted-foreground)" }}
-												>
-													{new Date(wh.lastSentAt).toLocaleTimeString()}
-												</span>
-											)}
-											<button
-												onClick={() => handleRemoveWebhook(idx)}
-												className="text-xs px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-												style={{ color: "var(--error)" }}
-												aria-label="Remover webhook"
-											>
-												✕
-											</button>
-										</div>
-										<div className="flex items-center gap-2 text-xs">
-											<input
-												value={wh.url}
-												onChange={(e) =>
-													handleUpdateWebhook(idx, "url", e.target.value)
-												}
-												placeholder="https://hooks.slack.com/services/..."
-												className="flex-1 px-2 py-1 rounded border focus:outline-none focus:ring-2 focus:ring-primary/30"
-												style={{
-													borderColor: "var(--border)",
-													background: "var(--background)",
-													color: "var(--foreground)",
-												}}
-											/>
-											<Button
-												size="sm"
-												variant="outline"
-												onClick={() => handleTestWebhook(idx)}
-											>
-												Test
-											</Button>
-										</div>
-										<div className="flex items-center gap-2 text-xs">
-											<span style={{ color: "var(--muted-foreground)" }}>
-												Eventos:
-											</span>
-											<label className="flex items-center gap-1">
-												<input
-													type="checkbox"
-													checked={wh.events.includes("item.moved")}
-													onChange={(e) => {
-														const evts = e.target.checked
-															? [
-																	...new Set([
-																		...wh.events,
-																		"item.moved",
-																	]),
-																]
-															: wh.events.filter(
-																	(ev) => ev !== "item.moved",
-																);
-														handleUpdateWebhook(idx, "events", evts);
-													}}
-												/>
-												item.moved
-											</label>
+											<Input value={wh.label ?? ""} onChange={(e) => handleUpdateWebhook(idx, "label", e.target.value || undefined)} placeholder="Label" className="flex-1 text-sm px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-primary/30" style={{ background: "var(--muted)", color: "var(--foreground)" }} />
+											<Button onClick={() => handleRemoveWebhook(idx)} className="text-xs px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30" style={{ color: "var(--error)" }}>✕</Button>
 										</div>
 									</div>
 								</div>
 							))}
 							<div className="flex gap-2">
-								<Button size="sm" variant="outline" onClick={handleAddWebhook}>
-									+ Add Webhook
-								</Button>
-								<Button size="sm" onClick={handleSaveWebhooks}>
-									Salvar
-								</Button>
-								<Button
-									size="sm"
-									variant="outline"
-									onClick={() => {
-										setWebhooksEditMode(false);
-										setEditingWebhooks(workflow.webhooks ?? []);
-									}}
-								>
-									Cancelar
-								</Button>
+								<Button size="sm" variant="outline" onClick={handleAddWebhook}>+ Add Webhook</Button>
+								<Button size="sm" onClick={handleSaveWebhooks}>Salvar</Button>
+								<Button size="sm" variant="outline" onClick={() => { setWebhooksEditMode(false); setEditingWebhooks(workflow.webhooks ?? []); }}>Cancelar</Button>
 							</div>
 						</div>
 					</div>
 				) : (
-					<div className="flex-1 overflow-auto">
-						<KanbanView
-							workflow={workflow}
-							onSelectItem={setSelectedItemId}
-							onItemMoved={onItemMoved}
-							onDropItem={handleDropItem}
-							allowMoveToStage={allowMoveToStage}
-							specRefreshKey={specRefreshKey}
-							onAddItem={() => setShowAddDialog(true)}
-						/>
+					<div className="flex flex-col flex-1 overflow-hidden p-4 gap-4" style={{ background: "var(--background)" }}>
+						{/* ─── 2. Executive Summary (6 stat cards) ─── */}
+						<div className="grid grid-cols-6 gap-2 shrink-0">
+							{[
+								{ label: "Progresso", value: `${pctComplete}%`, sub: `${doneItems}/${totalItems}`, color: "var(--primary)", icon: "bar-chart" },
+								{ label: "Agentes", value: activeAgents, sub: `${runningItems} executando`, color: "var(--live)", icon: "cpu", pulse: true },
+								{ label: "Aguardando", value: waitingHuman, sub: "revisão humana", color: "var(--gate-available)", icon: "clock", urgent: waitingHuman > 0 },
+								{ label: "Bloqueados", value: blockedItems, sub: "itens parados", color: "var(--error)", icon: "shield", urgent: blockedItems > 0 },
+								{ label: "Idade média", value: avgDays > 0 ? `${avgDays}d` : "—", sub: "desde a criação", color: "var(--muted-foreground)" },
+								{ label: "Concluídos", value: doneItems, sub: `${pctComplete}% completo`, color: "var(--success)", icon: "check-circle" },
+							].map((stat) => (
+								<Card key={stat.label}
+									className="rounded-lg transition-all hover:shadow-sm"
+									style={{
+										borderColor: stat.urgent ? "var(--gate-available)" : "var(--border)",
+										background: stat.urgent ? "color-mix(in oklch, var(--gate-available) 6%, var(--card))" : "var(--card)",
+									}}
+								>
+									<CardContent className="grid gap-0.5 p-2.5">
+										<div className="flex items-center justify-between">
+											<span className="text-[9px] font-medium uppercase tracking-wider" style={{ color: "var(--muted-foreground)" }}>{stat.label}</span>
+											{stat.icon && <Icon name={stat.icon as any} size={10} style={{ color: stat.color }} />}
+										</div>
+										<div className="flex items-baseline gap-1">
+											<span className={cn("text-lg font-bold tabular-nums", stat.pulse && "animate-pulse")} style={{ color: stat.urgent ? "var(--gate-available)" : stat.color }}>{stat.value}</span>
+											{stat.pulse && <span className="w-1 h-1 rounded-full bg-[var(--live)] animate-pulse" />}
+										</div>
+										<span className="text-[9px]" style={{ color: "var(--muted-foreground)" }}>{stat.sub}</span>
+									</CardContent>
+								</Card>
+							))}
+						</div>
+
+						{/* ─── 3. Agent Control Center ─── */}
+						{Object.keys(agentItems).length > 0 && (
+							<div className="shrink-0">
+								<div className="flex items-center gap-2 mb-2">
+									<span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--foreground)" }}>Agent Control Center</span>
+									<div className="flex items-center gap-1 text-[9px]" style={{ color: "var(--muted-foreground)" }}>
+										<div className="w-1.5 h-1.5 rounded-full bg-[var(--live)] animate-pulse" />
+										<span>{activeAgents} ativo{activeAgents !== 1 ? "s" : ""}</span>
+									</div>
+								</div>
+								<div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+									{Object.entries(agentItems).map(([name, items], ai) => {
+										const latestItem = items[0];
+										const resolvedStage = orderedStages(workflow, activeFlow).find((entry) => entry.id === latestItem.stage);
+										const action = resolvedStage ? stageActionLabel(resolvedStage) : "Processando";
+										const totalACs = items.reduce((sum, it) => {
+											if (it.tasks) return sum + it.tasks.filter((t) => t.done).length;
+											return sum;
+										}, 0);
+										const totalTasks = items.reduce((sum, it) => sum + (it.tasks?.length || 0), 0);
+										const pct = totalTasks > 0 ? Math.round((totalACs / totalTasks) * 100) : null;
+										const isRunning = !humanGateStages.has(latestItem.stage) && !doneStages.has(latestItem.stage);
+										return (
+											<div key={name}
+												className={cn("rounded-lg border p-3 min-w-[160px] flex flex-col gap-1.5 shrink-0 transition-all hover:shadow-sm", isRunning && "animate-agent-breathe")}
+												style={{
+													borderColor: isRunning ? "var(--live)" : "var(--border)",
+													background: isRunning ? "color-mix(in oklch, var(--card) 80%, var(--live) 5%)" : "var(--card)",
+												}}
+											>
+												<div className="flex items-center gap-2">
+													<div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold" style={{ background: `color-mix(in oklch, ${AGENT_COLORS[ai % AGENT_COLORS.length]} 20%, transparent)`, color: AGENT_COLORS[ai % AGENT_COLORS.length] }}>
+														{name.charAt(0).toUpperCase()}
+													</div>
+													<div className="flex-1 min-w-0">
+														<div className="flex items-center gap-1">
+															<span className="text-xs font-semibold truncate">{name}</span>
+															{isRunning && <span className="w-1 h-1 rounded-full bg-[var(--live)] animate-pulse" />}
+														</div>
+														<span className="text-[9px]" style={{ color: "var(--muted-foreground)" }}>{action}</span>
+													</div>
+												</div>
+												<div className="flex flex-col gap-0.5">
+													{pct === null ? (
+														<span className="text-[9px]" style={{ color: "var(--muted-foreground)" }}>
+															Sem progresso declarado
+														</span>
+													) : (
+														<div className="flex items-center gap-1">
+															<Progress value={pct} max={100} size="xs" className="flex-1" />
+															<span className="text-[9px] tabular-nums font-medium" style={{ color: "var(--foreground)" }}>{pct}%</span>
+														</div>
+													)}
+													<span className="text-[8px]" style={{ color: "var(--muted-foreground)" }}>
+														{items.length} item{items.length > 1 ? "ns" : ""}
+													</span>
+												</div>
+												<div className={cn("text-[9px] font-medium px-1.5 py-0.5 rounded-full self-start", isRunning ? "bg-[var(--live)]/10 text-[var(--live)]" : "bg-muted text-muted-foreground")}>
+													{isRunning ? "● Running" : "● Queued"}
+												</div>
+											</div>
+										);
+									})}
+								</div>
+							</div>
+						)}
+
+						{/* ─── 4. Pipeline Visual (connected) ─── */}
+						<div className="shrink-0">
+							<div className="flex items-center gap-0">
+								{pipelineStages.map((stage, idx) => {
+									const isCurrent = idx === currentStageIdx;
+									const isDone = idx < currentStageIdx;
+									const isHumanGate = stage.isHumanGate;
+									const hasItems = stage.itemCount > 0;
+									const isLast = idx === pipelineStages.length - 1;
+									return (
+										<div key={stage.id} className="flex items-center gap-0 flex-1">
+											<Tooltip content={`${stage.name}: ${stage.itemCount} itens`}>
+												<div className={cn(
+													"flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-all cursor-default border",
+													isCurrent && "border-primary/40 bg-primary/[0.06]",
+													isDone && "border-transparent",
+													isHumanGate && hasItems && "border-[var(--gate-available)]/40 bg-[var(--gate-available)]/[0.06]",
+													!isCurrent && !isDone && !(isHumanGate && hasItems) && "border-transparent",
+												)}>
+													{isDone ? (
+														<Icon name="check" size={10} style={{ color: "var(--success)" }} />
+													) : isCurrent ? (
+														<div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse" />
+													) : (
+														<div className="w-1.5 h-1.5 rounded-full" style={{ background: hasItems ? "var(--muted-foreground)" : "var(--border)" }} />
+													)}
+													<div className="flex flex-col">
+														<div className="flex items-center gap-1">
+															<span className={cn(
+																"text-[9px] font-semibold truncate",
+																isDone && "text-[var(--success)]",
+																isCurrent && "text-[var(--primary)]",
+																isHumanGate && hasItems && "text-[var(--gate-available)]",
+															)}>{stage.name}</span>
+															{hasItems && (
+																<Badge variant={isHumanGate ? "warning" : "secondary"} className="text-[7px] px-1 py-0 h-3.5">{stage.itemCount}</Badge>
+															)}
+														</div>
+													</div>
+												</div>
+											</Tooltip>
+											{!isLast && (
+												<div className="flex-1 h-px mx-1" style={{ background: isDone ? "var(--success)" : "var(--border)" }} />
+											)}
+										</div>
+									);
+								})}
+							</div>
+						</div>
+
+						{/* ─── 5. Filter Chips ─── */}
+						<div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+							{(["all", "running", "waiting", "blocked", "error", "done"] as const).map((f) => (
+								<Button key={f} type="button" onClick={() => setActiveFilter(f)}
+									className={cn(
+										"inline-flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full transition-all font-medium",
+										activeFilter === f
+											? "bg-primary text-primary-foreground shadow-sm"
+											: "hover:bg-muted border border-transparent hover:border-border",
+									)}
+									style={activeFilter !== f ? { color: "var(--muted-foreground)" } : {}}
+								>
+									{f === "all" ? "Todos" : f === "running" ? "Executando" : f === "waiting" ? "Aguardando" : f === "blocked" ? "Bloqueados" : f === "error" ? "Erro" : "Concluídos"}
+									<span className={cn(
+										"tabular-nums font-mono",
+										activeFilter === f ? "text-primary-foreground/70" : "text-muted-foreground",
+									)}>
+										{filterCounts[f]}
+									</span>
+								</Button>
+							))}
+						</div>
+
+						{/* ─── 6+7. Kanban + Timeline ─── */}
+						<div className="flex flex-1 overflow-hidden gap-3">
+							<div className="flex-1 self-start rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+								<KanbanBoard
+									workflow={workflow}
+									activeFlow={activeFlow}
+									onSelectItem={setSelectedItemId}
+									onDropItem={handleDropItem}
+									allowDrop={allowMoveToStage}
+									specRefreshKey={specRefreshKey}
+									onAddItem={() => setShowAddDialog(true)}
+									filter={activeFilter}
+									onApproveGate={(gateId) => {
+										const next = nextStageId(gateId, workflow, activeFlow);
+										if (!next) return;
+										for (const item of workflow.items.filter((it) => it.stage === gateId)) {
+											doMoveItem(item.id, next);
+										}
+									}}
+								/>
+							</div>
+							<div className="w-52 shrink-0 rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+								<ActivityTimeline workflow={workflow} activeFlow={activeFlow} />
+							</div>
+						</div>
 					</div>
 				)}
 				{selectedItem && (
 					<ItemDetailModal
 						item={selectedItem}
 						workflow={workflow}
+						activeFlow={activeFlow}
 						specs={specs}
 						onClose={() => setSelectedItemId(null)}
 						onItemMoved={onItemMoved}
@@ -816,13 +709,13 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 				title="Validação necessária"
 				actions={
 					<>
-						<button
+						<Button
 							onClick={() => setValidateDialogItem(null)}
 							className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-border bg-transparent hover:bg-muted text-foreground cursor-pointer"
 						>
 							Cancelar
-						</button>
-						<button
+						</Button>
+						<Button
 							onClick={handleValidateConfirm}
 							disabled={!validateDialogItem?.pendingChecks.every(Boolean)}
 							className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-transparent cursor-pointer disabled:opacity-50"
@@ -832,7 +725,7 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 							}}
 						>
 							Mover
-						</button>
+						</Button>
 					</>
 				}
 			>
@@ -865,8 +758,4 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 			</Dialog>
 		</div>
 	);
-}
-
-function cn(...classes: (string | boolean | null | undefined)[]): string {
-	return classes.filter(Boolean).join(" ");
 }

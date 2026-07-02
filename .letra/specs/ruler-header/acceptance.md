@@ -1,11 +1,14 @@
-# Acceptance Criteria — ruler-header
+## Acceptance Criteria
 
-- [x] **DocumentView component**: Envolve conteúdo scrollável com sticky RulerHeader no topo.
-- [x] **RulerHeader fade**: Opacidade inicia em 1.0 e reduz até 0.3 conforme o scroll progride.
-- [x] **Progress bar**: Barra horizontal no ruler reflete progresso do scroll (0–100%).
-- [x] **Section dots**: Dots proporcionais representam seções do documento (h2 headings).
-- [x] **Active section**: Dot da seção ativa é maior e com cor primary; label da seção aparece abaixo.
-- [x] **SpecsView integration**: Detail panel de spec usa DocumentView em vez de layout manual.
-- [x] **ContextView integration**: Visualização de context.md, constitution.md, glossary.md e decisions usa DocumentView.
-- [x] **extractMarkdownSections**: Função exportada extrai seções do markdown via regex `^##\s+(.+)`.
-- [x] **Actions slot**: RulerHeader aceita `actions` ReactNode para botões como Validar/Editar.
+- [ ] **RulerHeader fixo**: Permanece no topo durante scroll via `position: sticky`
+- [ ] **Fade no scroll**: Opacidade diminui de 1.0 para 0.3 proporcional ao progresso do scroll
+- [ ] **Progress bar**: Barra horizontal preenche da esquerda para direita conforme scroll
+- [ ] **Marcadores de seção**: Dots na régua posicionados proporcionalmente, um por seção
+- [ ] **Seção ativa destacada**: Dot da seção visível é maior e usa cor `--primary`
+- [ ] **Label da seção ativa**: Nome da seção ativa aparece centralizado abaixo da régua
+- [ ] **DocumentView reutilizável**: `SpecsView`, `ContextView`, `FlowView` usam o mesmo componente
+- [ ] **DocumentView encapsula scroll**: Container tem `overflow-y: auto` e gerencia o estado de scroll
+- [ ] **Transições suaves**: Opacidade e destaque de seção usam `transition: 150ms ease`
+- [ ] **Sem dependências**: Apenas `onScroll` nativo, sem IntersectionObserver ou libs externas
+- [ ] **SpecsView: diagnóstico per-spec**: Lista mostra badge com contagem de diagnósticos por spec
+- [ ] **SpecsView: filtros consistentes**: Filtro "Avisos" inclui diagnósticos per-spec

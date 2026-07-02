@@ -1,7 +1,6 @@
-# Spec: Kanban UX — Card Enriquecido + Modal Full-Screen
+# Spec: kanban-ux
 
-> Updated: 2026-06-16
-> Status: Draft
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -17,42 +16,12 @@ O usuário identifica de relance o tipo, progresso e estado de cada atividade no
 - Sidebar de metadados ~280px fixa no desktop, empilhada no mobile
 - Nada quebrado: testes existentes passam, workflow.json schema inalterado
 
-## Architecture
+## Exclusions
 
-```
-Card no Board
-┌──────────────────────────┐
-│ write-sync          FEAT │  ← slug (spec name | desc kebab) + tag
-│ Motor de Sincronização…  │  ← desc truncada (max 40ch)
-│ [████░░░░░░] 2/5 ACs     │  ← barra de progresso
-│                    🤖 ago│  ← claim badge
-│                          │
-│  📎 spec.md              │  ← link curto pra spec
-│  3d no estágio           │  ← idade
-└──────────────────────────┘
-        │ click
-        ▼
-┌──────────────────────────────────────────────────┐
-│ ← Kanban Board                     [esc] ✕      │
-├──────────────────────────────────────────────────┤
-│ ┌────────┐  ┌──────────────────────────────┐    │
-│ │  Meta  │  │  Spec (MarkdownView)          │    │
-│ │ ────── │  │                              │    │
-│ │ slug   │  │  # write-sync                │    │
-│ │ FEAT   │  │  ## Outcome                  │    │
-│ │ id: 34 │  │  Toda mutação de workflow…   │    │
-│ │        │  │                              │    │
-│ │ Review │  │  - [x] AC1: gateway          │    │
-│ │        │  │  - [x] AC2: stage-drift      │    │
-│ │ [Mover]│  │  - [x] AC3: flow-move        │    │
-│ │ [Edit] │  │                              │    │
-│ │ ────── │  │                              │    │
-│ │ Hist.  │  │                              │    │
-│ │ 12:00  │  │                              │    │
-│ │ move   │  │                              │    │
-│ └────────┘  └──────────────────────────────┘  │
-└──────────────────────────────────────────────────┘
-```
+- Drag-and-drop reordering (já existe via kanban)
+- LET-1 como prefixo (documentado como FUTURE, não implementado)
+- Notificações push
+- Múltiplos agentes com claims simultâneos
 
 ## Acceptance Criteria
 
@@ -152,13 +121,6 @@ Card no Board
 - [x] `letra validate` OK
 - [x] CLI commands que aceitam ITEM-N continuam aceitando
 
-## Exclusions
+## Context
 
-- Drag-and-drop reordering (já existe via kanban)
-- LET-1 como prefixo (documentado como FUTURE, não implementado)
-- Notificações push
-- Múltiplos agentes com claims simultâneos
-
-## Future (não implementar agora)
-
-- **LET-1**: substituir ITEM-N por LET-N como identificador. Impacta: schema, CLI commands, regex parsing, `nextItemId()`, testes, workflows existentes. Requer script de migração e período de compatibilidade.
+-

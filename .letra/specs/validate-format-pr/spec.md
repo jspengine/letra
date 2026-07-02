@@ -1,4 +1,6 @@
-# Spec — Validate Format PR
+# Spec: validate-format-pr
+
+> Updated: 2026-06-22
 
 ## Outcome
 

@@ -1,49 +1,64 @@
-import { Icon } from "./icon";
+import type { HTMLAttributes, ImgHTMLAttributes } from "react";
 import { cn } from "./utils";
 
-interface AvatarProps {
-	name?: string;
-	src?: string;
-	size?: "sm" | "md" | "lg";
-	className?: string;
-}
+type Size = "sm" | "md" | "lg";
 
-const sizeMap = {
-	sm: "w-6 h-6 text-[10px]",
-	md: "w-8 h-8 text-xs",
-	lg: "w-10 h-10 text-sm",
+const sizeStyles: Record<Size, string> = {
+	sm: "h-8 w-8 text-xs",
+	md: "h-10 w-10 text-sm",
+	lg: "h-12 w-12 text-base",
 };
 
-const iconSizeMap = { sm: 14, md: 16, lg: 20 } as const;
-
-function initials(name: string): string {
-	const parts = name.trim().split(/\s+/);
-	if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-	return parts[0].slice(0, 2).toUpperCase();
+interface AvatarProps extends HTMLAttributes<HTMLDivElement> {
+	size?: Size;
 }
 
-export function Avatar({ name, src, size = "md", className }: AvatarProps) {
-	if (src) {
-		return (
-			<img
-				src={src}
-				alt={name || "Avatar"}
-				className={cn("rounded-full object-cover", sizeMap[size], className)}
-			/>
-		);
-	}
-
+export function Avatar({ className, size = "md", children, ...props }: AvatarProps) {
 	return (
 		<div
 			className={cn(
-				"rounded-full inline-flex items-center justify-center font-medium",
-				sizeMap[size],
+				"relative flex shrink-0 overflow-hidden rounded-full",
+				sizeStyles[size],
 				className,
 			)}
-			style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}
-			aria-label={name || "Avatar"}
+			{...props}
 		>
-			{name ? initials(name) : <Icon name="user" size={iconSizeMap[size]} />}
+			{children}
 		</div>
+	);
+}
+
+interface AvatarImageProps extends ImgHTMLAttributes<HTMLImageElement> {}
+
+export function AvatarImage({ className, ...props }: AvatarImageProps) {
+	return (
+		<img
+			className={cn("aspect-square h-full w-full object-cover", className)}
+			{...props}
+		/>
+	);
+}
+
+interface AvatarFallbackProps extends HTMLAttributes<HTMLSpanElement> {
+	delayMs?: number;
+}
+
+export function AvatarFallback({
+	className,
+	delayMs,
+	children,
+	...props
+}: AvatarFallbackProps) {
+	return (
+		<span
+			className={cn(
+				"flex items-center justify-center rounded-full bg-muted font-medium ring-2 ring-background",
+				className,
+			)}
+			style={{ animationDelay: `${delayMs ?? 0}ms` }}
+			{...props}
+		>
+			{children}
+		</span>
 	);
 }

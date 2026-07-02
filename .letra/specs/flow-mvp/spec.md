@@ -1,5 +1,7 @@
 # Spec: flow-mvp
 
+> Updated: 2026-06-22
+
 ## Outcome
 
 Usuário consegue definir seu processo de trabalho com 3 perguntas, visualizar o progresso no terminal, e mover itens entre estágios — com os adapters (AGENTS.md, CLAUDE.md, etc.) refletindo automaticamente o contexto do estágio atual para o LLM.

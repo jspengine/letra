@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Icon } from "@letra/ui";
+import { Button, Icon } from "@letra/ui";
 import type { IconName } from "@letra/ui";
-import { Markdown } from "../ui/markdown";
 import { cn } from "../../lib/utils";
-import { MarkdownView, extractMarkdownSections } from "../ui/MarkdownView";
+import { DocumentEditor, extractMarkdownSections } from "../ui/DocumentEditor";
+import HarnessViewer from "../Harness/HarnessViewer";
 
-type Tab = "context.md" | "constitution.md" | "glossary.md" | "decisions";
+type Tab = "context.md" | "constitution.md" | "glossary.md" | "decisions" | "harness";
 
 interface Decision {
 	name: string;
@@ -17,6 +17,7 @@ const TABS: { id: Tab; label: string; icon: IconName }[] = [
 	{ id: "constitution.md", label: "Constitution", icon: "star" },
 	{ id: "glossary.md", label: "Glossary", icon: "search" },
 	{ id: "decisions", label: "Decisions", icon: "list-three" },
+	{ id: "harness", label: "Harness", icon: "cpu" },
 ];
 
 const FILE_INFO: Record<string, { description: string }> = {
@@ -30,7 +31,7 @@ const FILE_INFO: Record<string, { description: string }> = {
 		description: "Glossário de termos e definições para consistência na comunicação.",
 	},
 	decisions: {
-		description: "Registro de Decisões Arquiteturais (ADRs) — escolhas e seus contextos.",
+		description: "Registro de Decisões — escolhas e seus contextos.",
 	},
 };
 
@@ -100,7 +101,7 @@ export default function ContextView() {
 				</h2>
 				<div className="flex flex-col gap-0.5 p-2">
 					{TABS.map((t) => (
-						<button
+						<Button
 							key={t.id}
 							type="button"
 							onClick={() => {
@@ -128,7 +129,7 @@ export default function ContextView() {
 								)}
 							/>
 							{t.label}
-						</button>
+						</Button>
 					))}
 				</div>
 
@@ -143,7 +144,7 @@ export default function ContextView() {
 						</h3>
 						<div className="flex flex-col gap-0.5 px-2 pb-2">
 							{decisions.map((d) => (
-								<button
+								<Button
 									key={d.name}
 									onClick={() => setSelectedDecision(d.name)}
 									className={cn(
@@ -176,7 +177,7 @@ export default function ContextView() {
 											{resolveTitle(d.content) || d.name}
 										</div>
 									</div>
-								</button>
+								</Button>
 							))}
 						</div>
 					</>
@@ -196,17 +197,26 @@ export default function ContextView() {
 							Loading...
 						</p>
 					</div>
+				) : tab === "harness" ? (
+					<HarnessViewer />
 				) : tab === "decisions" && selectedDecisionData ? (
-					<MarkdownView
+					<DocumentEditor
 						key={`${tab}-${selectedDecision}`}
-						title={
-							resolveTitle(selectedDecisionData.content) || selectedDecisionData.name
-						}
+						file={`decisions/${selectedDecisionData.name}`}
+						initialContent={selectedDecisionData.content}
+						onSave={async (newContent) => {
+							await fetch(`/api/context?file=decisions/${selectedDecisionData.name}`, {
+								method: "PUT",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({ content: newContent }),
+							});
+							const res = await fetch("/api/context?file=decisions");
+							const data = await res.json();
+							if (Array.isArray(data)) setDecisions(data);
+						}}
+						title={resolveTitle(selectedDecisionData.content) || selectedDecisionData.name}
 						description={FILE_INFO.decisions.description}
-						sections={extractMarkdownSections(selectedDecisionData.content)}
-					>
-						<Markdown content={selectedDecisionData.content} />
-					</MarkdownView>
+					/>
 				) : tab === "decisions" ? (
 					<div
 						key={tab}
@@ -217,14 +227,20 @@ export default function ContextView() {
 						</p>
 					</div>
 				) : (
-					<MarkdownView
+					<DocumentEditor
 						key={tab}
+						file={tab}
+						initialContent={content}
+						onSave={async (newContent) => {
+							await fetch(`/api/context?file=${tab}`, {
+								method: "PATCH",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({ content: newContent }),
+							});
+						}}
 						title={resolveTitle(content) || tab}
 						description={FILE_INFO[tab]?.description}
-						sections={extractMarkdownSections(content)}
-					>
-						<Markdown content={content} />
-					</MarkdownView>
+					/>
 				)}
 			</div>
 		</div>

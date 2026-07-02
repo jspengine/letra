@@ -69,11 +69,14 @@ export const stageDriftDetector: Detector = {
 					},
 				});
 			} else if (pctDone > 0 && pctDone < 1 && isInBacklog) {
+				const doingStage = stages.find((s: { zone?: string }) => s.zone === "doing")
+					?? stages.find((_s: unknown, i: number) => i > 0);
+				const stageHint = doingStage ? `"${doingStage.name || doingStage.id}"` : "o próximo estágio";
 				results.push({
 					id: `stage-drift_${item.id}_partial`,
 					type: "info",
 					title: `${item.id} (${item.description}) — ${doneMatches.length}/${totalACs} ACs prontos`,
-					description: `O item ${item.id} tem ${doneMatches.length}/${totalACs} ACs implementados mas está em backlog. Considere mover para "code".`,
+					description: `O item ${item.id} tem ${doneMatches.length}/${totalACs} ACs implementados mas está em backlog. Considere mover para ${stageHint}.`,
 					certainty: 0.7,
 					detector: "stage-drift",
 				});

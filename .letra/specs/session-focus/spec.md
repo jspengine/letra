@@ -1,4 +1,6 @@
-# Spec — Session Focus
+# Spec: session-focus
+
+> Updated: 2026-06-22
 
 ## Outcome
 

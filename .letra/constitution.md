@@ -1,52 +1,117 @@
-# Constitution
+# Letra Constitution
 
-> Regras não-negociáveis do projeto Letra
-> Updated: 2026-06-15
+**Version:** 1.0.0  
+**Date:** 2026-06-21  
+**Status:** Ratified  
 
-## Arquitetura
+---
 
-- Adapter layer desde o dia 1 — nunca travar em uma IDE
-- Formato `.letra/` é a fonte da verdade, não o código
-- CLI deve ser extensível via plugins
-- **Separação de domínios**: `validation/` (formato e conteúdo de specs) e `diagnostics/` (drift entre specs, código e workflow) são módulos distintos e não devem se importar mutuamente
-- **Shared modules**: código usado por mais de um detector ou comando DEVE ser extraído para módulo compartilhado em `diagnostics/shared/` ou `validation/`. PROIBIDO duplicar `searchInSource`, `walkDir`, `loadSpecs` ou funções equivalentes
+## Preamble
 
-## Código
+Letra exists to orchestrate software development with LLMs in a controlled, auditable, human-centered way. This constitution defines the non-negotiable principles that govern every architectural decision, every line of code, and every feature.
 
-- TypeScript estrito (`strict: true` no tsconfig)
-- Biome para linting e formatação
-- Testes para toda lógica de parsing e validação
-- Zero dependencies desnecessárias — cada dependency precisa de justificativa
-- **Thin wrappers**: Commands CLI (arquivos em `commands/`) DEVEM ser thin wrappers com no máximo 100 linhas que orquestram chamadas a módulos shared. Lógica de domínio NUNCA deve estar em comandos
-- **Funções puras**: Shared modules DEVEM exportar funções puras — sem estado global, sem efeito colateral, testáveis isoladamente
-- **Responsabilidade única**: Cada detector, comando e módulo faz UMA coisa. Se um arquivo tem mais de uma responsabilidade clara, DEVE ser dividido
-- **Template-driven**: Adaptadores (formatters.ts) geram strings a partir de dados — sem lógica de negócio. Dados são preparados por builders separados
+---
 
-## Specs
+## Principle 1: Human in the Loop
 
-- Thin specs: máximo 1 página por feature
-- Markdown checklist para acceptance criteria
-- Sem pseudo-código nas specs
-- Toda spec deve ter: Outcome, Constraints, Exclusions, Acceptance Criteria, Context
+No destructive or irreversible action (merge, deploy, create branch) is executed without explicit human approval via gate.
 
-## Workflow
+**Rules:**
+- All gates require human sign-off before advancing.
+- LLMs generate content; humans make directional decisions.
+- Security and public API changes always require human review.
 
-- Spec atualizada como parte do Definition of Done
-- PR sem spec atualizada = reject
-- Dogfood: Letra é construído com Letra
+---
 
-## Manutenibilidade
+## Principle 2: Workspace is Context
 
-- **Complexidade ciclomática**: Nenhuma função pode exceder cyclo 10. Acima disso DEVE ser refatorada em funções menores
-- **Split threshold**: Arquivos com cyclo total > 30 DEVEM ser candidatos a splitting
-- **Tamanho máximo**: Detectores novos no máximo 80 linhas; commands CLI no máximo 100 linhas
-- **Anti-padrões proibidos**:
-  - Routing monolítico (cadeias if/else if com mais de 5 endpoints) — usar Router Map pattern
-  - Validação inline duplicada em endpoints HTTP — usar módulo `validation/`
-  - Lógica de domínio nos comandos CLI — extrair para módulo shared
-  - Duplicação de walkDir/searchInSource — usar `diagnostics/shared/file-search.ts`
+The workspace represents the solution, not the repository. A workspace aggregates N repositories/folders under a single flow line.
 
-## Segurança
+**Rules:**
+- Workspace is the only unit of value.
+- No feature may introduce "project" as a root aggregate.
+- One workspace = one solution in progress (e.g., "PIX no crédito").
 
-- Nunca incluir secrets, tokens ou chaves no repositório
-- Binário standalone para distribuição a não-devs
+---
+
+## Principle 3: Harness is Authority
+
+All Letra behavior (flows, gates, personas, metrics) is defined in the versioned harness, not hardcoded in the CLI.
+
+**Rules:**
+- Every new feature must first exist as harness content (template, persona, rule).
+- CLI is a thin adapter that reads and executes harness directives.
+- Harness is immutable by tag; workspaces reference a version.
+
+---
+
+## Principle 4: Nothing is Magic
+
+Every Letra action generates a traceable artifact (manifest, flow.json, metrics.jsonl). No black boxes.
+
+**Rules:**
+- All state changes are append-only.
+- Every generated artifact references its source (prompt, rules, workspace).
+- Users can inspect, diff, and rollback any harness or workspace file.
+
+---
+
+## Principle 5: LLM is a Tool, Not the Owner
+
+LLMs generate content (specs, code, reviews), but directional decisions are human via gates.
+
+**Rules:**
+- Max 3 personas in v1 (reviewer, security, analyst).
+- Personas have explicit constraints (max files, require tests, forbidden actions).
+- LLM output is always presented for human approval before side effects.
+
+---
+
+## Anti-Drift Rules
+
+To avoid losing focus:
+
+1. **No feature without a spec** — every change to the codebase must trace to an AC in a spec under `.letra/specs/`. Features without a spec are forbidden. "Quick fixes" bypassing specs are forbidden.
+2. **shadcn-first** — todo componente de UI deve vir de `@letra/ui` ou do registry `@shadcn`. HTML raw (`<button>`, `<select>`, `<input>`, `<textarea>`, `<table>`, `<dialog>`, `<details>`) é proibido para elementos de UI interativos. Elementos semânticos estruturais (`<header>`, `<nav>`, `<main>`, `<section>`) são permitidos. Layouts estruturais devem usar CSS Grid (`grid-cols-*`, `grid-rows-*`) do Tailwind. Todo novo arquivo .tsx com UI deve importar de `@letra/ui` ou do registry shadcn, nunca criar componentes do zero.
+
+## UX Constitution
+
+Letra is not a task manager. Letra is a **supervision interface for autonomous agent teams**.
+
+1. **Agent behavior first, cards second** — whenever there is a choice between highlighting a card (the work) and highlighting agent activity (the behavior), always choose agent activity. Cards represent *what*; agents and their decisions represent *how* and *why*.
+2. **Visibility of agency** — every visible element must make the agent's presence, decision, or state obvious. A gate is not a status badge; it is an agent asking a question. A stage transition is not a drag-and-drop; it is an agent completing work and requesting the next.
+3. **No silent automation** — if an agent acts, the UI must show it acting: who, what, when, and why. Background processing without UI trace is forbidden.
+4. **The user supervises, not operates** — avoid multi-click workflows, form-heavy CRUD, and drag-drop reordering. The user's primary action is reviewing, approving, and directing — not shuffling cards.
+2. **No complexity without demand** — nested phases, 15 metrics, multi-template only enter if explicitly requested by users.
+3. **Harness first, CLI second** — every product feature is born in the harness, not in CLI code.
+4. **Max 3 personas in v1** — reviewer, security, analyst. No invented roles.
+5. **Every command has dry-run** — `letra review --dry-run`, `letra pr --dry-run`. No direct action.
+6. **Metrics are derived, not instrumented** — cycle_time = `stage.done - stage.start`. No complex logging.
+7. **Workspace is the only root aggregate** — never return to "project" as the top-level entity.
+
+---
+
+## Architecture Shape
+
+Hexagonal (Ports and Adapters):
+- Core: pure domain (Workspace, FlowInstance, RepositoryRef, Stage, Gate, Metric)
+- Ports: WorkspaceRepository, RepositoryDiscovery, HarnessSynchronizer, FlowEngine, GitOperator
+- Adapters: Filesystem, Git, CLI (Commander + Ink), Web (Vite + React)
+
+---
+
+## Stack
+
+- Language: Node/TypeScript
+- CLI: Commander + Ink (TUI)
+- SPA: Vite + React (standalone, not embedded)
+- Git: simple-git
+- Config: cosmiconfig / hierarchical
+- Metrics: PostHog/Plausible opt-in
+- CI/CD: GitHub Actions + @vercel/ncc
+
+---
+
+## Mission Statement
+
+> Orchestrate software development with LLMs in a controlled, auditable, and human-centered way through workspaces that represent solutions, with standardized flows and explicit rules.

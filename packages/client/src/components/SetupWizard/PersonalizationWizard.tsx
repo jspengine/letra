@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Badge, Button, Card, CardContent } from "@letra/ui";
+import { Badge, Button, Card, CardContent, Input } from "@letra/ui";
 
 interface StageDef {
 	id: string;
@@ -23,7 +23,7 @@ function freshId(prefix = "stage"): string {
 
 function ZoneBadge({ zone }: { zone: string }) {
 	const colors: Record<string, string> = {
-		todo: "border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10",
+		todo: "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10",
 		doing: "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10",
 		done: "border-green-500/30 text-green-600 dark:text-green-400 bg-green-500/10",
 	};
@@ -63,26 +63,26 @@ function StepStages({
 				{stages.map((s) => (
 					<Card key={s.id}>
 						<CardContent className="p-3 flex items-center gap-3">
-							<input
+							<Input
 								type="text"
 								value={s.name}
 								onChange={(e) => rename(s.id, e.target.value)}
 								placeholder="Nome do estágio"
-								className="flex-1 rounded px-2 py-1 text-sm border"
+								className="flex-1"
 								style={{
 									background: "var(--background)",
 									borderColor: "var(--border)",
 									color: "var(--foreground)",
 								}}
 							/>
-							<button
+							<Button
 								type="button"
 								onClick={() => removeStage(s.id)}
 								className="text-xs px-2 py-1 rounded hover:bg-red-500/10 hover:text-red-500"
 								style={{ color: "var(--muted-foreground)" }}
 							>
 								✕
-							</button>
+							</Button>
 						</CardContent>
 					</Card>
 				))}
@@ -122,14 +122,14 @@ function StepZones({
 							<span className="text-sm font-medium">{s.name}</span>
 							<div className="flex gap-1">
 								{(["todo", "doing", "done"] as const).map((z) => (
-									<button
+									<Button
 										type="button"
 										key={z}
 										onClick={() => setZone(s.id, z)}
 										className={`text-xs px-3 py-1 rounded-full border transition-all ${
 											s.zone === z
 												? z === "todo"
-													? "border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+													? "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400"
 													: z === "doing"
 														? "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400"
 														: "border-green-500 bg-green-500/10 text-green-600 dark:text-green-400"
@@ -141,7 +141,7 @@ function StepZones({
 											: z === "doing"
 												? "Fazendo"
 												: "Feito"}
-									</button>
+									</Button>
 								))}
 							</div>
 						</CardContent>

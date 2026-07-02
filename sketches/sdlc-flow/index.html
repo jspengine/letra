@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Letra — SDLC Flow Diagram</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #020617;
+    --surface: #0f172a;
+    --border: #1e293b;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --accent: #5e6ad2;
+    --accent2: #7b88f0;
+    --cyan: #22d3ee;
+    --emerald: #34d399;
+    --amber: #fbbf24;
+    --rose: #fb7185;
+    --orange: #fb923c;
+    --violet: #a78bfa;
+    --pink: #f472b6;
+  }
+  body {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px 24px;
+    line-height: 1.5;
+    min-width: 1200px;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 12px; margin-bottom: 28px; }
+
+  .flow {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    position: relative;
+    padding: 12px 0;
+  }
+  .stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+  .stage-box {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 10px;
+    width: 100%;
+    max-width: 200px;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+  }
+  .stage-box .label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    margin-bottom: 4px;
+  }
+  .stage-box .desc {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .stage-box .agents {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+  }
+  .agent-chip {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #0008;
+    border: 1px solid #fff3;
+    color: #ddd;
+  }
+  .stage-num {
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    letter-spacing: .08em;
+  }
+  .arrow {
+    flex: 0 0 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+    margin-top: 28px;
+    color: var(--muted);
+    font-size: 18px;
+  }
+  .gate-below {
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #000a;
+    border: 1px solid #fff2;
+    color: #bbb;
+    white-space: nowrap;
+  }
+  .gate-below.blocking { color: var(--amber); border-color: #fbbf2450; }
+  .gate-below.auto { color: var(--cyan); border-color: #22d3ee50; }
+
+  .legend {
+    margin-top: 48px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .dot { width: 8px; height: 8px; border-radius: 999px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 28px;
+  }
+  .card h2 { font-size: 13px; font-weight: 600; margin-bottom: 12px; letter-spacing: .04em; }
+  .perms { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+  .perm {
+    background: #0a0c1480;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+  .perm .role { font-weight: 700; color: var(--cyan); margin-bottom: 4px; }
+  .perm .can { color: var(--success); }
+  .perm .cant { color: var(--muted); }
+  .perm .gate-tag { font-size: 10px; color: var(--amber); margin-top: 4px; }
+
+  table.schema-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-top: 10px;
+  }
+  table.schema-table th, table.schema-table td {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.schema-table th { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; font-size: 10px; }
+  .type-human { color: var(--amber); }
+  .type-auto { color: var(--cyan); }
+</style>
+</head>
+<body>
+<div>
+  <h1>SDLC Template — Fluxo, Gates e Agentes</h1>
+  <p class="subtitle">Fases, pontos de verificação e permissões por role. Base do template built-in do letra.</p>
+
+  <div class="flow">
+    <!-- Stage 1 -->
+    <div class="stage">
+      <div class="stage-num">ESTÁGIO 1</div>
+      <div class="stage-box">
+        <div class="label" style="color:var(--emerald)">Backlog</div>
+        <div class="desc">Item registrado, aguardando priorização.</div>
+      </div>
+    </div>
+    <div class="arrow">→</div>
+
+    <!-- Stage 2 -->
+    <div class="stage">
+      <div class="stage-num">ESTÁGIO 2</div>
+      <div class="stage-box">
+        <div class="label" style="color:var(--cyan)">Spec Draft</div>
+        <div class="desc">Agente gera rascunho de especificação a partir do ticket.</div>
+        <div class="agents"><span class="agent-chip">analyst</span></div>
+      </div>
+      <div class="gate-below auto">gate: —</div>
+    </div>
+    <div class="arrow">→</div>
+
+    <!-- Stage 3 -->
+    <div class="stage">
+      <div class="stage-num">ESTÁGIO 3</div>
+      <div class="stage-box">
+        <div class="label" style="color:var(--amber)">Spec Review</div>
+        <div class="desc">Humano aprova ou rejeita a especificação.</div>
+        <div class="agents"><span class="agent-chip">reviewer</span><span class="agent-chip">humano</span></div>
+      </div>
+      <div class="gate-below blocking">GATE · human-approved-spec</div>
+    </div>
+    <div class="arrow">→</div>
+
+    <!-- Stage 4 -->
+    <div class="stage">
+      <div class="stage-num">ESTÁGIO 4</div>
+      <div class="stage-box">
+        <div class="label" style="color:var(--cyan)">Code</div>
+        <div class="desc">Implementação das mudanças aprovadas.</div>
+        <div class="agents"><span class="agent-chip">builder</span></div>
+      </div>
+      <div class="gate-below auto">gate: —</div>
+    </div>
+    <div class="arrow">→</div>
+
+    <!-- Stage 5 -->
+    <div class="stage">
+      <div class="stage-num">ESTÁGIO 5</div>
+      <div class="stage-box">
+        <div class="label" style="color:var(--amber)">Code Review</div>
+        <div class="desc">Revisão de diff, comentários, aprovação final.</div>
+        <div class="agents"><span class="agent-chip">reviewer</span><span class="agent-chip">humano</span></div>
+      </div>
+      <div class="gate-below blocking">GATE · human-approved-code</div>
+    </div>
+    <div class="arrow">→</div>
+
+    <!-- Stage 6 -->
+    <div class="stage">
+      <div class="stage-num">ESTÁGIO 6</div>
+      <div class="stage-box">
+        <div class="label" style="color:var(--orange)">Security</div>
+        <div class="desc">Scan de vulnerabilidades, análise de dependências.</div>
+        <div class="agents"><span class="agent-chip">security</span><span class="agent-chip">humano</span></div>
+      </div>
+      <div class="gate-below blocking">GATE · security-clear</div>
+    </div>
+    <div class="arrow">→</div>
+
+    <!-- Stage 7 -->
+    <div class="stage">
+      <div class="stage-num">ESTÁGIO 7</div>
+      <div class="stage-box">
+        <div class="label" style="color:var(--violet)">Ready to PR</div>
+        <div class="desc">Gera descrição, adiciona checks, cria PR.</div>
+        <div class="agents"><span class="agent-chip">pr-bot</span></div>
+      </div>
+      <div class="gate-below auto">GATE · all-acs-passing</div>
+    </div>
+    <div class="arrow">→</div>
+
+    <!-- Stage 8 -->
+    <div class="stage">
+      <div class="stage-num">ESTÁGIO 8</div>
+      <div class="stage-box">
+        <div class="label" style="color:var(--emerald)">Done</div>
+        <div class="desc">PR mergeado, ciclo concluído.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--amber)"></span>Gate human (blocking)</span>
+    <span><span class="dot" style="background:var(--cyan)"></span>Gate automated</span>
+    <span><span class="dot" style="background:var(--emerald);border:1px solid #fff3"></span>Estágio sem gate</span>
+    <span><span class="dot" style="background:var(--muted)"></span>Agente</span>
+    <span><span class="dot" style="background:var(--text)"></span>Humano</span>
+  </div>
+
+  <div class="card">
+    <h2>Política de permissões por role (AgentCapability + policyRef)</h2>
+    <div class="perms">
+      <div class="perm">
+        <div class="role">analyst</div>
+        <div class="can">• read_code</div>
+        <div class="can">• write_spec</div>
+        <div class="can">• generate_doc</div>
+        <div class="cant">• approve (não)</div>
+        <div class="gate-tag">Stage: Spec Draft</div>
+      </div>
+      <div class="perm">
+        <div class="role">builder</div>
+        <div class="can">• read_code</div>
+        <div class="can">• write_code</div>
+        <div class="can">• run_tests</div>
+        <div class="cant">• approve (não)</div>
+        <div class="gate-tag">Stage: Code</div>
+      </div>
+      <div class="perm">
+        <div class="role">reviewer</div>
+        <div class="can">• read_code</div>
+        <div class="can">• comment_pr</div>
+        <div class="can">• suggest_changes</div>
+        <div class="cant">• approve (não)</div>
+        <div class="gate-tag">Gate: human-approved-code (allow=false)</div>
+      </div>
+      <div class="perm">
+        <div class="role">security</div>
+        <div class="can">• scan_dependencies</div>
+        <div class="can">• report_findings</div>
+        <div class="cant">• approve (não)</div>
+        <div class="gate-tag">Gate: security-clear (blocking)</div>
+      </div>
+      <div class="perm">
+        <div class="role">pr-bot</div>
+        <div class="can">• create_pr</div>
+        <div class="can">• assign_reviewers</div>
+        <div class="cant">• merge (não)</div>
+        <div class="gate-tag">Stage: Ready to PR</div>
+      </div>
+      <div class="perm">
+        <div class="role">humano</div>
+        <div class="can">• approve spec</div>
+        <div class="can">• approve code</div>
+        <div class="can">• approve security</div>
+        <div class="can">• merge PR</div>
+        <div class="can">• override gates</div>
+        <div class="gate-tag">Gates: human-* (always allowed)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Schema JSON — SDLC Template (harness/flows/sdlc.yaml)</h2>
+    <table class="schema-table">
+      <thead><tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td>id</td><td>string</td><td>"sdlc"</td></tr>
+        <tr><td>version</td><td>semver</td><td>"0.1.0"</td></tr>
+        <tr><td>stages[]</td><td>StageDef[]</td><td>8 estágios em ordem</td></tr>
+        <tr><td>gates[]</td><td>GateRef[]</td><td>Gates usados pelos estágios</td></tr>
+        <tr><td>defaultRoles[]</td><td>string[]</td><td>["analyst","builder","reviewer","security","pr-bot"]</td></tr>
+        <tr><td>policyRef</td><td>string</td><td>"policies/sdlc-default.json"</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Schema JSON — Gate + Policy de exemplo</h2>
+    <table class="schema-table">
+      <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+      <tbody>
+        <tr><td>gateId</td><td>human-approved-code</td></tr>
+        <tr><td>type</td><td class="type-human">human</td></tr>
+        <tr><td>blocking</td><td>true</td></tr>
+        <tr><td>policy.minReviewers</td><td>1</td></tr>
+        <tr><td>policy.requireHuman</td><td>true</td></tr>
+        <tr><td>policy.allowAgentToComment</td><td>true</td></tr>
+        <tr><td>policy.allowAgentToApprove</td><td>false</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

@@ -1,6 +1,6 @@
-# Spec: Automações Leves
+# Spec: item-7-automacoes
 
-> Updated: 2026-06-13
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -14,6 +14,13 @@ Ao mover itens entre estágios no flow, webhooks configurados são disparados au
 - Falha de webhook não bloqueia o movimento do item (fire-and-forget)
 - UI de configuração inline no FlowView (ao lado de Manage Stages)
 
+## Exclusions
+
+- Não implementar retry automático
+- Não implementar rate limiting
+- Não implementar automações condicionais (se X então Y) — será ITEM-7B
+- Não implementar notificações in-app (apenas webhooks externos)
+
 ## Acceptance Criteria
 
 - [ ] **Schema**: Workflow ganha campo `webhooks: WebhookConfig[]` com `{ id, url, events: string[], label?, lastStatus?, lastSentAt? }`
@@ -23,13 +30,6 @@ Ao mover itens entre estágios no flow, webhooks configurados são disparados au
 - [ ] **UI**: FlowView ganha botão "Webhooks" ao lado de "Manage Stages" — inline editor com lista de webhooks (url, label, eventos), botão de teste, indicador de status (✅ / ❌)
 - [ ] **Teste**: Botão "Test" envia payload de teste e mostra resultado
 - [ ] **Persistência**: webhooks salvos via PATCH /api/workflow
-
-## Exclusions
-
-- Não implementar retry automático
-- Não implementar rate limiting
-- Não implementar automações condicionais (se X então Y) — será ITEM-7B
-- Não implementar notificações in-app (apenas webhooks externos)
 
 ## Context
 

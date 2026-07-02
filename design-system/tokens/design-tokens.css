@@ -1,0 +1,58 @@
+:root {
+  --letra-amber-400: #ffd36a;
+  --letra-amber-500: #ffb800;
+  --letra-amber-600: #f59e0b;
+  --letra-slate-950: #090b0f;
+  --letra-slate-900: #0f1115;
+  --letra-slate-800: #171a21;
+  --letra-slate-700: #232833;
+  --letra-slate-500: #6b7280;
+  --letra-slate-100: #f3f4f6;
+  --letra-white-soft: #f8fafc;
+  --letra-emerald-500: #22c55e;
+  --letra-blue-500: #3b82f6;
+  --letra-red-500: #ef4444;
+  --letra-purple-500: #8b5cf6;
+
+  --brand-primary: var(--letra-amber-500);
+  --brand-primary-strong: var(--letra-amber-600);
+  --brand-primary-soft: var(--letra-amber-400);
+  --brand-background: var(--letra-slate-900);
+  --brand-background-deep: var(--letra-slate-950);
+  --brand-surface: var(--letra-slate-800);
+  --brand-surface-elevated: var(--letra-slate-700);
+  --brand-border: color-mix(in srgb, var(--letra-slate-500) 28%, transparent);
+  --brand-text: var(--letra-white-soft);
+  --brand-text-muted: #a1a7b3;
+  --brand-success: var(--letra-emerald-500);
+  --brand-info: var(--letra-blue-500);
+  --brand-danger: var(--letra-red-500);
+  --brand-agent: var(--letra-purple-500);
+
+  --font-brand: "Sora", "Inter", system-ui, sans-serif;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --shadow-glow: 0 0 32px rgba(255, 184, 0, 0.18);
+  --shadow-card: 0 18px 48px rgba(0, 0, 0, 0.28);
+
+  --motion-fast: 140ms;
+  --motion-base: 180ms;
+  --motion-slow: 280ms;
+  --motion-emphasis: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.theme-light {
+  --brand-background: #f8fafc;
+  --brand-background-deep: #ffffff;
+  --brand-surface: #ffffff;
+  --brand-surface-elevated: #f3f4f6;
+  --brand-border: rgba(15, 17, 21, 0.1);
+  --brand-text: #0f1115;
+  --brand-text-muted: #4b5563;
+  --shadow-glow: 0 0 0 rgba(0, 0, 0, 0);
+  --shadow-card: 0 12px 32px rgba(15, 17, 21, 0.08);
+}

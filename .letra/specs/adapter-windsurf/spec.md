@@ -1,4 +1,6 @@
-# Spec — Adapter Windsurf
+# Spec: adapter-windsurf
+
+> Updated: 2026-06-22
 
 ## Outcome
 

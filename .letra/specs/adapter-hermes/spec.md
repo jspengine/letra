@@ -1,6 +1,6 @@
 # Spec: adapter-hermes
 
-> Updated: 2026-06-17
+> Updated: 2026-06-22
 
 ## Outcome
 

@@ -13,9 +13,10 @@ interface TabsProps {
 	onChange?: (id: string) => void;
 	children?: (activeId: string) => ReactNode;
 	className?: string;
+	ariaLabel?: string;
 }
 
-export function Tabs({ tabs, activeTab: controlledTab, onChange, children, className }: TabsProps) {
+export function Tabs({ tabs, activeTab: controlledTab, onChange, children, className, ariaLabel }: TabsProps) {
 	const [internalTab, setInternalTab] = useState(tabs[0]?.id || "");
 	const active = controlledTab ?? internalTab;
 
@@ -30,6 +31,7 @@ export function Tabs({ tabs, activeTab: controlledTab, onChange, children, class
 				className="flex border-b shrink-0"
 				style={{ borderColor: "var(--border)" }}
 				role="tablist"
+				aria-label={ariaLabel}
 			>
 				{tabs.map((tab) => (
 					<button

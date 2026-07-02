@@ -1,6 +1,6 @@
-# Spec: Self-Diagnosis Core
+# Spec: self-diagnosis-core
 
-> Updated: 2026-06-14
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -14,26 +14,12 @@ O Letra detecta automaticamente drifts entre specs, código e workflow — e os 
 - Nenhum detector pode depender de rede externa ou LLM
 - A corrida de detectores não pode ultrapassar 500ms total
 
-## Architecture
+## Exclusions
 
-```
-diagnostics/
-├── engine.ts           — orquestrador: roda detectores, aplica fixes, gerencia snapshots
-├── snapshot.ts         — save/restore/cleanup de snapshots
-├── detectors/          — cada detector é um arquivo isolado
-│   ├── ac-stale.ts     — AC [ ] com implementação existente → [x]         (user)
-│   ├── ac-false-pos.ts — AC [x] sem implementação → [ ]                   (user)
-│   ├── stage-drift.ts  — workflow.json estágio ≠ cobertura real           (user)
-│   ├── missing-dir.ts  — .letra/templates/ etc ausentes → cria            (user)
-│   └── dead-icons.ts   — ícone referenciado mas não definido → placeholder (dev-only)
-└── index.ts            — API pública: runAll(), getResults(), undo(snapshotId)
-```
-
-### Dev-Only Detectors
-
-Detectores marcados com `devOnly: true` só rodam quando o engine detecta que está executando dentro do repositório do próprio Letra (presença de `packages/cli/package.json`). Para projetos de usuário, estes detectores são pulados silenciosamente — não geram resultados, fixes ou sugestões.
-
-O filtro é feito em `engine.ts` via `isLetraRepo()`: verifica se o arquivo `packages/cli/package.json` existe na raiz. Se não existe, todos os detectores com `devOnly: true` são ignorados no loop de `runAll()`.
+- Detector de dead code (exports sem imports) — depende de análise de módulos que foge ao escopo
+- Detector de numbering-conflict (workflow.json vs AGENTS.md) — resolvido por AGENTS.md ser gerado, não detectado
+- Qualquer detector que exija LLM, API externa, ou análise semântica profunda
+- UI do usuário — isso é responsabilidade do spec diagnostics-ui
 
 ## Acceptance Criteria
 
@@ -49,13 +35,6 @@ O filtro é feito em `engine.ts` via `isLetraRepo()`: verifica se o arquivo `pac
 - [x] **Detector stage-drift**: Item com 100% ACs implementados em estágio `review` ou anterior → sugere mover para `done`
 - [x] **Detector ac-false-pos**: AC `[x]` sem teste ou implementação correspondente → sugere marcar como `[ ]`
 - [x] **Dev-only filter**: Detectores com `devOnly: true` são pulados se `isLetraRepo()` retorna `false`
-
-## Exclusions
-
-- Detector de dead code (exports sem imports) — depende de análise de módulos que foge ao escopo
-- Detector de numbering-conflict (workflow.json vs AGENTS.md) — resolvido por AGENTS.md ser gerado, não detectado
-- Qualquer detector que exija LLM, API externa, ou análise semântica profunda
-- UI do usuário — isso é responsabilidade do spec diagnostics-ui
 
 ## Context
 

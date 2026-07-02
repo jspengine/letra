@@ -9,6 +9,7 @@ import { generateAdapters } from "../adapters/generate.js";
 import { detectLanguage } from "../adapters/language-registry.js";
 import { writeWorkflow } from "./flow-init.js";
 import type { Workflow } from "./flow-init.js";
+import { initWorkspace, generateManifest, ensureDefaultHarness, getWorkspacePath } from "../workspace/index.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -74,9 +75,31 @@ const TOOL_MAP: Record<string, string[]> = {
 	todos: ["cursor", "claude-code", "windsurf", "vscode", "opencode", "hermes"],
 };
 
-export async function init(targetPath?: string, options?: { yes?: boolean; serve?: boolean }) {
+export async function init(targetPath?: string, options?: { yes?: boolean; serve?: boolean; workspace?: string; noTui?: boolean }) {
 	const root = resolve(process.cwd(), targetPath || ".");
 	const letraDir = join(root, ".letra");
+
+	if (options?.workspace) {
+		const spinner = ora("Creating workspace...").start();
+		try {
+			const { workspaceDir, info } = initWorkspace(options.workspace);
+			ensureDefaultHarness(info.harnessVersion);
+			const manifest = generateManifest(options.workspace, root);
+			spinner.succeed(chalk.green(`Workspace "${options.workspace}" created`));
+			console.log(`  ${chalk.gray("Workspace:")}  ${workspaceDir}`);
+			console.log(`  ${chalk.gray("Manifest:")}   ${join(root, "letra.manifest.json")}`);
+			console.log(`  ${chalk.gray("Harness:")}    ${info.harnessVersion}`);
+			console.log("");
+			console.log("  Next steps:");
+			console.log(`    ${chalk.cyan("letra status")}               View workspace info`);
+			console.log(`    ${chalk.cyan("letra flow backlog")}         Manage backlog items`);
+			return;
+		} catch (error) {
+			spinner.fail(chalk.red("Failed to create workspace"));
+			if (error instanceof Error) console.error(chalk.red(`  ${error.message}`));
+			process.exit(1);
+		}
+	}
 
 	if (existsSync(letraDir)) {
 		if (options?.serve) {
@@ -92,11 +115,22 @@ export async function init(targetPath?: string, options?: { yes?: boolean; serve
 
 	try {
 		let projectType = "web-app";
-		let tool = "cursor";
+		let tool = "todos";
 
 		if (options?.yes || !process.stdin.isTTY) {
-			projectType = "web-app";
-			tool = "todos";
+			// use defaults
+		} else if (options?.noTui !== false) {
+			spinner.stop();
+			try {
+				const { runInitWizard } = await import("../tui/init-wizard.js");
+				const result = await runInitWizard();
+				projectType = result.projectType;
+				tool = result.tool;
+			} catch {
+				projectType = "web-app";
+				tool = "todos";
+			}
+			spinner.start();
 		} else {
 			spinner.stop();
 

@@ -1,4 +1,4 @@
-# Acceptance Criteria — decision-new
+## Acceptance Criteria
 
 - [x] **Comando `letra decision new <titulo>`**: Cria `.letra/decisions/<slug>.md` com template ADR.
 - [x] **Template ADR**: Contém seções Contexto, Decisão, Consequências, Status, Data.

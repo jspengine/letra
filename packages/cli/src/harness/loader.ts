@@ -1,9 +1,25 @@
 import { readdirSync, existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { parseSimpleYaml } from "./parse";
-import type { HarnessManifest, StageDef } from "./types";
+import type {
+	ActivityActionHint,
+	ActivityHintConfig,
+	ActivityReferenceHint,
+	GateExpectationConfig,
+	HarnessManifest,
+	PhaseAction,
+	PhaseDef,
+	PhaseHarnessConfig,
+	PhaseTransition,
+	ReviewExpectationConfig,
+	StageDef,
+	StageActivityContextConfig,
+	StagePhases,
+} from "./types";
 
-export function resolveHarnessRoot(cwd: string, version = "v0.1.0"): string {
+export const DEFAULT_HARNESS_VERSION = "v0.1.0";
+
+export function resolveHarnessRoot(cwd: string, version = DEFAULT_HARNESS_VERSION): string {
 	const candidates = [
 		join(cwd, ".letra", "harness", version),
 		join(cwd, "..", ".letra", "harness", version),
@@ -18,6 +34,199 @@ function unwrapStages(value: unknown): any[] {
 	if (Array.isArray(value)) return value;
 	if (value && typeof value === "object" && Array.isArray((value as any).stages)) return (value as any).stages;
 	return [];
+}
+
+function normalizePhaseTransitions(value: unknown): PhaseTransition[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const transitions = value
+		.map((entry): PhaseTransition | null => {
+			if (!entry || typeof entry !== "object") return null;
+			const raw = entry as Record<string, unknown>;
+			const target = typeof raw.target === "string" ? raw.target : null;
+			if (!target) return null;
+			return {
+				target,
+				gate: typeof raw.gate === "string" ? raw.gate : undefined,
+				auto: raw.auto === true,
+			};
+		})
+		.filter((entry): entry is PhaseTransition => entry !== null);
+	return transitions.length > 0 ? transitions : undefined;
+}
+
+function normalizePhaseActions(value: unknown): PhaseAction[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const actions = value
+		.map((entry) => {
+			if (!entry || typeof entry !== "object") return null;
+			const raw = entry as Record<string, unknown>;
+			switch (raw.type) {
+				case "agent-prompt":
+					return typeof raw.prompt === "string"
+						? ({ type: "agent-prompt", prompt: raw.prompt } satisfies PhaseAction)
+						: null;
+				case "command":
+					return typeof raw.cmd === "string"
+						? ({ type: "command", cmd: raw.cmd } satisfies PhaseAction)
+						: null;
+				case "generate-report":
+					return typeof raw.template === "string"
+						? ({ type: "generate-report", template: raw.template } satisfies PhaseAction)
+						: null;
+				case "notify-human":
+					return typeof raw.message === "string"
+						? ({ type: "notify-human", message: raw.message } satisfies PhaseAction)
+						: null;
+				case "wait-human":
+					return typeof raw.gate === "string"
+						? ({ type: "wait-human", gate: raw.gate } satisfies PhaseAction)
+						: null;
+				default:
+					return null;
+			}
+		})
+		.filter((entry): entry is PhaseAction => entry !== null);
+	return actions.length > 0 ? actions : undefined;
+}
+
+function normalizePhaseHarness(value: unknown): PhaseHarnessConfig | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const raw = value as Record<string, unknown>;
+	const checks = Array.isArray(raw.checks)
+		? raw.checks.map(String)
+		: typeof raw.checks === "string"
+			? raw.checks.split(",").map((entry) => entry.trim()).filter(Boolean)
+			: undefined;
+	const tools = Array.isArray(raw.tools)
+		? raw.tools.map(String)
+		: typeof raw.tools === "string"
+			? raw.tools.split(",").map((entry) => entry.trim()).filter(Boolean)
+			: undefined;
+	const config: PhaseHarnessConfig = {};
+	if (typeof raw.instructions === "string") config.instructions = raw.instructions;
+	if (checks && checks.length > 0) config.checks = checks;
+	if (tools && tools.length > 0) config.tools = tools;
+	const activity = normalizeStageActivity(raw.activity);
+	if (activity) config.activity = activity;
+	const review = normalizeReviewExpectation(raw.review);
+	const gate = normalizeGateExpectation(raw.gate);
+	if (review) config.review = review;
+	if (gate) config.gate = gate;
+	return Object.keys(config).length > 0 ? config : undefined;
+}
+
+function normalizeReferenceHints(value: unknown): ActivityReferenceHint[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const hints = value.flatMap((entry) => {
+		if (!entry || typeof entry !== "object") return [];
+		const raw = entry as Record<string, unknown>;
+		return typeof raw.path === "string" && typeof raw.reason === "string"
+			? [{ path: raw.path, reason: raw.reason }]
+			: [];
+	});
+	return hints;
+}
+
+function normalizeActionHints(value: unknown): ActivityActionHint[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const hints = value.flatMap((entry) => {
+		if (!entry || typeof entry !== "object") return [];
+		const raw = entry as Record<string, unknown>;
+		return typeof raw.label === "string" && typeof raw.description === "string"
+			? [{ label: raw.label, description: raw.description }]
+			: [];
+	});
+	return hints;
+}
+
+function applyCommonActivityHints(
+	raw: Record<string, unknown>,
+	config: ActivityHintConfig,
+): void {
+	if (typeof raw.objective === "string") config.objective = raw.objective;
+	const mustRead = normalizeReferenceHints(raw.mustRead);
+	if (mustRead !== undefined) config.mustRead = mustRead;
+	if (Array.isArray(raw.mustNotDo)) {
+		config.mustNotDo = raw.mustNotDo.map(String);
+	}
+	const nextActions = normalizeActionHints(raw.nextActions);
+	if (nextActions !== undefined) config.nextActions = nextActions;
+}
+
+function normalizeActivityHint(value: unknown): ActivityHintConfig | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const raw = value as Record<string, unknown>;
+	const config: ActivityHintConfig = {};
+	applyCommonActivityHints(raw, config);
+	return Object.keys(config).length > 0 ? config : undefined;
+}
+
+function normalizeReviewExpectation(value: unknown): ReviewExpectationConfig | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const raw = value as Record<string, unknown>;
+	const config: ReviewExpectationConfig = {};
+	applyCommonActivityHints(raw, config);
+	if (typeof raw.label === "string") config.label = raw.label;
+	if (typeof raw.emphasis === "string") config.emphasis = raw.emphasis;
+	if (typeof raw.riskFocus === "string") config.riskFocus = raw.riskFocus;
+	if (typeof raw.evidencePrompt === "string") config.evidencePrompt = raw.evidencePrompt;
+	if (typeof raw.signalCode === "string") config.signalCode = raw.signalCode;
+	return Object.keys(config).length > 0 ? config : undefined;
+}
+
+function normalizeGateExpectation(value: unknown): GateExpectationConfig | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const raw = value as Record<string, unknown>;
+	const config: GateExpectationConfig = {};
+	applyCommonActivityHints(raw, config);
+	if (typeof raw.label === "string") config.label = raw.label;
+	if (typeof raw.evidence === "string") config.evidence = raw.evidence;
+	if (typeof raw.decision === "string") config.decision = raw.decision;
+	if (typeof raw.signalCode === "string") config.signalCode = raw.signalCode;
+	return Object.keys(config).length > 0 ? config : undefined;
+}
+
+function normalizeStageActivity(value: unknown): StageActivityContextConfig | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const raw = value as Record<string, unknown>;
+	const config: StageActivityContextConfig = {};
+	const design = normalizeActivityHint(raw.design);
+	const implement = normalizeActivityHint(raw.implement);
+	const review = normalizeReviewExpectation(raw.review);
+	const diagnose = normalizeActivityHint(raw.diagnose);
+	const gate = normalizeGateExpectation(raw.gate);
+	if (design) config.design = design;
+	if (implement) config.implement = implement;
+	if (review) config.review = review;
+	if (diagnose) config.diagnose = diagnose;
+	if (gate) config.gate = gate;
+	return Object.keys(config).length > 0 ? config : undefined;
+}
+
+function normalizeStagePhases(value: unknown): StagePhases | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const raw = value as Record<string, unknown>;
+	const initialState = typeof raw.initialState === "string" ? raw.initialState : null;
+	const rawStates = raw.states;
+	if (!initialState || !rawStates || typeof rawStates !== "object") return undefined;
+	const states = Object.entries(rawStates as Record<string, unknown>).reduce<Record<string, PhaseDef>>((acc, [phaseId, entry]) => {
+		if (!entry || typeof entry !== "object") return acc;
+		const rawPhase = entry as Record<string, unknown>;
+		const id = typeof rawPhase.id === "string" ? rawPhase.id : phaseId;
+		const label = typeof rawPhase.label === "string" ? rawPhase.label : id;
+		const description = typeof rawPhase.description === "string" ? rawPhase.description : "";
+		acc[id] = {
+			id,
+			label,
+			description,
+			actions: normalizePhaseActions(rawPhase.actions),
+			transitions: normalizePhaseTransitions(rawPhase.transitions),
+			harness: normalizePhaseHarness(rawPhase.harness),
+		};
+		return acc;
+	}, {});
+	if (!states[initialState]) return undefined;
+	return { initialState, states };
 }
 
 export function loadHarness(root: string): HarnessManifest | null {
@@ -56,6 +265,8 @@ export function loadHarness(root: string): HarnessManifest | null {
 							? s.agents.split(",").map((a: string) => a.trim()).filter(Boolean)
 							: [],
 					gate: typeof s.gate === "string" && s.gate.trim() ? s.gate.trim() : null,
+					phases: normalizeStagePhases(s.phases),
+					activity: normalizeStageActivity(s.activity),
 				})),
 			};
 		}
@@ -117,7 +328,7 @@ export function loadHarness(root: string): HarnessManifest | null {
 	}
 
 	return {
-		version: "0.1.0",
+		version: basename(harnessDir).replace(/^v/, ""),
 		flows,
 		gates,
 		roles,

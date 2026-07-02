@@ -1,4 +1,4 @@
-# Acceptance Criteria — Validate Config & Opt-out
+## Acceptance Criteria
 
 - [x] **Arquivo de Config**: `letra init` cria `.letra/config.json` com todas as heurísticas listadas e `severity: "warning"`.
 - [x] **Severity Error**: Heurística com `severity: "error"` quebra o CI (exit 1).

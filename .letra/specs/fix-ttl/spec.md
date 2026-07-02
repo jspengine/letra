@@ -1,6 +1,6 @@
-# Spec: Fix TTL Mismatch
+# Spec: fix-ttl
 
-> Updated: 2026-06-15
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -11,16 +11,16 @@ O TTL de snapshots no código (7 dias) diverge do especificado (30 dias em self-
 - Mudança de uma constante: `TTL_MS` em `snapshot.ts`
 - Não alterar `MAX_SNAPSHOTS` (20) — é independente
 
+## Exclusions
+
+- Mudança no formato de snapshot ou na lógica de dedup
+- Adição de TTL configurável via config.json (fora de escopo)
+
 ## Acceptance Criteria
 
 - [x] **TTL_MS = 30 dias**: `snapshot.ts` calcula `30 * 24 * 60 * 60 * 1000`
 - [x] **Cleanup atualizado**: Snapshots entre 7 e 30 dias não são mais removidos prematuramente
 - [x] **Teste ajustado**: Se existe teste com TTL hardcoded, atualizar
-
-## Exclusions
-
-- Mudança no formato de snapshot ou na lógica de dedup
-- Adição de TTL configurável via config.json (fora de escopo)
 
 ## Context
 

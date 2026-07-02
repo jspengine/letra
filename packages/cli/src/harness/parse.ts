@@ -56,7 +56,7 @@ export function parseSimpleYaml(text: string): Record<string, unknown> {
 		}
 	}
 
-	return normalize(root);
+	return normalize(root) as Record<string, unknown>;
 }
 
 function normalize(value: unknown): unknown {

@@ -83,14 +83,14 @@ letra validate --watch --format github-annotation        # Combinar flags
 
 ### `letra decision`
 
-Architecture Decision Records (ADRs).
+Registros de Decisão.
 
 ```bash
 letra decision new "Usar Commander em vez de Yargs"
 letra decision list
 ```
 
-ADRs salvos em `.letra/decisions/{slug}.md` com template Contexto → Decisão → Consequências.
+Registros salvos em `.letra/decisions/{slug}.md` com template Contexto → Decisão → Consequências.
 
 ### `letra focus`
 
@@ -259,7 +259,7 @@ Tokens CSS em OKLCH (~70 variáveis): surface, text, border, brand, semânticos.
 ├── config.json              # Heurísticas configuráveis
 ├── workflow.json            # Workflow (estágios, items, specs)
 ├── focus.md                 # Foco da sessão atual
-├── decisions/               # ADRs
+├── decisions/               # Registros de Decisão
 │   └── usar-commander.md
 ├── specs/
 │   └── minha-feature/

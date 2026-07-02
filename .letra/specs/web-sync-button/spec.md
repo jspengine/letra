@@ -1,6 +1,6 @@
-# Spec: Web Sync Button — Sincronização Manual na Web UI
+# Spec: web-sync-button
 
-> Updated: 2026-06-16
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -14,58 +14,12 @@ O usuário pode sincronizar manualmente o estado do workspace diretamente da web
 - Não bloqueia a UI durante a execução (chamada assíncrona com polling ou SSE)
 - Design consistente com o header existente
 
-## Architecture
+## Exclusions
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  Header                                                 │
-│  [logo]  Home  Specs  Flow  Context  🔔(3)  🔄 Sync    │
-│                                            ↑            │
-│                                    Botão Sync           │
-└─────────────────────────────────────────────────────────┘
-                                               │
-                                               ▼
-                                    ┌─────────────────────┐
-                                    │ Sincronizando...     │
-                                    │ ✓ workflow.json     │
-                                    │ ✓ AGENTS.md         │
-                                    │ ✓ context.md        │
-                                    │ ✓ focus.md validado │
-                                    └─────────────────────┘
-                                               │
-                                               ▼
-                                    ┌─────────────────────┐
-                                    │ ✔ Sincronizado      │
-                                    │ 3 arquivos atualiza- │
-                                    │ dos                 │
-                                    └─────────────────────┘
-```
-
-### Fluxo de dados
-
-```
-Web App                    flow-serve                File System
-  │                            │                        │
-  │── POST /api/sitrep ────────→── regenera tudo
-  │←── { ok, filesUpdated[] } ─│                        │
-  │                            │                        │
-  │── GET /api/workflow ───────→── lê workflow.json
-  │←── { workflow } ──────────│                        │
-  │                            │                        │
-  │── GET /api/health/alerts ──→── lê health-record
-  │←── { entries[] } ─────────│                        │
-  │                            │                        │
-  │→ Atualiza React state      │                        │
-```
-
-### Componentes
-
-- **SyncButton** — Botão no header com ícone 🔄. Estados:
-  - `idle`: "Sync"
-  - `syncing`: 🔄 animado + "Sincronizando..."
-  - `success`: ✅ "Sincronizado" por 3s, volta a idle
-  - `error`: ❌ "Erro" + tooltip com mensagem
-- **SyncToast** — Toast/notificação no canto inferior direito com progresso das etapas
+- Sync automático periódico (futuro)
+- Indicador de "último sync há X min" (futuro)
+- Cancelamento de sync em andamento
+- Botão Sync em outras páginas além do header global
 
 ## Acceptance Criteria
 
@@ -79,13 +33,6 @@ Web App                    flow-serve                File System
 - [ ] **Testes**: Componente testado com Vitest + mock do fetch
 - [ ] **Empty state**: Funciona mesmo sem workflow (apenas mostra resultado parcial)
 - [ ] **Nada quebrado**: Header existente continua funcionando normalmente
-
-## Exclusions
-
-- Sync automático periódico (futuro)
-- Indicador de "último sync há X min" (futuro)
-- Cancelamento de sync em andamento
-- Botão Sync em outras páginas além do header global
 
 ## Context
 

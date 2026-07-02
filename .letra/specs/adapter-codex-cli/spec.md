@@ -1,5 +1,6 @@
+# Spec: adapter-codex-cli
 
-# Spec adapter-codex-cli
+> Updated: 2026-06-22
 
 ## Outcome
 

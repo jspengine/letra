@@ -29,7 +29,7 @@ export function MarchingBorder({ className }: MarchingBorderProps) {
 					height="100%"
 					rx="8"
 					stroke="var(--live)"
-					strokeWidth="2"
+					strokeWidth="1.75"
 					strokeDasharray="8 4"
 					className="animate-dash-march"
 				/>

@@ -1,0 +1,32 @@
+{
+  "id": "wf_letra-100",
+  "templateRef": "sdlc",
+  "version": "0.1.0",
+  "name": "Letra Self-Management",
+  "createdAt": "2026-06-22T11:16:15Z",
+  "updatedAt": "2026-06-22T11:16:15Z",
+  "stages": [
+    { "id": "backlog", "name": "Backlog", "order": 0, "zone": "todo" },
+    { "id": "spec-draft", "name": "Spec Draft", "order": 1, "zone": "doing" },
+    { "id": "spec-review", "name": "Spec Review", "order": 2, "zone": "doing" },
+    { "id": "code", "name": "Code", "order": 3, "zone": "doing" },
+    { "id": "code-review", "name": "Code Review", "order": 4, "zone": "doing" },
+    { "id": "security", "name": "Security", "order": 5, "zone": "doing" },
+    { "id": "ready-to-pr", "name": "Ready to PR", "order": 6, "zone": "doing" },
+    { "id": "done", "name": "Done", "order": 7, "zone": "done" }
+  ],
+  "items": [
+    { "id": "item-1", "stage": "spec-draft", "title": "workspace-discovery", "type": "spec" },
+    { "id": "item-2", "stage": "spec-draft", "title": "sdlc-template-gates", "type": "spec" },
+    { "id": "item-3", "stage": "spec-draft", "title": "tui-onboarding", "type": "spec" },
+    { "id": "item-4", "stage": "code", "title": "harness-loader-implementation", "type": "task" },
+    { "id": "item-5", "stage": "backlog", "title": "letra-init-command", "type": "task" }
+  ],
+  "specLinks": {
+    "workspace-discovery": "item-1",
+    "sdlc-template-gates": "item-2",
+    "tui-onboarding": "item-3"
+  },
+  "tools": [],
+  "state": { "currentStage": "spec-draft", "locked": false }
+}

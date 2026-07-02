@@ -1,4 +1,6 @@
-# Spec — Validate Conflict
+# Spec: validate-conflict
+
+> Updated: 2026-06-22
 
 ## Outcome
 

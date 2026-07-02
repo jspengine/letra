@@ -1,4 +1,6 @@
-# Spec: Adapter OpenCode
+# Spec: adapter-opencode
+
+> Updated: 2026-06-22
 
 ## Outcome
 

@@ -1,0 +1,8 @@
+id: human-approved-code
+name: Aprovação Humana (Code)
+type: human
+blocking: true
+policyRef: policies/sdlc-default.json
+description: >
+  Requer aprovação de código por pelo menos um humano.
+  Agentes podem comentar, mas não aprovar.

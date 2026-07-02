@@ -1,4 +1,4 @@
-# Acceptance Criteria — validate-format-pr
+## Acceptance Criteria
 
 - [x] **--format github-annotation**: Gera saída no formato `::error file=...` legível por GitHub Actions.
 - [x] **--format text**: Mantém o formato atual de texto colorido (default).

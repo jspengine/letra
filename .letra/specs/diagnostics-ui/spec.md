@@ -1,6 +1,6 @@
-# Spec: Diagnostics UI
+# Spec: diagnostics-ui
 
-> Updated: 2026-06-14
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -14,40 +14,12 @@ O usuário nunca vê um alerta de diagnóstico a menos que haja algo ambíguo ou
 - Para cada auto-correção, o histórico mostra: o que mudou, quais arquivos, botão "Desfazer"
 - O histórico de correções vive em Settings (engrenagem no header), não polui as abas principais
 
-## Visual Design
+## Exclusions
 
-### Badge (apenas quando há sugestões)
-
-```
-[Header] Letra • meu-projeto  ⚙  🟡
-                                  ┌──── sugestões ────┐
-                                  │ ITEM-19 pronto     │
-                                  │  pra "done"?       │
-                                  │ [✓ Mover]          │
-                                  │                    │
-                                  │ Ver histórico →    │
-                                  └────────────────────┘
-```
-
-O badge 🟡 é um `span` de 8px, `border-radius: 9999px`, cor `--warning` (âmbar). Clicar abre o dropdown de sugestões. O dropdown é uma lista fina de ações de 1 clique.
-
-### Histórico (via Settings)
-
-```
-Settings > Histórico de Correções
-
-Hoje às 14:32
-  ├ 📁 .letra/templates/ — diretório criado (auto)
-  │  [Desfazer]
-  ├ 📝 flow-mvp/spec.md — AC "flow visualize" [ ] → [x] (auto)
-  │  [Desfazer]
-  └ 📦 ITEM-19 — movido de "review" para "done" (sugestão aceita)
-     [Desfazer]
-
-Ontem
-  └ 🎨 icon.tsx — ícone "check-circle" adicionado (auto)
-     [Desfazer]
-```
+- Diagnóstico como aba principal (Home, Specs, Flow, Context, Settings) — settings é suficiente
+- Notificações desktop ou sonoras
+- Modo "não perturbe" para desligar diagnósticos — a engine continua rodando, só a UI some
+- Página dedicada de diagnóstico completo — o histórico cobre
 
 ## Acceptance Criteria
 
@@ -62,13 +34,6 @@ Ontem
 - [x] **Refazer**: O toast de undo inclui botão "Refazer" que reaplica a correção (dura 10s, depois some)
 - [x] **Snapshot inválido no histórico**: Se snapshot foi limpo pelo TTL, exibe "Expirou" em vez de botão "Desfazer"
 - [x] **Live updates via SSE**: Quando SSE recebe `diagnostics-updated`, badge/dropdown/histórico atualizam sem refresh da página
-
-## Exclusions
-
-- Diagnóstico como aba principal (Home, Specs, Flow, Context, Settings) — settings é suficiente
-- Notificações desktop ou sonoras
-- Modo "não perturbe" para desligar diagnósticos — a engine continua rodando, só a UI some
-- Página dedicada de diagnóstico completo — o histórico cobre
 
 ## Context
 

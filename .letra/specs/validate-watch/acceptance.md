@@ -1,4 +1,4 @@
-# Acceptance Criteria — validate-watch
+## Acceptance Criteria
 
 - [x] **Flag --watch**: `letra validate --watch` inicia em modo monitoramento.
 - [x] **Re-executa em mudança**: Alterar qualquer `spec.md` re-executa validate automaticamente.

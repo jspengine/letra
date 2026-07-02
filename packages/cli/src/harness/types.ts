@@ -15,6 +15,86 @@ export interface Gate {
 	description: string;
 }
 
+export type HarnessActivityKind = "design" | "implement" | "review" | "diagnose" | "gate";
+
+export interface ActivityReferenceHint {
+	path: string;
+	reason: string;
+}
+
+export interface ActivityActionHint {
+	label: string;
+	description: string;
+}
+
+export interface ActivityHintConfig {
+	objective?: string;
+	mustRead?: ActivityReferenceHint[];
+	mustNotDo?: string[];
+	nextActions?: ActivityActionHint[];
+}
+
+export interface ReviewExpectationConfig extends ActivityHintConfig {
+	label?: string;
+	emphasis?: string;
+	riskFocus?: string;
+	evidencePrompt?: string;
+	signalCode?: string;
+}
+
+export interface GateExpectationConfig extends ActivityHintConfig {
+	label?: string;
+	evidence?: string;
+	decision?: string;
+	signalCode?: string;
+}
+
+export interface StageActivityContextConfig {
+	design?: ActivityHintConfig;
+	implement?: ActivityHintConfig;
+	review?: ReviewExpectationConfig;
+	diagnose?: ActivityHintConfig;
+	gate?: GateExpectationConfig;
+}
+
+export type PhaseId = string;
+
+export interface PhaseTransition {
+	target: PhaseId;
+	gate?: string;
+	auto?: boolean;
+}
+
+export type PhaseAction =
+	| { type: "agent-prompt"; prompt: string }
+	| { type: "command"; cmd: string }
+	| { type: "generate-report"; template: string }
+	| { type: "notify-human"; message: string }
+	| { type: "wait-human"; gate: string };
+
+export interface PhaseHarnessConfig {
+	instructions?: string;
+	tools?: string[];
+	checks?: string[];
+	activity?: StageActivityContextConfig;
+	review?: ReviewExpectationConfig;
+	gate?: GateExpectationConfig;
+}
+
+export interface PhaseDef {
+	id: PhaseId;
+	label: string;
+	description: string;
+	actions?: PhaseAction[];
+	transitions?: PhaseTransition[];
+	harness?: PhaseHarnessConfig;
+}
+
+export interface StagePhases {
+	initialState: PhaseId;
+	states: Record<PhaseId, PhaseDef>;
+}
+
 export interface StageDef {
 	id: string;
 	name: string;
@@ -23,6 +103,8 @@ export interface StageDef {
 	description: string;
 	agents: string[];
 	gate: string | null;
+	phases?: StagePhases;
+	activity?: StageActivityContextConfig;
 }
 
 export interface FlowTemplate {

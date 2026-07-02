@@ -19,7 +19,7 @@ export default function decisionCommand() {
 	const cmd = new Command("decision");
 
 	cmd.command("new <title>")
-		.description("Cria um novo Architecture Decision Record")
+		.description("Cria um novo Registro de Decisão")
 		.action((title: string) => {
 			const root = resolve(process.cwd());
 			const decisionsDir = join(root, ".letra", "decisions");
@@ -63,7 +63,7 @@ What are the trade-offs? What does this enable or prevent?
 		});
 
 	cmd.command("list")
-		.description("Lista todos os Architecture Decision Records")
+		.description("Lista todos os Registros de Decisão")
 		.action(() => {
 			const root = resolve(process.cwd());
 			const decisionsDir = join(root, ".letra", "decisions");

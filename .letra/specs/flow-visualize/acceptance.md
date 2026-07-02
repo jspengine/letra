@@ -1,7 +1,10 @@
-# Acceptance Criteria — flow-visualize
+## Acceptance Criteria
 
-- [ ] **Instalação**: CLI executável via npx/npm install -g sem erros.
-- [ ] **--help**: Roda sem argumentos, exibe ajuda com subcomandos.
-- [ ] **Subcomando**: Subcomando principal executa sem erros e exibe output.
-- [ ] **Erro**: Subcomando inválido exibe erro amigável e exit 1.
-- [ ] **Cross-platform**: Funciona em Windows (cmd/powershell), macOS (zsh) e Linux (bash).
+- [ ] **`letra flow visualize`**: gera saída Mermaid no terminal
+- [ ] **`letra flow visualize --output flowchart.md`**: salva em Markdown com ```mermaid
+- [ ] **`letra flow visualize --output diagram.html`**: salva página HTML standalone (Mermaid.js via CDN)
+- [ ] **Sem `--output`**: exibe hint "Copy to https://mermaid.live/edit#" para renderizar
+- [ ] **Diagrama**: inclui todos os estágios com nomes e setas
+- [ ] **Diagrama**: mostra contagem de itens por estágio
+- [ ] **Sem workflow**: exibe mensagem "No workflow found"
+- [ ] **Testado localmente**: antes do PR

@@ -1,6 +1,6 @@
-# Spec: Diagnostics State — Estado Persistente do Diagnóstico
+# Spec: diagnostics-state
 
-> Updated: 2026-06-15
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -14,31 +14,11 @@ O diagnóstico tem memória. Sugestões não são mais efêmeras — cada result
 - Schema versionado para permitir migrações futuras
 - TTL de 90 dias para entradas resolvidas/dismissed (cleanup automático)
 
-## Architecture
+## Exclusions
 
-```
-DiagnosticEngine.runAll()
-    ↓
-Result[] mergeado com DiagnosticState:
-    ├── Result.id novo?                 → status: "new"
-    ├── Result.id existente como "new"? → status: "new" (atualiza lastSeenAt)
-    ├── Result.id existente como "ack"? → status: "acknowledged" (não mostra)
-    └── Result.id existente como "dismissed" com mesmo description?
-                                          → status: "dismissed" (não mostra, nem gasta I/O)
-    ↓
-DiagnosticState persistido em .letra/diagnostics-state.json
-    ↓
-API REST:
-    GET  /api/diagnostics/state         → { new: [...], acknowledged: [...], dismissed: [...] }
-    POST /api/diagnostics/state/ack/:id → marca como acknowledged
-    POST /api/diagnostics/state/dismiss/:id → marca como dismissed { reason }
-    POST /api/diagnostics/state/resolve/:id → marca como resolved (auto após auto-fix bem-sucedido)
-
-CLI:
-    letra diagnostics state             → mostra estado (novos primeiro)
-    letra diagnostics ack <id>          → alias para state/ack
-    letra diagnostics dismiss <id>      → alias para state/dismiss
-```
+- Mudança no engine.runAll() loop — merge é pós-processamento, não modifica o fluxo de auto-fix
+- Histórico de decisões (apenas estado binário acknowledged/dismissed)
+- Validação de motivo do dismiss (aceito qualquer string)
 
 ## Acceptance Criteria
 
@@ -52,12 +32,6 @@ CLI:
 - [ ] **CLI diagnostics state**: Comando imprime estado formatado com contagem new/ack/dismissed
 - [ ] **CLI diagnostics ack/dismiss**: Atalhos para marcar entradas sem API
 - [ ] **Testes**: Merge de 3 cenários (novo, repetido, mudou), persistência, API ack/dismiss
-
-## Exclusions
-
-- Mudança no engine.runAll() loop — merge é pós-processamento, não modifica o fluxo de auto-fix
-- Histórico de decisões (apenas estado binário acknowledged/dismissed)
-- Validação de motivo do dismiss (aceito qualquer string)
 
 ## Context
 

@@ -1,4 +1,6 @@
-# Spec — Adapter Cursor
+# Spec: adapter-cursor
+
+> Updated: 2026-06-22
 
 ## Outcome
 

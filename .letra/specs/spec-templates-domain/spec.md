@@ -1,4 +1,6 @@
-# Spec — Spec Templates por Domínio
+# Spec: spec-templates-domain
+
+> Updated: 2026-06-22
 
 ## Outcome
 

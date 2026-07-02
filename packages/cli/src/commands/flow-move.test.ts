@@ -229,5 +229,71 @@ describe("flow-move", () => {
 			);
 			expect(loaded.items[0].stage).toBe("review");
 		});
+
+		it("uses resolved active flow gates instead of direct sdlc lookup", () => {
+			const workflow = createTestWorkflow();
+			workflow.template = "custom-flow";
+			workflow.stages = [
+				{ id: "backlog", name: "Backlog", order: 0, zone: "todo" },
+				{ id: "approved", name: "Approved", order: 1, zone: "doing" },
+				{ id: "done", name: "Done", order: 2, zone: "done" },
+			];
+			workflow.items[0].stage = "backlog";
+			saveWorkflow(tmpDir, workflow);
+
+			const harnessDir = join(tmpDir, ".letra", "harness", "v0.1.0");
+			mkdirSync(join(harnessDir, "flows"), { recursive: true });
+			mkdirSync(join(harnessDir, "gates"), { recursive: true });
+			mkdirSync(join(harnessDir, "roles"), { recursive: true });
+
+			writeFileSync(
+				join(harnessDir, "flows", "custom-flow.yaml"),
+				[
+					"id: custom-flow",
+					"version: 1.0.0",
+					"name: Custom Flow",
+					"description: test",
+					"defaultPolicy: default",
+					"stages:",
+					"  - id: backlog",
+					"    name: Backlog",
+					"    order: 0",
+					"    zone: todo",
+					"  - id: approved",
+					"    name: Approved",
+					"    order: 1",
+					"    zone: doing",
+					"    gate: gates/custom-approval.yaml",
+					"  - id: done",
+					"    name: Done",
+					"    order: 2",
+					"    zone: done",
+				].join("\n"),
+			);
+			writeFileSync(
+				join(harnessDir, "gates", "custom-approval.yaml"),
+				[
+					"id: custom-approval",
+					"name: Custom Approval",
+					"type: human",
+					"blocking: true",
+					"description: needs approval",
+				].join("\n"),
+			);
+
+			const logs: string[] = [];
+			const origLog = console.log;
+			console.log = (msg: string) => logs.push(msg);
+			try {
+				flowMove(tmpDir, "ITEM-1", "approved");
+				expect(logs.some((line) => line.includes("Gate bloqueante: Custom Approval"))).toBe(true);
+				const loaded = JSON.parse(
+					readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
+				);
+				expect(loaded.items[0].stage).toBe("backlog");
+			} finally {
+				console.log = origLog;
+			}
+		});
 	});
 });

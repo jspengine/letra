@@ -1,6 +1,6 @@
-# Spec: Flow Designer
+# Spec: flow-designer
 
-> Updated: 2026-06-13
+> Updated: 2026-06-22
 
 ## Outcome
 
@@ -14,6 +14,13 @@ Flow view evoluída de kanban estático para ferramenta visual de design de flux
 - Zero dependências runtime externas
 - Stage editor é inline no FlowView (não modal/wizard separado)
 
+## Exclusions
+
+- Não implementar automações (regras condicionais com gatilhos) — será ITEM-7
+- Não implementar métricas de fluxo — será ITEM-10
+- Não implementar template marketplace — será ITEM-6
+- Não alterar o CLI (comandos flow backlog, flow move continuam funcionando)
+
 ## Acceptance Criteria
 
 - [ ] **Rotas /api/items**: POST (criar item), PATCH /api/items/:id (mover/toggle tasks), DELETE /api/items/:id implementadas no flow-serve
@@ -24,13 +31,6 @@ Flow view evoluída de kanban estático para ferramenta visual de design de flux
 - [ ] **Integração workflow.json**: alterações no stage editor persistem via PATCH /api/workflow, SSE broadcast notifica outros clients
 - [ ] **Botão Add Stage**: no inline stage editor, permite criar novo stage com nome, zona, allow vazio
 - [ ] **Reordenação**: stages podem ser reordenados por drag & drop no inline editor
-
-## Exclusions
-
-- Não implementar automações (regras condicionais com gatilhos) — será ITEM-7
-- Não implementar métricas de fluxo — será ITEM-10
-- Não implementar template marketplace — será ITEM-6
-- Não alterar o CLI (comandos flow backlog, flow move continuam funcionando)
 
 ## Context
 

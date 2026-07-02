@@ -1,25 +1,10 @@
 # Spec: harness-loop-realtime
 
-> Updated: 2026-06-17
+> Updated: 2026-06-22
 
 ## Outcome
 
 Elevar o percentual de assertividade do loop real (Focus → Claim → AC → Move → Validate → UI reflete) de ~55% para ≥90%, eliminando bugs de sincronia, gaps de teste e surpresas comportamentais do agente.
-
-## Context
-
-Diagnóstico da sessão 17/06/2026 revelou 7+ categorias de falha no harness:
-
-1. **Falta testes de integração** (raiz): fluxo real nunca é simulado → toda mudança manual introduz regressão
-2. **Disciplina de loop**: ACs implementados não são marcados com `letra ac done`, pulse subnotifica, `--auto` move com ACs pendentes
-3. **Auto-claim surpresa**: `letra focus` claima item automaticamente sem aviso ou opt-in
-4. **Broadcast coverage incompleto**: endpoints de focus (POST/DELETE) não chamavam `this.broadcast()` → UI não re-renderizava
-5. **State local vs servidor**: `focusItemId` no KanbanView não atualizava após ação porque `useEffect` dependia de `specRefreshKey` que não era incrementado
-6. **Borda tracejada**: CSS `border-style: dashed` não anima `stroke-dashoffset` — movimento não é real
-7. **AC counting no pulse**: `countSpecACs` busca padrão `**AC...**` em **3 funções** (pulse.ts, spec-reader.ts, ac-counter.ts) — specs sem esse marker subnotificam
-8. **`ac done` não integra com session-log**: modifica spec.md mas não registra entrada, quebrando detecção de ACs implementados
-9. **Silent errors**: botões Claim/Focus não têm `.catch()` — falha silenciosa
-10. **`--auto` não valida**: move sem verificar `letra validate` primeiro
 
 ## Constraints
 
@@ -125,18 +110,17 @@ Diagnóstico da sessão 17/06/2026 revelou 7+ categorias de falha no harness:
 - [x] **AC13.2**: Notifica o usuário quando reconecta (badge/console.warn)
 - [x] **AC13.3**: Teste: server restart → EventSource reconecta em ≤5s
 
-## Outcome Detalhado
+## Context
 
-| Métrica | Antes | Depois (target) |
-|---|---|---|
-| Assertividade loop real | ~55% | ≥90% |
-| Testes de integração | 0 | ≥12 |
-| Broadcast coverage | parcial (faltava focus) | 100% endpoints de mutação |
-| State sync UI↔servidor | quebrado (focusItemId) | sincronizado via SSE + local |
-| AC counting (3 funções) | subnotifica specs sem `**AC**` | detecta qualquer checklist |
-| Erros de API | silenciosos (`.catch(noop)`) | logados + UI preservada |
-| `ac done` + session-log | não integrado | registra `ac_done` |
-| `--auto` pré-valida | não | validate antes de mover |
-| SSE reconexão | não | reconexão automática |
-| Borda tracejada | CSS breathing (falso) | SVG marching (real) |
-| Auto-claim surpresa | sempre claima | só com `--claim` explícito |
+Diagnóstico da sessão 17/06/2026 revelou 7+ categorias de falha no harness:
+
+1. **Falta testes de integração** (raiz): fluxo real nunca é simulado → toda mudança manual introduz regressão
+2. **Disciplina de loop**: ACs implementados não são marcados com `letra ac done`, pulse subnotifica, `--auto` move com ACs pendentes
+3. **Auto-claim surpresa**: `letra focus` claima item automaticamente sem aviso ou opt-in
+4. **Broadcast coverage incompleto**: endpoints de focus (POST/DELETE) não chamavam `this.broadcast()` → UI não re-renderizava
+5. **State local vs servidor**: `focusItemId` no KanbanView não atualizava após ação porque `useEffect` dependia de `specRefreshKey` que não era incrementado
+6. **Borda tracejada**: CSS `border-style: dashed` não anima `stroke-dashoffset` — movimento não é real
+7. **AC counting no pulse**: `countSpecACs` busca padrão `**AC...**` em **3 funções** (pulse.ts, spec-reader.ts, ac-counter.ts) — specs sem esse marker subnotificam
+8. **`ac done` não integra com session-log**: modifica spec.md mas não registra entrada, quebrando detecção de ACs implementados
+9. **Silent errors**: botões Claim/Focus não têm `.catch()` — falha silenciosa
+10. **`--auto` não valida**: move sem verificar `letra validate` primeiro
