@@ -1,26 +1,28 @@
 @import "tailwindcss";
+@source ".";
+@source "../../ui/src";
 @import "../../ui/src/index.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ── Sidebar Theme (shadcn) ── */
 :root {
-	--color-sidebar: oklch(0.965 0 0);
-	--color-sidebar-foreground: oklch(0.145 0 0);
-	--color-sidebar-accent: oklch(0.72 0.18 75 / 0.1);
-	--color-sidebar-accent-foreground: oklch(0.72 0.18 75);
-	--color-sidebar-border: oklch(0.922 0 0);
+	--color-sidebar: var(--surface-2);
+	--color-sidebar-foreground: var(--color-text-primary);
+	--color-sidebar-accent: color-mix(in oklch, var(--color-primary) 16%, transparent);
+	--color-sidebar-accent-foreground: var(--color-primary);
+	--color-sidebar-border: var(--color-border);
 	--color-sidebar-ring: oklch(0.72 0.18 75 / 0.3);
 	--sidebar-width: 308px;
 	--sidebar-width-icon: 3rem;
 }
 
 .dark {
-	--color-sidebar: oklch(0.27 0 0);
-	--color-sidebar-foreground: oklch(0.985 0 0);
-	--color-sidebar-accent: oklch(0.72 0.18 75 / 0.15);
-	--color-sidebar-accent-foreground: oklch(0.65 0.18 80);
-	--color-sidebar-border: oklch(0.4 0 0);
+	--color-sidebar: var(--surface-2);
+	--color-sidebar-foreground: var(--color-text-primary);
+	--color-sidebar-accent: color-mix(in oklch, var(--color-primary) 16%, transparent);
+	--color-sidebar-accent-foreground: var(--color-primary);
+	--color-sidebar-border: var(--color-border);
 	--color-sidebar-ring: oklch(0.828 0.189 84.429 / 0.3);
 }
 
@@ -28,6 +30,187 @@ html {
   background: var(--surface-1);
   color: var(--text-primary);
   font-family: var(--font-body);
+}
+
+.app-surface-base {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+}
+
+.app-surface-panel {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+}
+
+.app-header-surface {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--app-header-bg, var(--surface-2));
+  color: var(--color-text-primary);
+}
+
+.app-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--caption-size);
+  line-height: var(--caption-line);
+}
+
+.app-status-pill--action {
+  border-color: color-mix(in oklch, var(--color-primary) 42%, var(--color-border));
+  background: color-mix(in oklch, var(--color-primary) 9%, transparent);
+  color: var(--color-text-primary);
+}
+
+.app-section-shell {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  background: var(--color-bg-base);
+}
+
+.app-section-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.app-section-muted {
+  color: var(--color-text-secondary);
+}
+
+.app-board-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+.app-board-card[data-claimed="true"] {
+  border-color: var(--color-primary);
+}
+
+.app-board-card[data-gate="true"] {
+  border-color: var(--color-success);
+}
+
+.app-board-card[data-running="true"] {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-surface) 0%,
+    color-mix(in oklch, var(--color-primary) 6%, var(--color-bg-surface)) 100%
+  );
+}
+
+.app-board-column-header {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-board-column-header[data-gate="true"] {
+  border-bottom-width: 2px;
+  border-bottom-color: var(--color-success);
+}
+
+.app-board-dropzone {
+  min-height: 100px;
+  border: 2px dashed transparent;
+  border-radius: var(--radius-xl);
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.app-board-dropzone[data-over="true"] {
+  border-color: color-mix(in oklch, var(--color-primary) 40%, transparent);
+  background: color-mix(in oklch, var(--color-primary) 5%, transparent);
+}
+
+.app-board-dropzone[data-gate="true"] {
+  background: color-mix(in oklch, var(--color-success) 4%, transparent);
+}
+
+.app-board-gate-banner {
+  border-top: 1px solid var(--color-border);
+}
+
+.app-board-empty {
+  color: var(--color-text-secondary);
+}
+
+.app-summary-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  transition: box-shadow 150ms ease;
+}
+
+.app-summary-card[data-urgent="true"] {
+  border-color: var(--color-warning);
+  background: color-mix(in oklch, var(--color-warning) 8%, var(--color-bg-surface));
+}
+
+.app-agent-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.app-agent-card[data-running="true"] {
+  border-color: var(--color-primary);
+  background: color-mix(in oklch, var(--color-bg-surface) 80%, var(--color-primary) 5%);
+}
+
+.app-warning-banner {
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
+}
+
+.app-divider {
+  border-color: var(--color-border);
+}
+
+.app-select-surface {
+  border-color: var(--color-border);
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+}
+
+.app-danger-text {
+  color: var(--color-danger);
+}
+
+.app-primary-text {
+  color: var(--color-primary);
+}
+
+.app-primary-button {
+  background: var(--color-primary);
+  color: white;
+}
+
+.app-input-surface {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+.app-muted-chip {
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+}
+
+.app-danger-button {
+  color: var(--color-danger);
+}
+
+.app-flow-connector {
+  background: var(--color-border);
+}
+
+.app-flow-connector[data-done="true"] {
+  background: var(--color-success);
 }
 
 code,
@@ -61,102 +244,22 @@ pre,
 @keyframes border-breathe {
   0%,
   100% {
-    border-color: var(--live);
-    box-shadow: 0 0 4px color-mix(in srgb, var(--live) 15%, transparent);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 4px color-mix(in srgb, var(--color-primary) 15%, transparent);
   }
   50% {
-    border-color: color-mix(in srgb, var(--live) 70%, white);
-    box-shadow: 0 0 10px color-mix(in srgb, var(--live) 30%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 70%, white);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 30%, transparent);
   }
-}
-
-@keyframes dash-march {
-  to {
-    stroke-dashoffset: -24;
-  }
-}
-
-.animate-dash-march {
-  animation: dash-march 0.4s linear infinite;
 }
 
 .animate-border-claim {
-  border: 2px dashed var(--live) !important;
+  border: 2px dashed var(--color-primary) !important;
   animation: border-breathe 2s ease-in-out infinite !important;
-}
-
-@keyframes slide-in-from-right {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
 }
 
 .animate-fade-in {
   animation: fade-in 0.2s ease-out;
-}
-
-.animate-slide-in-right {
-  animation: slide-in-from-right 0.3s ease-out;
-}
-
-@keyframes validating-bar {
-  0% {
-    transform: translateX(-100%);
-  }
-  50% {
-    transform: translateX(100%);
-  }
-  100% {
-    transform: translateX(300%);
-  }
-}
-
-.animate-validating-bar {
-  animation: validating-bar 1.5s ease-in-out infinite;
-}
-
-@keyframes drift-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
-}
-
-.animate-drift-pulse {
-  animation: drift-pulse 1s ease-in-out infinite;
-  color: var(--primary);
-}
-
-@keyframes pulse-gate-waiting {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0
-      color-mix(in oklch, var(--gate-waiting) 30%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 6px
-      color-mix(in oklch, var(--gate-waiting) 15%, transparent);
-  }
-}
-
-@keyframes pulse-gate-urgent {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0
-      color-mix(in oklch, var(--gate-available) 40%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 8px
-      color-mix(in oklch, var(--gate-available) 20%, transparent);
-  }
 }
 
 @keyframes agent-thinking {
@@ -179,14 +282,6 @@ pre,
   }
 }
 
-.animate-pulse-gate-waiting {
-  animation: pulse-gate-waiting 2s ease-in-out infinite;
-}
-
-.animate-pulse-gate-urgent {
-  animation: pulse-gate-urgent 1s ease-in-out infinite;
-}
-
 .animate-agent-thinking {
   background: linear-gradient(
     90deg,
@@ -200,125 +295,6 @@ pre,
 
 .animate-sidebar-enter {
   animation: sidebar-enter 0.3s ease-out;
-}
-
-@keyframes progress-stripes {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: 20px 0;
-  }
-}
-
-@keyframes agent-running {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.05);
-  }
-}
-
-@keyframes agent-breathe {
-  0%,
-  100% {
-    border-color: var(--live);
-  }
-  50% {
-    border-color: color-mix(in oklch, var(--live) 60%, transparent);
-  }
-}
-
-@keyframes shimmer-slide {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(200%);
-  }
-}
-
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes timeline-dot {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 40%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary) 15%, transparent);
-  }
-}
-
-@keyframes human-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0
-      color-mix(in oklch, var(--gate-available) 50%, transparent);
-    background-color: color-mix(
-      in oklch,
-      var(--gate-available) 8%,
-      transparent
-    );
-  }
-  50% {
-    box-shadow: 0 0 0 12px
-      color-mix(in oklch, var(--gate-available) 20%, transparent);
-    background-color: color-mix(
-      in oklch,
-      var(--gate-available) 15%,
-      transparent
-    );
-  }
-}
-
-.animate-progress-stripes {
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 5px,
-    rgba(255, 255, 255, 0.1) 5px,
-    rgba(255, 255, 255, 0.1) 10px
-  );
-  background-size: 20px 20px;
-  animation: progress-stripes 0.6s linear infinite;
-}
-
-.animate-agent-running {
-  animation: agent-running 1.5s ease-in-out infinite;
-}
-
-.animate-agent-breathe {
-  animation: agent-breathe 2s ease-in-out infinite;
-}
-
-.animate-shimmer-slide {
-  animation: shimmer-slide 1.2s ease-in-out infinite;
-}
-
-.animate-slide-up {
-  animation: slide-up 0.3s ease-out;
-}
-
-.animate-timeline-dot {
-  animation: timeline-dot 2s ease-in-out infinite;
-}
-
-.animate-human-pulse {
-  animation: human-pulse 2s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

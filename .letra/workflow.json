@@ -2,7 +2,7 @@
   "version": "1.0",
   "name": "Letra",
   "createdAt": "2026-06-22T11:16:15Z",
-  "updatedAt": "2026-07-02T14:57:22.080Z",
+  "updatedAt": "2026-07-30T23:05:02.164Z",
   "stages": [
     {
       "id": "backlog",
@@ -29,13 +29,27 @@
       "zone": "doing"
     },
     {
+      "id": "security",
+      "name": "Security",
+      "order": 4,
+      "zone": "doing"
+    },
+    {
       "id": "done",
       "name": "Done",
-      "order": 4,
+      "order": 5,
       "zone": "done"
     }
   ],
   "items": [
+    {
+      "id": "ITEM-63",
+      "description": "Direção de Agentes por Harness (Cross-Adapter)",
+      "stage": "security",
+      "createdAt": "2026-07-04T00:00:00Z",
+      "spec": "harness-agent-direction",
+      "updatedAt": "2026-07-04T16:42:30.057Z"
+    },
     {
       "id": "item-1",
       "description": "workspace-discovery",
@@ -116,7 +130,7 @@
     {
       "id": "ITEM-7",
       "description": "handoff-rules",
-      "stage": "code",
+      "stage": "done",
       "createdAt": "2026-06-22T23:53:05.093Z",
       "spec": "handoff-rules"
     },
@@ -221,14 +235,14 @@
     {
       "id": "ITEM-22",
       "description": "Fase 0: Workspace Isolado (AC1-4) — LETRA_WORKSPACE env, targets em workflow.json, specs/logs no workspace",
-      "stage": "code",
+      "stage": "done",
       "createdAt": "2026-06-23T00:45:08.764Z",
       "spec": "architecture-agnostic"
     },
     {
       "id": "ITEM-23",
       "description": "Fase 1: Comandos e detectores agnósticos (AC5-8) — pulse/sitrep no target, file-search, devOnly",
-      "stage": "code",
+      "stage": "review",
       "createdAt": "2026-06-23T00:45:09.846Z",
       "spec": "architecture-agnostic"
     },
@@ -256,21 +270,21 @@
     {
       "id": "ITEM-27",
       "description": "Visualizador de Composição do Harness (L1-L4) na UI",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-23T01:37:23.055Z",
       "spec": "harness-viewer"
     },
     {
       "id": "ITEM-28",
       "description": "Painel de Integração de Ferramentas Agenticas (Cursor, Claude Code, etc.)",
-      "stage": "backlog",
+      "stage": "code",
       "createdAt": "2026-06-23T01:37:24.025Z",
       "spec": "tool-adapters"
     },
     {
       "id": "ITEM-29",
       "description": "Central de Diagnósticos e Alertas de Saúde do Letra",
-      "stage": "backlog",
+      "stage": "security",
       "createdAt": "2026-06-23T01:37:25.072Z",
       "spec": "diagnostics-hub"
     },
@@ -321,7 +335,7 @@
       "description": "Design System Amber Rebrand — tokens OKLCH amber, dark mode first, Inter/JetBrains Mono, UI states, component polish, WCAG 2.2 AA",
       "stage": "review",
       "createdAt": "2026-06-23T02:59:46.455Z",
-      "spec": "amber-rebrand"
+      "spec": "release-readiness"
     },
     {
       "id": "ITEM-37",
@@ -333,21 +347,21 @@
     {
       "id": "ITEM-38",
       "description": "DocumentEditor — componente unificado de leitura/edição para Context, Constitution, Glossary, ADRs e Specs",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-23T04:44:29.712Z",
       "spec": "document-editor"
     },
     {
       "id": "ITEM-39",
       "description": "Full-screen ItemDetailModal + timeline de eventos legível sem truncamento",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-23T04:44:56.695Z",
       "spec": "fullscreen-modal"
     },
     {
       "id": "ITEM-40",
       "description": "Log Search Page — busca textual paginada por todos os atributos dos session-logs",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-23T04:44:59.118Z",
       "spec": "log-search"
     },
@@ -368,7 +382,7 @@
     {
       "id": "ITEM-43",
       "description": "Harness Centralizado Multi-repo — resolvedor 3 níveis (.letra-link), setup flow conectado ao CLI, adapter configs injetados",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-24T11:24:59.641Z",
       "spec": "harness-centralized"
     },
@@ -431,7 +445,7 @@
     {
       "id": "ITEM-52",
       "description": "Fase 5: Visibilidade operacional — automações supervisionáveis e política de escrita",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-06-27T11:05:34.618Z",
       "spec": "architecture-convergence"
     },
@@ -466,30 +480,134 @@
     {
       "id": "ITEM-57",
       "description": "Migração shadcn-first — componentes canônicos, layout Grid e acessibilidade",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-06-30T11:44:50.753Z",
       "spec": "shadcn-first"
     },
     {
       "id": "ITEM-58",
       "description": "Redesenhar a Auditoria Operacional com eventos correlacionados, evidência append-only e investigação orientada ao usuário",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-07-02T12:53:41.367Z",
       "spec": "operational-audit"
     },
     {
       "id": "ITEM-59",
       "description": "Consolidacao e Redesenho de Menus da Web UI",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-07-02T14:13:35.089Z",
       "spec": "menu-consolidation"
     },
     {
       "id": "ITEM-60",
       "description": "Melhorias no Direcionamento e Foco de Agentes de IA",
-      "stage": "backlog",
+      "stage": "done",
       "createdAt": "2026-07-02T14:24:47.003Z",
       "spec": "agent-direction-improvements"
+    },
+    {
+      "id": "ITEM-61",
+      "description": "Simplificar a criação de workspace com descoberta de targets, ferramentas por diretório, prévia e rollback",
+      "stage": "done",
+      "createdAt": "2026-07-03T10:57:41.802Z",
+      "spec": "workspace-smart-setup"
+    },
+    {
+      "id": "ITEM-62",
+      "description": "Verdade do Produto e Navegacao de Supervisao",
+      "stage": "code",
+      "createdAt": "2026-07-03T11:52:09.253Z",
+      "spec": "product-supervision-navigation"
+    },
+    {
+      "id": "ITEM-64",
+      "description": "Arquitetura Universal de Adapters v2 e Codex Nativo",
+      "stage": "review",
+      "createdAt": "2026-07-04T16:59:17.574Z",
+      "spec": "adapter-platform-v2"
+    },
+    {
+      "id": "ITEM-65",
+      "description": "MCP como Visao Read-Otimizada do Harness (resources, tools, transicoes enriquecidas)",
+      "stage": "done",
+      "createdAt": "2026-07-05T17:26:07.515Z",
+      "updatedAt": "2026-07-05T17:36:00.000Z",
+      "spec": "mcp-source-of-truth"
+    },
+    {
+      "id": "ITEM-66",
+      "description": "Design System v2 — tokens canônicos, radius e componentes base",
+      "stage": "done",
+      "createdAt": "2026-07-06T14:53:38.105Z",
+      "spec": "design-system-v2"
+    },
+    {
+      "id": "ITEM-67",
+      "description": "Design System v2 — padrões de composição (Sidebar, Kanban, GateCard, ValidatingBar, MarchingBorder, Search)",
+      "stage": "backlog",
+      "createdAt": "2026-07-06T15:22:34.716Z"
+    },
+    {
+      "id": "ITEM-68",
+      "description": "Design System v2 — pattern ActivityTimeline",
+      "stage": "backlog",
+      "createdAt": "2026-07-06T15:55:28.799Z"
+    },
+    {
+      "id": "ITEM-69",
+      "description": "Session Log v2 — JSONL, daily rotation, retention, log levels",
+      "stage": "done",
+      "createdAt": "2026-07-08T10:00:00Z",
+      "spec": "session-log-jsonl"
+    },
+    {
+      "id": "ITEM-70",
+      "description": "Transformar Supervisão na inbox padrão da experiência",
+      "stage": "done",
+      "createdAt": "2026-07-10T14:06:12.355Z",
+      "spec": "ux-release-readiness"
+    },
+    {
+      "id": "ITEM-71",
+      "description": "Consolidar a navegação primária da release por intenção do usuário",
+      "stage": "done",
+      "createdAt": "2026-07-10T14:06:12.388Z",
+      "spec": "ux-release-readiness"
+    },
+    {
+      "id": "ITEM-72",
+      "description": "Unificar Conhecimento e Regras como biblioteca de governança",
+      "stage": "done",
+      "createdAt": "2026-07-10T14:06:12.417Z",
+      "spec": "ux-release-readiness"
+    },
+    {
+      "id": "ITEM-73",
+      "description": "Consolidar Trabalho como jornada supervisionada e reduzir ruído estrutural",
+      "stage": "done",
+      "createdAt": "2026-07-10T14:06:33.673Z",
+      "spec": "ux-release-readiness"
+    },
+    {
+      "id": "ITEM-74",
+      "description": "Consolidar Atividade como trilha investigativa e de evidência",
+      "stage": "done",
+      "createdAt": "2026-07-10T14:06:42.534Z",
+      "spec": "ux-release-readiness"
+    },
+    {
+      "id": "ITEM-75",
+      "description": "Convergir o design system nas superfícies críticas da release",
+      "stage": "done",
+      "createdAt": "2026-07-10T14:06:48.346Z",
+      "spec": "ux-release-readiness"
+    },
+    {
+      "id": "ITEM-76",
+      "description": "Catálogo visual do DS v2 em Storybook 8 — tornar @letra/ui fonte da verdade transparente para humanos e agentes",
+      "stage": "done",
+      "createdAt": "2026-07-11T02:02:17.445Z",
+      "spec": "ds-catalog"
     }
   ],
   "specLinks": {
@@ -642,11 +760,38 @@
     },
     "agent-direction-improvements": {
       "path": ".letra/specs/agent-direction-improvements/spec.md"
+    },
+    "workspace-smart-setup": {
+      "path": ".letra/specs/workspace-smart-setup/spec.md"
+    },
+    "product-supervision-navigation": {
+      "path": ".letra/specs/product-supervision-navigation/spec.md"
+    },
+    "adapter-platform-v2": {
+      "path": ".letra/specs/adapter-platform-v2/spec.md"
+    },
+    "mcp-source-of-truth": {
+      "path": ".letra/specs/mcp-source-of-truth/spec.md"
+    },
+    "design-system-v2": {
+      "path": ".letra/specs/design-system-v2/spec.md"
+    },
+    "session-log-jsonl": {
+      "path": ".letra/specs/session-log-jsonl/spec.md"
+    },
+    "ux-release-readiness": {
+      "path": ".letra/specs/ux-release-readiness/spec.md"
+    },
+    "ds-catalog": {
+      "path": ".letra/specs/ds-catalog/spec.md"
+    },
+    "release-readiness": {
+      "path": ".letra/specs/release-readiness/spec.md"
     }
   },
   "tools": [
     "opencode"
   ],
   "template": "flow-main",
-  "harnessVersion": "v0.1.2"
+  "harnessVersion": "v0.1.3"
 }

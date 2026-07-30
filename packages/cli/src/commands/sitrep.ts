@@ -6,6 +6,7 @@ import { loadWorkflow } from "./flow-init.js";
 import type { Item, Workflow } from "./flow-init.js";
 import { loadHealthRecord, getSummary } from "../health-record.js";
 import { logEntry } from "../session-log.js";
+import { resolveWorkspaceRoot } from "../workspace/resolver.js";
 
 const START_MARKER = "<!-- sitrep:start -->";
 const END_MARKER = "<!-- sitrep:end -->";
@@ -316,8 +317,8 @@ export default function () {
 	cmd
 		.option("--dry-run", "Exibir diff sem modificar o arquivo")
 		.action(async (options: { dryRun?: boolean }) => {
-			const root = resolve(process.cwd());
-			await sitrep(root, options);
+			const resolution = resolveWorkspaceRoot(process.cwd());
+			await sitrep(resolution.workspaceRoot, options);
 		});
 
 	return cmd;

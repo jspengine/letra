@@ -29,7 +29,7 @@ A ser definido.
 - [x] **AC8**: Detectores code-only (`ac-false-pos`, `ac-stale`, `spec-code-drift`) rodam só se `projectType === "software"`.
 
 ### Fase 2 — Templates e adapters
-- [x] **AC9**: Templates não-dev em `.letra/templates/`. Templates built-in: `campanha-marketing`, `pesquisa`, `evento`.
+- [x] **AC9**: Templates não-dev hardcoded no CLI: `campanha-marketing`, `pesquisa`, `evento`. Opção `none` para pular.
 - [x] **AC10**: Adapter system extensível (`adapters[]` per target). Adapter output via `letra push`.
 - [x] **AC11**: Setup wizard pergunta targets, ferramentas, templates.
 

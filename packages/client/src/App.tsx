@@ -1,78 +1,67 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type CSSProperties, type ReactNode } from "react";
 import type { Workflow } from "@letra/types";
 import Header from "./components/Header/Header";
 import Sidebar from "./components/Sidebar/Sidebar";
 import type { Tab } from "./components/Sidebar/Sidebar";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import InlineSetupWizard from "./components/SetupWizard/InlineSetupWizard";
 import HomeView from "./components/Home/HomeView";
-import SpecsView from "./components/Specs/SpecsView";
 import FlowView from "./components/Flow/FlowView";
 import ContextView from "./components/Context/ContextView";
+import type { KnowledgeTab } from "./components/Context/ContextView";
 import AuditLogView from "./components/Logs/AuditLogView";
-import ExecutionView from "./components/Execution/ExecutionView";
-import type { ExecStage } from "./components/Execution/ExecutionView";
-import AgentDetail from "./components/Execution/AgentDetail";
 import WorkspacesView from "./components/Workspaces/WorkspacesView";
 import type { WorkspaceData } from "./components/Workspaces/WorkspacesView";
-import UndoHistory from "./components/Diagnostics/UndoHistory";
-import { ValidatingBar } from "./components/ValidatingBar";
-import { ToastProvider, SkeletonCard, useToast, Icon, Button } from "@letra/ui";
+import { AppShell, SidebarProvider, ToastProvider, SkeletonCard, useSidebar } from "@letra/ui";
 import { FlowDefinitionWarnings } from "./components/Flow/FlowDefinitionWarnings";
 import { createEventSourceWithReconnect } from "./lib/withReconnect";
 import {
-  doneStageIds,
   humanGateStageIds,
-  nextStageId,
-  pipelineProjection,
   type ActiveFlowDefinition,
 } from "./lib/active-flow";
 
-interface Suggestion {
-  id: string;
-  title: string;
-  description: string;
-  type: string;
-  detector: string;
+interface HealthSummary {
+  activeAlerts: number;
+  criticalAlerts: number;
 }
 
-function PlaceholderView({ tab }: { tab: string }) {
+function LetraAppShell({
+  sidebar,
+  header,
+  children,
+}: {
+  sidebar: ReactNode;
+  header: ReactNode;
+  children: ReactNode;
+}) {
+  const { open } = useSidebar();
+
   return (
-    <div
-      className="flex flex-col items-center justify-center h-full gap-3"
-      style={{ color: "var(--muted-foreground)" }}
+    <AppShell
+      sidebar={sidebar}
+      header={header}
+      sidebarCollapsed={!open}
+      className="app-surface-base min-h-svh"
+      style={
+        {
+          "--layout-sidebar-width": "var(--sidebar-width)",
+          "--layout-sidebar-width-collapsed": "var(--sidebar-width-icon)",
+        } as CSSProperties
+      }
     >
-      <span className="text-lg font-semibold">{tab}</span>
-      <span className="text-sm">Em desenvolvimento</span>
-    </div>
+      {children}
+    </AppShell>
   );
 }
 
-const TAB_LABELS: Record<Tab, string> = {
-  dashboard: "Dashboard",
-  workspaces: "Meus Workspaces",
-  projects: "Repositórios",
-  agents: "Agentes",
-  harness: "Harness",
-  knowledge: "Conhecimento",
-  discovery: "Discovery",
-  design: "Design",
-  specs: "Specifications",
-  board: "Quadro",
-  "pull-requests": "Pull Requests",
-  monitoring: "Monitoramento",
-  audit: "Auditoria",
-  settings: "Configurações",
-};
-
 function AppContent() {
-  const { toast } = useToast();
   const [wf, setWf] = useState<Workflow | null>(null);
   const [activeFlow, setActiveFlow] = useState<ActiveFlowDefinition | null>(
     null,
   );
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>("workspaces");
+  const [tab, setTab] = useState<Tab>("supervision");
+  const [knowledgeInitialTab, setKnowledgeInitialTab] =
+    useState<KnowledgeTab>("context.md");
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceData | null>(
     () => {
       try {
@@ -92,10 +81,8 @@ function AppContent() {
       ? "light"
       : "dark";
   });
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [health, setHealth] = useState<HealthSummary | null>(null);
   const [specRefreshKey, setSpecRefreshKey] = useState(0);
-  const [showHistory, setShowHistory] = useState(false);
-  const [validating, setValidating] = useState(false);
   const [liveMessage, setLiveMessage] = useState("");
   const [activeDirectory, setActiveDirectory] = useState<string | null>(() => {
     try {
@@ -107,6 +94,7 @@ function AppContent() {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.classList.toggle("light", theme === "light");
     localStorage.setItem("letra-theme", theme);
   }, [theme]);
 
@@ -117,7 +105,7 @@ function AppContent() {
       setActiveDirectory(null);
     }
     setActiveWorkspace(ws);
-    setTab("dashboard");
+    setTab("supervision");
     const request = ws.root
       ? fetch("/api/workspace/switch", {
           method: "POST",
@@ -156,13 +144,36 @@ function AppContent() {
     });
   }
 
-  const refreshDiagnostics = useCallback(() => {
-    fetch("/api/diagnostics")
+  function handlePrimaryTabChange(nextTab: Tab) {
+    if (nextTab === "knowledge") setKnowledgeInitialTab("context.md");
+    setTab(nextTab);
+  }
+
+  function openKnowledge(initialTab: KnowledgeTab = "context.md") {
+    setKnowledgeInitialTab(initialTab);
+    setTab("knowledge");
+  }
+
+  const refreshHealth = useCallback(() => {
+    fetch("/api/health")
       .then((r) => r.json())
       .then((data) => {
-        if (data?.suggestions) setSuggestions(data.suggestions);
+        const active = Array.isArray(data?.active) ? data.active : [];
+        const summary = data?.summary ?? {};
+        setHealth({
+          activeAlerts:
+            typeof summary.activeAlerts === "number"
+              ? summary.activeAlerts
+              : active.length,
+          criticalAlerts:
+            typeof summary.criticalAlerts === "number"
+              ? summary.criticalAlerts
+              : active.filter((entry: { severity?: string }) =>
+                  /crit|alta|high/.test(String(entry?.severity ?? "").toLowerCase()),
+                ).length,
+        });
       })
-      .catch(() => {});
+      .catch(() => setHealth(null));
   }, []);
 
   useEffect(() => {
@@ -198,7 +209,7 @@ function AppContent() {
       })
       .catch(() => setLoading(false));
 
-    refreshDiagnostics();
+    refreshHealth();
 
     fetch("/api/workspaces")
       .then((r) => r.json())
@@ -214,56 +225,16 @@ function AppContent() {
       setLiveMessage("Fluxo atualizado.");
     });
     es.addEventListener("diagnostics-updated", () => {
-      refreshDiagnostics();
+      refreshHealth();
       setSpecRefreshKey((k) => k + 1);
       setLiveMessage("Diagnosticos atualizados.");
     });
     return () => es.close();
-  }, [refreshDiagnostics]);
-
-  async function handleApplySuggestion(suggestion: Suggestion) {
-    try {
-      setValidating(true);
-      const res = await fetch("/api/diagnostics/scan", { method: "POST" });
-      const data = await res.json();
-      if (data.fixes?.length > 0) {
-        refreshWorkflow();
-        refreshDiagnostics();
-        if (suggestion.detector === "harness-stale") {
-          toast("Adaptadores regenerados com L1", "success");
-        } else {
-          toast("Item movido automaticamente", "success");
-        }
-      }
-    } catch {
-      toast("Erro ao aplicar sugestão", "error");
-    } finally {
-      setValidating(false);
-    }
-  }
-
-  function buildExecStages(wf: Workflow): ExecStage[] {
-    const stages = pipelineProjection(wf, activeFlow);
-    return stages.map((stage) => {
-      return {
-        id: stage.id,
-        label: stage.name,
-        agent: stage.presentation.actorLabel,
-        agentIcon: stage.presentation.icon,
-        status: stage.status,
-        isHumanGate: stage.presentation.isHumanGate,
-        nextStageId: nextStageId(stage.id, wf, activeFlow) ?? undefined,
-        rejectStageId: stages[0]?.id,
-      };
-    });
-  }
+  }, [refreshHealth]);
 
   if (loading) {
     return (
-      <div
-        className="flex flex-col h-screen p-6 gap-6"
-        style={{ background: "var(--background)", color: "var(--foreground)" }}
-      >
+      <div className="app-surface-base flex h-screen flex-col gap-6 p-6">
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
           <SkeletonCard />
           <SkeletonCard />
@@ -299,77 +270,45 @@ function AppContent() {
       );
     }
     if (!activeWorkspace) {
-      if (tab === "workspaces") {
-        return (
-          <WorkspacesView
-            onSelect={handleSelectWorkspace}
-            gateMode
-            activeDirectory={activeDirectory}
-          />
-        );
-      }
       return (
-        <div
-          className="flex-1 flex flex-col items-center justify-center gap-4 p-6"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-          <Icon name="box" size={24} className="w-10 h-10" />
-          <p className="text-lg font-medium">
-            Selecione ou crie um workspace para começar
-          </p>
-          <Button onClick={() => setTab("workspaces")}>
-            Ir para Meus Workspaces
-          </Button>
-        </div>
+        <WorkspacesView
+          onSelect={handleSelectWorkspace}
+          gateMode
+          activeDirectory={activeDirectory}
+        />
       );
     }
     switch (tab) {
-      case "dashboard":
+      case "supervision":
         return (
           <HomeView
             workflow={wf}
             activeFlow={activeFlow}
-            onSelectItem={() => {}}
             onTabChange={(t) => setTab(t as Tab)}
           />
         );
-      case "workspaces":
-        return (
-          <WorkspacesView
-            onSelect={handleSelectWorkspace}
-            activeSlug={activeWorkspace.slug}
-            activeDirectory={activeDirectory}
-          />
-        );
-      case "specs":
-        return <SpecsView />;
-      case "board":
+      case "work":
         return (
           <FlowView
             workflow={wf}
             activeFlow={activeFlow}
             specRefreshKey={specRefreshKey}
             onItemMoved={refreshWorkflow}
+            onOpenSpec={() => openKnowledge("specs")}
+          />
+        );
+      case "knowledge":
+        return <ContextView initialTab={knowledgeInitialTab} />;
+      case "activity":
+        return <AuditLogView />;
+      default:
+        return (
+          <HomeView
+            workflow={wf}
+            activeFlow={activeFlow}
             onTabChange={(t) => setTab(t as Tab)}
           />
         );
-      case "discovery":
-      case "design":
-        return (
-          <ExecutionView
-            stages={buildExecStages(wf)}
-            workflow={wf}
-            flowName={activeFlow?.name ?? wf.name}
-          />
-        );
-      case "agents":
-        return <AgentDetail workflow={wf} activeFlow={activeFlow} />;
-      case "knowledge":
-        return <ContextView />;
-      case "audit":
-        return <AuditLogView />;
-      default:
-        return <PlaceholderView tab={TAB_LABELS[tab]} />;
     }
   }
 
@@ -379,56 +318,51 @@ function AppContent() {
 
   return (
     <>
-      <ValidatingBar active={validating} />
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {liveMessage}
       </div>
       <SidebarProvider
-        className="grid min-h-svh w-full grid-cols-[auto_minmax(0,1fr)]"
+        className="min-h-svh w-full"
         style={
           {
-            "--sidebar-width": "340px",
+            "--sidebar-width": "308px",
             "--sidebar-width-icon": "3rem",
-          } as React.CSSProperties
+          } as Record<string, string>
         }
       >
-        <Sidebar
-          activeTab={tab}
-          onTabChange={setTab}
-          gateCount={gateCount}
-          workspaceActive={!!activeWorkspace}
-          activeWorkspace={activeWorkspace}
-          activeDirectory={activeDirectory}
-          onDirectoryChange={handleSelectDirectory}
-        />
-        <SidebarInset className="min-w-0">
-          <div
-            className="flex flex-col h-full"
-            style={{ background: "var(--background)", color: "var(--foreground)" }}
-          >
+        <LetraAppShell
+          sidebar={
+            <Sidebar
+              activeTab={tab}
+              onTabChange={handlePrimaryTabChange}
+              gateCount={gateCount}
+              workspaceActive={!!activeWorkspace}
+              activeWorkspace={activeWorkspace}
+              activeDirectory={activeDirectory}
+              onDirectoryChange={handleSelectDirectory}
+            />
+          }
+          header={
             <Header
               theme={theme}
               onThemeChange={setTheme}
-              suggestions={suggestions}
-              onApplySuggestion={handleApplySuggestion}
-              onOpenHistory={() => setShowHistory(true)}
               gateCount={gateCount}
               activeDirectory={activeDirectory}
               workspaces={workspaces}
               activeWorkspace={activeWorkspace}
               onWorkspaceChange={handleSelectWorkspace}
+              onDirectoryChange={handleSelectDirectory}
+              health={health}
+              onOpenHealthCenter={() => setTab("supervision")}
             />
-            <main className="min-h-0 flex-1 flex flex-col animate-fade-in">
-              <FlowDefinitionWarnings activeFlow={activeFlow} />
-              {renderPanel()}
-            </main>
-          </div>
-        </SidebarInset>
+          }
+        >
+          <main className="flex min-h-0 flex-1 flex-col animate-fade-in">
+            <FlowDefinitionWarnings activeFlow={activeFlow} />
+            {renderPanel()}
+          </main>
+        </LetraAppShell>
       </SidebarProvider>
-      <UndoHistory
-        visible={showHistory}
-        onClose={() => setShowHistory(false)}
-      />
     </>
   );
 }

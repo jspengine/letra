@@ -23,7 +23,7 @@ A identidade visual do LETRA será migrada para o Design System consolidado (Amb
 ### Layer 1: Tokens Foundation
 
 - [x] **AC1**: `packages/ui/src/index.css` — substituir `hue 262.881` (blue) por `hue ~65` (amber) em `--primary`, `--primary-foreground`, `--ring`, `--border-focus`, `--accent`, `--accent-foreground`, `--text-link`, `--info`. Manter estrutura OKLCH. Validar contraste WCAG AA 4.5:1.
-- [x] **AC2**: Gray scale expandida — adicionar `--surface-50` a `--surface-900` no `:root` e `.dark`, com variação suave de luminância OKLCH (~2% steps). Manter `--surface-1/2/3` como aliases para `--surface-900/800/700` (dark) e `--surface-50/100/200` (light).
+- [ ] **AC2**: Gray scale expandida — adicionar `--surface-50` a `--surface-900` no `:root` e `.dark`, com variação suave de luminância OKLCH (~2% steps). Manter `--surface-1/2/3` como aliases para `--surface-900/800/700` (dark) e `--surface-50/100/200` (light).
 - [x] **AC3**: Shadows tokens — adicionar `--shadow-sm`, `--shadow-md`, `--shadow-lg`, `--shadow-xl` no index.css usando valores OKLCH (substituir rgba por `oklch(0 0 0 / X)`).
 - [x] **AC4**: Lucide stroke-width — configurar `lucide-react` com `strokeWidth={1.75}` globalmente via contexto ou prop padrão.
 
