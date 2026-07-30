@@ -1,18 +1,17 @@
-# Focus: adapter-platform-v2
+# Focus: harness-agent-direction
 
-**Path**: .letra/specs/adapter-platform-v2/
-**Item**: ITEM-64
-**Outcome**: O Codex torna-se uma ferramenta oficialmente suportada pelo Letra e os adapters passam a projetar a mesma direção vigente do harness pela melhor superfície disponível em cada ferramenta. Instruções, contexto vivo, operações controladas e auditoria compartilham um contrato único.
+**Path**: .letra/specs/harness-agent-direction/
+**Item**: ITEM-63
+**Outcome**: Agentes de IA (OpenCode, Cursor, Claude Code, Windsurf, VSCode Copilot, Codex CLI, Hermes) recebem no adapter instruções derivadas do harness ativo — papel, estágio permitido, comandos resolvidos, constraints e next actions — sem que o humano precise carregar skills ou ler arquivos manualmente. A direção é automaticamente atualizada quando o item muda de estágio.
 
 ## Ações Recomendadas
 
-- `letra validate` — Validar evidências
-- `letra diagnose` — Diagnosticar riscos
-- `letra flow move ITEM-64 --to security` — Avançar após revisão
+- `letra health` — Inspecionar alertas
+- `letra validate` — Validar antes da conclusão
 
 ## Links
 
-- [Spec: adapter-platform-v2](file:///C:/Workspace/letra/.letra/specs/adapter-platform-v2/spec.md)
-- [ITEM-64](file:///C:/Workspace/letra/.letra/workflow.json)
+- [Spec: harness-agent-direction](file:///C:/Workspace/letra/.letra/specs/harness-agent-direction/spec.md)
+- [ITEM-63](file:///C:/Workspace/letra/.letra/workflow.json)
 - [Constitution](file:///C:/Workspace/letra/.letra/constitution.md)
 - [Constraints](file:///C:/Workspace/letra/.letra/constraints.md)

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "lastScanAt": "2026-07-30T23:18:25.006Z",
+  "lastScanAt": "2026-07-30T23:26:25.048Z",
   "entries": [
     {
       "id": "hr-5be274ce",
@@ -490,8 +490,8 @@
       "status": "resolvido",
       "severity": "baixa",
       "source": "ac-stale",
-      "detectedAt": "2026-07-30T23:11:03.646Z",
-      "resolvedAt": "2026-07-30T23:11:25.023Z",
+      "detectedAt": "2026-07-30T23:25:10.959Z",
+      "resolvedAt": "2026-07-30T23:25:25.010Z",
       "dismissedAt": null,
       "dismissReason": null,
       "acknowledgedAt": "2026-06-17T16:44:33.329Z"
@@ -516,8 +516,8 @@
       "status": "resolvido",
       "severity": "baixa",
       "source": "ac-stale",
-      "detectedAt": "2026-07-30T23:11:03.646Z",
-      "resolvedAt": "2026-07-30T23:11:25.023Z",
+      "detectedAt": "2026-07-30T23:25:10.959Z",
+      "resolvedAt": "2026-07-30T23:25:25.010Z",
       "dismissedAt": null,
       "dismissReason": null,
       "acknowledgedAt": "2026-06-17T16:44:33.475Z"
@@ -529,8 +529,8 @@
       "status": "resolvido",
       "severity": "baixa",
       "source": "ac-stale",
-      "detectedAt": "2026-07-30T23:11:03.646Z",
-      "resolvedAt": "2026-07-30T23:11:25.023Z",
+      "detectedAt": "2026-07-30T23:25:10.959Z",
+      "resolvedAt": "2026-07-30T23:25:25.010Z",
       "dismissedAt": null,
       "dismissReason": null,
       "acknowledgedAt": "2026-06-17T16:44:33.619Z"
@@ -542,8 +542,8 @@
       "status": "resolvido",
       "severity": "baixa",
       "source": "ac-stale",
-      "detectedAt": "2026-07-30T23:11:03.646Z",
-      "resolvedAt": "2026-07-30T23:11:25.023Z",
+      "detectedAt": "2026-07-30T23:25:10.959Z",
+      "resolvedAt": "2026-07-30T23:25:25.010Z",
       "dismissedAt": null,
       "dismissReason": null,
       "acknowledgedAt": "2026-06-17T16:44:33.763Z"
@@ -555,8 +555,8 @@
       "status": "resolvido",
       "severity": "baixa",
       "source": "ac-stale",
-      "detectedAt": "2026-07-30T23:11:03.646Z",
-      "resolvedAt": "2026-07-30T23:11:25.023Z",
+      "detectedAt": "2026-07-30T23:25:10.959Z",
+      "resolvedAt": "2026-07-30T23:25:25.010Z",
       "dismissedAt": null,
       "dismissReason": null,
       "acknowledgedAt": "2026-06-17T16:44:33.903Z"
@@ -568,8 +568,8 @@
       "status": "resolvido",
       "severity": "baixa",
       "source": "ac-stale",
-      "detectedAt": "2026-07-30T23:11:03.646Z",
-      "resolvedAt": "2026-07-30T23:11:25.023Z",
+      "detectedAt": "2026-07-30T23:25:10.959Z",
+      "resolvedAt": "2026-07-30T23:25:25.010Z",
       "dismissedAt": null,
       "dismissReason": null,
       "acknowledgedAt": "2026-06-17T16:44:34.050Z"
@@ -581,8 +581,8 @@
       "status": "resolvido",
       "severity": "baixa",
       "source": "ac-stale",
-      "detectedAt": "2026-07-30T23:11:03.646Z",
-      "resolvedAt": "2026-07-30T23:11:25.023Z",
+      "detectedAt": "2026-07-30T23:25:10.959Z",
+      "resolvedAt": "2026-07-30T23:25:25.010Z",
       "dismissedAt": null,
       "dismissReason": null,
       "acknowledgedAt": "2026-06-17T16:44:34.196Z"
@@ -594,8 +594,8 @@
       "status": "resolvido",
       "severity": "baixa",
       "source": "ac-stale",
-      "detectedAt": "2026-07-30T23:11:03.646Z",
-      "resolvedAt": "2026-07-30T23:11:25.023Z",
+      "detectedAt": "2026-07-30T23:25:10.959Z",
+      "resolvedAt": "2026-07-30T23:25:25.010Z",
       "dismissedAt": null,
       "dismissReason": null,
       "acknowledgedAt": null
@@ -630,11 +630,11 @@
       "id": "hr-6631f3bb",
       "type": "info",
       "title": "focusSpec \"harness-agent-direction\" não registrada em specLinks",
-      "status": "resolvido",
+      "status": "novo",
       "severity": "baixa",
       "source": "focus-stale",
-      "detectedAt": "2026-07-25T18:22:26.142Z",
-      "resolvedAt": "2026-07-25T22:46:51.920Z",
+      "detectedAt": "2026-07-30T23:25:10.959Z",
+      "resolvedAt": null,
       "dismissedAt": null,
       "dismissReason": null,
       "acknowledgedAt": null
