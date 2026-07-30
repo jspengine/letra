@@ -2,7 +2,7 @@
   "version": "1.0",
   "name": "Letra",
   "createdAt": "2026-06-22T11:16:15Z",
-  "updatedAt": "2026-07-30T23:05:02.164Z",
+  "updatedAt": "2026-07-30T23:23:45.595Z",
   "stages": [
     {
       "id": "backlog",
@@ -522,7 +522,7 @@
     {
       "id": "ITEM-64",
       "description": "Arquitetura Universal de Adapters v2 e Codex Nativo",
-      "stage": "review",
+      "stage": "done",
       "createdAt": "2026-07-04T16:59:17.574Z",
       "spec": "adapter-platform-v2"
     },
