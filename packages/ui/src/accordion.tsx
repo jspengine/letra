@@ -1,3 +1,4 @@
+import "./index.css";
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "./utils";
@@ -16,7 +17,7 @@ function AccordionItem({ className, ...props }: AccordionPrimitive.Item.Props) {
 	return (
 		<AccordionPrimitive.Item
 			data-slot="accordion-item"
-			className={cn("not-last:border-b", className)}
+			className={cn("border-b border-[var(--color-border)]", className)}
 			{...props}
 		/>
 	);
@@ -28,20 +29,15 @@ function AccordionTrigger({ className, children, ...props }: AccordionPrimitive.
 			<AccordionPrimitive.Trigger
 				data-slot="accordion-trigger"
 				className={cn(
-					"group/accordion-trigger relative flex flex-1 items-start justify-between rounded-lg border border-transparent py-2.5 text-left text-sm font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-disabled:pointer-events-none aria-disabled:opacity-50",
+					"group/accordion-trigger relative flex flex-1 items-center justify-between gap-[var(--space-2)] rounded-none bg-[var(--color-bg-surface)] px-[var(--space-4)] py-[var(--space-3)] text-left text-sm font-medium text-[var(--color-text-primary)] transition-all duration-150 outline-none hover:bg-[var(--color-bg-sunken)] active:scale-[0.995] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-disabled:pointer-events-none aria-disabled:opacity-50",
 					className,
 				)}
 				{...props}
 			>
 				{children}
-				<ChevronDown
-					aria-hidden="true"
-					className="ml-auto size-4 shrink-0 text-muted-foreground group-aria-expanded/accordion-trigger:hidden"
-				/>
-				<ChevronUp
-					aria-hidden="true"
-					className="ml-auto hidden size-4 shrink-0 text-muted-foreground group-aria-expanded/accordion-trigger:inline"
-				/>
+				<span className="inline-flex size-[var(--icon-md)] shrink-0 items-center justify-center text-[var(--color-text-secondary)] transition-transform duration-150 group-aria-expanded/accordion-trigger:rotate-180">
+					<ChevronDown aria-hidden="true" className="size-[var(--icon-md)]" />
+				</span>
 			</AccordionPrimitive.Trigger>
 		</AccordionPrimitive.Header>
 	);
@@ -56,7 +52,7 @@ function AccordionContent({ className, children, ...props }: AccordionPrimitive.
 		>
 			<div
 				className={cn(
-					"h-(--accordion-panel-height) pt-0 pb-2.5 data-ending-style:h-0 data-starting-style:h-0",
+					"h-auto px-[var(--space-4)] py-[var(--space-3)]",
 					className,
 				)}
 			>

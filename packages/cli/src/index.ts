@@ -12,12 +12,17 @@ import sitrepCommand from "./commands/sitrep.js";
 import syncCommand from "./commands/sync.js";
 import acCommand from "./commands/ac.js";
 import activityContextCommand from "./commands/activity-context.js";
+import directionCommand from "./commands/direction.js";
+import mcpCommand from "./commands/mcp.js";
+import operationCommand from "./commands/operation.js";
 import { init } from "./commands/init.js";
 import { lint } from "./commands/lint.js";
 import { specLink, specNew } from "./commands/spec.js";
 import { validate } from "./commands/validate.js";
 import { diagnose } from "./commands/diagnose.js";
 import { status } from "./commands/status.js";
+import gateCommand from "./commands/gate.js";
+import { checkDs } from "./commands/check-ds.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(readFileSync(join(resolve(__dirname, ".."), "package.json"), "utf-8"));
@@ -113,12 +118,16 @@ specCmd
 
 program.command("lint [path]").description("Validate spec format and completeness").action(lint);
 
+program.command("check:ds [path]").description("Validate client conformance with Letra Design System").action(checkDs);
+
 program
 	.command("validate [path]")
 	.option("--watch", "Watch specs and re-validate on change")
 	.option("--format <type>", "Output format: text, github-annotation, junit")
 	.description("Check if artifacts meet acceptance criteria")
-	.action((path, options) => validate(path, { ...options }));
+	.action(async (path, options) => {
+		await validate(path, { ...options });
+	});
 
 program
 	.command("diagnose [path]")
@@ -127,6 +136,9 @@ program
 
 program.addCommand(acCommand());
 program.addCommand(activityContextCommand());
+program.addCommand(directionCommand());
+program.addCommand(mcpCommand());
+program.addCommand(operationCommand());
 program.addCommand(decisionCommand());
 program
 	.command("push [path]")
@@ -141,5 +153,6 @@ program.addCommand(logCommand());
 program.addCommand(pulseCommand());
 program.addCommand(sitrepCommand());
 program.addCommand(syncCommand());
+program.addCommand(gateCommand());
 
 program.parse();

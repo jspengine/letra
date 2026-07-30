@@ -2,11 +2,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { loadWorkflow, writeWorkflow } from "./flow-init.js";
-import { writeFocusFile } from "../adapters/focus-sync.js";
+import { writeFocusWithRecommendations } from "../adapters/focus-recommendations.js";
 import { logEntry, queryLog } from "../session-log.js";
 import { enterStage } from "../phases/engine.js";
 import { autopilotRun, canAutopilot } from "../phases/autopilot.js";
 import { resolveActiveFlow } from "../flow-definition/resolve.js";
+import { GateChecker } from "../harness/gate-checker.js";
 
 function now(): string {
 	return new Date().toISOString();
@@ -103,19 +104,27 @@ export async function flowMove(root: string, itemId: string, targetStageInput: s
 		const resolved = resolveActiveFlow(root);
 		const targetDef = resolved.flow?.stages.find((stage) => stage.id === targetStageInput);
 		const gate = targetDef?.gate;
-		if (gate?.type === "human" && gate.blocking) {
-			if (options?.force) {
-				console.log(chalk.yellow(`  Gate "${gate.name}" bypassado via --force`));
+		if (gate?.blocking) {
+			if (gate.type === "human") {
+				if (options?.force) {
+					console.log(chalk.yellow(`  Gate "${gate.name}" bypassado via --force`));
+				} else {
+					const resolvedTarget = resolveStage(workflow, targetStageInput) || targetStageInput;
+					console.log(chalk.red(`Gate bloqueante: ${gate.name}`));
+					console.log(chalk.yellow(`  Aprovação humana necessária para entrar em "${resolvedTarget}".`));
+					return;
+				}
 			} else {
-				const resolvedTarget = resolveStage(workflow, targetStageInput) || targetStageInput;
-				console.log(chalk.red(`Gate bloqueante: ${gate.name}`));
-				console.log(chalk.yellow(`  Aprovação humana necessária para entrar em "${resolvedTarget}".`));
-				return;
+				const checker = new GateChecker(root);
+				const result = checker.check(gate.id, item);
+				if (!result.allowed) {
+					const resolvedTarget = resolveStage(workflow, targetStageInput) || targetStageInput;
+					console.log(chalk.red(`Gate bloqueante: ${gate.name}`));
+					console.log(chalk.yellow(`  ${result.reason}`));
+					console.log(chalk.yellow(`  Aprovação humana necessária para entrar em "${resolvedTarget}".`));
+					return;
+				}
 			}
-		}
-		if (gate?.type === "automated" && gate.blocking) {
-			console.log(chalk.yellow(`⛔ Gate automated bloqueante: ${gate.name}`));
-			console.log(chalk.yellow("  Valide as condições antes de avançar."));
 		}
 	}
 
@@ -168,7 +177,7 @@ export async function flowMove(root: string, itemId: string, targetStageInput: s
 	});
 
 	if (item.spec) {
-		writeFocusFile(root, item.spec, item.id);
+		writeFocusWithRecommendations(root, item.spec, item.id);
 	}
 
 	logEntry(root, "item_move", `Item ${itemId} movido: ${fromStage} → ${toStage}`, {

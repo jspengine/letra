@@ -9,6 +9,17 @@
         "mcp"
       ],
       "enabled": true
+    },
+    "letra": {
+      "type": "local",
+      "command": [
+        "npx",
+        "tsx",
+        "packages/cli/src/index.ts",
+        "mcp",
+        "serve"
+      ],
+      "enabled": true
     }
   }
 }

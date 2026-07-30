@@ -25,7 +25,7 @@ function Command({ className, children, ...props }: HTMLAttributes<HTMLDivElemen
 		<CommandContext.Provider value={{ query, setQuery }}>
 			<div
 				data-slot="command"
-				className={cn("flex w-full flex-col overflow-hidden rounded-xl bg-card text-card-foreground", className)}
+				className={cn("flex w-full flex-col overflow-hidden rounded-[var(--radius-lg)] bg-card text-card-foreground", className)}
 				{...props}
 			>
 				{children}
@@ -40,7 +40,7 @@ function CommandInput({ className, onChange, ...props }: InputHTMLAttributes<HTM
 		<input
 			data-slot="command-input"
 			className={cn(
-				"h-11 w-full border-b bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground",
+				"h-11 w-full border-b bg-transparent px-[var(--space-3)] text-sm outline-none placeholder:text-muted-foreground rounded-[var(--radius-md)]",
 				className,
 			)}
 			value={command?.query ?? props.value}
@@ -58,14 +58,14 @@ function CommandList({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 		<div
 			data-slot="command-list"
 			role="listbox"
-			className={cn("max-h-72 overflow-y-auto overflow-x-hidden p-1", className)}
+			className={cn("max-h-72 overflow-y-auto overflow-x-hidden p-[var(--space-2)]", className)}
 			{...props}
 		/>
 	);
 }
 
 function CommandEmpty({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-	return <div data-slot="command-empty" className={cn("py-6 text-center text-sm text-muted-foreground", className)} {...props} />;
+	return <div data-slot="command-empty" className={cn("py-[var(--space-5)] text-center text-sm text-muted-foreground rounded-[var(--radius-md)]", className)} {...props} />;
 }
 
 function CommandGroup({
@@ -78,7 +78,7 @@ function CommandGroup({
 			data-slot="command-group"
 			role="group"
 			aria-label={heading}
-			className={cn("overflow-hidden p-1", className)}
+			className={cn("overflow-hidden p-[var(--space-2)]", className)}
 			{...props}
 		/>
 	);
@@ -105,7 +105,7 @@ function CommandItem({
 			data-slot="command-item"
 			role="option"
 			className={cn(
-				"flex w-full cursor-default items-center rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:pointer-events-none disabled:opacity-50",
+				"flex w-full cursor-default items-center rounded-[var(--radius-md)] px-[var(--space-2)] py-[var(--space-1)] text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:pointer-events-none disabled:opacity-50",
 				className,
 			)}
 			onClick={(event) => {

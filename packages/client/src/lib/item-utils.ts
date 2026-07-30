@@ -49,7 +49,7 @@ export const TYPE_COLORS: Record<ItemType, string> = {
 	BUG: "var(--error)",
 	CHORE: "var(--info)",
 	DOCS: "var(--warning)",
-	TEST: "var(--accent)",
+	TEST: "var(--color-info)",
 };
 
 export function countACs(specContent: string): { done: number; total: number } {

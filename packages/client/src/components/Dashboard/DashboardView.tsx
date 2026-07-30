@@ -1,5 +1,5 @@
 import type { Item, Workflow } from "@letra/types";
-import { Badge, Card, CardContent } from "@letra/ui";
+import { Badge, Card, CardContent, Sparkline, ThroughputMeter } from "@letra/ui";
 
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
@@ -46,11 +46,27 @@ interface ColumnProps {
 }
 
 function DashColumn({ title, items, stages, onSelectItem }: ColumnProps) {
+	const stageHistory = items.map((item) => Math.max(1, daysSince(item.createdAt) + 1)).slice(0, 8);
+	const completedTasks = items.reduce((sum, item) => sum + (item.tasks?.filter((task) => task.done).length ?? 0), 0);
+	const totalTasks = items.reduce((sum, item) => sum + (item.tasks?.length ?? 0), 0);
+
 	return (
 		<div className="flex-1 min-w-0 p-3">
-			<h2 className="text-base font-semibold mb-3">
-				{title} <span style={{ color: "var(--muted-foreground)" }}>({items.length})</span>
-			</h2>
+			<div className="mb-3 grid gap-[var(--space-2)] rounded-[var(--radius-md)] border border-[var(--color-border)] p-[var(--space-3)]">
+				<div className="flex items-center justify-between gap-3">
+					<h2 className="text-base font-semibold">
+						{title} <span style={{ color: "var(--muted-foreground)" }}>({items.length})</span>
+					</h2>
+					<Sparkline data={stageHistory.length > 1 ? stageHistory : [1, items.length + 1]} />
+				</div>
+				<ThroughputMeter
+					value={totalTasks > 0 ? completedTasks : items.length}
+					max={Math.max(totalTasks, items.length, 1)}
+					baseline={Math.max(1, Math.ceil(Math.max(totalTasks, items.length, 1) / 2))}
+					label="throughput"
+					showValue
+				/>
+			</div>
 			{items.length === 0 && (
 				<p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
 					(empty)
@@ -65,7 +81,7 @@ function DashColumn({ title, items, stages, onSelectItem }: ColumnProps) {
 								<div className="font-medium">{it.id}</div>
 								<div className="truncate">{it.description}</div>
 								<div className="flex items-center gap-2 mt-1 text-xs">
-									<Badge variant="secondary">{stageName}</Badge>
+									<Badge variant="info">{stageName}</Badge>
 									{it.claimedBy && <span>🤖</span>}
 									{tasksBar(it) && <span>{tasksBar(it)}</span>}
 									<span style={{ color: "var(--muted-foreground)" }}>

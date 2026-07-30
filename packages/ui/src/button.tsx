@@ -1,7 +1,9 @@
 import type { ButtonHTMLAttributes } from "react";
 import { cn } from "./utils";
+import { Icon } from "./icon";
+import type { IconName } from "./icon";
 
-type Variant = "default" | "secondary" | "outline" | "ghost";
+type Variant = "primary" | "secondary" | "danger" | "ghost";
 type Size = "sm" | "default" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -11,36 +13,20 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<Variant, string> = {
-	default: "bg-primary text-primary-foreground hover:opacity-90 border border-transparent",
-	secondary: "bg-muted text-muted-foreground hover:bg-muted/80 border border-transparent",
-	outline: "border border-border bg-transparent hover:bg-muted text-foreground",
-	ghost: "bg-transparent hover:bg-muted text-foreground border border-transparent",
+	primary: "bg-[var(--color-primary)] text-[var(--color-on-accent)] hover:bg-[var(--color-primary-hover)] hover:scale-[1.02] active:bg-[var(--color-primary-pressed)] border border-transparent",
+	secondary: "bg-[var(--color-bg-sunken)] text-[var(--color-text-primary)] border border-[var(--color-border)] hover:border-[var(--color-text-secondary)]",
+	danger: "bg-[var(--color-danger)] text-[var(--color-on-accent)] border border-transparent hover:opacity-90",
+	ghost: "bg-transparent hover:bg-[var(--color-bg-sunken)] text-[var(--color-text-primary)] border border-transparent",
 };
 
 const sizeStyles: Record<Size, string> = {
-	sm: "text-xs px-2.5 py-1.5 rounded-md",
-	default: "text-sm px-4 py-2 rounded-lg",
-	lg: "text-base px-6 py-2.5 rounded-lg",
+	sm: "h-8 px-[var(--space-3)] text-xs rounded-[var(--radius-sm)]",
+	default: "h-10 px-[var(--space-4)] text-sm rounded-[var(--radius-md)]",
+	lg: "h-11 px-[var(--space-5)] text-base rounded-[var(--radius-md)]",
 };
 
-function Spinner() {
-	return (
-		<svg
-			className="animate-spin -ml-1 mr-2"
-			width="14"
-			height="14"
-			viewBox="0 0 24 24"
-			fill="none"
-			aria-hidden="true"
-		>
-			<circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" opacity="0.25" />
-			<path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-		</svg>
-	);
-}
-
 export function Button({
-	variant = "default",
+	variant = "primary",
 	size = "default",
 	loading,
 	disabled,
@@ -51,8 +37,10 @@ export function Button({
 	return (
 		<button
 			className={cn(
-				"inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 disabled:pointer-events-none cursor-pointer",
-				loading && "opacity-70",
+				"inline-flex items-center justify-center gap-[var(--space-2)] font-medium disabled:opacity-50 disabled:pointer-events-none cursor-pointer",
+				"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-base)]",
+				"transition-[background-color,border-color,box-shadow,opacity,color,transform] duration-[var(--motion-fast)] ease-[var(--ease-standard)] active:translate-y-px",
+				loading && "opacity-80",
 				variantStyles[variant],
 				sizeStyles[size],
 				className,
@@ -60,7 +48,7 @@ export function Button({
 			disabled={disabled || loading}
 			{...props}
 		>
-			{loading && <Spinner />}
+			{loading && <Icon name="loader-circle" size={14} className="animate-spin" />}
 			{children}
 		</button>
 	);

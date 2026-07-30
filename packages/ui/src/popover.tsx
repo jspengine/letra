@@ -53,7 +53,7 @@ export function PopoverTrigger({ className, asChild, children, ...props }: Popov
 	return (
 		<button
 			className={cn(
-				"inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30",
+				"inline-flex items-center justify-center rounded-[var(--radius-md)] px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30",
 				className,
 			)}
 			type="button"
@@ -85,7 +85,7 @@ export function PopoverContent({
 	return (
 		<div
 			className={cn(
-				"absolute z-50 mt-2 min-w-[8rem] overflow-hidden rounded-lg border bg-card p-4 shadow-md",
+				"absolute z-50 mt-2 min-w-[8rem] overflow-hidden rounded-[var(--radius-md)] border-[length:var(--border-thin)] bg-card p-[var(--space-4)] shadow-md",
 				alignStyles[align],
 				className,
 			)}

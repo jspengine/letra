@@ -6,6 +6,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { flowServeAction } from "./flow-serve.js";
 import { generateAdapters } from "../adapters/generate.js";
+import { supportedAdapterTools } from "../adapters/registry.js";
 import { detectLanguage } from "../adapters/language-registry.js";
 import { writeWorkflow } from "./flow-init.js";
 import type { Workflow } from "./flow-init.js";
@@ -66,14 +67,14 @@ function adaptConfig(projectType: string): string {
 	return JSON.stringify({ heuristics: config }, null, 2);
 }
 
-const TOOL_MAP: Record<string, string[]> = {
-	opencode: ["opencode"],
-	cursor: ["cursor"],
-	windsurf: ["windsurf"],
-	"claude code": ["claude-code"],
-	"vscode copilot": ["vscode"],
-	todos: ["cursor", "claude-code", "windsurf", "vscode", "opencode", "hermes"],
-};
+const adapterTools = supportedAdapterTools();
+const TOOL_MAP: Record<string, string[]> = Object.fromEntries([
+	...adapterTools.flatMap((adapter) => [
+		[adapter.id, [adapter.id]],
+		[adapter.label.toLowerCase(), [adapter.id]],
+	] as Array<[string, string[]]>),
+	["todos", adapterTools.map((adapter) => adapter.id)],
+]);
 
 export async function init(targetPath?: string, options?: { yes?: boolean; serve?: boolean; workspace?: string; noTui?: boolean }) {
 	const root = resolve(process.cwd(), targetPath || ".");
@@ -135,14 +136,7 @@ export async function init(targetPath?: string, options?: { yes?: boolean; serve
 			spinner.stop();
 
 			projectType = await ask("Project type?", ["web-app", "cli", "library", "mobile"]);
-			const toolNames = [
-				"Cursor",
-				"Windsurf",
-				"Claude Code",
-				"VSCode Copilot",
-				"OpenCode",
-				"Todos",
-			];
+			const toolNames = [...adapterTools.map((adapter) => adapter.label), "Todos"];
 			const answer = await ask("AI coding agent?", toolNames);
 			tool = answer.toLowerCase();
 
@@ -305,7 +299,7 @@ Por que estamos construindo isso.
 					{ id: "done", name: "Done", order: 4, zone: "done" },
 				],
 				items: [],
-				tools: ["cursor", "opencode"],
+				tools,
 			};
 			writeWorkflow(root, { workflow, source: "init", skipSitrep: true, quiet: true });
 		}

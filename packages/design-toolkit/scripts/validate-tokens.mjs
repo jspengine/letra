@@ -56,7 +56,7 @@ function walk(dir, files) {
 
 const SRC_DIRS = [join(ROOT, "ui", "src"), join(ROOT, "client", "src")];
 
-const missing = new Set();
+const missing = new Map();
 
 for (const dir of SRC_DIRS) {
 	const files = [];
@@ -65,9 +65,18 @@ for (const dir of SRC_DIRS) {
 	for (const file of files) {
 		if (file === CSS_PATH) continue;
 		const content = readFileSync(file, "utf-8");
+		const lines = content.split("\n");
 		for (const m of content.matchAll(VAR_REF)) {
-			if (!ALL_DEFS.has(m[1])) {
-				missing.add(m[1]);
+			const token = m[1];
+			if (!ALL_DEFS.has(token)) {
+				const matchIndex = m.index;
+				const lineNumber = content.slice(0, matchIndex).split("\n").length;
+				const entry = `${file}:${lineNumber}`;
+				if (!missing.has(token)) {
+					missing.set(token, [entry]);
+				} else if (!missing.get(token).includes(entry)) {
+					missing.get(token).push(entry);
+				}
 			}
 		}
 	}
@@ -75,8 +84,10 @@ for (const dir of SRC_DIRS) {
 
 if (missing.size > 0) {
 	console.error("Undefined CSS variables referenced:");
-	for (const v of [...missing].sort()) {
-		console.error(`  --${v}`);
+	for (const [token, refs] of [...missing.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+		for (const ref of refs) {
+			console.error(`  --${token}  <=  ${ref}`);
+		}
 	}
 	process.exit(1);
 } else {

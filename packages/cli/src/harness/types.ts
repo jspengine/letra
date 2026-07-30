@@ -13,6 +13,7 @@ export interface Gate {
 	blocking: boolean;
 	policyRef?: string;
 	description: string;
+	decisions?: Partial<Record<"approve" | "request-changes" | "reject", string>>;
 }
 
 export type HarnessActivityKind = "design" | "implement" | "review" | "diagnose" | "gate";
@@ -27,11 +28,18 @@ export interface ActivityActionHint {
 	description: string;
 }
 
+export interface ActivityCommandHint {
+	command: string;
+	label: string;
+	description?: string;
+}
+
 export interface ActivityHintConfig {
 	objective?: string;
 	mustRead?: ActivityReferenceHint[];
 	mustNotDo?: string[];
 	nextActions?: ActivityActionHint[];
+	commands?: ActivityCommandHint[];
 }
 
 export interface ReviewExpectationConfig extends ActivityHintConfig {

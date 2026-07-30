@@ -1,0 +1,9 @@
+id: frontend-ds-conformance
+name: Frontend Design System Conformance
+type: human
+blocking: true
+description: Valida que mudanças de frontend/UX seguem o Design System canônico do Letra.
+decisions:
+  approve: Conformidade com DS confirmada.
+  request-changes: Ajustes necessários para cumprir regras do DS.
+  reject: Mudança viola regra canônica do DS.

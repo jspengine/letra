@@ -37,12 +37,12 @@ const STAGE_ICONS: Record<ExecStatus, IconName> = {
 };
 
 const STAGE_COLORS: Record<ExecStatus, string> = {
-	idle: "var(--muted-foreground)",
-	running: "var(--primary)",
-	done: "var(--success)",
-	failed: "var(--error)",
-	blocked: "var(--gate-blocked)",
-	waiting: "var(--gate-waiting)",
+	idle: "var(--color-text-secondary)",
+	running: "var(--color-primary)",
+	done: "var(--color-success)",
+	failed: "var(--color-danger)",
+	blocked: "var(--color-danger)",
+	waiting: "var(--color-warning)",
 };
 
 export function AgentThinking() {
@@ -105,7 +105,7 @@ export default function ExecutionView({ stages, workflow, flowName, loading }: P
 		<div className="flex flex-col gap-1 p-6 max-w-3xl mx-auto w-full">
 			<div className="mb-4">
 				<h1 className="text-xl font-bold">Execution Flow</h1>
-				<p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
+				<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
 					{workflow.name} · {workflow.items.length} items
 				</p>
 			</div>
@@ -114,7 +114,7 @@ export default function ExecutionView({ stages, workflow, flowName, loading }: P
 				{/* Vertical line */}
 				<div
 					className="absolute left-[19px] top-0 bottom-0 w-px"
-					style={{ background: "var(--border)" }}
+					style={{ background: "var(--color-border)" }}
 				/>
 
 				<div className="flex flex-col gap-0">
@@ -136,10 +136,10 @@ export default function ExecutionView({ stages, workflow, flowName, loading }: P
 										style={{
 											borderColor: color,
 											background: stage.status === "done"
-												? "var(--success)"
+												? "var(--color-success)"
 												: stage.status === "failed"
-													? "var(--error)"
-													: "var(--card)",
+													? "var(--color-danger)"
+													: "var(--color-bg-surface)",
 											color: stage.status === "done" || stage.status === "failed"
 												? "white"
 												: color,
@@ -158,7 +158,7 @@ export default function ExecutionView({ stages, workflow, flowName, loading }: P
 											stage.status === "waiting" && "ring-1",
 										)}
 										style={{
-											borderColor: stage.status === "idle" ? "var(--border)" : color,
+											borderColor: stage.status === "idle" ? "var(--color-border)" : color,
 											...(stage.status === "running" || stage.status === "waiting"
 												? { boxShadow: `0 0 0 1px ${color}40` }
 												: {}),
@@ -173,18 +173,18 @@ export default function ExecutionView({ stages, workflow, flowName, loading }: P
 												</div>
 												<div className="flex items-center gap-2">
 													{stage.duration && (
-														<span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+														<span className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
 															{stage.duration}
 														</span>
 													)}
 													<Badge
 														variant={
 															stage.status === "done" ? "success"
-															: stage.status === "failed" ? "warning"
-															: stage.status === "waiting" ? "warning"
-															: "secondary"
+															: stage.status === "failed" ? "amber"
+															: stage.status === "waiting" ? "amber"
+															: "info"
 														}
-														className="text-[10px]"
+														className="text-caption"
 													>
 														{stage.status === "idle" ? "Aguardando"
 														: stage.status === "running" ? "Executando"
@@ -198,7 +198,7 @@ export default function ExecutionView({ stages, workflow, flowName, loading }: P
 
 											{/* Agent info */}
 											<div className="flex items-center gap-2 mb-2">
-												<span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
+												<span className="text-xs font-medium" style={{ color: "var(--color-text-secondary)" }}>
 													Ator: {stage.agent}
 												</span>
 											</div>
@@ -211,8 +211,8 @@ export default function ExecutionView({ stages, workflow, flowName, loading }: P
 												<div
 													className="text-xs p-2 rounded mt-1 font-mono whitespace-pre-wrap max-h-24 overflow-y-auto"
 													style={{
-														background: "var(--muted)",
-														color: "var(--muted-foreground)",
+														background: "var(--color-bg-surface)",
+														color: "var(--color-text-secondary)",
 													}}
 												>
 													{stage.output}
@@ -224,8 +224,8 @@ export default function ExecutionView({ stages, workflow, flowName, loading }: P
 												<div
 													className="text-xs p-2 rounded mt-1 font-mono whitespace-pre-wrap"
 													style={{
-														background: "color-mix(in oklch, var(--error) 10%, transparent)",
-														color: "var(--error)",
+														background: "color-mix(in oklch, var(--color-danger) 10%, transparent)",
+														color: "var(--color-danger)",
 													}}
 												>
 													{stage.error}
@@ -234,8 +234,8 @@ export default function ExecutionView({ stages, workflow, flowName, loading }: P
 
 											{/* Gate actions */}
 											{isGate && stage.status === "waiting" && (
-												<div className="flex items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
-													<Button variant="default" size="sm" onClick={() => handleApprove(stage.id)}>
+												<div className="flex items-center gap-2 mt-3 pt-3 border-t" style={{ borderColor: "var(--color-border)" }}>
+													<Button variant="primary" size="sm" onClick={() => handleApprove(stage.id)}>
 														<Icon name="check" size={14} />
 														Aprovar
 													</Button>

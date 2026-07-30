@@ -73,7 +73,7 @@ export default function AgentDetail({ workflow, activeFlow, loading }: AgentDeta
 								<Card key={role.id}>
 									<CardContent className="flex h-full flex-col gap-3">
 										<div className="flex items-start gap-3">
-											<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+											<div className="flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-primary/10 text-primary">
 												<Icon name="cpu" size={16} />
 											</div>
 											<div className="min-w-0 flex-1">
@@ -84,7 +84,7 @@ export default function AgentDetail({ workflow, activeFlow, loading }: AgentDeta
 													{role.description}
 												</p>
 											</div>
-											<Badge variant="outline">{role.id}</Badge>
+											<Badge variant="info">{role.id}</Badge>
 										</div>
 
 										<div className="flex flex-col gap-2">
@@ -94,7 +94,7 @@ export default function AgentDetail({ workflow, activeFlow, loading }: AgentDeta
 											<div className="flex flex-wrap gap-1.5">
 												{allowedStageNames.length > 0 ? (
 													allowedStageNames.map((name) => (
-														<Badge key={name} variant="secondary">
+														<Badge key={name} variant="info">
 															{name}
 														</Badge>
 													))
@@ -113,7 +113,7 @@ export default function AgentDetail({ workflow, activeFlow, loading }: AgentDeta
 											<div className="flex flex-wrap gap-1.5">
 												{role.capabilities.length > 0 ? (
 													role.capabilities.map((capability) => (
-														<Badge key={capability} variant="outline">
+														<Badge key={capability} variant="info">
 															{capability}
 														</Badge>
 													))
@@ -173,7 +173,7 @@ export default function AgentDetail({ workflow, activeFlow, loading }: AgentDeta
 									</div>
 									<div className="flex flex-wrap gap-1.5">
 										{actor.stageNames.map((stageName) => (
-											<Badge key={stageName} variant="secondary">
+											<Badge key={stageName} variant="info">
 												{stageName}
 											</Badge>
 										))}

@@ -1,0 +1,8 @@
+id: pr-bot
+label: Bot de PR
+description: Prepara e abre pull requests com descrição gerada.
+allowedStages:
+  - ready-to-pr
+capabilities:
+  - create_pr
+  - assign_reviewers

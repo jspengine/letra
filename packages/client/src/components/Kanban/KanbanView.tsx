@@ -30,9 +30,9 @@ function daysSince(dateStr: string): number {
 }
 
 function daysColor(d: number): string {
-	if (d <= 2) return "var(--muted-foreground)";
-	if (d <= 7) return "var(--warning)";
-	return "var(--error)";
+	if (d <= 2) return "var(--color-text-secondary)";
+	if (d <= 7) return "var(--color-warning)";
+	return "var(--color-danger)";
 }
 
 function daysIcon(d: number): "check-circle" | "alert-circle" | "x-circle" | null {
@@ -180,10 +180,10 @@ export default function KanbanView({
 		workflow.items.length === 0 ? (
 			<div className="flex flex-1 items-center justify-center p-6">
 				<div className="flex flex-col items-center gap-3 text-center">
-					<p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+					<p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
 						Nenhum item no board.
 					</p>
-					<p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+					<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
 						Adicione seu primeiro item via <code className="px-1 py-0.5 rounded bg-muted">letra flow backlog add &lt;desc&gt;</code>
 					</p>
 					{onAddItem && (
@@ -223,7 +223,7 @@ export default function KanbanView({
 						onDrop={(e) => handleDrop(e, stage.id)}
 					>
 						<CardContent className="p-0 flex flex-col flex-1 min-h-0">
-							<div className="shrink-0 p-3 pb-2 border-b" style={{ borderColor: "var(--border)" }}>
+							<div className="shrink-0 p-3 pb-2 border-b" style={{ borderColor: "var(--color-border)" }}>
 								<h3 className="text-sm font-semibold flex items-center gap-2">
 									{accentHeader && (
 										<span
@@ -234,7 +234,7 @@ export default function KanbanView({
 									{stage.name}
 									<span
 										className="text-xs font-normal"
-										style={{ color: "var(--muted-foreground)" }}
+										style={{ color: "var(--color-text-secondary)" }}
 									>
 										{stageItems.length}
 									</span>
@@ -244,7 +244,7 @@ export default function KanbanView({
 								{stageItems.length === 0 && (
 									<p
 										className="text-xs"
-										style={{ color: "var(--muted-foreground)" }}
+										style={{ color: "var(--color-text-secondary)" }}
 									>
 										(empty)
 									</p>
@@ -279,7 +279,7 @@ export default function KanbanView({
 											onDragStart={(e) => handleDragStart(e, it.id)}
 											onDragEnd={handleDragEnd}
 												className={cn(
-													"relative group rounded-lg border text-card-foreground transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-sm hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+													"relative group rounded-[var(--radius-sm)] border text-card-foreground transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-sm hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
 													draggingId === it.id && "opacity-70 scale-[1.02] shadow-md",
 													stageColor
 														? "bg-card/90 hover:border-transparent"
@@ -292,10 +292,10 @@ export default function KanbanView({
 															? "var(--border-focus)"
 															: stageColor
 																? `${stageColor}30`
-																: "var(--border)",
+																: "var(--color-border)",
 													borderLeft: isFocused && !isClaimed ? "3px solid var(--border-focus)" : undefined,
 													background: stageColor
-														? `color-mix(in srgb, ${stageColor}08, var(--card))`
+														? `color-mix(in srgb, ${stageColor}08, var(--color-bg-surface))`
 														: undefined,
 												boxShadow: isClaimed
 													? undefined
@@ -323,7 +323,7 @@ export default function KanbanView({
 														{slug}
 													</span>
 													<span
-														className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 leading-none"
+														className="text-caption font-semibold px-1.5 py-0.5 rounded shrink-0 leading-none"
 														style={{
 															background: `color-mix(in srgb, ${typeColor} 15%, transparent)`,
 															color: typeColor,
@@ -340,7 +340,7 @@ export default function KanbanView({
 												</div>
 												<div
 													className="truncate text-xs leading-relaxed"
-													style={{ color: "var(--muted-foreground)" }}
+													style={{ color: "var(--color-text-secondary)" }}
 												>
 													{truncate(it.description, 40)}
 												</div>
@@ -354,8 +354,8 @@ export default function KanbanView({
 													/>
 												)}
 														<div className="flex items-center justify-between gap-1 mt-0.5">
-													<div className="flex items-center gap-1.5 text-[10px]"
-														style={{ color: "var(--muted-foreground)" }}
+													<div className="flex items-center gap-1.5 text-caption"
+														style={{ color: "var(--color-text-secondary)" }}
 													>
 														{itemAlerts[it.id] > 0 && (
 															<span className="text-red-500 font-semibold" title={`${itemAlerts[it.id]} alerta(s)`}>
@@ -373,7 +373,7 @@ export default function KanbanView({
 															>🤖</span>
 														)}
 														<span
-															className="flex items-center gap-1 text-[10px] tabular-nums"
+															className="flex items-center gap-1 text-caption tabular-nums"
 															style={{ color: daysColor(days) }}
 														>
 															{icon && <Icon name={icon} size={10} />}
@@ -384,8 +384,8 @@ export default function KanbanView({
 												<div className="hidden group-hover:flex items-center gap-1">
 													{isFocused ? (
 														<Button
-															className="text-[10px] px-1.5 py-0.5 rounded"
-															style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}
+															className="text-caption px-1.5 py-0.5 rounded"
+															style={{ background: "var(--color-bg-surface)", color: "var(--color-text-secondary)" }}
 															disabled={loadingButtons.has(`focus-${it.id}`)}
 															onClick={(e) => {
 																e.stopPropagation();
@@ -400,8 +400,8 @@ export default function KanbanView({
 														</Button>
 													) : (
 														<Button
-															className="text-[10px] px-1.5 py-0.5 rounded"
-															style={{ background: "var(--border-focus)", color: "white" }}
+															className="text-caption px-1.5 py-0.5 rounded"
+															style={{ background: "var(--border-focus)", color: "var(--color-text-primary)" }}
 															disabled={loadingButtons.has(`focus-${it.id}`)}
 															onClick={(e) => {
 																e.stopPropagation();
@@ -417,8 +417,8 @@ export default function KanbanView({
 													)}
 													{isClaimed ? (
 														<Button
-															className="text-[10px] px-1.5 py-0.5 rounded"
-															style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}
+															className="text-caption px-1.5 py-0.5 rounded"
+															style={{ background: "var(--color-bg-surface)", color: "var(--color-text-secondary)" }}
 															disabled={loadingButtons.has(`release-${it.id}`)}
 															onClick={(e) => {
 																e.stopPropagation();
@@ -432,8 +432,8 @@ export default function KanbanView({
 														</Button>
 													) : (
 														<Button
-															className="text-[10px] px-1.5 py-0.5 rounded"
-															style={{ background: "var(--primary)", color: "white" }}
+															className="text-caption px-1.5 py-0.5 rounded"
+															style={{ background: "var(--color-primary)", color: "var(--color-text-primary)" }}
 															disabled={loadingButtons.has(`claim-${it.id}`)}
 															onClick={(e) => {
 																e.stopPropagation();

@@ -16,15 +16,15 @@ interface Props {
 
 function MetricCard({ metric }: { metric: Metric }) {
 	const dotColor = metric.color ?? (
-		metric.trend === "up" ? "var(--success)"
-		: metric.trend === "down" ? "var(--error)"
-		: "var(--muted-foreground)"
+		metric.trend === "up" ? "var(--color-success)"
+		: metric.trend === "down" ? "var(--color-danger)"
+		: "var(--color-text-secondary)"
 	);
 	return (
 		<Card className="p-4 transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5">
 			<CardContent className="p-0 flex flex-col gap-2">
 				<div className="flex items-center justify-between">
-					<span className="text-xs font-medium uppercase tracking-wider flex items-center gap-1.5" style={{ color: "var(--muted-foreground)" }}>
+					<span className="text-xs font-medium uppercase tracking-wider flex items-center gap-1.5" style={{ color: "var(--color-text-secondary)" }}>
 						<Icon name={metric.icon} size={14} />
 						{metric.label}
 					</span>
@@ -32,7 +32,7 @@ function MetricCard({ metric }: { metric: Metric }) {
 				</div>
 				<span className="text-2xl font-bold">{metric.value}</span>
 				{metric.subtext && (
-					<span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+					<span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
 						{metric.subtext}
 					</span>
 				)}

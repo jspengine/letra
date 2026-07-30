@@ -30,12 +30,12 @@ const GATE_LABELS: Record<GateStatus, string> = {
 };
 
 const GATE_COLORS: Record<GateStatus, string> = {
-	waiting: "var(--gate-waiting)",
-	available: "var(--gate-available)",
-	approved: "var(--gate-approved)",
-	"changes-requested": "var(--gate-waiting)",
-	rejected: "var(--gate-blocked)",
-	expired: "var(--muted-foreground)",
+	waiting: "var(--color-warning)",
+	available: "var(--color-success)",
+	approved: "var(--color-success)",
+	"changes-requested": "var(--color-warning)",
+	rejected: "var(--color-danger)",
+	expired: "var(--color-text-secondary)",
 };
 
 function timeSince(iso: string): string {
@@ -69,7 +69,7 @@ export default function GateCard({ gate, onApprove, onChanges, onReject }: Props
 					<div className="flex-1 min-w-0">
 						<div className="flex items-center gap-2 mb-1">
 							<span
-								className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+								className="text-caption font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
 								style={{
 									background: `${GATE_COLORS[gate.status]}20`,
 									color: GATE_COLORS[gate.status],
@@ -77,12 +77,12 @@ export default function GateCard({ gate, onApprove, onChanges, onReject }: Props
 							>
 								{GATE_LABELS[gate.status]}
 							</span>
-							<span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+							<span className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
 								há {timeSince(gate.since)}
 							</span>
 						</div>
 						<h4 className="text-sm font-semibold truncate">{gate.feature}</h4>
-						<p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+						<p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
 							{gate.stage} · {gate.agent}
 						</p>
 					</div>
@@ -95,7 +95,7 @@ export default function GateCard({ gate, onApprove, onChanges, onReject }: Props
 								<Icon name="x" size={14} />
 								Rejeitar
 							</Button>
-							<Button variant="default" size="sm" onClick={() => onApprove?.(gate.id)}>
+							<Button variant="primary" size="sm" onClick={() => onApprove?.(gate.id)}>
 								<Icon name="check" size={14} />
 								Aprovar
 							</Button>
@@ -117,21 +117,21 @@ export function GatePendingList({ gates, onApprove, onChanges, onReject }: {
 	return (
 		<div className="flex flex-col gap-2">
 			<div className="flex items-center gap-2 mb-1">
-				<Icon name="shield" size={16} style={{ color: actionable.length > 0 ? "var(--gate-available)" : "var(--muted-foreground)" }} />
+				<Icon name="shield" size={16} style={{ color: actionable.length > 0 ? "var(--color-success)" : "var(--color-text-secondary)" }} />
 				<span className="text-sm font-semibold">
 					{actionable.length > 0 ? `Gate${actionable.length > 1 ? "s" : ""} Pendente${actionable.length > 1 ? "s" : ""}` : "Gates"}
 				</span>
 				{actionable.length > 0 && (
 					<span
-						className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-						style={{ background: "var(--gate-available)", color: "white" }}
+						className="text-caption font-bold px-1.5 py-0.5 rounded-full"
+						style={{ background: "var(--color-success)", color: "var(--color-text-primary)" }}
 					>
 						{actionable.length}
 					</span>
 				)}
 			</div>
 			{gates.length === 0 ? (
-				<p className="text-sm py-4 text-center" style={{ color: "var(--muted-foreground)" }}>
+				<p className="text-sm py-4 text-center" style={{ color: "var(--color-text-secondary)" }}>
 					Nenhum gate pendente
 				</p>
 			) : (

@@ -6,4 +6,40 @@ dist/
 .letra/specs/*/status.md
 .letra/backups/
 .letra/workflow.v*.json
+.letra/snapshots/
 .opencode/
+
+# Build / generated outputs (regenerable)
+storybook-static/
+**/storybook-static/
+test-results/
+.tmp/
+
+# Root-level scratch / debugging throwaway scripts
+/debug-*
+/test-harness*
+/test-parse*
+/val_out.txt
+/flow-serve*.log
+*.err.log
+bump-*.diff
+*.bak.*
+context-economy-log.jsonl
+
+# Compiled output emitted in-place by tsc/tsup/vitest/playwright (regenerable, never hand-written)
+*.js.map
+*.d.ts.map
+tsup.config.js
+tsup.config.d.ts
+tsup.config.js.map
+tsup.config.d.ts.map
+vitest.config.js
+vitest.config.d.ts
+vitest.config.js.map
+vitest.config.d.ts.map
+playwright.config.js
+playwright.config.d.ts
+playwright.config.js.map
+playwright.config.d.ts.map
+packages/*/build/
+packages/ui/storybook-visual-snapshots/

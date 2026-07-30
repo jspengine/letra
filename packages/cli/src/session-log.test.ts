@@ -1,8 +1,16 @@
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { performance } from "node:perf_hooks";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { loadSessionLog, logEntry, queryLog, queryLogWithMeta } from "./session-log.js";
+import {
+	loadSessionLog,
+	logEntry,
+	pruneSessionLog,
+	queryLog,
+	queryLogWithMeta,
+	saveSessionLog,
+} from "./session-log.js";
 import type { SessionLog } from "./session-log.js";
 
 describe("session-log", () => {
@@ -42,6 +50,7 @@ describe("session-log", () => {
 			expect(entry.action).toBe("manual");
 			expect(entry.description).toBe("Test entry");
 			expect(entry.itemId).toBe("ITEM-1");
+			expect(entry.level).toBe("info");
 			expect(entry.id).toMatch(/^log-/);
 		});
 
@@ -50,6 +59,30 @@ describe("session-log", () => {
 			const log = loadSessionLog(tmpDir);
 			expect(log.entries).toHaveLength(1);
 			expect(log.entries[0].description).toBe("Persist test");
+		});
+
+		it("writes entries to the daily JSONL file", () => {
+			logEntry(tmpDir, "manual", "JSONL test");
+			const now = new Date();
+			const file = join(
+				tmpDir,
+				".letra",
+				"session-log",
+				String(now.getUTCFullYear()),
+				String(now.getUTCMonth() + 1).padStart(2, "0"),
+				`${String(now.getUTCDate()).padStart(2, "0")}.jsonl`,
+			);
+			expect(existsSync(file)).toBe(true);
+			const lines = readFileSync(file, "utf-8").trim().split(/\r?\n/);
+			expect(lines).toHaveLength(1);
+			expect(JSON.parse(lines[0]).description).toBe("JSONL test");
+		});
+
+		it("marks system actions as debug", () => {
+			const entry = logEntry(tmpDir, "system", "System event", {
+				details: { systemAction: true },
+			});
+			expect(entry.level).toBe("debug");
 		});
 
 		it("should handle all action types", () => {
@@ -76,7 +109,7 @@ describe("session-log", () => {
 			expect(entry.details).toEqual({ passed: 5, failed: 0 });
 		});
 
-		it("should preserve all entries (append-only, no FIFO limit)", () => {
+		it("should preserve entries up to MAX_ENTRIES", () => {
 			for (let i = 0; i < 510; i++) {
 				logEntry(tmpDir, "manual", `Entry ${i}`);
 			}
@@ -84,6 +117,70 @@ describe("session-log", () => {
 			expect(log.entries.length).toBe(510);
 			expect(log.entries[0].description).toBe("Entry 0");
 			expect(log.entries[log.entries.length - 1].description).toBe("Entry 509");
+		});
+	});
+
+	describe("saveSessionLog", () => {
+		it("retries a transient Windows replacement error and preserves valid JSON", () => {
+			const letraDir = join(tmpDir, ".letra");
+			const file = join(letraDir, "session-log.json");
+			mkdirSync(letraDir, { recursive: true });
+			writeFileSync(file, JSON.stringify({ schemaVersion: 1, entries: [] }));
+			let attempts = 0;
+
+			saveSessionLog(
+				tmpDir,
+				{
+					schemaVersion: 1,
+					entries: [
+						{
+							id: "log-test-001",
+							timestamp: new Date().toISOString(),
+							action: "manual",
+							description: "Preserved after contention",
+							itemId: null,
+							acId: null,
+							details: {},
+						},
+					],
+				},
+				{
+					replaceFile: (source, destination) => {
+						attempts++;
+						if (attempts === 1) {
+							throw Object.assign(new Error("unknown error"), { code: "UNKNOWN" });
+						}
+						renameSync(source, destination);
+					},
+					sleep: () => {},
+				},
+			);
+
+			expect(attempts).toBe(2);
+			expect(JSON.parse(readFileSync(file, "utf-8")).entries).toHaveLength(1);
+		});
+
+		it("keeps the previous valid file when replacement persistently fails", () => {
+			const letraDir = join(tmpDir, ".letra");
+			const file = join(letraDir, "session-log.json");
+			const previous = { schemaVersion: 1, entries: [] };
+			mkdirSync(letraDir, { recursive: true });
+			writeFileSync(file, JSON.stringify(previous));
+
+			expect(() =>
+				saveSessionLog(
+					tmpDir,
+					{ schemaVersion: 1, entries: [] },
+					{
+						replaceFile: () => {
+							throw Object.assign(new Error("busy"), { code: "EBUSY" });
+						},
+						sleep: () => {},
+					},
+				),
+			).toThrow("busy");
+
+			expect(JSON.parse(readFileSync(file, "utf-8"))).toEqual(previous);
 		});
 	});
 
@@ -104,6 +201,14 @@ describe("session-log", () => {
 		it("should return all entries with --all", () => {
 			const entries = queryLog(tmpDir, { all: true });
 			expect(entries).toHaveLength(5);
+		});
+
+		it("should hide debug entries by default and include them with debug", () => {
+			logEntry(tmpDir, "system", "System event", {
+				details: { systemAction: true },
+			});
+			expect(queryLog(tmpDir, { all: true }).map((entry) => entry.action)).not.toContain("system");
+			expect(queryLog(tmpDir, { all: true, debug: true }).map((entry) => entry.action)).toContain("system");
 		});
 
 		it("should filter by itemId", () => {
@@ -193,19 +298,90 @@ describe("session-log", () => {
 			logEntry(tmpDir, "system", "System event", {
 				details: { systemAction: true, outcome: "failed" },
 			});
-			const result = queryLogWithMeta(tmpDir, { all: true });
+			const result = queryLogWithMeta(tmpDir, { all: true, debug: true });
 			expect(result.facets.actions.manual).toBeGreaterThanOrEqual(5);
 			expect(result.facets.actions.system).toBe(1);
 		});
 	});
 
-	describe("preservation (append-only)", () => {
-		it("should not cap entries at previous limit", () => {
-			for (let i = 0; i < 600; i++) {
-				logEntry(tmpDir, "manual", `Bulk entry ${i}`);
-			}
+	describe("legacy and retention", () => {
+		it("merges legacy JSON and rotated JSONL entries", () => {
+			saveSessionLog(tmpDir, {
+				schemaVersion: 1,
+				entries: [
+					{
+						id: "legacy-1",
+						timestamp: "2026-07-24T10:00:00.000Z",
+						action: "manual",
+						description: "Legacy entry",
+						itemId: null,
+						acId: null,
+						details: {},
+					},
+				],
+			});
+			logEntry(tmpDir, "manual", "JSONL entry");
+			const entries = queryLog(tmpDir, { all: true });
+			expect(entries.map((entry) => entry.description)).toEqual(["JSONL entry", "Legacy entry"]);
+		});
+
+		it("prunes JSONL files older than the retention window", () => {
+			const oldDir = join(tmpDir, ".letra", "session-log", "2026", "07");
+			mkdirSync(oldDir, { recursive: true });
+			const oldFile = join(oldDir, "01.jsonl");
+			const recentFile = join(oldDir, "25.jsonl");
+			writeFileSync(oldFile, JSON.stringify({
+				id: "old",
+				timestamp: "2026-07-01T10:00:00.000Z",
+				action: "manual",
+				description: "Old",
+				itemId: null,
+				acId: null,
+				details: {},
+			}) + "\n");
+			writeFileSync(recentFile, JSON.stringify({
+				id: "recent",
+				timestamp: "2026-07-25T10:00:00.000Z",
+				action: "manual",
+				description: "Recent",
+				itemId: null,
+				acId: null,
+				details: {},
+			}) + "\n");
+
+			const removed = pruneSessionLog(tmpDir, 7, new Date("2026-07-25T12:00:00.000Z"));
+			expect(removed).toEqual([oldFile]);
+			expect(existsSync(oldFile)).toBe(false);
+			expect(existsSync(recentFile)).toBe(true);
+		});
+	});
+
+	describe("preservation (MAX_ENTRIES cap)", () => {
+		it("should cap entries at MAX_ENTRIES on save", () => {
+			const manyEntries = Array.from({ length: 2010 }, (_, i) => ({
+				id: `log-test-${i}`,
+				timestamp: new Date().toISOString(),
+				action: "manual" as const,
+				description: `Bulk entry ${i}`,
+				itemId: null,
+				acId: null,
+				details: {} as Record<string, unknown>,
+			}));
+			saveSessionLog(tmpDir, { schemaVersion: 1, entries: manyEntries });
 			const log = loadSessionLog(tmpDir);
-			expect(log.entries.length).toBeGreaterThan(500);
+			expect(log.entries.length).toBe(2000);
+			expect(log.entries[0].description).toBe("Bulk entry 10");
+		});
+	});
+
+	describe("performance", () => {
+		it("writes 10K entries in under 500ms", () => {
+			const start = performance.now();
+			for (let i = 0; i < 10000; i++) {
+				logEntry(tmpDir, "manual", `Entry ${i}`);
+			}
+			const elapsed = performance.now() - start;
+			expect(elapsed).toBeLessThan(500);
 		});
 	});
 });

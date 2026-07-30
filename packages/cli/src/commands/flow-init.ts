@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import chalk from "chalk";
+import { ADAPTER_REGISTRY } from "../adapters/registry.js";
 import ora from "ora";
 import { generateAdapters } from "../adapters/generate.js";
 import { generateHermesAdapter } from "../adapters/hermes.js";
@@ -102,14 +103,9 @@ function askText(query: string, defaultValue: string): Promise<string> {
 }
 
 export function detectExistingTools(root: string): string[] {
-	const tools: string[] = [];
-	if (existsSync(join(root, ".hermes", "instructions.md"))) tools.push("hermes");
-	if (existsSync(join(root, ".cursorrules"))) tools.push("cursor");
-	if (existsSync(join(root, "CLAUDE.md"))) tools.push("claude-code");
-	if (existsSync(join(root, ".windsurfrules"))) tools.push("windsurf");
-	if (existsSync(join(root, "AGENTS.md"))) tools.push("opencode");
-	if (existsSync(join(root, ".github", "copilot-instructions.md"))) tools.push("vscode");
-	return tools;
+	return Object.values(ADAPTER_REGISTRY)
+		.filter((adapter) => adapter.detectionPaths.some((path) => existsSync(join(root, path))))
+		.map((adapter) => adapter.id);
 }
 
 export function detectProjectName(root: string): string {
@@ -235,6 +231,7 @@ export type WriteWorkflowSource =
 	| "init"
 	| "stage-drift"
 	| "web-ui"
+	| "web-ui-gate-decision"
 	| "focus";
 
 export interface WriteWorkflowOptions {
@@ -246,6 +243,7 @@ export interface WriteWorkflowOptions {
 	skipLog?: boolean;
 	skipEngine?: boolean;
 	quiet?: boolean;
+	confineAdapterWrites?: boolean;
 	resolution?: import("../workspace/resolver.js").WorkspaceResolution;
 }
 
@@ -265,7 +263,18 @@ const ADAPTER_TARGETS: Record<string, string> = {
 };
 
 export async function writeWorkflow(root: string, options: WriteWorkflowOptions): Promise<WriteWorkflowResult> {
-	const { workflow, source, primaryItemId, skipAdapters, skipSitrep, skipLog, skipEngine, quiet, resolution } = options;
+	const {
+		workflow,
+		source,
+		primaryItemId,
+		skipAdapters,
+		skipSitrep,
+		skipLog,
+		skipEngine,
+		quiet,
+		confineAdapterWrites,
+		resolution,
+	} = options;
 
 	if (!workflow.items || !Array.isArray(workflow.items)) {
 		return { ok: false, filesUpdated: [], error: "workflow.items must be an array" };
@@ -324,6 +333,8 @@ export async function writeWorkflow(root: string, options: WriteWorkflowOptions)
 			primaryItemId: primaryItemId || workflow.items[0]?.id,
 			graveIssueCount: graveIssueCount > 0 ? graveIssueCount : undefined,
 			workspaceDir: resolution?.workspaceDir,
+			quiet,
+			confineWrites: confineAdapterWrites,
 		};
 		generateAdapters(root, workflow.tools, adapterOpts);
 

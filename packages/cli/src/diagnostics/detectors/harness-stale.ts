@@ -1,15 +1,9 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { adapterDiagnosticFiles } from "../../adapters/registry.js";
 import type { Detector, DiagnosticResult } from "../types.js";
 
-const ADAPTER_FILES: Record<string, { path: string; format: "at" | "text" }> = {
-	cursor: { path: ".cursorrules", format: "at" },
-	"claude-code": { path: "CLAUDE.md", format: "text" },
-	windsurf: { path: ".windsurfrules", format: "at" },
-	vscode: { path: ".github/copilot-instructions.md", format: "text" },
-	opencode: { path: "AGENTS.md", format: "text" },
-	hermes: { path: ".hermes/instructions.md", format: "text" },
-};
+const ADAPTER_FILES = adapterDiagnosticFiles();
 
 export const harnessStaleDetector: Detector = {
 	name: "harness-stale",

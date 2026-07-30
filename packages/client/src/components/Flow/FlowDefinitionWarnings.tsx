@@ -20,7 +20,7 @@ export function FlowDefinitionWarnings({ activeFlow }: Props) {
 							key={`${warning.code}-${warning.artifactRef ?? index}`}
 							className="grid grid-cols-1 items-start gap-1.5 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-2"
 						>
-							<Badge variant="outline" className="w-fit max-w-full break-all text-[10px]">
+							<Badge variant="info" className="w-fit max-w-full break-all text-caption">
 								{warning.code}
 							</Badge>
 							<span>

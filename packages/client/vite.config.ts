@@ -20,6 +20,13 @@ export default defineConfig({
 	server: {
 		proxy: {
 			"/api": "http://localhost:3000",
+			"/events": {
+				target: "http://localhost:3000",
+				changeOrigin: true,
+				headers: {
+					Accept: "text/event-stream",
+				},
+			},
 		},
 	},
 });

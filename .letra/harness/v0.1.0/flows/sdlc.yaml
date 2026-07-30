@@ -11,7 +11,7 @@ stages:
     zone: todo
     description: Item registrado, aguardando priorização.
     agents: []
-    gate: null
+    gate: gates/has-spec-file.yaml
 
   - id: spec-draft
     name: Spec Draft
@@ -28,6 +28,14 @@ stages:
     description: Humano aprova ou rejeita a especificação.
     agents: ["reviewer"]
     gate: gates/human-approved-spec.yaml
+
+  - id: frontend-review
+    name: Frontend Review
+    order: 3.5
+    zone: doing
+    description: Valida conformidade com o Design System canônico do Letra (layout tokens, componentes, semântica visual, light theme e AppShell).
+    agents: ["reviewer"]
+    gate: gates/frontend-ds-conformance.yaml
 
   - id: code
     name: Code

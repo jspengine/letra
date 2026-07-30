@@ -25,12 +25,12 @@ const STATUS_ICON: Record<StageStatus, IconName | null> = {
 };
 
 const STATUS_COLOR: Record<StageStatus, string> = {
-	idle: "var(--muted-foreground)",
-	running: "var(--primary)",
-	done: "var(--success)",
-	failed: "var(--error)",
-	blocked: "var(--gate-blocked)",
-	waiting: "var(--gate-waiting)",
+	idle: "var(--color-text-secondary)",
+	running: "var(--color-primary)",
+	done: "var(--color-success)",
+	failed: "var(--color-danger)",
+	blocked: "var(--color-danger)",
+	waiting: "var(--color-warning)",
 };
 
 export function StageNode({ stage }: { stage: StageNodeData }) {
@@ -38,7 +38,7 @@ export function StageNode({ stage }: { stage: StageNodeData }) {
 	return (
 		<div
 			className={cn(
-				"flex flex-col items-center gap-1.5 min-w-[80px] px-2 py-2 rounded-lg transition-all duration-200",
+				"flex flex-col items-center gap-1.5 min-w-[80px] px-2 py-2 rounded-[var(--radius-sm)] transition-all duration-200",
 				isActive && "bg-primary/5",
 			)}
 		>
@@ -50,31 +50,31 @@ export function StageNode({ stage }: { stage: StageNodeData }) {
 				)}
 				style={{
 					background: stage.status === "done"
-						? "var(--success)"
+						? "var(--color-success)"
 						: stage.status === "failed"
-							? "var(--error)"
+							? "var(--color-danger)"
 							: stage.status === "blocked"
-								? "var(--gate-blocked)"
+								? "var(--color-danger)"
 								: isActive
-									? "var(--primary)"
-									: "var(--muted)",
-					color: stage.status === "idle" ? "var(--muted-foreground)" : "white",
+									? "var(--color-primary)"
+									: "var(--color-bg-surface)",
+					color: stage.status === "idle" ? "var(--color-text-secondary)" : "white",
 				}}
 			>
 				{STATUS_ICON[stage.status] ? (
 					<Icon name={STATUS_ICON[stage.status]!} size={16} />
 				) : (
-					<div className="w-2 h-2 rounded-full" style={{ background: "var(--muted-foreground)" }} />
+					<div className="w-2 h-2 rounded-full" style={{ background: "var(--color-text-secondary)" }} />
 				)}
 			</div>
 			<span
 				className="text-[11px] font-medium text-center leading-tight"
-				style={{ color: isActive ? "var(--primary)" : "var(--muted-foreground)" }}
+				style={{ color: isActive ? "var(--color-primary)" : "var(--color-text-secondary)" }}
 			>
 				{stage.label}
 			</span>
 			{stage.agent && (
-				<span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+				<span className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
 					{stage.agent}
 				</span>
 			)}
@@ -93,14 +93,14 @@ export default function PipelineStatus({ stages }: Props) {
 			<CardContent className="p-0">
 				<div className="flex items-center justify-between mb-4">
 					<div className="flex items-center gap-2">
-						<Icon name="bar-chart" size={16} style={{ color: "var(--primary)" }} />
+						<Icon name="bar-chart" size={16} style={{ color: "var(--color-primary)" }} />
 						<span className="text-sm font-semibold">Pipeline</span>
 					</div>
-					<div className="flex items-center gap-2 text-xs" style={{ color: "var(--muted-foreground)" }}>
+					<div className="flex items-center gap-2 text-xs" style={{ color: "var(--color-text-secondary)" }}>
 						<span>{doneCount}/{totalCount} concluídos</span>
 						<span
 							className="font-semibold"
-							style={{ color: progressPct === 100 ? "var(--success)" : "var(--primary)" }}
+							style={{ color: progressPct === 100 ? "var(--color-success)" : "var(--color-primary)" }}
 						>
 							{progressPct}%
 						</span>
@@ -118,10 +118,10 @@ export default function PipelineStatus({ stages }: Props) {
 									className="w-4 h-px shrink-0"
 									style={{
 										background: stage.status === "done"
-											? "var(--success)"
+											? "var(--color-success)"
 											: currentIdx > 0 && idx < currentIdx
-												? "var(--success)"
-												: "var(--border)",
+												? "var(--color-success)"
+												: "var(--color-border)",
 									}}
 								/>
 							)}

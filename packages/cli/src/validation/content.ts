@@ -310,6 +310,16 @@ export function checkConflicts(
 	config: Config,
 ): { label: string; passed: boolean; message: string }[] {
 	const results: { label: string; passed: boolean; message: string }[] = [];
+	const conflictGroups = new Map<
+		string,
+		{
+			specA: string;
+			specB: string;
+			criteriaA: Set<string>;
+			criteriaB: Set<string>;
+			occurrences: number;
+		}
+	>();
 	const entries = readdirSync(specsDir, { withFileTypes: true });
 	const specDirs = entries
 		.filter((e) => e.isDirectory() && !e.name.startsWith("_"))
@@ -339,18 +349,40 @@ export function checkConflicts(
 			for (const acA of a.acs) {
 				for (const acB of b.acs) {
 					if (detectConflict(acA, acB)) {
-						results.push({
-							label: "Validate Conflict",
-							passed: false,
-							message: `Conflito: "${a.name}" AC "${acA}" vs "${b.name}" AC "${acB}"`,
-						});
+						const key = `${a.name}\u0000${b.name}`;
+						const group = conflictGroups.get(key) ?? {
+							specA: a.name,
+							specB: b.name,
+							criteriaA: new Set<string>(),
+							criteriaB: new Set<string>(),
+							occurrences: 0,
+						};
+						group.criteriaA.add(acA);
+						group.criteriaB.add(acB);
+						group.occurrences++;
+						conflictGroups.set(key, group);
 					}
 				}
 			}
 		}
 	}
 
-	if (results.length === 0) {
+	for (const group of conflictGroups.values()) {
+		const occurrenceLabel = group.occurrences === 1 ? "ocorrência" : "ocorrências";
+		const criteriaA = [...group.criteriaA].map((criterion) => `"${criterion}"`).join("; ");
+		const criteriaB = [...group.criteriaB].map((criterion) => `"${criterion}"`).join("; ");
+		results.push({
+			label: "Validate Conflict",
+			passed: false,
+			message:
+				`Conflito: ${group.occurrences} ${occurrenceLabel} entre ` +
+				`"${group.specA}" e "${group.specB}". ` +
+				`ACs de "${group.specA}": ${criteriaA}. ` +
+				`ACs de "${group.specB}": ${criteriaB}.`,
+		});
+	}
+
+	if (conflictGroups.size === 0) {
 		results.push({
 			label: "Validate Conflict",
 			passed: true,

@@ -13,8 +13,9 @@ export function ScrollArea({
 }: ScrollAreaProps) {
 	return (
 		<div
+			data-slot="scroll-area"
 			className={cn(
-				"relative",
+				"relative h-full min-h-0 overflow-hidden rounded-[inherit]",
 				type === "always" && "scrollbar",
 				type === "auto" && "scrollbar-auto",
 				type === "hover" && "scrollbar-hover",
@@ -22,7 +23,7 @@ export function ScrollArea({
 			)}
 			{...props}
 		>
-			{children}
+			<div className="h-full min-h-0 w-full overflow-auto rounded-[inherit]">{children}</div>
 		</div>
 	);
 }
@@ -60,7 +61,8 @@ export function ScrollAreaViewport({
 }: HTMLAttributes<HTMLDivElement>) {
 	return (
 		<div
-			className={cn("h-full w-full rounded-[inherit]", className)}
+			className={cn("min-h-full w-full rounded-[inherit]", className)}
+			data-slot="scroll-area-viewport"
 			{...props}
 		>
 			{children}

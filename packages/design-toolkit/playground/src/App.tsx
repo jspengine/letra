@@ -128,7 +128,7 @@ export default function App() {
 						Catálogo visual de componentes — Letra Design System
 					</p>
 				</div>
-				<Button variant="outline" size="sm" onClick={toggleTheme}>
+				<Button variant="secondary" size="sm" onClick={toggleTheme}>
 					<Icon name={theme === "dark" ? "sun" : "moon"} size={14} className="mr-1" />
 					{theme === "dark" ? "Light" : "Dark"}
 				</Button>
@@ -140,7 +140,7 @@ export default function App() {
 					<button
 						key={n.id}
 						onClick={() => setSection(n.id)}
-						className="text-sm px-3 py-1.5 rounded-lg transition-all duration-150"
+						className="text-sm px-3 py-1.5 rounded-[var(--radius-sm)] transition-all duration-150"
 						style={{
 							background: section === n.id ? "var(--primary)" : "var(--surface-2)",
 							color:
@@ -265,7 +265,7 @@ export default function App() {
 					<div className="flex flex-wrap gap-3 items-center">
 						<Button variant="default">Default</Button>
 						<Button variant="secondary">Secondary</Button>
-						<Button variant="outline">Outline</Button>
+						<Button variant="secondary">Outline</Button>
 						<Button variant="ghost">Ghost</Button>
 					</div>
 					<div className="flex flex-wrap gap-3 items-center mt-3">
@@ -280,7 +280,7 @@ export default function App() {
 						<Button variant="default" disabled>
 							Disabled
 						</Button>
-						<Button variant="outline" disabled>
+						<Button variant="secondary" disabled>
 							Disabled
 						</Button>
 					</div>
@@ -297,11 +297,11 @@ export default function App() {
 				<section className="mb-12">
 					<h2 className="text-xl font-bold mb-4">Badge</h2>
 					<div className="flex flex-wrap gap-2 items-center">
-						<Badge variant="default">default</Badge>
-						<Badge variant="secondary">secondary</Badge>
-						<Badge variant="outline">outline</Badge>
+						<Badge variant="amber">default</Badge>
+						<Badge variant="info">secondary</Badge>
+						<Badge variant="info">outline</Badge>
 						<Badge variant="success">success</Badge>
-						<Badge variant="warning">warning</Badge>
+						<Badge variant="amber">warning</Badge>
 					</div>
 				</section>
 			)}
@@ -345,7 +345,7 @@ export default function App() {
 						{ICON_NAMES.map((name) => (
 							<div
 								key={name}
-								className="flex flex-col items-center gap-1 p-2 rounded-lg transition-all duration-150 hover:scale-110"
+								className="flex flex-col items-center gap-1 p-2 rounded-[var(--radius-sm)] transition-all duration-150 hover:scale-110"
 								style={{ background: "var(--surface-2)" }}
 							>
 								<Icon name={name} size={20} />
@@ -420,7 +420,7 @@ export default function App() {
 							)}
 						</Tabs>
 						<Tooltip content="Dica flutuante" position="top">
-							<Button variant="outline" size="sm">
+							<Button variant="secondary" size="sm">
 								Hover me
 							</Button>
 						</Tooltip>

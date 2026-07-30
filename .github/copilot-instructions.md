@@ -13,3 +13,10 @@ Read the following files before starting any task:
 - Execute `letra ac done <ID>` after implementing each AC
 - Follow the constitution.md rules strictly
 - Use formal tone in all generated content
+
+<!-- mermaid-ai-skills:start -->
+## Mermaid Diagrams
+
+When the user asks to create, edit, or visualize a diagram, follow the
+instructions in `.github/instructions/mermaid.instructions.md`.
+<!-- mermaid-ai-skills:end -->

@@ -1,0 +1,122 @@
+id: sdlc
+version: 0.1.3
+name: Software Development Life Cycle
+description: Fluxo padrão para desenvolvimento de software com gates humanos e automatizados.
+defaultPolicy: policies/sdlc-default.json
+
+stages:
+  - id: backlog
+    name: Backlog
+    order: 0
+    zone: todo
+    description: Item registrado, aguardando priorização.
+    agents: []
+    gate: null
+
+  - id: spec-draft
+    name: Spec Draft
+    order: 1
+    zone: doing
+    description: Agente gera rascunho de especificação a partir do ticket.
+    agents: ["analyst"]
+    gate: null
+
+  - id: spec-review
+    name: Spec Review
+    order: 2
+    zone: doing
+    description: Humano aprova ou rejeita a especificação.
+    agents: ["reviewer"]
+    gate: gates/human-approved-spec.yaml
+
+  - id: code
+    name: Code
+    order: 3
+    zone: doing
+    description: Implementação das mudanças aprovadas.
+    agents: ["builder"]
+    gate: null
+
+  - id: code-review
+    name: Code Review
+    order: 4
+    zone: doing
+    description: Revisão de diff, comentários, aprovação final.
+    agents: ["reviewer"]
+    gate: gates/human-approved-code.yaml
+    phases:
+      initialState: auto-review
+      states:
+        auto-review:
+          id: auto-review
+          label: Auto Review
+          description: Agente revisa o diff e encontra issues
+          actions:
+            - type: agent-prompt
+              prompt: Revise o diff e liste issues encontradas
+          transitions:
+            - target: code-fix
+              auto: true
+            - target: human-review
+          harness:
+            instructions: Foque em encontrar bugs, violações de spec e problemas de segurança
+            checks:
+              - diff contra spec
+              - testes passando
+              - code style
+        code-fix:
+          id: code-fix
+          label: Code Fix
+          description: Agente corrige issues encontradas
+          actions:
+            - type: command
+              cmd: npm run fix
+          transitions:
+            - target: re-review
+        re-review:
+          id: re-review
+          label: Re-Review
+          description: Agente verifica se correções foram aplicadas
+          actions:
+            - type: generate-report
+              template: review-report
+          transitions:
+            - target: auto-review
+            - target: human-review
+              auto: true
+        human-review:
+          id: human-review
+          label: Human Review
+          description: Humano aprova ou rejeita as mudanças
+          actions:
+            - type: notify-human
+              message: Código pronto para revisão humana
+            - type: wait-human
+              gate: human-approved-code
+          transitions:
+            - target: code-fix
+            - target: __EXIT__
+
+  - id: security
+    name: Security
+    order: 5
+    zone: doing
+    description: Scan de vulnerabilidades, análise de dependências.
+    agents: ["security"]
+    gate: gates/security-clear.yaml
+
+  - id: ready-to-pr
+    name: Ready to PR
+    order: 6
+    zone: doing
+    description: Gera descrição, adiciona checks, cria PR.
+    agents: ["pr-bot"]
+    gate: gates/all-acs-passing.yaml
+
+  - id: done
+    name: Done
+    order: 7
+    zone: done
+    description: PR mergeado, ciclo concluído.
+    agents: []
+    gate: null

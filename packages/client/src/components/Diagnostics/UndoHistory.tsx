@@ -94,11 +94,11 @@ export default function UndoHistory({ visible, onClose }: UndoHistoryProps) {
 		<Dialog open={visible} onClose={onClose} title="Histórico de Correções">
 			<div className="flex-1 overflow-y-auto max-h-[50vh]">
 				{loading ? (
-					<div className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+					<div className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
 						Carregando...
 					</div>
 				) : snapshots.length === 0 ? (
-					<div className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+					<div className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
 						Nenhuma correção automática registrada ainda.
 					</div>
 				) : (
@@ -106,7 +106,7 @@ export default function UndoHistory({ visible, onClose }: UndoHistoryProps) {
 						<div key={date} className="mb-4">
 							<div
 								className="text-xs font-semibold mb-2"
-								style={{ color: "var(--muted-foreground)" }}
+								style={{ color: "var(--color-text-secondary)" }}
 							>
 								{date}
 							</div>
@@ -118,7 +118,7 @@ export default function UndoHistory({ visible, onClose }: UndoHistoryProps) {
 									<div
 										key={snap.id}
 										className="flex items-start gap-2 py-2 border-b text-sm"
-										style={{ borderColor: "var(--border)" }}
+										style={{ borderColor: "var(--color-border)" }}
 									>
 										<span>{icon}</span>
 										<div className="flex-1 min-w-0">
@@ -127,7 +127,7 @@ export default function UndoHistory({ visible, onClose }: UndoHistoryProps) {
 											</div>
 											<div
 												className="text-xs"
-												style={{ color: "var(--muted-foreground)" }}
+												style={{ color: "var(--color-text-secondary)" }}
 											>
 												{snap.files.map((f) => f.path).join(", ")}
 											</div>
@@ -138,8 +138,8 @@ export default function UndoHistory({ visible, onClose }: UndoHistoryProps) {
 											className="shrink-0 text-xs px-2 py-1 rounded font-medium transition-colors"
 											style={{
 												background:
-													"color-mix(in oklch, var(--error) 15%, transparent)",
-												color: "var(--error)",
+													"color-mix(in oklch, var(--color-danger) 15%, transparent)",
+												color: "var(--color-danger)",
 											}}
 										>
 											Desfazer

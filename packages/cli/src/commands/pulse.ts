@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { execSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
 import chalk from "chalk";
 import { Command } from "commander";
@@ -8,6 +9,7 @@ import { loadWorkflow } from "./flow-init.js";
 import type { Workflow, Item } from "./flow-init.js";
 import { loadHealthRecord, getSummary } from "../health-record.js";
 import { readFocusFile, syncFocus } from "../adapters/focus-sync.js";
+import { resolveFocusRecommendations } from "../adapters/focus-recommendations.js";
 import { resolveWorkspaceRoot } from "../workspace/resolver.js";
 
 export interface PulseData {
@@ -122,7 +124,7 @@ export async function pulse(
 		if (options?.json) {
 			console.log(JSON.stringify(empty, null, 2));
 		} else {
-			renderPulseText(empty);
+			renderPulseText(empty, false, statePath);
 		}
 		return empty;
 	}
@@ -173,7 +175,11 @@ export async function pulse(
 	};
 
 	const focusRoot = resolution.type === "local" ? rootPath : statePath;
-	const focusResult = syncFocus(focusRoot, workflow);
+	const focusResult = syncFocus(
+		focusRoot,
+		workflow,
+		currentItem ? resolveFocusRecommendations(focusRoot, currentItem.id) : [],
+	);
 	if (focusResult.cleared) {
 		console.log(chalk.yellow("  focus.md limpo — item referenciado não encontrado no workflow"));
 	}
@@ -188,13 +194,13 @@ export async function pulse(
 		const pulseJson = { ...pulseData, focusDiverged };
 		console.log(JSON.stringify(pulseJson, null, 2));
 	} else {
-		renderPulseText(pulseData, focusDiverged);
+		renderPulseText(pulseData, focusDiverged, statePath);
 	}
 
 	return pulseData;
 }
 
-function renderPulseText(data: PulseData, focusDiverged?: boolean): void {
+function renderPulseText(data: PulseData, focusDiverged = false, statePath?: string): void {
 	const dateStr = new Date(data.pulseAt).toLocaleDateString("pt-BR", {
 		day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
 	});
@@ -207,6 +213,9 @@ function renderPulseText(data: PulseData, focusDiverged?: boolean): void {
 	if (data.currentItem) {
 		const ci = data.currentItem;
 		console.log(`  ${chalk.bold("Item em andamento:")}`);
+		if (statePath) {
+			console.log(`    ${chalk.gray(`Workflow: ${pathToFileURL(join(statePath, "workflow.json")).href}`)}`);
+		}
 		console.log(`    ${chalk.cyan(ci.id)} · ${ci.description}`);
 		const agentInfo = ci.claimedBy ? ` 🤖 Agent: ${ci.claimedBy}` : "";
 		console.log(`    ${chalk.gray(`Estágio: ${ci.stageName} · ${ci.daysInStage} dia(s) no estágio${agentInfo}`)}`);
@@ -215,7 +224,10 @@ function renderPulseText(data: PulseData, focusDiverged?: boolean): void {
 			console.log(`    ${chalk.gray(`Tasks: ${ci.tasks.open}/${ci.tasks.total} abertas (${ci.tasks.done} feita(s))`)}`);
 		}
 		if (ci.spec) {
-			console.log(`    ${chalk.gray(`Spec: .letra/specs/${ci.spec}/spec.md`)}`);
+			const specReference = statePath
+				? pathToFileURL(join(statePath, "specs", ci.spec, "spec.md")).href
+				: `.letra/specs/${ci.spec}/spec.md`;
+			console.log(`    ${chalk.gray(`Spec: ${specReference}`)}`);
 		} else {
 			console.log(`    ${chalk.yellow("⚠ sem spec associada")}`);
 		}

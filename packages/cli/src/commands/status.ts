@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import chalk from "chalk";
 import { detectManifest, listWorkspaces, loadWorkspaceInfo, getWorkspacePath } from "../workspace/index.js";
 
@@ -19,6 +20,7 @@ export async function status(cwd?: string): Promise<void> {
 		console.log(`  ${chalk.bold("Harness:")}    ${m.harnessVersion}`);
 		console.log(`  ${chalk.bold("Gates:")}      ${m.gates.join(", ")}`);
 		console.log(`  ${chalk.bold("Repos:")}      ${m.repositories.length}`);
+		console.log(`  ${chalk.bold("Manifest:")}   ${pathToFileURL(manifest.path).href}`);
 
 		const wsPath = getWorkspacePath(m.workspaceId);
 		if (existsSync(wsPath)) {
@@ -42,6 +44,7 @@ export async function status(cwd?: string): Promise<void> {
 				console.log(`    ID: ${ws.id}`);
 				console.log(`    Template: ${ws.templateId}`);
 				console.log(`    Criado: ${new Date(ws.createdAt).toLocaleDateString()}`);
+				console.log(`    Arquivo: ${pathToFileURL(getWorkspacePath(ws.name) + "/workspace.json").href}`);
 				console.log();
 			}
 		}

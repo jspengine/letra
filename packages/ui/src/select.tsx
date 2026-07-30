@@ -9,6 +9,7 @@ import {
 	type ButtonHTMLAttributes,
 	type ReactNode,
 } from "react";
+import { Icon } from "./icon";
 import { cn } from "./utils";
 
 interface SelectContextValue {
@@ -91,31 +92,16 @@ export function SelectTrigger({
 	return (
 		<button
 			className={cn(
-				"flex h-9 w-full items-center justify-between whitespace-nowrap rounded-lg border bg-transparent px-3 py-2 text-sm shadow-sm transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50",
+				"flex h-9 w-full items-center justify-between whitespace-nowrap rounded-[var(--radius-sm)] border-[length:var(--border-thin)] bg-transparent px-[var(--space-3)] py-[var(--space-2)] text-sm shadow-sm transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:bg-[var(--color-bg-sunken)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] disabled:cursor-not-allowed disabled:opacity-50",
 				className,
 			)}
-			style={{ borderColor: "var(--border)" }}
+			style={{ borderColor: "var(--color-border)" }}
 			type="button"
 			onClick={() => setOpen(!open)}
 			{...props}
 		>
-			{children ?? (placeholder ? <span className="text-muted-foreground">{placeholder}</span> : null)}
-			<svg
-				width="16"
-				height="16"
-				viewBox="0 0 16 16"
-				fill="none"
-				xmlns="http://www.w3.org/2000/svg"
-				className={cn("opacity-50 transition-transform", open && "rotate-180")}
-			>
-				<path
-					d="M4 6 L8 10 L12 6"
-					stroke="currentColor"
-					strokeWidth="1.5"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-				/>
-			</svg>
+			{children ?? (placeholder ? <span style={{ color: "var(--color-text-secondary)" }}>{placeholder}</span> : null)}
+			<Icon name="chevron-down" size={16} className={cn("opacity-50 transition-transform", open && "rotate-180")} />
 		</button>
 	);
 }
@@ -135,10 +121,10 @@ export function SelectContent({
 	return (
 		<div
 			className={cn(
-				"absolute z-50 min-w-[8rem] overflow-hidden rounded-lg border bg-card p-1 shadow-md mt-1 w-full",
+				"absolute z-50 min-w-[8rem] overflow-hidden rounded-[var(--radius-xs)] border-[length:var(--border-thin)] bg-card p-[var(--space-2)] shadow-md mt-1 w-full",
 				className,
 			)}
-			style={{ borderColor: "var(--border)", background: "var(--card)" }}
+			style={{ borderColor: "var(--color-border)", background: "var(--color-bg-surface)" }}
 			{...props}
 		>
 			{children}
@@ -161,10 +147,11 @@ export function SelectItem({
 	return (
 		<button
 			className={cn(
-				"relative flex w-full cursor-default select-none items-center rounded-md px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted focus:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-				isSelected && "bg-primary/10 text-primary",
-				className,
-			)}
+						"relative flex w-full cursor-default select-none items-center rounded-[var(--radius-xs)] px-[var(--space-2)] py-[var(--space-1)] text-sm outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:bg-[var(--color-bg-sunken)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+						isSelected && "bg-[var(--color-primary)]/10",
+						className,
+					)}
+					style={{ color: isSelected ? "var(--color-primary)" : "var(--color-text-primary)" }}
 			type="button"
 			role="option"
 			aria-selected={isSelected}

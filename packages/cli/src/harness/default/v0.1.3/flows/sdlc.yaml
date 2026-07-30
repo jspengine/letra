@@ -1,0 +1,179 @@
+id: sdlc
+version: 0.1.3
+name: Software Development Life Cycle
+description: Fluxo padrão para desenvolvimento de software com gates humanos e automatizados.
+defaultPolicy: policies/sdlc-default.json
+
+stages:
+  - id: backlog
+    name: Backlog
+    order: 0
+    zone: todo
+    description: Item registrado, aguardando priorização.
+    agents: []
+    gate: null
+
+  - id: spec-draft
+    name: Spec Draft
+    order: 1
+    zone: doing
+    description: Agente gera rascunho de especificação a partir do ticket.
+    agents: ["analyst"]
+    gate: null
+
+  - id: spec-review
+    name: Spec Review
+    order: 2
+    zone: doing
+    description: Humano aprova ou rejeita a especificação.
+    agents: ["reviewer"]
+    gate: gates/human-approved-spec.yaml
+    activity:
+      gate:
+        label: Aprovação de direção/spec
+        evidence: outcome, constraints, exclusions e decisões em aberto
+        decision: Aprovação de direção/spec
+        signalCode: spec-approval
+
+  - id: code
+    name: Code
+    order: 3
+    zone: doing
+    description: Implementação das mudanças aprovadas.
+    agents: ["builder"]
+    gate: null
+
+  - id: code-review
+    name: Code Review
+    order: 4
+    zone: doing
+    description: Revisão de diff, comentários, aprovação final.
+    agents: ["reviewer"]
+    gate: gates/human-approved-code.yaml
+    activity:
+      gate:
+        label: Aprovação de revisão
+        evidence: issues abertas, aderência à spec, riscos e sinais operacionais
+        decision: Aprovação de revisão
+        signalCode: gate-review
+      review:
+        label: Revisão do item atual
+        emphasis: aderência à spec, riscos e evidências do trabalho entregue
+        riskFocus: Destacar bugs, regressões e violações de processo antes de aprovar.
+        evidencePrompt: Verificar se testes, sinais e logs recentes sustentam a revisão.
+        signalCode: review-stage
+    phases:
+      initialState: auto-review
+      states:
+        auto-review:
+          id: auto-review
+          label: Auto Review
+          description: Agente revisa o diff e encontra issues
+          actions:
+            - type: agent-prompt
+              prompt: Revise o diff e liste issues encontradas
+          transitions:
+            - target: code-fix
+              auto: true
+            - target: human-review
+          harness:
+            instructions: Foque em encontrar bugs, violações de spec e problemas de segurança
+            checks:
+              - diff contra spec
+              - testes passando
+              - code style
+            review:
+              label: Auto Review
+              emphasis: diff contra spec, testes passando, code style
+              riskFocus: Confirmar se o diff introduziu bugs, regressões ou violações de processo.
+              evidencePrompt: Verificar se testes, sinais e logs recentes sustentam a revisão automática.
+              signalCode: review-phase-auto-review
+        code-fix:
+          id: code-fix
+          label: Code Fix
+          description: Agente corrige issues encontradas
+          actions:
+            - type: command
+              cmd: npm run fix
+          harness:
+            review:
+              label: Code Fix
+              emphasis: corrigir os problemas encontrados antes de seguir
+              riskFocus: Confirmar se correções realmente eliminaram os problemas anteriores.
+              evidencePrompt: Verificar se a correção cobre os problemas anteriores com evidências claras.
+              signalCode: review-phase-code-fix
+          transitions:
+            - target: re-review
+        re-review:
+          id: re-review
+          label: Re-Review
+          description: Agente verifica se correções foram aplicadas
+          actions:
+            - type: generate-report
+              template: review-report
+          harness:
+            review:
+              label: Re-Review
+              emphasis: verificar se as correções fecharam o ciclo de revisão
+              riskFocus: Confirmar se ainda restam problemas após as correções.
+              evidencePrompt: Verificar se há evidências suficientes para retornar à revisão automática ou humana.
+              signalCode: review-phase-re-review
+          transitions:
+            - target: auto-review
+            - target: human-review
+              auto: true
+        human-review:
+          id: human-review
+          label: Human Review
+          description: Humano aprova ou rejeita as mudanças
+          actions:
+            - type: notify-human
+              message: Código pronto para revisão humana
+            - type: wait-human
+              gate: human-approved-code
+          harness:
+            review:
+              label: Human Review
+              emphasis: aprovação final humana baseada em evidências explícitas
+              riskFocus: Destacar riscos residuais antes da aprovação final humana.
+              evidencePrompt: Verificar se há evidências suficientes para aprovação final humana.
+              signalCode: review-phase-human-review
+          transitions:
+            - target: code-fix
+            - target: __EXIT__
+
+  - id: security
+    name: Security
+    order: 5
+    zone: doing
+    description: Scan de vulnerabilidades, análise de dependências.
+    agents: ["security"]
+    gate: gates/security-clear.yaml
+    activity:
+      gate:
+        label: Liberação de segurança
+        evidence: alertas, achados e sinais de risco antes do avanço
+        decision: Liberação de segurança
+        signalCode: security-clearance
+
+  - id: ready-to-pr
+    name: Ready to PR
+    order: 6
+    zone: doing
+    description: Gera descrição, adiciona checks, cria PR.
+    agents: ["pr-bot"]
+    gate: gates/all-acs-passing.yaml
+    activity:
+      gate:
+        label: Aprovação para PR
+        evidence: ACs cumpridos, sinais limpos e evidências de entrega
+        decision: Aprovação para PR
+        signalCode: pr-readiness
+
+  - id: done
+    name: Done
+    order: 7
+    zone: done
+    description: PR mergeado, ciclo concluído.
+    agents: []
+    gate: null

@@ -15,25 +15,25 @@ export function ErrorBanner({ title, children, details, onRetry, className }: Er
 
 	return (
 		<div
-			className={cn("rounded-lg border text-sm", className)}
+			className={cn("rounded-[var(--radius-md)] border-[length:var(--border-thin)] text-body", className)}
 			style={{
-				background: "color-mix(in srgb, var(--error) 10%, transparent)",
-				borderColor: "var(--error)",
+				background: "color-mix(in srgb, var(--color-danger) 10%, transparent)",
+				borderColor: "var(--color-danger)",
 			}}
 			role="alert"
 		>
-			<div className="flex items-start gap-2.5 p-3">
-				<Icon name="x-circle" size={16} className="shrink-0 mt-0.5" style={{ color: "var(--error)" }} />
-				<div className="flex-1 min-w-0" style={{ color: "var(--foreground)" }}>
+			<div className="flex items-start gap-[var(--space-2)] p-[var(--space-3)]">
+				<Icon name="x-circle" width="var(--icon-md)" height="var(--icon-md)" className="shrink-0 mt-0.5" style={{ color: "var(--color-danger)" }} />
+				<div className="flex-1 min-w-0" style={{ color: "var(--color-text-primary)" }}>
 					{title && <strong className="block font-semibold mb-0.5">{title}</strong>}
 					<div>{children}</div>
 				</div>
-				<div className="flex items-center gap-1 shrink-0">
+				<div className="flex items-center gap-[var(--space-1)] shrink-0">
 					{onRetry && (
 						<button
 							onClick={onRetry}
-							className="text-xs font-medium px-2 py-1 rounded transition-colors hover:opacity-80"
-							style={{ background: "color-mix(in srgb, var(--error) 15%, transparent)", color: "var(--error)" }}
+							className="text-caption font-medium px-[var(--space-2)] py-[var(--space-1)] rounded transition-colors hover:opacity-80"
+							style={{ background: "color-mix(in srgb, var(--color-danger) 15%, transparent)", color: "var(--color-danger)" }}
 						>
 							Tentar novamente
 						</button>
@@ -41,24 +41,24 @@ export function ErrorBanner({ title, children, details, onRetry, className }: Er
 					{details && (
 						<button
 							onClick={() => setExpanded(!expanded)}
-							className="text-xs px-1.5 py-1 rounded transition-colors hover:opacity-80"
-							style={{ color: "var(--text-secondary)" }}
+							className="text-caption px-[var(--space-1)] py-[var(--space-1)] rounded transition-colors hover:opacity-80"
+							style={{ color: "var(--color-text-secondary)" }}
 							aria-label={expanded ? "Recolher detalhes" : "Expandir detalhes"}
 							aria-expanded={expanded}
 						>
-							<Icon name={expanded ? "chevron-up" : "chevron-down"} size={14} />
+							<Icon name={expanded ? "chevron-up" : "chevron-down"} width="var(--icon-sm)" height="var(--icon-sm)" />
 						</button>
 					)}
 				</div>
 			</div>
 			{details && expanded && (
 				<div
-					className="px-3 pb-3 pt-0 text-xs"
-					style={{ color: "var(--text-secondary)" }}
+					className="px-[var(--space-3)] pb-[var(--space-3)] pt-0 text-caption"
+					style={{ color: "var(--color-text-secondary)" }}
 				>
 					<pre
-						className="p-2 rounded whitespace-pre-wrap break-words max-h-48 overflow-y-auto"
-						style={{ background: "color-mix(in srgb, var(--surface-1) 50%, transparent)", fontFamily: "var(--font-code)" }}
+						className="p-[var(--space-2)] rounded whitespace-pre-wrap break-words max-h-48 overflow-y-auto"
+						style={{ background: "color-mix(in srgb, var(--color-bg-sunken) 50%, transparent)", fontFamily: "var(--font-code)" }}
 					>
 						{details}
 					</pre>

@@ -3,6 +3,7 @@ import { basename, join } from "node:path";
 import { parseSimpleYaml } from "./parse";
 import type {
 	ActivityActionHint,
+	ActivityCommandHint,
 	ActivityHintConfig,
 	ActivityReferenceHint,
 	GateExpectationConfig,
@@ -34,6 +35,20 @@ function unwrapStages(value: unknown): any[] {
 	if (Array.isArray(value)) return value;
 	if (value && typeof value === "object" && Array.isArray((value as any).stages)) return (value as any).stages;
 	return [];
+}
+
+function normalizeGateDecisions(
+	value: unknown,
+): HarnessManifest["gates"][string]["decisions"] {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+	const raw = value as Record<string, unknown>;
+	const decisions: NonNullable<HarnessManifest["gates"][string]["decisions"]> = {};
+	for (const decision of ["approve", "request-changes", "reject"] as const) {
+		if (typeof raw[decision] === "string" && raw[decision].trim()) {
+			decisions[decision] = raw[decision].trim();
+		}
+	}
+	return Object.keys(decisions).length > 0 ? decisions : undefined;
 }
 
 function normalizePhaseTransitions(value: unknown): PhaseTransition[] | undefined {
@@ -139,6 +154,22 @@ function normalizeActionHints(value: unknown): ActivityActionHint[] | undefined 
 	return hints;
 }
 
+function normalizeCommandHints(value: unknown): ActivityCommandHint[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const hints = value.flatMap((entry) => {
+		if (!entry || typeof entry !== "object") return [];
+		const raw = entry as Record<string, unknown>;
+		return typeof raw.command === "string" && typeof raw.label === "string"
+			? [{
+					command: raw.command,
+					label: raw.label,
+					description: typeof raw.description === "string" ? raw.description : undefined,
+				}]
+			: [];
+	});
+	return hints;
+}
+
 function applyCommonActivityHints(
 	raw: Record<string, unknown>,
 	config: ActivityHintConfig,
@@ -151,6 +182,8 @@ function applyCommonActivityHints(
 	}
 	const nextActions = normalizeActionHints(raw.nextActions);
 	if (nextActions !== undefined) config.nextActions = nextActions;
+	const commands = normalizeCommandHints(raw.commands);
+	if (commands !== undefined) config.commands = commands;
 }
 
 function normalizeActivityHint(value: unknown): ActivityHintConfig | undefined {
@@ -286,6 +319,7 @@ export function loadHarness(root: string): HarnessManifest | null {
 				blocking: raw.blocking === true,
 				policyRef: (raw.policyRef as string | undefined) ?? undefined,
 				description: String(raw.description ?? ""),
+				decisions: normalizeGateDecisions(raw.decisions),
 			};
 		}
 	}

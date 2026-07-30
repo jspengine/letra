@@ -17,10 +17,11 @@ export function Avatar({ className, size = "md", children, ...props }: AvatarPro
 	return (
 		<div
 			className={cn(
-				"relative flex shrink-0 overflow-hidden rounded-full",
+				"relative flex shrink-0 overflow-hidden rounded-full border-[length:var(--border-thin)]",
 				sizeStyles[size],
 				className,
 			)}
+			style={{ borderColor: "var(--color-border)", background: "var(--color-bg-sunken)" }}
 			{...props}
 		>
 			{children}
@@ -41,24 +42,30 @@ export function AvatarImage({ className, ...props }: AvatarImageProps) {
 
 interface AvatarFallbackProps extends HTMLAttributes<HTMLSpanElement> {
 	delayMs?: number;
+	size?: Size;
 }
 
 export function AvatarFallback({
 	className,
 	delayMs,
+	size = "md",
 	children,
 	...props
 }: AvatarFallbackProps) {
 	return (
 		<span
 			className={cn(
-				"flex items-center justify-center rounded-full bg-muted font-medium ring-2 ring-background",
+				"flex items-center justify-center rounded-full font-medium",
+				sizeStyles[size],
 				className,
 			)}
-			style={{ animationDelay: `${delayMs ?? 0}ms` }}
+			style={{
+				background: "color-mix(in srgb, var(--color-text-secondary) 20%, transparent)",
+				color: "var(--color-text-primary)",
+			}}
 			{...props}
 		>
 			{children}
 		</span>
 	);
-}
+}

@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { ResolvedSpec, Workflow, Item } from "@letra/types";
-import { Badge, Icon, Button, Progress, Tooltip } from "@letra/ui";
+import { Badge, Icon, Button, Progress, Card, CardContent, Tag } from "@letra/ui";
 import { cn } from "../../lib/utils";
-import { computeSlug, TYPE_COLORS } from "../../lib/item-utils";
+import { computeSlug } from "../../lib/item-utils";
 import {
 	doneStageIds,
 	humanGateStageIds,
@@ -27,16 +27,50 @@ interface Props {
 }
 
 function computeItemState(state: OperationalState): {
+	key: OperationalState;
 	label: string;
-	color: string;
+	variant: "amber" | "success" | "info" | "error" | "agent";
+	tagVariant: "default" | "agent" | "success" | "info" | "warning" | "danger";
+	action: string;
 	icon: "check-circle" | "clock" | "chevron-right" | "shield" | "circle";
 	animate: string;
 } {
-	if (state === "done") return { label: "Concluído", color: "var(--success)", icon: "check-circle", animate: "" };
-	if (state === "waiting") return { label: "Aguardando humano", color: "var(--gate-available)", icon: "clock", animate: "animate-timeline-dot" };
-	if (state === "blocked") return { label: "Bloqueado", color: "var(--gate-blocked)", icon: "shield", animate: "" };
-	if (state === "running") return { label: "Em execução", color: "var(--primary)", icon: "chevron-right", animate: "animate-agent-running" };
-	return { label: "Na fila", color: "var(--muted-foreground)", icon: "circle", animate: "" };
+	if (state === "done") return { key: state, label: "Concluído", variant: "success", tagVariant: "success", action: "Sem ação pendente", icon: "check-circle", animate: "" };
+	if (state === "waiting") return { key: state, label: "Precisa de atenção", variant: "amber", tagVariant: "warning", action: "Revisar decisão humana", icon: "clock", animate: "animate-timeline-dot" };
+	if (state === "blocked") return { key: state, label: "Bloqueado", variant: "error", tagVariant: "danger", action: "Examinar bloqueio", icon: "shield", animate: "" };
+	if (state === "running") return { key: state, label: "Em andamento", variant: "agent", tagVariant: "agent", action: "Acompanhar trabalho ativo", icon: "chevron-right", animate: "animate-agent-running" };
+	return { key: state, label: "Na fila", variant: "info", tagVariant: "default", action: "Aguardando responsável", icon: "circle", animate: "" };
+}
+
+function emptyStateForFilter(filter: string): { title: string; description: string } {
+	if (filter === "attention") {
+		return {
+			title: "Nenhum trabalho precisa de atenção agora.",
+			description: "Gates humanos e bloqueios aparecerão aqui quando exigirem revisão.",
+		};
+	}
+	if (filter === "running") {
+		return {
+			title: "Nenhum trabalho está em andamento.",
+			description: "Quando um item estiver associado a um ator, ele aparecerá neste recorte.",
+		};
+	}
+	if (filter === "queued") {
+		return {
+			title: "Nenhum trabalho está na fila.",
+			description: "Itens sem responsável declarado aparecerão aqui antes de entrarem em andamento.",
+		};
+	}
+	if (filter === "done") {
+		return {
+			title: "Nenhum trabalho concluído ainda.",
+			description: "Itens em estágios finais aparecerão neste recorte.",
+		};
+	}
+	return {
+		title: "Nenhum trabalho neste fluxo.",
+		description: "Crie um item quando houver algo para supervisionar.",
+	};
 }
 
 function ItemCard({
@@ -57,45 +91,77 @@ function ItemCard({
 	onDragEnd: (e: React.DragEvent) => void;
 }) {
 	const slug = computeSlug(item, specs, workflow);
-	const typeTag = item.id.startsWith("BUG") ? "BUG"
-		: item.id.startsWith("CHORE") ? "CHORE"
-		: item.id.startsWith("DOCS") ? "DOCS"
-		: "FEAT" as const;
-	const typeColor = TYPE_COLORS[typeTag];
 	const daysInStage = Math.floor((Date.now() - new Date(item.createdAt).getTime()) / 86400000);
 	const isHumanGate = humanGateStageIds(workflow, activeFlow).has(item.stage);
-	const doneStages = doneStageIds(workflow, activeFlow);
 	const state = computeItemState(itemOperationalState(item, workflow, activeFlow));
 
 	const linkedSpec = item.spec ? specs.find((s) => s.id === item.spec) : null;
-	const acProgress = linkedSpec ? (() => {
+	const progress = linkedSpec ? (() => {
 		const acDone = (linkedSpec.content.match(/-\s+\[x\]/g) || []).length;
 		const acTotal = (linkedSpec.content.match(/-\s+\[(\s|x)\]/g) || []).length;
-		return acTotal > 0 ? Math.round((acDone / acTotal) * 100) : 0;
+		return {
+			done: acDone,
+			total: acTotal,
+			label: acTotal > 0 ? `${acDone}/${acTotal} ACs` : "Sem ACs",
+			source: "Critérios",
+		};
 	})() : item.tasks && item.tasks.length > 0
-		? Math.round((item.tasks.filter((t) => t.done).length / item.tasks.length) * 100)
-		: 0;
+		? {
+			done: item.tasks.filter((task) => task.done).length,
+			total: item.tasks.length,
+			label: `${item.tasks.filter((task) => task.done).length}/${item.tasks.length} tarefas`,
+			source: "Tarefas",
+		}
+		: {
+			done: 0,
+			total: 0,
+			label: "Sem checklist",
+			source: "Evidência",
+		};
 
 	const resolvedStage = orderedStages(workflow, activeFlow).find((stage) => stage.id === item.stage);
 	const agentName = item.claimedBy ?? resolvedStage?.roles[0]?.label ?? "Não atribuído";
 	const agentAction = resolvedStage ? stageActionLabel(resolvedStage) : "Processando";
-	const isRunning = state.label === "Running" || state.label === "AI Review";
+	const isRunning = state.key === "running";
+	const hasProgress = progress.total > 0;
+	const progressValue = progress.total > 0 ? progress.done : 0;
+	const progressMax = progress.total > 0 ? progress.total : 1;
+	const progressState =
+		state.key === "blocked" ? "error"
+			: state.key === "waiting" ? "warning"
+				: state.key === "done" ? "complete"
+					: state.key === "running" ? "agent"
+						: "default";
+	const title = item.description?.trim() || linkedSpec?.id || slug;
+	const ageLabel = daysInStage === 0 ? "Hoje no fluxo" : `${daysInStage}d no fluxo`;
+	const cardBorder =
+		state.key === "blocked" ? "var(--color-danger)"
+			: state.key === "waiting" ? "var(--color-primary)"
+				: isRunning ? "var(--color-agent)"
+					: isHumanGate ? "var(--color-success)"
+						: "var(--color-border)";
+	const cardBackground =
+		state.key === "blocked" ? "color-mix(in oklch, var(--color-danger) 5%, var(--color-bg-surface))"
+			: state.key === "waiting" ? "color-mix(in oklch, var(--color-primary) 6%, var(--color-bg-surface))"
+				: isRunning ? "color-mix(in oklch, var(--color-agent) 5%, var(--color-bg-surface))"
+					: "var(--color-bg-surface)";
 
 	return (
-		<div
+		<Card
+			variant={isRunning ? "agent" : "default"}
 			className={cn(
-				"flex flex-col gap-1.5 p-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all duration-150 select-none bg-card hover:shadow-sm hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+				"app-board-card cursor-grab select-none active:cursor-grabbing hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
 				isHumanGate && "animate-human-pulse",
 				item.claimedBy && "ring-1",
-				isRunning && "bg-gradient-to-r from-card to-primary/[0.02]",
 			)}
-			style={{
-				borderColor: item.claimedBy ? "var(--live)" : isHumanGate ? "var(--gate-available)" : "var(--border)",
-			}}
+			style={{ borderColor: cardBorder, background: cardBackground }}
+			data-claimed={item.claimedBy ? "true" : "false"}
+			data-gate={isHumanGate ? "true" : "false"}
+			data-running={isRunning ? "true" : "false"}
 			draggable
 			role="button"
 			tabIndex={0}
-			aria-label={`Abrir ${item.id}: ${slug}`}
+			aria-label={`Abrir ${item.id}: ${title}`}
 			onClick={onClick}
 			onKeyDown={(event) => {
 				if (event.key === "Enter" || event.key === " ") {
@@ -106,40 +172,63 @@ function ItemCard({
 			onDragStart={onDragStart}
 			onDragEnd={onDragEnd}
 		>
-			<div className="flex items-center gap-1.5">
-				<Badge variant="secondary" className="text-[8px] px-1 py-0 font-mono shrink-0" style={{ color: typeColor, borderColor: `${typeColor}40` }}>
-					{typeTag}
-				</Badge>
-				<span className="text-[10px] font-mono truncate flex-1" style={{ color: "var(--foreground)" }}>{slug}</span>
-				<Badge variant="secondary" className={cn("text-[8px] px-1 py-0 shrink-0 gap-0.5", state.animate)} style={{ color: state.color, borderColor: `${state.color}40` }}>
-					<Icon name={state.icon} size={10} />
-					{state.label}
-				</Badge>
-			</div>
-
-			<div className="flex items-center gap-1.5">
-				<div aria-hidden="true" className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 text-[7px] font-bold" style={{ background: `color-mix(in oklch, var(--primary) 15%, transparent)`, color: "var(--primary)" }}>
-					{agentName.charAt(0).toUpperCase()}
+			<CardContent className="min-w-0 gap-3 p-3.5">
+				<div className="grid min-w-0 gap-2">
+					<div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+						<span className="min-w-0 truncate font-mono text-[11px] font-medium text-[var(--color-text-tertiary)]">
+							{item.id}
+						</span>
+						<Badge variant={state.variant} tone="soft" className={cn("max-w-full shrink-0", state.animate)} icon={state.icon}>
+							{state.label}
+						</Badge>
+					</div>
+					<h3 className="line-clamp-3 text-body-sm font-semibold leading-snug text-[var(--color-text-primary)]">
+						{title}
+					</h3>
 				</div>
-				<span className="text-[9px] font-medium truncate">{agentName}</span>
-				<span className="text-[8px] truncate" style={{ color: "var(--muted-foreground)" }}>{agentAction}</span>
-				{isRunning && (
-					<span className="w-1 h-1 rounded-full bg-[var(--primary)] animate-pulse shrink-0" />
-				)}
-			</div>
 
-			<div className="flex items-center gap-1">
-				<Progress value={acProgress} max={100} size="xs" className="flex-1" />
-				<span className="text-[8px] tabular-nums font-medium shrink-0" style={{ color: state.label === "Done" ? "var(--success)" : acProgress > 0 ? "var(--foreground)" : "var(--muted-foreground)" }}>
-					{state.label === "Done" ? "100%" : acProgress > 0 ? `${acProgress}%` : "0%"}
-				</span>
-				{isRunning && (
-					<span className="text-[7px] tabular-nums shrink-0" style={{ color: "var(--muted-foreground)" }}>
-						idade {daysInStage === 0 ? "hoje" : `${daysInStage}d`}
-					</span>
-				)}
-			</div>
-		</div>
+				<div className="grid gap-1.5">
+					<div className="flex min-w-0 flex-wrap items-center gap-1.5">
+						<Tag>{resolvedStage?.name ?? item.stage}</Tag>
+						<Tag>{ageLabel}</Tag>
+					</div>
+					<p className="line-clamp-2 text-caption leading-snug text-[var(--color-text-secondary)]">
+						{linkedSpec ? `Spec ${linkedSpec.id}` : `Evidência ${slug}`}
+					</p>
+				</div>
+
+				<div className="flex min-w-0 flex-wrap items-center gap-1.5 text-caption text-[var(--color-text-secondary)]">
+					<Tag variant={item.claimedBy ? "agent" : "default"}>
+						<Icon name={item.claimedBy ? "bot" : "circle"} size={10} />
+						{agentName}
+					</Tag>
+					<span className="min-w-0 flex-1 basis-32 truncate">{agentAction}</span>
+				</div>
+
+				{hasProgress ? (
+					<div className="grid gap-1">
+						<div className="flex items-center justify-between gap-2">
+							<span className="text-caption font-medium text-[var(--color-text-secondary)]">
+								{progress.source}
+							</span>
+							<span className="text-caption tabular-nums text-[var(--color-text-secondary)]">
+								{progress.label}
+							</span>
+						</div>
+						<Progress value={progressValue} max={progressMax} size="xs" state={progressState} />
+					</div>
+				) : null}
+
+				<div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg-sunken)] px-2 py-1.5">
+					<div className="flex min-w-0 items-center gap-1.5 text-caption font-medium text-[var(--color-text-primary)]">
+						<Icon name={state.icon} size={12} />
+						<span className="min-w-0 whitespace-normal leading-snug">
+							{state.action}
+						</span>
+					</div>
+				</div>
+			</CardContent>
+		</Card>
 	);
 }
 
@@ -165,11 +254,18 @@ export default function KanbanBoard({
 			if (!res.ok) return;
 			const list: ResolvedSpec[] = await res.json();
 			setSpecs(list);
-		} catch { /* ignore */ }
+		} catch {
+			/* ignore */
+		}
 	}, []);
 
-	useEffect(() => { loadSpecs(); }, [loadSpecs]);
-	useEffect(() => { if (specRefreshKey) loadSpecs(); }, [specRefreshKey, loadSpecs]);
+	useEffect(() => {
+		loadSpecs();
+	}, [loadSpecs]);
+
+	useEffect(() => {
+		if (specRefreshKey) loadSpecs();
+	}, [specRefreshKey, loadSpecs]);
 
 	const handleDragStart = useCallback((e: React.DragEvent, itemId: string) => {
 		const item = workflow.items.find((it) => it.id === itemId);
@@ -221,13 +317,17 @@ export default function KanbanBoard({
 
 	const filterMap: Record<string, (item: Item) => boolean> = {
 		all: () => true,
-		running: (it) => Boolean(it.claimedBy) && !gateStages.has(it.stage) && !doneStages.has(it.stage),
-		waiting: (it) => gateStages.has(it.stage),
-		blocked: (it) => itemOperationalState(it, workflow, activeFlow) === "blocked",
-		error: () => false,
+		attention: (it) => {
+			const state = itemOperationalState(it, workflow, activeFlow);
+			return state === "waiting" || state === "blocked";
+		},
+		running: (it) => itemOperationalState(it, workflow, activeFlow) === "running",
+		queued: (it) => itemOperationalState(it, workflow, activeFlow) === "idle",
 		done: (it) => doneStages.has(it.stage),
 	};
 	const activeFilter = filterMap[filter] || filterMap.all;
+	const visibleItems = workflow.items.filter(activeFilter);
+	const emptyState = emptyStateForFilter(filter);
 
 	function renderColumn(col: typeof stageCols[0]) {
 		const items = workflow.items
@@ -235,46 +335,33 @@ export default function KanbanBoard({
 			.filter(activeFilter);
 		const isOver = dragOver === col.id;
 		const isHumanGate = col.gate;
-		const hasItems = items.length > 0;
-		const hasAnyItems = workflow.items.filter((it) => it.stage === col.id).length > 0;
+		const hasAnyItems = workflow.items.some((it) => it.stage === col.id);
 
 		return (
-			<div key={col.id} className="flex flex-col gap-2 min-w-0 min-h-[200px]">
-				<div className={cn(
-					"flex items-center justify-between px-1 pb-1 border-b",
-					isHumanGate && hasAnyItems && "border-b-2",
-				)}
-					style={{
-						borderColor: isHumanGate && hasAnyItems ? "var(--gate-available)" : "var(--border)",
-					}}
-				>
-					<div className="flex items-center gap-2">
+			<div key={col.id} className="flex min-h-[200px] w-[18rem] min-w-[18rem] flex-none flex-col gap-2 xl:w-[19.5rem] xl:min-w-[19.5rem]">
+				<div className="app-board-column-header flex items-center justify-between px-1 pb-1" data-gate={isHumanGate && hasAnyItems ? "true" : "false"}>
+					<div className="flex min-w-0 items-center gap-2">
 						{isHumanGate && hasAnyItems ? (
-							<div className="w-2 h-4 rounded-full bg-[var(--gate-available)] animate-timeline-dot" />
+							<div className="w-2 h-4 rounded-full bg-[var(--color-success)] animate-timeline-dot" />
 						) : (
 							<div className="w-1.5 h-4 rounded-full" style={{ background: col.color }} />
 						)}
-						<span className={cn(
-							"text-xs font-semibold",
-							isHumanGate && hasAnyItems && "text-[var(--gate-available)]",
-						)}>
+						<span className={cn("min-w-0 truncate text-xs font-semibold", isHumanGate && hasAnyItems && "text-[var(--color-success)]")}>
 							{col.label}
 						</span>
 						<Badge
-							variant={isHumanGate && hasAnyItems ? "warning" : "secondary"}
-							className={cn("text-[10px] px-1.5", isHumanGate && hasAnyItems && "animate-pulse")}
+							variant={isHumanGate && hasAnyItems ? "amber" : "info"}
+							className={cn("shrink-0 text-caption px-1.5", isHumanGate && hasAnyItems && "animate-pulse")}
 						>
-							{hasAnyItems ? workflow.items.filter((it) => it.stage === col.id).length : 0}
+							{workflow.items.filter((it) => it.stage === col.id).length}
 						</Badge>
 					</div>
 				</div>
 
 				<div
-					className={cn(
-						"flex flex-col gap-2 p-2 rounded-xl min-h-[100px] transition-all duration-150 border-2 border-dashed",
-						isOver ? "border-primary/40 bg-primary/5" : "border-transparent",
-						isHumanGate && hasAnyItems && "bg-[var(--gate-available)]/[0.04]",
-					)}
+					className="app-board-dropzone flex flex-col gap-2 p-2"
+					data-over={isOver ? "true" : "false"}
+					data-gate={isHumanGate && hasAnyItems ? "true" : "false"}
 					onDragOver={handleDragOver}
 					onDragEnter={() => handleDragEnter(col.id)}
 					onDragLeave={handleDragLeave}
@@ -282,9 +369,7 @@ export default function KanbanBoard({
 				>
 					{items.length === 0 && !isOver && (
 						<div className="flex items-center justify-center h-full py-4">
-							<span className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
-								Vazio
-							</span>
+							<span className="app-board-empty text-[11px]">Vazio</span>
 						</div>
 					)}
 
@@ -302,21 +387,18 @@ export default function KanbanBoard({
 					))}
 
 					{isHumanGate && hasAnyItems && onApproveGate && (
-						<div className="mt-1 pt-2 border-t" style={{ borderColor: "var(--border)" }}>
-							<div className="flex items-center gap-2 text-[10px] mb-1.5 px-1">
-								<Icon name="clock" size={10} style={{ color: "var(--gate-available)" }} />
-								<span style={{ color: "var(--gate-available)" }} className="font-medium">
+						<div className="app-board-gate-banner mt-1 pt-2">
+							<div className="flex items-center gap-2 text-caption mb-1.5 px-1">
+								<Icon name="clock" size={10} style={{ color: "var(--color-success)" }} />
+								<span style={{ color: "var(--color-success)" }} className="font-medium">
 									Aprovação necessária
 								</span>
 							</div>
 							<Button
-								variant="outline"
+								variant="secondary"
 								size="sm"
-								className="w-full text-[10px]"
-								style={{
-									borderColor: "var(--gate-available)",
-									color: "var(--gate-available)",
-								}}
+								className="w-full text-caption"
+								style={{ borderColor: "var(--color-success)", color: "var(--color-success)" }}
 								onClick={() => onApproveGate(col.id)}
 							>
 								Aprovar todos
@@ -329,13 +411,25 @@ export default function KanbanBoard({
 	}
 
 	return (
-		<div className="flex flex-col gap-6 p-4">
-			<div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: "thin" }}>
-				{stageCols.map(renderColumn)}
-			</div>
+		<div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden p-4">
+			{visibleItems.length === 0 ? (
+				<div className="app-board-filter-empty flex min-h-[16rem] flex-1 flex-col items-center justify-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] p-6 text-center">
+					<div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-bg-sunken)] text-[var(--color-text-secondary)]">
+						<Icon name={filter === "attention" ? "shield" : filter === "running" ? "cpu" : filter === "done" ? "check-circle" : "circle"} size={18} />
+					</div>
+					<div className="grid max-w-sm gap-1">
+						<p className="text-body-sm font-semibold text-[var(--color-text-primary)]">{emptyState.title}</p>
+						<p className="text-caption leading-snug text-[var(--color-text-secondary)]">{emptyState.description}</p>
+					</div>
+				</div>
+			) : (
+				<div className="flex min-w-0 gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]">
+					{stageCols.map(renderColumn)}
+				</div>
+			)}
 			{onAddItem && (
 				<div className="flex justify-center">
-					<Button variant="outline" size="sm" onClick={onAddItem}>
+					<Button variant="secondary" size="sm" onClick={onAddItem}>
 						<Icon name="plus" size={14} />
 						Adicionar item
 					</Button>

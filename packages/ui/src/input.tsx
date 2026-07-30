@@ -9,16 +9,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 			<input
 				ref={ref}
 				className={cn(
-					"w-full px-3 py-2 rounded-lg border text-sm transition-colors duration-150",
-					"focus:outline-none focus:ring-2 focus:ring-primary/30",
-					"focus-visible:border-primary",
+					"w-full px-[var(--space-3)] py-[var(--space-2)] rounded-[var(--radius-sm)] border-[length:var(--border-thin)] text-sm transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)]",
+					"focus-visible:outline-none focus-visible:border-[var(--focus-ring-color)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-base)] focus-visible:shadow-[0_0_0_4px_color-mix(in_oklch,var(--color-primary)_14%,transparent)]",
 					"placeholder:opacity-50",
 					className,
 				)}
 				style={{
-					borderColor: "var(--border)",
-					background: "var(--background)",
-					color: "var(--foreground)",
+					borderColor: "var(--color-border)",
+					background: "var(--color-bg-base)",
+					color: "var(--color-text-primary)",
 				}}
 				{...props}
 			/>

@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 import { pulse } from "./pulse.js";
 
 function createTestDir(): string {
@@ -78,6 +79,7 @@ describe("pulse", () => {
 	});
 
 	afterEach(() => {
+		vi.restoreAllMocks();
 		rmSync(dir, { recursive: true, force: true });
 	});
 
@@ -208,6 +210,20 @@ describe("pulse", () => {
 		const result = await pulse(dir, { json: true });
 
 		expect(result.currentItem!.spec).toBe("feature-x");
+	});
+
+	it("should display clickable file URLs in text output", async () => {
+		writeWorkflow(dir);
+		writeSpec(dir, "feature-x", ["- [ ] **AC-1**: Login works"]);
+		const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await pulse(dir);
+
+		const output = log.mock.calls.flat().join("\n");
+		expect(output).toContain(
+			pathToFileURL(join(dir, ".letra", "specs", "feature-x", "spec.md")).href,
+		);
+		expect(output).toContain(pathToFileURL(join(dir, ".letra", "workflow.json")).href);
 	});
 
 	it("should return null spec when item has no spec", async () => {

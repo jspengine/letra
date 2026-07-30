@@ -2,7 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { clearFocusFile, writeFocusFile } from "../adapters/focus-sync.js";
+import { clearFocusFile } from "../adapters/focus-sync.js";
+import { writeFocusWithRecommendations } from "../adapters/focus-recommendations.js";
 import { loadWorkflow, writeWorkflow } from "./flow-init.js";
 import { logEntry } from "../session-log.js";
 
@@ -91,7 +92,7 @@ export default function () {
 					}
 				}
 
-				writeFocusFile(root, spec, itemId);
+				writeFocusWithRecommendations(root, spec, itemId);
 				logEntry(root, "focus_set", `Foco definido: ${spec}`, { itemId });
 				console.log(chalk.green(`Focus set to "${spec}".`));
 

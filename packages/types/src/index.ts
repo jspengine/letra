@@ -63,10 +63,93 @@ export interface Workflow {
 	primaryItemId?: string;
 }
 
+export type AdapterLiveContextMode = "none" | "cli" | "mcp";
+export type AdapterRefreshMode = "session-start" | "on-demand";
+export type AdapterArtifactFormat = "at" | "text" | "toml" | "skill";
+export type AdapterArtifactKind = "instructions" | "config" | "skill";
+
+export interface AdapterCapabilityProfile {
+	instructions: boolean;
+	nestedInstructions: boolean;
+	skills: boolean;
+	mcp: boolean;
+	hooks: boolean;
+	liveContext: AdapterLiveContextMode;
+	refreshMode: AdapterRefreshMode;
+}
+
+export interface AdapterArtifactContract {
+	id: string;
+	path: string;
+	format: AdapterArtifactFormat;
+	kind: AdapterArtifactKind;
+	consumers: readonly string[];
+	ownership: "letra-owned" | "managed-section";
+}
+
+export interface AdapterContract {
+	id: string;
+	displayName: string;
+	capabilities: AdapterCapabilityProfile;
+	artifactIds: readonly string[];
+	detectionPaths: readonly string[];
+	fallbackTransport: "cli-json";
+}
+
+export interface AgentDirectionWarning {
+	code: string;
+	message: string;
+}
+
+export interface AgentDirectionCommand {
+	id: string;
+	command: string;
+	label: string;
+	mutates: boolean;
+}
+
+export interface AgentDirectionAction {
+	id: string;
+	label: string;
+	reason: string;
+}
+
+export interface AgentDirectionSnapshot {
+	schemaVersion: "1";
+	revision: string;
+	generatedAt: string;
+	source: {
+		harnessVersion: string | null;
+		flowId: string | null;
+		workspaceRoot: string;
+	};
+	mode: "active" | "degraded" | "unconfigured";
+	item: {
+		id: string;
+		description: string;
+		stage: string;
+		spec: string | null;
+	} | null;
+	roleIds: string[];
+	allowedStageIds: string[];
+	objective: string | null;
+	pendingAC: {
+		id: string;
+		description: string;
+	} | null;
+	commands: AgentDirectionCommand[];
+	prohibitions: string[];
+	requiredEvidence: string[];
+	nextActions: AgentDirectionAction[];
+	warnings: AgentDirectionWarning[];
+}
+
 export interface ResolvedSpec {
 	id: string;
 	content: string;
 }
+
+export type GateDecision = "approve" | "request-changes" | "reject";
 
 export interface ResolvedFlowGate {
 	id: string;
@@ -75,6 +158,7 @@ export interface ResolvedFlowGate {
 	blocking: boolean;
 	policyRef?: string;
 	description: string;
+	decisions?: Partial<Record<GateDecision, string>>;
 }
 
 export interface ResolvedFlowRole {
@@ -97,11 +181,18 @@ export interface FlowActivityActionHint {
 	description: string;
 }
 
+export interface FlowActivityCommandHint {
+	command: string;
+	label: string;
+	description?: string;
+}
+
 export interface FlowActivityHint {
 	objective?: string;
 	mustRead?: FlowActivityReferenceHint[];
 	mustNotDo?: string[];
 	nextActions?: FlowActivityActionHint[];
+	commands?: FlowActivityCommandHint[];
 }
 
 export interface FlowReviewExpectation extends FlowActivityHint {

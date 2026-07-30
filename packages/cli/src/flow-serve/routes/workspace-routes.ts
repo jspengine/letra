@@ -4,10 +4,17 @@ import type { writeWorkflow } from "../../commands/flow-init.js";
 import type { HarnessManifest } from "../../harness/types.js";
 import type { listWorkspaces } from "../../workspace/index.js";
 import type {
+	analyzeWorkspaceSetup,
+	captureWorkspaceSetup,
 	createWorkflowFromTemplate,
+	planWorkspaceSetup,
 	registerWorkspaceSetup,
+	rollbackWorkspaceSetup,
+	saveWorkspaceSetupManifest,
+	restoreWorkspaceSetup,
 	writeWorkspaceTargetAdapters,
 } from "../workspace.js";
+import { workflowTargets } from "../workspace.js";
 import { HttpBodyError, readJson, sendError, sendJson } from "../http.js";
 import type { RouteHandler } from "../router.js";
 
@@ -21,6 +28,12 @@ export interface WorkspaceRouteDependencies {
 	createFromTemplate: typeof createWorkflowFromTemplate;
 	writeWorkflow: typeof writeWorkflow;
 	writeTargetAdapters: typeof writeWorkspaceTargetAdapters;
+	analyzeSetup: typeof analyzeWorkspaceSetup;
+	planSetup: typeof planWorkspaceSetup;
+	captureSetup: typeof captureWorkspaceSetup;
+	restoreSetup: typeof restoreWorkspaceSetup;
+	saveSetupManifest: typeof saveWorkspaceSetupManifest;
+	rollbackSetup: typeof rollbackWorkspaceSetup;
 	loadHarness: (root: string) => HarnessManifest | null;
 }
 
@@ -98,6 +111,61 @@ export function createWorkspaceRoutes(dependencies: WorkspaceRouteDependencies):
 			}
 			return true;
 		}
+		if (path === "/api/workspace/setup/analyze" && method === "POST") {
+			try {
+				const data = await readJson<{ name?: string; root?: string }>(req);
+				sendJson(res, 200, dependencies.analyzeSetup({
+					name: String(data.name || "").trim(),
+					root: String(data.root || "").trim(),
+				}));
+			} catch (error) {
+				sendBodyError(error, res);
+			}
+			return true;
+		}
+		if (path === "/api/workspace/setup/plan" && method === "POST") {
+			try {
+				const data = await readJson<{
+					proposalId?: string;
+					workspaceRoot?: string;
+					name?: string;
+					template?: string;
+					targets?: Array<{ id: string; label: string; path: string; adapters: string[] }>;
+				}>(req);
+				const targets = Array.isArray(data.targets) ? data.targets : [];
+				const tools = [...new Set(targets.flatMap((target) => target.adapters))];
+				const root = String(data.workspaceRoot || "");
+				const workflow = dependencies.createFromTemplate(
+					root,
+					String(data.template || "padrao"),
+					{ name: String(data.name || "Workspace"), tools },
+					dependencies.loadHarness(root),
+				);
+				workflow.targets = workflowTargets(targets, root);
+				sendJson(res, 200, dependencies.planSetup({
+					proposalId: String(data.proposalId || ""),
+					workspaceRoot: root,
+					targets,
+					workflow,
+				}));
+			} catch (error) {
+				sendBodyError(error, res);
+			}
+			return true;
+		}
+		if (path === "/api/workspace/setup/rollback" && method === "POST") {
+			try {
+				const data = await readJson<{ workspaceRoot?: string; manifestId?: string }>(req);
+				dependencies.rollbackSetup(
+					String(data.workspaceRoot || ""),
+					String(data.manifestId || ""),
+				);
+				sendJson(res, 200, { ok: true });
+			} catch (error) {
+				sendBodyError(error, res);
+			}
+			return true;
+		}
 		if (path === "/api/workflow/setup" && method === "POST") {
 			try {
 				const data = await readJson<Record<string, unknown>>(req);
@@ -106,29 +174,61 @@ export function createWorkspaceRoutes(dependencies: WorkspaceRouteDependencies):
 				const workspacePath = String(data.workspacePath || "").trim();
 				const directories = Array.isArray(data.directories) ? data.directories as string[] : [];
 				const tools = Array.isArray(data.tools) ? data.tools as string[] : [];
+				const targets = Array.isArray(data.targets)
+					? data.targets as Array<{ id: string; label: string; path: string; adapters: string[] }>
+					: directories.map((directory, index) => ({
+						id: `target-${index + 1}`,
+						label: directory.replace(/\\/g, "/").split("/").pop() || `Projeto ${index + 1}`,
+						path: directory,
+						adapters: tools,
+					}));
 				const template = String(data.template || "padrao");
-				const setup = dependencies.registerSetup({
-					name,
-					description,
-					workspacePath: resolve(workspacePath || process.cwd()),
-					directories,
-					tools,
-					template,
-				});
+				const resolvedWorkspacePath = resolve(workspacePath || process.cwd());
 				const workflow = dependencies.createFromTemplate(
-					setup.workspaceRoot,
+					resolvedWorkspacePath,
 					template,
 					{ name, tools },
-					dependencies.loadHarness(setup.workspaceRoot),
+					dependencies.loadHarness(resolvedWorkspacePath),
 				);
-				dependencies.writeWorkflow(setup.workspaceRoot, {
+				workflow.targets = workflowTargets(targets, resolvedWorkspacePath);
+				const plan = dependencies.planSetup({
+					proposalId: String(data.proposalId || "legacy-setup"),
+					workspaceRoot: resolvedWorkspacePath,
+					targets,
 					workflow,
-					source: "web-ui",
-					skipSitrep: true,
-					quiet: true,
 				});
-				dependencies.writeTargetAdapters(setup.workspaceRoot, directories, tools);
-				sendJson(res, 200, { workspace: setup.workspace, workflow });
+				if (plan.conflictCount > 0) {
+					throw new Error("O plano contém conflitos. Revise e preserve os arquivos antes de criar o workspace.");
+				}
+				const snapshots = dependencies.captureSetup(plan);
+				try {
+					dependencies.writeWorkflow(resolvedWorkspacePath, {
+						workflow,
+						source: "web-ui",
+						skipSitrep: true,
+						quiet: true,
+					});
+					dependencies.writeTargetAdapters(resolvedWorkspacePath, targets, workflow);
+					const setup = dependencies.registerSetup({
+						name,
+						description,
+						workspacePath: resolvedWorkspacePath,
+						directories,
+						tools,
+						template,
+					});
+					snapshots.push({ path: setup.registryFile, existed: false });
+					const rollbackId = dependencies.saveSetupManifest(
+						resolvedWorkspacePath,
+						plan.proposalId,
+						plan.operations,
+						snapshots,
+					);
+					sendJson(res, 200, { workspace: setup.workspace, workflow, rollbackId });
+				} catch (error) {
+					dependencies.restoreSetup(snapshots);
+					throw error;
+				}
 			} catch (error) {
 				sendBodyError(error, res);
 			}
@@ -136,6 +236,12 @@ export function createWorkspaceRoutes(dependencies: WorkspaceRouteDependencies):
 		}
 		if (path === "/api/harness/templates" && method === "GET") {
 			sendJson(res, 200, templates(dependencies.loadHarness(workspaceRoot)));
+			return true;
+		}
+		if (path === "/api/harness/roles" && method === "GET") {
+			const harness = dependencies.loadHarness(workspaceRoot);
+			const roles = harness ? Object.values(harness.roles).map((r) => ({ id: r.id, label: r.label })) : [];
+			sendJson(res, 200, roles);
 			return true;
 		}
 		if (path === "/api/fs/dirs" && method === "GET") {

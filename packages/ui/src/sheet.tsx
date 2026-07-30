@@ -1,5 +1,12 @@
-import { useState, useRef, useEffect, type HTMLAttributes, type ButtonHTMLAttributes, useCallback } from "react";
+import { createContext, useContext, useState, type HTMLAttributes, type ButtonHTMLAttributes, useCallback } from "react";
 import { cn } from "./utils";
+
+interface SheetContextValue {
+	open: boolean;
+	setOpen: (v: boolean) => void;
+}
+
+const SheetContext = createContext<SheetContextValue | null>(null);
 
 // ── Sheet Root ──
 interface SheetProps {
@@ -19,11 +26,11 @@ export function Sheet({ children, open, onOpenChange }: SheetProps) {
 	}, [isControlled, onOpenChange]);
 
 	return (
-		<>
+		<SheetContext.Provider value={{ open: isOpen, setOpen }}>
 			{typeof children === "function"
 				? (children as (props: { open: boolean; setOpen: (v: boolean) => void }) => React.ReactNode)({ open: isOpen, setOpen })
 				: children}
-		</>
+		</SheetContext.Provider>
 	);
 }
 
@@ -32,15 +39,21 @@ interface SheetTriggerProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 	asChild?: boolean;
 }
 
-export function SheetTrigger({ className, asChild, children, ...props }: SheetTriggerProps) {
+export function SheetTrigger({ className, asChild, children, onClick, ...props }: SheetTriggerProps) {
+	const sheet = useContext(SheetContext);
 	if (asChild) return <>{children}</>;
 	return (
 		<button
 			className={cn(
-				"inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30",
+				"inline-flex items-center justify-center rounded-[var(--radius-md)] px-[var(--space-3)] py-[var(--space-2)] text-body font-medium transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:bg-[var(--color-bg-sunken)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)]",
 				className,
 			)}
 			type="button"
+			style={{ color: "var(--color-text-primary)" }}
+			onClick={(event) => {
+				sheet?.setOpen(true);
+				onClick?.(event);
+			}}
 			{...props}
 		>
 			{children}
@@ -59,6 +72,9 @@ export function SheetContent({
 	children,
 	...props
 }: SheetContentProps) {
+	const sheet = useContext(SheetContext);
+	if (sheet && !sheet.open) return null;
+
 	const sideStyles: Record<string, string> = {
 		top: "inset-x-0 top-0 border-b",
 		bottom: "inset-x-0 bottom-0 border-t",
@@ -68,22 +84,29 @@ export function SheetContent({
 
 	return (
 		<div
-			className={cn(
-				"fixed z-50 flex flex-col bg-card shadow-xl max-h-full",
-				side === "left" || side === "right" ? "h-full w-full sm:max-w-lg" : "max-h-[85vh] w-full",
-				sideStyles[side],
-				className,
-			)}
-			style={{
-				borderColor: "var(--border)",
-				background: "var(--card)",
-			}}
-			role="dialog"
-			aria-modal="true"
-			tabIndex={-1}
-			{...props}
+			className="fixed inset-0 z-50 animate-fade-in backdrop-blur-sm"
+			style={{ background: "var(--overlay)" }}
+			onClick={() => sheet?.setOpen(false)}
 		>
-			{children}
+			<div
+				className={cn(
+					"fixed flex flex-col shadow-xl max-h-full animate-slide-up",
+					side === "left" || side === "right" ? "h-full w-full sm:max-w-lg" : "max-h-[85vh] w-full rounded-t-[var(--radius-lg)]",
+					sideStyles[side],
+					className,
+				)}
+				style={{
+					borderColor: "var(--color-border)",
+					background: "var(--color-bg-surface)",
+				}}
+				role="dialog"
+				aria-modal="true"
+				tabIndex={-1}
+				onClick={(event) => event.stopPropagation()}
+				{...props}
+			>
+				{children}
+			</div>
 		</div>
 	);
 }
@@ -95,10 +118,10 @@ export function SheetHeader({ className, children, ...props }: SheetHeaderProps)
 	return (
 		<div
 			className={cn(
-				"flex items-center justify-between border-b px-6 py-4",
+				"flex items-center justify-between border-b px-[var(--space-6)] py-[var(--space-4)]",
 				className,
 			)}
-			style={{ borderColor: "var(--border)" }}
+			style={{ borderColor: "var(--color-border)" }}
 			{...props}
 		>
 			{children}
@@ -111,7 +134,7 @@ interface SheetTitleProps extends HTMLAttributes<HTMLHeadingElement> {}
 
 export function SheetTitle({ className, children, ...props }: SheetTitleProps) {
 	return (
-		<h2 className={cn("text-lg font-semibold", className)} {...props}>
+		<h2 className={cn("text-h2", className)} {...props}>
 			{children}
 		</h2>
 	);
@@ -123,8 +146,8 @@ interface SheetDescriptionProps extends HTMLAttributes<HTMLParagraphElement> {}
 export function SheetDescription({ className, children, ...props }: SheetDescriptionProps) {
 	return (
 		<p
-			className={cn("text-sm text-muted-foreground", className)}
-			{...props}
+			className={cn("text-body", className)}
+			style={{ color: "var(--color-text-secondary)" }}
 		>
 			{children}
 		</p>
@@ -136,15 +159,21 @@ interface SheetCloseProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 	asChild?: boolean;
 }
 
-export function SheetClose({ className, asChild, children, ...props }: SheetCloseProps) {
+export function SheetClose({ className, asChild, children, onClick, ...props }: SheetCloseProps) {
+	const sheet = useContext(SheetContext);
 	if (asChild) return <>{children}</>;
 	return (
 		<button
 			className={cn(
-				"inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30",
+				"inline-flex items-center justify-center rounded-[var(--radius-md)] p-1.5 transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:bg-[var(--color-bg-sunken)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)]",
 				className,
 			)}
+			style={{ color: "var(--color-text-secondary)" }}
 			type="button"
+			onClick={(event) => {
+				sheet?.setOpen(false);
+				onClick?.(event);
+			}}
 			{...props}
 		>
 			{children}
@@ -159,10 +188,10 @@ export function SheetFooter({ className, children, ...props }: SheetFooterProps)
 	return (
 		<div
 			className={cn(
-				"flex items-center justify-end gap-2 border-t px-6 py-4",
+				"flex items-center justify-end gap-[var(--space-3)] border-t px-[var(--space-6)] py-[var(--space-4)]",
 				className,
 			)}
-			style={{ borderColor: "var(--border)" }}
+			style={{ borderColor: "var(--color-border)" }}
 			{...props}
 		>
 			{children}

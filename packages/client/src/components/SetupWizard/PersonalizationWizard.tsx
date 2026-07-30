@@ -70,16 +70,16 @@ function StepStages({
 								placeholder="Nome do estágio"
 								className="flex-1"
 								style={{
-									background: "var(--background)",
-									borderColor: "var(--border)",
-									color: "var(--foreground)",
+									background: "var(--color-bg-base)",
+									borderColor: "var(--color-border)",
+									color: "var(--color-text-primary)",
 								}}
 							/>
 							<Button
 								type="button"
 								onClick={() => removeStage(s.id)}
 								className="text-xs px-2 py-1 rounded hover:bg-red-500/10 hover:text-red-500"
-								style={{ color: "var(--muted-foreground)" }}
+								style={{ color: "var(--color-text-secondary)" }}
 							>
 								✕
 							</Button>
@@ -88,7 +88,7 @@ function StepStages({
 				))}
 			</div>
 
-			<Button variant="outline" size="sm" onClick={addStage}>
+			<Button variant="secondary" size="sm" onClick={addStage}>
 				+ Adicionar estágio
 			</Button>
 		</div>
@@ -176,7 +176,7 @@ function StepReview({ stages }: { stages: StageDef[] }) {
 						<h3 className="text-sm font-semibold mb-2">📋 A fazer</h3>
 						<div className="flex flex-wrap gap-2">
 							{todas.map((s) => (
-								<Badge key={s.id} variant="secondary">
+								<Badge key={s.id} variant="info">
 									{s.name}
 								</Badge>
 							))}
@@ -188,7 +188,7 @@ function StepReview({ stages }: { stages: StageDef[] }) {
 						<h3 className="text-sm font-semibold mb-2">⚙️ Em andamento</h3>
 						<div className="flex flex-wrap gap-2">
 							{fazendo.map((s) => (
-								<Badge key={s.id} variant="warning">
+								<Badge key={s.id} variant="amber">
 									{s.name}
 								</Badge>
 							))}
@@ -254,7 +254,7 @@ export function PersonalizationWizard({ onComplete, onBack }: Props) {
 							{i < steps.length - 1 && (
 								<span
 									className="w-6 h-px"
-									style={{ background: "var(--border)" }}
+									style={{ background: "var(--color-border)" }}
 								/>
 							)}
 						</div>

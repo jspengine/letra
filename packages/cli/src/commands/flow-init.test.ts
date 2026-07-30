@@ -72,6 +72,8 @@ describe("flow-init", () => {
 			writeFileSync(join(tmpDir, "CLAUDE.md"), "");
 			writeFileSync(join(tmpDir, ".windsurfrules"), "");
 			writeFileSync(join(tmpDir, "AGENTS.md"), "");
+			mkdirSync(join(tmpDir, ".codex"), { recursive: true });
+			writeFileSync(join(tmpDir, ".codex", "config.toml"), "");
 			mkdirSync(join(tmpDir, ".github"), { recursive: true });
 			writeFileSync(join(tmpDir, ".github", "copilot-instructions.md"), "");
 
@@ -80,6 +82,7 @@ describe("flow-init", () => {
 			expect(tools).toContain("claude-code");
 			expect(tools).toContain("windsurf");
 			expect(tools).toContain("opencode");
+			expect(tools).toContain("codex");
 			expect(tools).toContain("vscode");
 		});
 

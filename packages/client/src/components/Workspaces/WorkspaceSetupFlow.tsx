@@ -224,7 +224,7 @@ export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames
 							/>
 							<Icon name="folder" size={14} className="text-primary shrink-0" />
 							<span className="text-sm truncate">{node.name}</span>
-							<span className="text-xs ml-auto shrink-0" style={{ color: "var(--muted-foreground)" }}>
+							<span className="text-xs ml-auto shrink-0" style={{ color: "var(--color-text-secondary)" }}>
 								{node.path}
 							</span>
 						</label>
@@ -239,11 +239,11 @@ export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames
 						>
 							<Icon name="folder" size={14} className="text-primary shrink-0" />
 							<span className="text-sm truncate">{node.name}</span>
-							<span className="text-xs ml-auto shrink-0" style={{ color: "var(--muted-foreground)" }}>
+							<span className="text-xs ml-auto shrink-0" style={{ color: "var(--color-text-secondary)" }}>
 								{node.path}
 							</span>
 							{workDir === node.path && (
-								<Icon name="check" size={14} className="shrink-0" style={{ color: "var(--primary)" }} />
+								<Icon name="check" size={14} className="shrink-0" style={{ color: "var(--color-primary)" }} />
 							)}
 						</Button>
 					)}
@@ -273,18 +273,18 @@ export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames
 										disabled={i > currentIndex}
 										className={cn("w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-all", i === currentIndex && "ring-2 ring-primary/30", i < currentIndex && "cursor-pointer")}
 										style={{
-											background: i < currentIndex ? "var(--success)" : i === currentIndex ? "var(--primary)" : "var(--muted)",
-											color: i < currentIndex ? "var(--success-foreground)" : i === currentIndex ? "var(--primary-foreground)" : "var(--muted-foreground)",
+											background: i < currentIndex ? "var(--color-success)" : i === currentIndex ? "var(--color-primary)" : "var(--color-bg-surface)",
+											color: i < currentIndex ? "var(--color-success)" : i === currentIndex ? "var(--color-primary)" : "var(--color-text-secondary)",
 										}}
 										aria-label={`Passo ${i + 1}: ${stepLabels[s]}${i < currentIndex ? " (concluído)" : ""}`}
 									>
 										{i < currentIndex ? <Icon name="check" size={14} /> : i + 1}
 									</Button>
-									{i < stepOrder.length - 1 && <div className="w-8 h-0.5 mx-1" style={{ background: i < currentIndex ? "var(--success)" : "var(--border)" }} />}
+									{i < stepOrder.length - 1 && <div className="w-8 h-0.5 mx-1" style={{ background: i < currentIndex ? "var(--color-success)" : "var(--color-border)" }} />}
 								</div>
 							))}
 						</div>
-						<div className="flex justify-center gap-0 text-xs -mt-4" style={{ color: "var(--muted-foreground)" }}>
+						<div className="flex justify-center gap-0 text-xs -mt-4" style={{ color: "var(--color-text-secondary)" }}>
 							{stepOrder.map((s, i) => (
 								<div key={s} className="flex items-center">
 									<span className={cn("px-1", i === currentIndex && "font-semibold text-primary")}>{stepLabels[s]}</span>
@@ -298,12 +298,12 @@ export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames
 				{/* ═══ Step 1 — Info ═══ */}
 				{step === "info" && (
 					<div className="flex flex-col items-center text-center gap-6 pt-8 animate-fade-in">
-						<div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10">
+						<div className="inline-flex items-center justify-center w-16 h-16 rounded-[var(--radius-lg)] bg-primary/10">
 							<Icon name="grid" size={24} className="text-primary" />
 						</div>
 						<div>
 							<h1 className="text-3xl font-bold mb-2">Novo Workspace</h1>
-							<p className="text-base max-w-md" style={{ color: "var(--muted-foreground)" }}>
+							<p className="text-base max-w-md" style={{ color: "var(--color-text-secondary)" }}>
 								Defina o nome e a descrição do seu workspace.
 							</p>
 						</div>
@@ -342,7 +342,7 @@ export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames
 					<div className="flex flex-col gap-6 pt-4 animate-fade-in">
 						<div>
 							<h2 className="text-xl font-bold">Diretórios do Projeto</h2>
-							<p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
+							<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
 								Selecione o diretório de trabalho e as pastas alvo que o Letra deve monitorar.
 							</p>
 						</div>
@@ -350,23 +350,23 @@ export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames
 						<div className="flex flex-col gap-2">
 							<h3 className="text-sm font-semibold flex items-center gap-2">
 								Diretório de Trabalho <span className="text-red-500">*</span>
-								{workDir && <Badge variant="secondary" className="text-[10px]">selecionado</Badge>}
+								{workDir && <Badge variant="info" className="text-caption">selecionado</Badge>}
 							</h3>
 							{workDir && (
-								<div className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-mono" style={{ borderColor: "var(--border)", background: "var(--muted)" }}>
+								<div className="flex items-center gap-2 px-3 py-2 rounded-[var(--radius-sm)] border text-sm font-mono" style={{ borderColor: "var(--color-border)", background: "var(--color-bg-surface)" }}>
 									<Icon name="folder" size={14} className="text-primary shrink-0" />
 									<span className="flex-1 truncate">{workDir}</span>
 									<Button
 										type="button"
 										onClick={() => setWorkDir("")}
 										className="text-xs hover:underline"
-										style={{ color: "var(--muted-foreground)" }}
+										style={{ color: "var(--color-text-secondary)" }}
 									>
 										Alterar
 									</Button>
 								</div>
 							)}
-							<div className="rounded-xl border p-2 max-h-48 overflow-y-auto" style={{ borderColor: "var(--border)" }}>
+							<div className="rounded-[var(--radius-md)] border p-2 max-h-48 overflow-y-auto" style={{ borderColor: "var(--color-border)" }}>
 								{renderDirTree(workDirTrees, setWorkDirTrees, "single")}
 							</div>
 						</div>
@@ -374,9 +374,9 @@ export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames
 						<div className="flex flex-col gap-2">
 							<h3 className="text-sm font-semibold flex items-center gap-2">
 								Pastas Alvo <span className="text-red-500">*</span>
-								{selectedDirs.length > 0 && <Badge variant="secondary" className="text-[10px]">{selectedDirs.length} selecionada{selectedDirs.length > 1 ? "s" : ""}</Badge>}
+								{selectedDirs.length > 0 && <Badge variant="info" className="text-caption">{selectedDirs.length} selecionada{selectedDirs.length > 1 ? "s" : ""}</Badge>}
 							</h3>
-							<div className="rounded-xl border p-2 max-h-48 overflow-y-auto" style={{ borderColor: "var(--border)" }}>
+							<div className="rounded-[var(--radius-md)] border p-2 max-h-48 overflow-y-auto" style={{ borderColor: "var(--color-border)" }}>
 								{renderDirTree(targetDirTrees, setTargetDirTrees, "multi")}
 							</div>
 						</div>
@@ -400,21 +400,21 @@ export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames
 					<div className="flex flex-col gap-6 pt-4 animate-fade-in">
 						<div>
 							<h2 className="text-xl font-bold">Ferramentas Agênticas</h2>
-							<p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
+							<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
 								Selecione as ferramentas de IA que este workspace utilizará.
 							</p>
 						</div>
 						<div>
 							<div className="flex items-center gap-2 mb-3">
 								<h3 className="text-sm font-semibold">Adaptadores</h3>
-								{selectedTools.length > 0 && <Badge variant="secondary">{selectedTools.length} selecionada{selectedTools.length > 1 ? "s" : ""}</Badge>}
+								{selectedTools.length > 0 && <Badge variant="info">{selectedTools.length} selecionada{selectedTools.length > 1 ? "s" : ""}</Badge>}
 							</div>
 							<div className="grid grid-cols-2 gap-3">
 								{ADAPTERS.map((tool, i) => (
 									<label
 										key={tool.id}
 										className={cn(
-											"flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 cursor-pointer hover:scale-[1.02] hover:shadow-sm",
+											"flex items-center gap-3 p-4 rounded-[var(--radius-md)] border transition-all duration-200 cursor-pointer hover:scale-[1.02] hover:shadow-sm",
 											selectedTools.includes(tool.id)
 												? "border-primary bg-primary/5 ring-2 ring-primary/20"
 												: "border-border hover:border-primary/50",
@@ -425,7 +425,7 @@ export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames
 											checked={selectedTools.includes(tool.id)}
 											onChange={() => toggleTool(tool.id)}
 										/>
-										<div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+										<div className="w-8 h-8 rounded-[var(--radius-sm)] bg-primary/10 flex items-center justify-center shrink-0">
 											<Icon name="code" size={16} className="text-primary" />
 										</div>
 										<span className="font-medium">{tool.label}</span>
@@ -446,32 +446,32 @@ export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames
 					<div className="flex flex-col gap-6 pt-4 animate-fade-in">
 						<div>
 							<h2 className="text-xl font-bold">Revisar Configuração</h2>
-							<p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
+							<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
 								Confira os dados antes de finalizar.
 							</p>
 						</div>
 
 						<div className="flex flex-col gap-4">
-							<div className="p-4 rounded-xl" style={{ background: "var(--muted)" }}>
+							<div className="p-4 rounded-[var(--radius-md)]" style={{ background: "var(--color-bg-surface)" }}>
 								<h3 className="text-sm font-semibold mb-2">Workspace</h3>
 								<div className="text-sm space-y-1">
 									<div>
-										<span style={{ color: "var(--muted-foreground)" }}>Nome:</span>{" "}
+										<span style={{ color: "var(--color-text-secondary)" }}>Nome:</span>{" "}
 										<span className="font-medium">{name}</span>
 									</div>
 									{description && (
 										<div>
-											<span style={{ color: "var(--muted-foreground)" }}>Descrição:</span>{" "}
+											<span style={{ color: "var(--color-text-secondary)" }}>Descrição:</span>{" "}
 											{description}
 										</div>
 									)}
 									<div>
-										<span style={{ color: "var(--muted-foreground)" }}>Diretório de trabalho:</span>{" "}
+										<span style={{ color: "var(--color-text-secondary)" }}>Diretório de trabalho:</span>{" "}
 										<span className="font-mono text-xs">{workDir}</span>
 									</div>
 								</div>
 							</div>
-							<div className="p-4 rounded-xl" style={{ background: "var(--muted)" }}>
+							<div className="p-4 rounded-[var(--radius-md)]" style={{ background: "var(--color-bg-surface)" }}>
 								<h3 className="text-sm font-semibold mb-2">Pastas Alvo</h3>
 								{selectedDirs.map((d) => (
 									<div key={d} className="flex items-center gap-2 text-sm font-mono">
@@ -480,19 +480,19 @@ export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames
 									</div>
 								))}
 							</div>
-							<div className="p-4 rounded-xl" style={{ background: "var(--muted)" }}>
+							<div className="p-4 rounded-[var(--radius-md)]" style={{ background: "var(--color-bg-surface)" }}>
 								<h3 className="text-sm font-semibold mb-2">Ferramentas</h3>
 								<div className="flex gap-2 flex-wrap mt-1">
 									{selectedTools.map((t) => {
 										const tool = ADAPTERS.find((a) => a.id === t);
-										return tool ? <Badge key={t} variant="secondary">{tool.label}</Badge> : null;
+										return tool ? <Badge key={t} variant="info">{tool.label}</Badge> : null;
 									})}
 								</div>
 							</div>
 						</div>
 
 						{submitError && (
-							<div className="p-3 rounded-lg text-sm" style={{ background: "var(--surface-1)", border: "1px solid var(--border)", color: "var(--error)" }}>
+							<div className="p-3 rounded-[var(--radius-sm)] text-sm" style={{ background: "var(--surface-1)", border: "1px solid var(--color-border)", color: "var(--color-danger)" }}>
 								<Icon name="alert-triangle" size={14} className="inline mr-1" />
 								{submitError}
 							</div>
@@ -515,12 +515,12 @@ export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames
 				{/* ═══ Step 5 — Done ═══ */}
 				{step === "done" && (
 					<div className="flex flex-col items-center text-center gap-6 pt-8 animate-fade-in">
-						<div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-success/20">
-							<Icon name="check-circle" size={24} style={{ color: "var(--success)" }} />
+						<div className="inline-flex items-center justify-center w-16 h-16 rounded-[var(--radius-lg)] bg-success/20">
+							<Icon name="check-circle" size={24} style={{ color: "var(--color-success)" }} />
 						</div>
 						<div>
 							<h2 className="text-2xl font-bold">Workspace criado!</h2>
-							<p className="text-sm mt-2" style={{ color: "var(--muted-foreground)" }}>
+							<p className="text-sm mt-2" style={{ color: "var(--color-text-secondary)" }}>
 								O workspace <strong>{name}</strong> foi registrado com sucesso.
 							</p>
 						</div>

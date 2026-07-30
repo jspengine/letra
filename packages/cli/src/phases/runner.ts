@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { logEntry } from "../session-log.js";
 import type { PhaseDef } from "../harness/types.js";
 import type { Item } from "../commands/flow-init.js";
+import { GateChecker } from "../harness/gate-checker.js";
 
 export interface PhaseActionResult {
 	ok: boolean;
@@ -17,6 +18,7 @@ export class PhaseActionRunner {
 			return { ok: true, actions: [] };
 		}
 
+		const checker = new GateChecker(root);
 		const results: string[] = [];
 		for (const action of phaseDef.actions) {
 			try {
@@ -81,15 +83,22 @@ export class PhaseActionRunner {
 						break;
 					}
 					case "wait-human": {
-						const gate = loadGate(root, action.gate ?? "");
-						if (gate && gate.blocking && gate.status !== "approved") {
-							logEntry(root, "system", `action:wait-human gate "${action.gate}" blocking`, {
+						const gateId = action.gate ?? "";
+						const gateResult = checker.check(gateId, item);
+						if (!gateResult.allowed) {
+							logEntry(root, "system", `action:wait-human gate "${gateId}" blocking`, {
 								itemId: item.id,
-								details: { gate: action.gate, phase: phaseDef.id },
+								details: { gate: gateId, phase: phaseDef.id },
 							});
-							return { ok: false, error: `Gate "${action.gate}" not approved`, actions: results };
+							return {
+								ok: false,
+								error: gateResult.reason?.includes("humana")
+									? `Gate "${gateId}" not approved`
+									: gateResult.reason ?? `Gate "${gateId}" not approved`,
+								actions: results,
+							};
 						}
-						const label = `wait-human: ${action.gate} (approved)`;
+						const label = `wait-human: ${gateId} (approved)`;
 						results.push(label);
 						break;
 					}

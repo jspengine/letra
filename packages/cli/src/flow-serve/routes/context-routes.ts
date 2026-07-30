@@ -107,6 +107,8 @@ export function createContextRoutes(dependencies: ContextRouteDependencies): Rou
 				from: url.searchParams.get("from") ?? undefined,
 				to: url.searchParams.get("to") ?? undefined,
 				spec: url.searchParams.get("spec") ?? undefined,
+				actor: url.searchParams.get("actor") ?? undefined,
+				debug: url.searchParams.get("debug") === "true",
 				limit,
 				offset,
 			});

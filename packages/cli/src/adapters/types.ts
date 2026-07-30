@@ -1,5 +1,32 @@
 export type AdapterSource = "init" | "flow-move" | "focus" | "flow-ac";
 
+export interface HarnessDirectionCommand {
+	command: string;
+	label: string;
+	description?: string;
+}
+
+export interface HarnessDirectionAction {
+	label: string;
+	description: string;
+}
+
+export interface HarnessDirectionActivity {
+	kind?: string;
+	objective?: string;
+	mustNotDo?: string[];
+	commands?: HarnessDirectionCommand[];
+	nextActions?: HarnessDirectionAction[];
+}
+
+export interface HarnessDirectionData {
+	harnessVersion: string;
+	roleIds: string[];
+	activities: HarnessDirectionActivity[];
+	pendingACIds?: string[];
+	primaryItemId?: string;
+}
+
 export interface HarnessItem {
 	id: string;
 	description: string;
@@ -31,6 +58,15 @@ export interface HarnessSnapshot {
 	primaryItemId: string | null;
 	focusSpec: string | null;
 	focusPath: string | null;
+	referenceLinks: {
+		context: string;
+		constitution: string;
+		glossary: string;
+		constraints: string;
+		focus: string | null;
+		spec: string | null;
+		workflow: string;
+	};
 	pendingACs: number;
 	totalACs: number;
 	lastSession?: {
@@ -48,6 +84,7 @@ export interface HarnessSnapshot {
 		};
 	};
 	handoff?: HandoffData;
+	harnessDirection?: HarnessDirectionData;
 }
 
 export interface HandoffWorkflowConfig {

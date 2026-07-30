@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { Box, Text, useInput, render, useApp, Spacer } from "ink";
+import { supportedAdapterTools } from "../adapters/registry.js";
 
 const LOGO = `
    __         __
@@ -12,13 +13,9 @@ const LOGO = `
 const PROJECT_TYPES = ["web-app", "cli", "library", "mobile"] as const;
 
 const TOOL_OPTIONS = [
-	{ id: "cursor", label: "Cursor" },
-	{ id: "windsurf", label: "Windsurf" },
-	{ id: "claude-code", label: "Claude Code" },
-	{ id: "vscode", label: "VS Code Copilot" },
-	{ id: "opencode", label: "OpenCode" },
+	...supportedAdapterTools().map((adapter) => ({ id: adapter.id, label: adapter.label })),
 	{ id: "todos", label: "Todos (recomendado)" },
-] as const;
+];
 
 interface WizardResult {
 	projectType: string;

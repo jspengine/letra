@@ -17,7 +17,8 @@ import {
 	getActiveEntries,
 } from "../health-record.js";
 import { logEntry, queryLog, queryLogWithMeta } from "../session-log.js";
-import { clearFocusFile, writeFocusFile } from "../adapters/focus-sync.js";
+import { clearFocusFile } from "../adapters/focus-sync.js";
+import { writeFocusWithRecommendations } from "../adapters/focus-recommendations.js";
 import { pulse } from "./pulse.js";
 import { sitrep } from "./sitrep.js";
 import { resolveActiveFlowFor } from "../flow-definition/resolve.js";
@@ -37,7 +38,17 @@ import {
 	readFocusDocument,
 	readFocusState,
 } from "../flow-serve/context.js";
-import { createWorkflowFromTemplate as createWorkflowFromTemplateService, registerWorkspaceSetup, writeWorkspaceTargetAdapters } from "../flow-serve/workspace.js";
+import {
+	analyzeWorkspaceSetup,
+	captureWorkspaceSetup,
+	createWorkflowFromTemplate as createWorkflowFromTemplateService,
+	planWorkspaceSetup,
+	registerWorkspaceSetup,
+	rollbackWorkspaceSetup,
+	saveWorkspaceSetupManifest,
+	restoreWorkspaceSetup,
+	writeWorkspaceTargetAdapters,
+} from "../flow-serve/workspace.js";
 import { getRecurringSystemActions, logSystemAction } from "../flow-serve/system-actions.js";
 import { createRequestContext } from "../flow-serve/request-context.js";
 import { FlowServerRouter } from "../flow-serve/router.js";
@@ -47,6 +58,7 @@ import { createDiagnosticsRoutes } from "../flow-serve/routes/diagnostics-routes
 import { createContextRoutes } from "../flow-serve/routes/context-routes.js";
 import { createWorkflowRoutes } from "../flow-serve/routes/workflow-routes.js";
 import { createWorkspaceRoutes } from "../flow-serve/routes/workspace-routes.js";
+import { createAdapterRoutes } from "../flow-serve/routes/adapter-routes.js";
 import { ClientAssets } from "../flow-serve/client-assets.js";
 import { AutomationRuntime, type AutomationBinding } from "../flow-serve/automation-runtime.js";
 
@@ -102,7 +114,7 @@ export class FlowServer {
 			createItemRoutes({
 				writeWorkflow,
 				loadHealthRecord,
-				writeFocusFile,
+				writeFocusFile: writeFocusWithRecommendations,
 				logEntry,
 				resolveActiveFlow: resolveActiveFlowFor,
 				broadcast: () => this.broadcast(),
@@ -140,7 +152,7 @@ export class FlowServer {
 		this.router.register(
 			createContextRoutes({
 				clearFocusFile,
-				writeFocusFile,
+				writeFocusFile: writeFocusWithRecommendations,
 				logEntry,
 				queryLog,
 				queryLogWithMeta,
@@ -177,7 +189,19 @@ export class FlowServer {
 				createFromTemplate: createWorkflowFromTemplateService,
 				writeWorkflow,
 				writeTargetAdapters: writeWorkspaceTargetAdapters,
+				analyzeSetup: analyzeWorkspaceSetup,
+				planSetup: planWorkspaceSetup,
+				captureSetup: captureWorkspaceSetup,
+				restoreSetup: restoreWorkspaceSetup,
+				saveSetupManifest: saveWorkspaceSetupManifest,
+				rollbackSetup: rollbackWorkspaceSetup,
 				loadHarness: (root) => loadHarness(resolveHarnessRoot(root)),
+			}),
+		);
+		this.router.register(
+			createAdapterRoutes({
+				logEntry,
+				broadcast: () => this.broadcast(),
 			}),
 		);
 	}

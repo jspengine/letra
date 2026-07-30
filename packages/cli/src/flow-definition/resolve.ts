@@ -38,6 +38,7 @@ function cloneActivityHint<T extends ActivityHintConfig>(hint: T | undefined): T
 		mustRead: hint.mustRead?.map((reference) => ({ ...reference })),
 		mustNotDo: hint.mustNotDo ? [...hint.mustNotDo] : undefined,
 		nextActions: hint.nextActions?.map((action) => ({ ...action })),
+		commands: hint.commands?.map((command) => ({ ...command })),
 	};
 }
 
@@ -78,6 +79,7 @@ function resolveGate(
 		blocking: gate.blocking,
 		policyRef: gate.policyRef,
 		description: gate.description,
+		decisions: gate.decisions ? { ...gate.decisions } : undefined,
 	};
 }
 

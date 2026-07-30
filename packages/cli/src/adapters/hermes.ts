@@ -11,19 +11,7 @@ export type HermesOptions = {
 export function buildHermesSnapshot(root: string) {
   const workflow = loadWorkflow(root);
   if (!workflow) {
-    return {
-      workflowName: "letra",
-      hasWorkflow: false,
-      items: [],
-      hasFocus: false,
-      primaryItemId: null,
-      focusSpec: null,
-      focusPath: null,
-      pendingACs: 0,
-      totalACs: 0,
-      lastSession: null,
-      alerts: undefined,
-      };
+    return buildHarnessSnapshot(root, { source: "init" });
   }
 
   const activeItemId = workflow.primaryItemId || workflow.items[0]?.id;

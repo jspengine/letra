@@ -7,6 +7,7 @@ import { stageDriftDetector } from "./detectors/stage-drift.js";
 import { harnessStaleDetector } from "./detectors/harness-stale.js";
 import { acFalsePosDetector } from "./detectors/ac-false-pos.js";
 import { missingSpecLinkDetector } from "./detectors/missing-spec-link.js";
+import { focusStaleDetector } from "./detectors/focus-stale.js";
 import { writeWorkflow } from "../commands/flow-init.js";
 import type { DiagnosticResult } from "./types.js";
 
@@ -40,6 +41,7 @@ export class DiagnosticEngine {
 		stageDriftDetector,
     harnessStaleDetector,
     missingSpecLinkDetector,
+    focusStaleDetector,
   ];
   private lastOutput: DiagnosticOutput = {
     fixes: [],

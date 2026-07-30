@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { Workflow } from "../commands/flow-init.js";
 
 export interface FocusData {
@@ -8,7 +9,17 @@ export interface FocusData {
 	outcome: string;
 }
 
-export function syncFocus(rootDir: string, workflow: Workflow | null): { cleared: boolean; generated: boolean; diverged: boolean } {
+export interface FocusRecommendedAction {
+	command: string;
+	label: string;
+	description?: string;
+}
+
+export function syncFocus(
+	rootDir: string,
+	workflow: Workflow | null,
+	recommendedActions: FocusRecommendedAction[] = [],
+): { cleared: boolean; generated: boolean; diverged: boolean } {
 	const focusFile = join(rootDir, ".letra", "focus.md");
 	const focusData = readFocusFile(rootDir);
 	let cleared = false;
@@ -31,7 +42,7 @@ export function syncFocus(rootDir: string, workflow: Workflow | null): { cleared
 	if (!focusData && workflow) {
 		const activeItem = findActiveItem(workflow);
 		if (activeItem?.spec) {
-			writeFocusFile(rootDir, activeItem.spec, activeItem.id);
+			writeFocusFile(rootDir, activeItem.spec, activeItem.id, recommendedActions);
 			generated = true;
 		}
 	}
@@ -67,15 +78,41 @@ export function extractOutcome(rootDir: string, specName: string): string | null
 	return match ? match[1].trim() : null;
 }
 
-export function writeFocusFile(rootDir: string, specName: string, itemId: string): void {
+export function writeFocusFile(
+	rootDir: string,
+	specName: string,
+	itemId: string,
+	recommendedActions: FocusRecommendedAction[] = [],
+): void {
 	const focusFile = join(rootDir, ".letra", "focus.md");
 	const outcome = extractOutcome(rootDir, specName) || specName;
+	const letraDir = join(rootDir, ".letra");
 	const content = [
 		`# Focus: ${specName}`,
 		"",
 		`**Path**: .letra/specs/${specName}/`,
 		`**Item**: ${itemId}`,
 		`**Outcome**: ${outcome}`,
+		"",
+		...(recommendedActions.length > 0
+			? [
+					"## Ações Recomendadas",
+					"",
+					...recommendedActions.map((action) => {
+						const detail = action.description
+							? `${action.label}: ${action.description}`
+							: action.label;
+						return `- \`${action.command}\` — ${detail}`;
+					}),
+					"",
+				]
+			: []),
+		"## Links",
+		"",
+		`- [Spec: ${specName}](${pathToFileURL(join(letraDir, "specs", specName, "spec.md")).href})`,
+		`- [${itemId}](${pathToFileURL(join(letraDir, "workflow.json")).href})`,
+		`- [Constitution](${pathToFileURL(join(letraDir, "constitution.md")).href})`,
+		`- [Constraints](${pathToFileURL(join(letraDir, "constraints.md")).href})`,
 		"",
 	].join("\n");
 
@@ -96,7 +133,7 @@ export function readFocusFile(rootDir: string): FocusData | null {
 	const content = readFileSync(focusFile, "utf-8");
 	const specMatch = content.match(/# Focus:\s*(.+)/);
 	const itemMatch = content.match(/\*\*Item\*\*:\s*(.+)/);
-	const outcomeMatch = content.match(/\*\*Outcome\*\*:\s*([\s\S]*?)(?=\n\*\*|\n*$)/);
+	const outcomeMatch = content.match(/\*\*Outcome\*\*:\s*([\s\S]*?)(?=\n\*\*|\n## |\n*$)/);
 
 	if (!specMatch) return null;
 

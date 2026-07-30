@@ -13,7 +13,7 @@ export function ValidatingBar({ active }: ValidatingBarProps) {
 			)}
 			aria-hidden="true"
 		>
-			<div className="h-full w-full bg-[var(--primary)] rounded-full animate-validating-bar" />
+			<div className="h-full w-full bg-[var(--color-primary)] rounded-full animate-validating-bar" />
 		</div>
 	);
 }

@@ -5,8 +5,8 @@ import {
 	CollapsibleContent,
 	Button,
 	Icon,
+	Markdown,
 } from "@letra/ui";
-import { Markdown } from "../ui/markdown";
 
 interface LayerFile {
 	path: string;
@@ -87,20 +87,20 @@ function LayerCard({
 	return (
 		<Collapsible open={open} onOpenChange={setOpen}>
 			<CollapsibleTrigger
-				className="flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-150 hover:bg-primary/5 active:scale-[0.98]"
-				style={{ color: "var(--foreground)" }}
+				className="flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-[var(--radius-sm)] text-sm transition-all duration-150 hover:bg-primary/5 active:scale-[0.98]"
+				style={{ color: "var(--color-text-primary)" }}
 			>
 				<Icon name={info.icon as any} size={16} className="text-primary shrink-0" />
 				<div className="flex-1 min-w-0">
 					<div className="font-semibold text-sm">{info.title}</div>
-					<div className="text-xs truncate" style={{ color: "var(--muted-foreground)" }}>
+					<div className="text-xs truncate" style={{ color: "var(--color-text-secondary)" }}>
 						{info.desc}
 					</div>
 				</div>
 				<Icon
 					name="chevron-down"
 					size={16}
-					style={{ color: "var(--muted-foreground)" }}
+					style={{ color: "var(--color-text-secondary)" }}
 					className={open ? "rotate-180" : ""}
 				/>
 			</CollapsibleTrigger>
@@ -117,20 +117,20 @@ function L1Content({ files }: { files: LayerFile[] }) {
 			{files.map((f) => (
 				<div key={f.path}>
 					<div className="flex items-center gap-1.5 mb-1">
-						<Icon name="file-text" size={12} style={{ color: "var(--muted-foreground)" }} />
-						<span className="text-xs font-mono" style={{ color: "var(--muted-foreground)" }}>
+						<Icon name="file-text" size={12} style={{ color: "var(--color-text-secondary)" }} />
+						<span className="text-xs font-mono" style={{ color: "var(--color-text-secondary)" }}>
 							{f.path}
 						</span>
 					</div>
 					{f.content ? (
 						<div
-							className="p-3 rounded-lg text-sm leading-relaxed"
-							style={{ backgroundColor: "var(--muted)" }}
+							className="p-3 rounded-[var(--radius-sm)] text-sm leading-relaxed"
+							style={{ backgroundColor: "var(--color-bg-surface)" }}
 						>
 							<Markdown content={f.content} />
 						</div>
 					) : (
-						<p className="text-xs italic" style={{ color: "var(--muted-foreground)" }}>
+						<p className="text-xs italic" style={{ color: "var(--color-text-secondary)" }}>
 							(empty)
 						</p>
 					)}
@@ -146,14 +146,14 @@ function L2Content({ l2 }: { l2: L2Data }) {
 			{l2.focus && (
 				<div>
 					<div className="flex items-center gap-1.5 mb-1">
-						<Icon name="star" size={12} style={{ color: "var(--muted-foreground)" }} />
-						<span className="text-xs font-mono" style={{ color: "var(--muted-foreground)" }}>
+						<Icon name="star" size={12} style={{ color: "var(--color-text-secondary)" }} />
+						<span className="text-xs font-mono" style={{ color: "var(--color-text-secondary)" }}>
 							.letra/focus.md
 						</span>
 						{l2.focus.specName && (
 							<span
 								className="text-xs px-1.5 py-0.5 rounded font-medium"
-								style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
+								style={{ backgroundColor: "var(--color-primary)", color: "var(--color-primary)" }}
 							>
 								{l2.focus.specName}
 							</span>
@@ -161,13 +161,13 @@ function L2Content({ l2 }: { l2: L2Data }) {
 					</div>
 					{l2.focus.content ? (
 						<div
-							className="p-3 rounded-lg text-sm leading-relaxed"
-							style={{ backgroundColor: "var(--muted)" }}
+							className="p-3 rounded-[var(--radius-sm)] text-sm leading-relaxed"
+							style={{ backgroundColor: "var(--color-bg-surface)" }}
 						>
 							<Markdown content={l2.focus.content} />
 						</div>
 					) : (
-						<p className="text-xs italic" style={{ color: "var(--muted-foreground)" }}>
+						<p className="text-xs italic" style={{ color: "var(--color-text-secondary)" }}>
 							(no focus content)
 						</p>
 					)}
@@ -176,21 +176,21 @@ function L2Content({ l2 }: { l2: L2Data }) {
 			{l2.spec && (
 				<div>
 					<div className="flex items-center gap-1.5 mb-1">
-						<Icon name="file-text" size={12} style={{ color: "var(--muted-foreground)" }} />
-						<span className="text-xs font-mono" style={{ color: "var(--muted-foreground)" }}>
+						<Icon name="file-text" size={12} style={{ color: "var(--color-text-secondary)" }} />
+						<span className="text-xs font-mono" style={{ color: "var(--color-text-secondary)" }}>
 							{l2.spec.path}
 						</span>
 					</div>
 					<div
-						className="p-3 rounded-lg text-sm leading-relaxed"
-						style={{ backgroundColor: "var(--muted)" }}
+						className="p-3 rounded-[var(--radius-sm)] text-sm leading-relaxed"
+						style={{ backgroundColor: "var(--color-bg-surface)" }}
 					>
 						<Markdown content={l2.spec.content} />
 					</div>
 				</div>
 			)}
 			{!l2.focus && !l2.spec && (
-				<p className="text-xs italic" style={{ color: "var(--muted-foreground)" }}>
+				<p className="text-xs italic" style={{ color: "var(--color-text-secondary)" }}>
 					Nenhum foco ou spec ativo no momento.
 				</p>
 			)}
@@ -203,37 +203,37 @@ function L3Content({ l3 }: { l3: L3Data }) {
 		<div className="space-y-3">
 			<div className="flex gap-2 flex-wrap">
 				<div
-					className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs"
-					style={{ backgroundColor: "var(--muted)" }}
+					className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs"
+					style={{ backgroundColor: "var(--color-bg-surface)" }}
 				>
 					<Icon name="alert-triangle" size={12} className="text-amber-500" />
 					<span>{l3.alertCount} alerta(s) ativo(s)</span>
 				</div>
 				<div
-					className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs"
-					style={{ backgroundColor: "var(--muted)" }}
+					className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs"
+					style={{ backgroundColor: "var(--color-bg-surface)" }}
 				>
-					<Icon name="activity" size={12} style={{ color: "var(--muted-foreground)" }} />
+					<Icon name="activity" size={12} style={{ color: "var(--color-text-secondary)" }} />
 					<span>{l3.sessionEventCount} evento(s) na sessão</span>
 				</div>
 			</div>
 
 			{l3.alerts.length > 0 && (
 				<div>
-					<p className="text-xs font-semibold mb-1.5 uppercase tracking-wider" style={{ color: "var(--muted-foreground)" }}>
+					<p className="text-xs font-semibold mb-1.5 uppercase tracking-wider" style={{ color: "var(--color-text-secondary)" }}>
 						Alertas recentes
 					</p>
 					<div className="space-y-1">
 						{l3.alerts.map((a) => (
 							<div
 								key={a.id}
-								className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg text-xs"
-								style={{ backgroundColor: "var(--muted)" }}
+								className="flex items-start gap-2 px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs"
+								style={{ backgroundColor: "var(--color-bg-surface)" }}
 							>
-								<Icon name="alert-circle" size={12} style={{ color: a.severity === "alta" ? "var(--destructive)" : "var(--warning)" }} />
+								<Icon name="alert-circle" size={12} style={{ color: a.severity === "alta" ? "var(--color-danger)" : "var(--color-warning)" }} />
 								<div className="min-w-0 flex-1">
 									<div className="font-medium">{a.id}</div>
-									<div style={{ color: "var(--muted-foreground)" }}>{a.message}</div>
+									<div style={{ color: "var(--color-text-secondary)" }}>{a.message}</div>
 								</div>
 							</div>
 						))}
@@ -250,14 +250,14 @@ function L4Content({ l4 }: { l4: L4Data }) {
 			{l4.constraintsContent && (
 				<div>
 					<div className="flex items-center gap-1.5 mb-1">
-						<Icon name="file-text" size={12} style={{ color: "var(--muted-foreground)" }} />
-						<span className="text-xs font-mono" style={{ color: "var(--muted-foreground)" }}>
+						<Icon name="file-text" size={12} style={{ color: "var(--color-text-secondary)" }} />
+						<span className="text-xs font-mono" style={{ color: "var(--color-text-secondary)" }}>
 							.letra/constraints.md
 						</span>
 					</div>
 					<div
-						className="p-3 rounded-lg text-sm leading-relaxed"
-						style={{ backgroundColor: "var(--muted)" }}
+						className="p-3 rounded-[var(--radius-sm)] text-sm leading-relaxed"
+						style={{ backgroundColor: "var(--color-bg-surface)" }}
 					>
 						<Markdown content={l4.constraintsContent} />
 					</div>
@@ -266,21 +266,21 @@ function L4Content({ l4 }: { l4: L4Data }) {
 			{l4.glossaryContent && (
 				<div>
 					<div className="flex items-center gap-1.5 mb-1">
-						<Icon name="file-text" size={12} style={{ color: "var(--muted-foreground)" }} />
-						<span className="text-xs font-mono" style={{ color: "var(--muted-foreground)" }}>
+						<Icon name="file-text" size={12} style={{ color: "var(--color-text-secondary)" }} />
+						<span className="text-xs font-mono" style={{ color: "var(--color-text-secondary)" }}>
 							.letra/glossary.md
 						</span>
 					</div>
 					<div
-						className="p-3 rounded-lg text-sm leading-relaxed"
-						style={{ backgroundColor: "var(--muted)" }}
+						className="p-3 rounded-[var(--radius-sm)] text-sm leading-relaxed"
+						style={{ backgroundColor: "var(--color-bg-surface)" }}
 					>
 						<Markdown content={l4.glossaryContent} />
 					</div>
 				</div>
 			)}
 			{!l4.constraintsContent && !l4.glossaryContent && (
-				<p className="text-xs italic" style={{ color: "var(--muted-foreground)" }}>
+				<p className="text-xs italic" style={{ color: "var(--color-text-secondary)" }}>
 					Nenhuma regra ou restrição adicional.
 				</p>
 			)}
@@ -308,7 +308,7 @@ export default function HarnessViewer() {
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center h-full">
-				<p className="text-sm animate-pulse" style={{ color: "var(--muted-foreground)" }}>
+				<p className="text-sm animate-pulse" style={{ color: "var(--color-text-secondary)" }}>
 					Loading...
 				</p>
 			</div>
@@ -318,7 +318,7 @@ export default function HarnessViewer() {
 	if (!data) {
 		return (
 			<div className="flex items-center justify-center h-full">
-				<p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+				<p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
 					Unable to load harness data.
 				</p>
 			</div>
@@ -327,10 +327,10 @@ export default function HarnessViewer() {
 
 	return (
 		<div className="flex flex-col min-h-0 overflow-hidden">
-			<div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: "var(--border)" }}>
+			<div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: "var(--color-border)" }}>
 				<div>
 					<h2 className="text-sm font-semibold">Harness Composition</h2>
-					<p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+					<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
 						Camadas do prompt compilado para o agente
 					</p>
 				</div>
@@ -340,8 +340,8 @@ export default function HarnessViewer() {
 						const text = JSON.stringify(data, null, 2);
 						copy(text);
 					}}
-					className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all duration-150 hover:bg-primary/10 active:scale-95"
-					style={{ backgroundColor: "var(--muted)" }}
+					className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs transition-all duration-150 hover:bg-primary/10 active:scale-95"
+					style={{ backgroundColor: "var(--color-bg-surface)" }}
 					aria-label="Copy harness data"
 				>
 					<Icon name={copied ? "check" : "copy"} size={12} />

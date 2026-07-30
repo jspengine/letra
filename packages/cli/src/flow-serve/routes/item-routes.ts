@@ -1,3 +1,4 @@
+import type { GateDecision, ResolvedFlowDefinition } from "@letra/types";
 import type { Workflow } from "../../commands/flow-init.js";
 import type { loadHealthRecord } from "../../health-record.js";
 import type { logEntry } from "../../session-log.js";
@@ -31,6 +32,24 @@ interface UpdateItemBody {
 	description?: string;
 	stage?: string;
 	tasks?: Workflow["items"][number]["tasks"];
+}
+
+interface GateDecisionBody {
+	decision?: GateDecision;
+	reason?: string;
+}
+
+function resolveDecisionTarget(
+	flow: ResolvedFlowDefinition,
+	currentStageId: string,
+	target: string,
+): string | null {
+	const currentIndex = flow.stages.findIndex((stage) => stage.id === currentStageId);
+	if (currentIndex === -1) return null;
+	if (target === "next") return flow.stages[currentIndex + 1]?.id ?? null;
+	if (target === "previous") return flow.stages[currentIndex - 1]?.id ?? null;
+	if (target === "first") return flow.stages[0]?.id ?? null;
+	return flow.stages.some((stage) => stage.id === target) ? target : null;
 }
 
 function sendBodyError(error: unknown, res: Parameters<typeof sendError>[0]): void {
@@ -94,6 +113,111 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 			return true;
 		}
 
+		const gateDecisionItemId = routeParam(path, "/api/items/:id/gate-decisions");
+		if (gateDecisionItemId !== null && method === "POST") {
+			try {
+				const data = await readJson<GateDecisionBody>(req);
+				if (!workflow) {
+					sendError(res, 404, "No workflow");
+					return true;
+				}
+				if (!data.decision || !["approve", "request-changes", "reject"].includes(data.decision)) {
+					sendError(res, 400, "decision must be approve, request-changes, or reject");
+					return true;
+				}
+				const reason = data.reason?.trim();
+				if (data.decision !== "approve" && !reason) {
+					sendError(res, 400, "reason is required for request-changes and reject");
+					return true;
+				}
+				const item = workflow.items.find((candidate) => candidate.id === gateDecisionItemId);
+				if (!item) {
+					sendError(res, 404, "Item not found");
+					return true;
+				}
+				const resolved = dependencies.resolveActiveFlow(workspaceRoot, workflow);
+				const flow = resolved.flow;
+				const currentStage = flow?.stages.find((stage) => stage.id === item.stage);
+				const gate = currentStage?.gate;
+				if (!flow || gate?.type !== "human" || !gate.blocking) {
+					sendError(res, 422, "Item is not waiting at a blocking human gate");
+					return true;
+				}
+				const targetRule = gate.decisions?.[data.decision];
+				if (!targetRule) {
+					sendError(
+						res,
+						422,
+						`Gate "${gate.name}" does not define the "${data.decision}" decision in the harness`,
+					);
+					return true;
+				}
+				const targetStage = resolveDecisionTarget(flow, item.stage, targetRule);
+				if (!targetStage) {
+					sendError(
+						res,
+						422,
+						`Gate "${gate.name}" resolves "${data.decision}" to an invalid stage`,
+					);
+					return true;
+				}
+
+				const sourceStage = item.stage;
+				item.stage = targetStage;
+				workflow.updatedAt = new Date().toISOString();
+				await dependencies.writeWorkflow(workspaceRoot, {
+					workflow,
+					source: "web-ui-gate-decision",
+					primaryItemId: item.id,
+					skipSitrep: true,
+					quiet: true,
+				});
+				dependencies.logEntry(
+					workspaceRoot,
+					"decision",
+					`Gate ${gate.name}: ${data.decision} (${item.id})`,
+					{
+						itemId: item.id,
+						details: {
+							kind: "gate",
+							gateId: gate.id,
+							decision: data.decision,
+							reason: reason ?? null,
+							from: sourceStage,
+							to: targetStage,
+							by: "human:web-ui",
+							outcome: "completed",
+						},
+					},
+				);
+				if (item.spec) {
+					dependencies.writeFocusFile(workspaceRoot, item.spec, item.id);
+				}
+				dependencies.broadcast();
+				void dependencies.fireWebhooks(workspaceRoot, "gate.decided", {
+					itemId: item.id,
+					gateId: gate.id,
+					decision: data.decision,
+					reason: reason ?? null,
+					sourceStage,
+					targetStage,
+				});
+				sendJson(res, 200, {
+					item,
+					decision: {
+						gateId: gate.id,
+						value: data.decision,
+						reason: reason ?? null,
+						sourceStage,
+						targetStage,
+					},
+				});
+			} catch (error) {
+				sendBodyError(error, res);
+			}
+			return true;
+		}
+
 		const itemId = routeParam(path, "/api/items/:id");
 		if (itemId !== null && method === "GET") {
 			if (!workflow) {
@@ -124,6 +248,15 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				const oldStage = item.stage;
 				if (data.stage !== undefined && data.stage !== oldStage) {
 					const resolved = dependencies.resolveActiveFlow(workspaceRoot, workflow);
+					const sourceStage = resolved.flow?.stages.find((stage) => stage.id === oldStage);
+					if (sourceStage?.gate?.type === "human" && sourceStage.gate.blocking) {
+						sendError(
+							res,
+							422,
+							`Gate bloqueante: ${sourceStage.gate.name}. Use uma decisão humana explícita para sair de "${sourceStage.name}".`,
+						);
+						return true;
+					}
 					const targetStage = resolved.flow?.stages.find((stage) => stage.id === data.stage);
 					const gate = targetStage?.gate;
 					if (gate?.type === "human" && gate.blocking) {

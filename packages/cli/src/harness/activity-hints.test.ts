@@ -4,7 +4,7 @@ import { loadHarness } from "./loader.js";
 
 describe("canonical harness activity hints", () => {
 	it("declares intent for all supported activity kinds", () => {
-		const harness = loadHarness(resolve("src/harness/default/v0.1.2"));
+		const harness = loadHarness(resolve("src/harness/default/v0.1.3"));
 		const stages = harness?.flows["flow-main"]?.stages ?? [];
 		const declaredKinds = new Set(stages.flatMap((stage) => Object.keys(stage.activity ?? {})));
 
@@ -16,5 +16,13 @@ describe("canonical harness activity hints", () => {
 		).toEqual(
 			expect.arrayContaining([expect.objectContaining({ label: "Executar próximo AC" })]),
 		);
+		expect(
+			stages.find((stage) => stage.id === "code")?.activity?.implement?.commands?.[0],
+		).toHaveProperty("command", "letra ac done <AC-ID>");
+		expect(harness?.gates["human-approved-spec"]?.decisions).toEqual({
+			approve: "next",
+			"request-changes": "previous",
+			reject: "first",
+		});
 	});
 });

@@ -16,7 +16,7 @@ function NavigationMenuList({ className, ...props }: NavigationMenuPrimitive.Lis
 	return (
 		<NavigationMenuPrimitive.List
 			data-slot="navigation-menu-list"
-			className={cn("flex list-none items-center gap-1", className)}
+			className={cn("flex list-none items-center gap-[var(--space-1)]", className)}
 			{...props}
 		/>
 	);
@@ -29,7 +29,7 @@ function NavigationMenuTrigger({ className, children, ...props }: NavigationMenu
 		<NavigationMenuPrimitive.Trigger
 			data-slot="navigation-menu-trigger"
 			className={cn(
-				"group inline-flex h-9 items-center justify-center gap-1 rounded-lg px-3 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary",
+				"group inline-flex h-9 items-center justify-center gap-[var(--space-1)] rounded-[var(--radius-md)] px-[var(--space-3)] text-body-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)] data-popup-open:bg-[var(--surface-selected)]",
 				className,
 			)}
 			{...props}
@@ -38,7 +38,7 @@ function NavigationMenuTrigger({ className, children, ...props }: NavigationMenu
 			<NavigationMenuPrimitive.Icon>
 				<ChevronDown
 					aria-hidden="true"
-					className="size-3 transition-transform group-data-popup-open:rotate-180"
+					className="size-[var(--icon-sm)] transition-transform group-data-popup-open:rotate-180"
 				/>
 			</NavigationMenuPrimitive.Icon>
 		</NavigationMenuPrimitive.Trigger>
@@ -49,7 +49,7 @@ function NavigationMenuContent({ className, ...props }: NavigationMenuPrimitive.
 	return (
 		<NavigationMenuPrimitive.Content
 			data-slot="navigation-menu-content"
-			className={cn("p-2", className)}
+			className={cn("p-[var(--space-2)]", className)}
 			{...props}
 		/>
 	);
@@ -60,7 +60,7 @@ function NavigationMenuLink({ className, ...props }: NavigationMenuPrimitive.Lin
 		<NavigationMenuPrimitive.Link
 			data-slot="navigation-menu-link"
 			className={cn(
-				"block rounded-md p-2 text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-primary",
+				"block rounded-[var(--radius-md)] p-[var(--space-2)] text-body-sm text-[var(--color-text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring-color)]",
 				className,
 			)}
 			{...props}
@@ -70,10 +70,11 @@ function NavigationMenuLink({ className, ...props }: NavigationMenuPrimitive.Lin
 
 function NavigationMenuViewport({ className, ...props }: NavigationMenuPrimitive.Viewport.Props) {
 	return (
-		<NavigationMenuPrimitive.Portal>
-			<NavigationMenuPrimitive.Positioner sideOffset={8}>
-				<NavigationMenuPrimitive.Popup
-					className="rounded-xl border bg-card text-card-foreground shadow-lg outline-none"
+			<NavigationMenuPrimitive.Portal>
+				<NavigationMenuPrimitive.Positioner sideOffset={8}>
+					<NavigationMenuPrimitive.Popup
+						data-slot="navigation-menu-popup"
+						className="rounded-[var(--radius-md)] border-[length:var(--border-thin)] border-[var(--color-border)] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] shadow-lg outline-none"
 				>
 					<NavigationMenuPrimitive.Viewport
 						data-slot="navigation-menu-viewport"

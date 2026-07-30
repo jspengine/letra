@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { queryLog, logEntry } from "../session-log.js";
+import { queryLog, logEntry, pruneSessionLog } from "../session-log.js";
 
 export default function () {
 	const cmd = new Command("log")
@@ -13,13 +13,15 @@ export default function () {
 		.option("--item <id>", "Filter by item ID")
 		.option("--action <action>", "Filter by action type")
 		.option("--since <date>", "Filter by date (ISO or YYYY-MM-DD)")
-		.action((options: { all?: boolean; json?: boolean; item?: string; action?: string; since?: string }) => {
+		.option("--debug", "Include debug/system entries")
+		.action((options: { all?: boolean; json?: boolean; item?: string; action?: string; since?: string; debug?: boolean }) => {
 			const root = resolve(process.cwd());
 			const entries = queryLog(root, {
 				all: options.all,
 				itemId: options.item,
 				action: options.action,
 				since: options.since,
+				debug: options.debug,
 			});
 
 			if (options.json) {
@@ -36,7 +38,8 @@ export default function () {
 
 			for (const entry of entries) {
 				const actionColor = actionColors[entry.action] ?? chalk.white;
-				console.log(`  ${chalk.gray(entry.id)} ${actionColor(entry.action)} ${chalk.gray(new Date(entry.timestamp).toLocaleString())}`);
+				const level = entry.level === "debug" ? chalk.gray(" debug") : "";
+				console.log(`  ${chalk.gray(entry.id)} ${actionColor(entry.action)}${level} ${chalk.gray(new Date(entry.timestamp).toLocaleString())}`);
 				console.log(`    ${entry.description}`);
 				if (entry.itemId) console.log(`    ${chalk.cyan(`item: ${entry.itemId}${entry.acId ? ` | ac: ${entry.acId}` : ""}`)}`);
 				console.log();
@@ -78,6 +81,16 @@ export default function () {
 			const root = resolve(process.cwd());
 			logEntry(root, "session_end", "Sessão encerrada", { itemId: options.item });
 			console.log(chalk.green("Fim de sessão registrado."));
+		});
+
+	cmd
+		.command("prune")
+		.requiredOption("--keep <days>", "Number of days to keep")
+		.description("Remove rotated JSONL logs older than the retention window")
+		.action((options: { keep: string }) => {
+			const root = resolve(process.cwd());
+			const removed = pruneSessionLog(root, Number.parseInt(options.keep, 10));
+			console.log(chalk.green(`Retencao aplicada: ${removed.length} arquivo(s) removido(s).`));
 		});
 
 	return cmd;

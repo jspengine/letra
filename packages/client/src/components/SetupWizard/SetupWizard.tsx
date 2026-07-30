@@ -77,7 +77,7 @@ export function SetupWizard({ onComplete, onPersonalizedComplete }: SetupWizardP
 		<div className="min-h-screen flex flex-col items-center justify-center p-8">
 			<div className="max-w-2xl w-full">
 				<div className="text-center mb-10">
-					<div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4">
+					<div className="inline-flex items-center justify-center w-14 h-14 rounded-[var(--radius-lg)] bg-primary/10 mb-4">
 						<svg
 							viewBox="0 0 24 24"
 							fill="none"
@@ -115,14 +115,14 @@ export function SetupWizard({ onComplete, onPersonalizedComplete }: SetupWizardP
 						<Label
 							key={t.id}
 							className={cn(
-								"relative block w-full cursor-pointer rounded-xl border p-5 text-left transition-all",
+								"relative block w-full cursor-pointer rounded-[var(--radius-md)] border p-5 text-left transition-all",
 								selected === t.id
 									? "border-primary bg-primary/5 ring-2 ring-primary/20"
 									: "border-border bg-card hover:border-primary/50 hover:bg-muted/30",
 							)}
 						>
 							<div className="flex items-start gap-4">
-								<div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+								<div className="w-10 h-10 rounded-[var(--radius-sm)] bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
 									<svg
 										viewBox="0 0 24 24"
 										fill="none"
@@ -142,12 +142,12 @@ export function SetupWizard({ onComplete, onPersonalizedComplete }: SetupWizardP
 											{t.name}
 										</span>
 										{t.stages.length > 0 && (
-											<Badge variant="secondary">
+											<Badge variant="info">
 												{t.stages.length} estágios
 											</Badge>
 										)}
 										{t.id === "personalizado" && (
-											<Badge variant="warning">Do zero</Badge>
+											<Badge variant="amber">Do zero</Badge>
 										)}
 									</div>
 									<p className="text-sm text-muted-foreground">{t.description}</p>

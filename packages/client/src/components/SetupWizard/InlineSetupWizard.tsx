@@ -35,7 +35,7 @@ const AGENT_PROMPTS: Record<string, (p: AgentPromptParams) => string> = {
 	opencode: (p) => `Você é um arquiteto de software especializado em configurar o Letra (framework SDD — Specification-Driven Development) para novos workspaces.
 
 ## Missão
-Analise profundamente o workspace em **${p.workspacePath}** e seus diret�rios monitorados (${p.dirs.join(", ")}) para gerar o harness completo do Letra � conjunto de arquivos de contexto que descrevem a arquitetura, decis�es, gloss�rio e fluxo de trabalho.
+Analise profundamente o workspace em **${p.workspacePath}** e seus diretórios monitorados (${p.dirs.join(", ")}) para gerar o harness completo do Letra - conjunto de arquivos de contexto que descrevem a arquitetura, decisões, glossário e fluxo de trabalho.
 
 ## Passos
 
@@ -49,7 +49,7 @@ Analise profundamente o workspace em **${p.workspacePath}** e seus diret�rios 
 - Analise testes existentes (framework de teste, cobertura, padrões)
 
 ### 2. Gerar Constitution (${p.workspacePath}/.letra/constitution.md)
-Regras n�o-negoci�veis do workspace:
+Regras não-negociáveis do workspace:
 - Stack e versões obrigatórias
 - Padrões de arquitetura que devem ser seguidos
 - Convenções de código (naming, organização de imports, testes)
@@ -58,9 +58,9 @@ Regras n�o-negoci�veis do workspace:
 - Como as specs devem ser escritas (thin specs, formato)
 
 ### 3. Gerar Context (${p.workspacePath}/.letra/context.md)
-Vis�o geral do workspace:
+Visão geral do workspace:
 - Intent: propósito do workspace "${p.name}" — ${p.description}
-- Dom�nio: problema de neg�cio que o workspace resolve
+- Domínio: problema de negócio que o workspace resolve
 - Stack técnica completa (linguagem, frameworks, banco, infra)
 - Restrições reais (prazos, equipe, limitações técnicas)
 - Decisões arquiteturais importantes (com links para ADRs)
@@ -382,7 +382,7 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 						/>
 						<Icon name="folder" size={14} className="text-primary shrink-0" />
 						<span className="text-sm truncate">{node.name}</span>
-						<span className="text-xs ml-auto shrink-0" style={{ color: "var(--muted-foreground)" }}>
+						<span className="text-xs ml-auto shrink-0" style={{ color: "var(--color-text-secondary)" }}>
 							{node.path}
 						</span>
 					</label>
@@ -408,18 +408,18 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 										disabled={i > currentIndex}
 										className={cn("w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-all", i === currentIndex && "ring-2 ring-primary/30", i < currentIndex && "cursor-pointer")}
 										style={{
-											background: i < currentIndex ? "var(--success)" : i === currentIndex ? "var(--primary)" : "var(--muted)",
-											color: i < currentIndex ? "var(--success-foreground)" : i === currentIndex ? "var(--primary-foreground)" : "var(--muted-foreground)",
+											background: i < currentIndex ? "var(--color-success)" : i === currentIndex ? "var(--color-primary)" : "var(--color-bg-surface)",
+											color: i < currentIndex ? "var(--color-success)" : i === currentIndex ? "var(--color-primary)" : "var(--color-text-secondary)",
 										}}
 										aria-label={`Passo ${i + 1}: ${stepLabels[s]}${i < currentIndex ? " (concluído)" : ""}`}
 									>
 										{i < currentIndex ? <Icon name="check" size={14} /> : i + 1}
 									</Button>
-									{i < stepOrder.length - 1 && <div className="w-8 h-0.5 mx-1" style={{ background: i < currentIndex ? "var(--success)" : "var(--border)" }} />}
+									{i < stepOrder.length - 1 && <div className="w-8 h-0.5 mx-1" style={{ background: i < currentIndex ? "var(--color-success)" : "var(--color-border)" }} />}
 								</div>
 							))}
 						</div>
-						<div className="flex justify-center gap-0 text-xs -mt-4" style={{ color: "var(--muted-foreground)" }}>
+						<div className="flex justify-center gap-0 text-xs -mt-4" style={{ color: "var(--color-text-secondary)" }}>
 							{stepOrder.map((s, i) => (
 								<div key={s} className="flex items-center">
 									<span className={cn("px-1", i === currentIndex && "font-semibold text-primary")}>{stepLabels[s]}</span>
@@ -433,7 +433,7 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 				{/* ═══ Step 1 — Name + Description + Path ═══ */}
 				{step === "name" && (
 					<div className="flex flex-col items-center text-center gap-6 pt-8 animate-fade-in">
-						<div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10">
+						<div className="inline-flex items-center justify-center w-16 h-16 rounded-[var(--radius-lg)] bg-primary/10">
 							<Icon name="grid" size={24} className="text-primary" />
 						</div>
 						<div>
@@ -447,7 +447,7 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 							</div>
 							<div className="flex flex-col gap-1.5 text-left">
 								<label className="text-sm font-medium">Descrição <span className="text-red-500">*</span></label>
-								<Textarea className="w-full px-3 py-2 rounded-lg border text-sm resize-none" rows={3} placeholder="Descreva o propósito do workspace (mín. 10 caracteres)" value={description} onChange={(e) => setDescription(e.target.value)} style={{ borderColor: "var(--border)", background: "var(--background)", color: "var(--foreground)" }} />
+								<Textarea className="w-full px-3 py-2 rounded-[var(--radius-sm)] border text-sm resize-none" rows={3} placeholder="Descreva o propósito do workspace (mín. 10 caracteres)" value={description} onChange={(e) => setDescription(e.target.value)} style={{ borderColor: "var(--color-border)", background: "var(--color-bg-base)", color: "var(--color-text-primary)" }} />
 								{description.length > 0 && !descValid && <span className="text-xs text-red-500">Faltam {10 - description.trim().length} caracteres</span>}
 							</div>
 							<div className="flex flex-col gap-1.5 text-left">
@@ -455,11 +455,11 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 								<div className="flex gap-2">
 									<Input placeholder="Ex: C:/MeusProjetos/meu-app" value={workspacePath} onChange={(e) => setWorkspacePath(e.target.value)} className="flex-1 font-mono text-xs" />
 									<Input ref={wsBrowseRef} type="file" {...({ webkitdirectory: "" } as any)} style={{ display: "none" }} onChange={handleWsBrowse} />
-									<Button variant="outline" size="sm" onClick={() => wsBrowseRef.current?.click()}>
+									<Button variant="secondary" size="sm" onClick={() => wsBrowseRef.current?.click()}>
 										<Icon name="search" size={14} />
 									</Button>
 								</div>
-								<p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Onde o <code>.letra/</code> será criado</p>
+								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Onde o <code>.letra/</code> será criado</p>
 							</div>
 							<Button className={btnClass} disabled={!step1Valid} onClick={goNext}>Próximo</Button>
 						</div>
@@ -471,26 +471,26 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 					<div className="flex flex-col gap-4 pt-4 animate-fade-in">
 						<div>
 							<h2 className="text-xl font-bold">Diretórios do Projeto</h2>
-							<p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>Navegue e selecione os diretórios que o Letra deve monitorar.</p>
+							<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>Navegue e selecione os diretórios que o Letra deve monitorar.</p>
 						</div>
-						<div className="rounded-xl border p-2 max-h-64 overflow-y-auto" style={{ borderColor: "var(--border)" }}>
+						<div className="rounded-[var(--radius-md)] border p-2 max-h-64 overflow-y-auto" style={{ borderColor: "var(--color-border)" }}>
 							{renderDirTree(dirTrees)}
 						</div>
 						<div className="flex flex-col gap-2">
 							<h3 className="text-sm font-semibold">Adicionar outro diretório</h3>
 							<div className="flex gap-2">
 								<Input placeholder="Ex: D:/Projects" value={customDirInput} onChange={(e) => setCustomDirInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addCustomDir(); }} className="flex-1 font-mono text-xs" />
-								<Button variant="outline" size="sm" onClick={addCustomDir} disabled={!customDirInput.trim()}>
+								<Button variant="secondary" size="sm" onClick={addCustomDir} disabled={!customDirInput.trim()}>
 									<Icon name="plus" size={14} className="mr-1" /> Adicionar
 								</Button>
 							</div>
 							{customDirs.length > 0 && (
 								<div className="flex flex-col gap-1 mt-1">
 									{customDirs.map((d) => (
-										<div key={d} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-mono" style={{ borderColor: "var(--border)" }}>
+										<div key={d} className="flex items-center gap-2 px-3 py-1.5 rounded-[var(--radius-sm)] border text-sm font-mono" style={{ borderColor: "var(--color-border)" }}>
 											<Icon name="folder" size={14} className="text-primary shrink-0" />
 											<span className="flex-1">{d}</span>
-											<Button onClick={() => removeCustomDir(d)} className="w-6 h-6 rounded hover:bg-red-500/10 hover:text-red-500" style={{ color: "var(--muted-foreground)" }} aria-label={`Remover ${d}`}>
+											<Button onClick={() => removeCustomDir(d)} className="w-6 h-6 rounded hover:bg-red-500/10 hover:text-red-500" style={{ color: "var(--color-text-secondary)" }} aria-label={`Remover ${d}`}>
 												<Icon name="x" size={12} />
 											</Button>
 										</div>
@@ -511,21 +511,21 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 					<div className="flex flex-col gap-6 pt-4 animate-fade-in">
 						<div>
 							<h2 className="text-xl font-bold">Template e Ferramentas</h2>
-							<p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>Escolha o template de fluxo e as ferramentas agênticas.</p>
+							<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>Escolha o template de fluxo e as ferramentas agênticas.</p>
 						</div>
 						<div>
 							<h3 className="text-sm font-semibold mb-2">Template de fluxo</h3>
-							<div className="rounded-xl border border-primary bg-primary/5 ring-2 ring-primary/20 p-4">
+							<div className="rounded-[var(--radius-md)] border border-primary bg-primary/5 ring-2 ring-primary/20 p-4">
 								<div className="flex items-start gap-3">
-									<div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+									<div className="w-8 h-8 rounded-[var(--radius-sm)] bg-primary/10 flex items-center justify-center shrink-0">
 										<Icon name="flow" size={16} className="text-primary" />
 									</div>
 									<div>
 										<div className="flex items-center gap-2">
 											<span className="font-semibold">SDLC — Desenvolvimento de Software</span>
-											<Badge variant="secondary">5 estágios</Badge>
+											<Badge variant="info">5 estágios</Badge>
 										</div>
-										<p className="text-sm mt-0.5" style={{ color: "var(--muted-foreground)" }}>Fluxo completo: Backlog, Design, Code, Review, Done</p>
+										<p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>Fluxo completo: Backlog, Design, Code, Review, Done</p>
 										<div className="flex gap-1.5 mt-2 flex-wrap">
 											{["Backlog", "Design", "Code", "Review", "Done"].map((s) => (
 												<span key={s} className="text-xs px-2 py-0.5 rounded-full border border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10">{s}</span>
@@ -538,15 +538,15 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 						<div>
 							<div className="flex items-center gap-2 mb-2">
 								<h3 className="text-sm font-semibold">Ferramentas agênticas</h3>
-								{selectedTools.length > 0 && <Badge variant="secondary">{selectedTools.length} selecionada{selectedTools.length > 1 ? "s" : ""}</Badge>}
+								{selectedTools.length > 0 && <Badge variant="info">{selectedTools.length} selecionada{selectedTools.length > 1 ? "s" : ""}</Badge>}
 							</div>
 							<div className="grid grid-cols-2 gap-3">
 								{ADAPTERS.map((tool, i) => (
-									<label key={tool.id} className={cn("flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 cursor-pointer hover:scale-[1.02] hover:shadow-sm", selectedTools.includes(tool.id) ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-border hover:border-primary/50")}
+									<label key={tool.id} className={cn("flex items-center gap-3 p-4 rounded-[var(--radius-md)] border transition-all duration-200 cursor-pointer hover:scale-[1.02] hover:shadow-sm", selectedTools.includes(tool.id) ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-border hover:border-primary/50")}
 										style={{ animation: `fade-in 0.2s ease-out ${i * 40}ms both` }}
 									>
 										<Checkbox checked={selectedTools.includes(tool.id)} onChange={() => toggleTool(tool.id)} />
-										<div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Icon name="code" size={16} className="text-primary" /></div>
+										<div className="w-8 h-8 rounded-[var(--radius-sm)] bg-primary/10 flex items-center justify-center shrink-0"><Icon name="code" size={16} className="text-primary" /></div>
 										<span className="font-medium">{tool.label}</span>
 									</label>
 								))}
@@ -565,38 +565,38 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 					<div className="flex flex-col gap-6 pt-4 animate-fade-in">
 						<div>
 							<h2 className="text-xl font-bold">Revisar Configuração</h2>
-							<p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>Confira os dados antes de finalizar.</p>
+							<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>Confira os dados antes de finalizar.</p>
 						</div>
 
 						<div className="flex flex-col gap-4">
-							<div className="p-4 rounded-xl" style={{ background: "var(--muted)" }}>
+							<div className="p-4 rounded-[var(--radius-md)]" style={{ background: "var(--color-bg-surface)" }}>
 								<h3 className="text-sm font-semibold mb-2">Workspace</h3>
 								<div className="text-sm space-y-1">
-									<div><span style={{ color: "var(--muted-foreground)" }}>Nome:</span> <span className="font-medium">{workspaceName}</span></div>
-									<div><span style={{ color: "var(--muted-foreground)" }}>Descrição:</span> {description}</div>
-									<div><span style={{ color: "var(--muted-foreground)" }}>Caminho:</span> <span className="font-mono text-xs">{workspacePath}</span></div>
+									<div><span style={{ color: "var(--color-text-secondary)" }}>Nome:</span> <span className="font-medium">{workspaceName}</span></div>
+									<div><span style={{ color: "var(--color-text-secondary)" }}>Descrição:</span> {description}</div>
+									<div><span style={{ color: "var(--color-text-secondary)" }}>Caminho:</span> <span className="font-mono text-xs">{workspacePath}</span></div>
 								</div>
 							</div>
-							<div className="p-4 rounded-xl" style={{ background: "var(--muted)" }}>
+							<div className="p-4 rounded-[var(--radius-md)]" style={{ background: "var(--color-bg-surface)" }}>
 								<h3 className="text-sm font-semibold mb-2">Diretórios monitorados</h3>
 								{allDirs.map((d) => (
 									<div key={d} className="flex items-center gap-2 text-sm font-mono"><Icon name="folder" size={14} className="text-primary shrink-0" /><span>{d}</span></div>
 								))}
 							</div>
-							<div className="p-4 rounded-xl" style={{ background: "var(--muted)" }}>
+							<div className="p-4 rounded-[var(--radius-md)]" style={{ background: "var(--color-bg-surface)" }}>
 								<h3 className="text-sm font-semibold mb-2">Template e Ferramentas</h3>
 								<div className="text-sm">SDLC — Desenvolvimento de Software</div>
 								<div className="flex gap-2 flex-wrap mt-2">
 									{selectedTools.map((t) => {
 										const tool = ADAPTERS.find((a) => a.id === t);
-										return tool ? <Badge key={t} variant="secondary">{tool.label}</Badge> : null;
+										return tool ? <Badge key={t} variant="info">{tool.label}</Badge> : null;
 									})}
 								</div>
 							</div>
 						</div>
 
 						{submitError && (
-							<div className="p-3 rounded-lg text-sm text-red-500" style={{ background: "var(--surface-1)", border: "1px solid var(--border)" }}>
+							<div className="p-3 rounded-[var(--radius-sm)] text-sm text-red-500" style={{ background: "var(--surface-1)", border: "1px solid var(--color-border)" }}>
 								<Icon name="alert-triangle" size={14} className="inline mr-1" />
 								{submitError}
 							</div>
@@ -620,15 +620,15 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 				{step === "done" && (
 					<div className="flex flex-col gap-6 pt-4 animate-fade-in">
 						<div className="flex flex-col items-center text-center gap-4">
-							<div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-success/20">
+							<div className="inline-flex items-center justify-center w-16 h-16 rounded-[var(--radius-lg)] bg-success/20">
 								<Icon name="check-circle" size={24} className="text-success" />
 							</div>
 							<div>
 								<h2 className="text-2xl font-bold">Workspace criado!</h2>
-								<p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
+								<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
 									O workspace <strong>{workspaceName}</strong> foi registrado.
 								</p>
-								<p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
 									Agora cole o prompt abaixo na sua ferramenta agêntica para gerar o harness Letra completo.
 								</p>
 							</div>
@@ -640,24 +640,24 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 						</div>
 
 						{generatedPrompt && (
-							<div className="rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-								<div className="flex items-center justify-between gap-2 p-4 border-b" style={{ borderColor: "var(--border)" }}>
+							<div className="rounded-[var(--radius-md)] border" style={{ borderColor: "var(--color-border)", background: "var(--surface-1)" }}>
+								<div className="flex items-center justify-between gap-2 p-4 border-b" style={{ borderColor: "var(--color-border)" }}>
 									<div className="flex items-center gap-2">
 										<Icon name="code" size={16} className="text-primary" />
 										<h3 className="text-sm font-semibold">
 											Prompt para {ADAPTERS.find((a) => a.id === selectedTools[0])?.label || selectedTools[0]}
 										</h3>
 									</div>
-									<Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(generatedPrompt)}>
+									<Button variant="secondary" size="sm" onClick={() => navigator.clipboard.writeText(generatedPrompt)}>
 										<Icon name="copy" size={14} className="mr-1" />
 										Copiar
 									</Button>
 								</div>
 								<div className="p-4">
-									<p className="text-xs mb-3" style={{ color: "var(--muted-foreground)" }}>
+									<p className="text-xs mb-3" style={{ color: "var(--color-text-secondary)" }}>
 										Este prompt instrui o agente a analisar profundamente o projeto e configurar o harness Letra.
 									</p>
-									<pre className="text-xs p-4 rounded-lg whitespace-pre-wrap font-code leading-relaxed" style={{ background: "var(--muted)", color: "var(--foreground)", border: "1px solid var(--border)", maxHeight: "50vh", overflowY: "auto" }}>
+									<pre className="text-xs p-4 rounded-[var(--radius-sm)] whitespace-pre-wrap font-code leading-relaxed" style={{ background: "var(--color-bg-surface)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)", maxHeight: "50vh", overflowY: "auto" }}>
 										{generatedPrompt}
 									</pre>
 								</div>

@@ -49,7 +49,7 @@ export function DropdownMenuTrigger({
 	return (
 		<button
 			className={cn(
-				"inline-flex items-center justify-center gap-1 rounded-lg px-2 py-1 text-sm font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30",
+				"inline-flex items-center justify-center gap-[var(--space-1)] rounded-[var(--radius-md)] px-[var(--space-2)] py-[var(--space-1)] text-sm font-medium transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30",
 				className,
 			)}
 			type="button"
@@ -82,7 +82,7 @@ export function DropdownMenuContent({
 	return (
 		<div
 			className={cn(
-				"absolute z-50 min-w-[8rem] overflow-hidden rounded-lg border bg-card p-1 shadow-md",
+				"absolute z-50 min-w-[8rem] overflow-hidden rounded-[var(--radius-md)] border-[length:var(--border-thin)] bg-card p-[var(--space-2)] shadow-md",
 				alignStyles[align],
 				className,
 			)}
@@ -108,8 +108,8 @@ export function DropdownMenuItem({
 	return (
 		<button
 			className={cn(
-				"relative flex w-full cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted focus:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-				inset && "pl-8",
+				"relative flex w-full cursor-default select-none items-center gap-[var(--space-2)] rounded-[var(--radius-sm)] px-[var(--space-2)] py-[var(--space-1)] text-sm outline-none transition-colors hover:bg-muted focus:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+				inset && "pl-[var(--space-3)]",
 				className,
 			)}
 			role="menuitem"
@@ -146,8 +146,8 @@ export function DropdownMenuLabel({
 	return (
 		<div
 			className={cn(
-				"px-2 py-1.5 text-xs font-semibold text-muted-foreground",
-				inset && "pl-8",
+				"px-[var(--space-2)] py-[var(--space-1)] text-xs font-semibold text-muted-foreground",
+				inset && "pl-[var(--space-3)]",
 				className,
 			)}
 			{...props}
@@ -155,4 +155,4 @@ export function DropdownMenuLabel({
 			{children}
 		</div>
 	);
-}
+}

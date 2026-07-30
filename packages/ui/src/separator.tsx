@@ -13,12 +13,14 @@ export function Separator({
 	...props
 }: SeparatorProps) {
 	return (
-		<hr
+		<div
+			data-slot="separator"
+			role={decorative ? undefined : "separator"}
 			aria-orientation={orientation}
-			aria-hidden={decorative}
+			aria-hidden={decorative ? true : undefined}
 			className={cn(
-				"shrink-0 bg-border",
-				orientation === "horizontal" ? "h-[1px] w-full" : "w-[1px] h-full",
+				"shrink-0 border-0 bg-[var(--color-border)]",
+				orientation === "horizontal" ? "h-px w-full" : "h-full w-px",
 				className,
 			)}
 			{...props}

@@ -1,0 +1,2215 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-30T20:17:32.063Z",
+  "source": "storybook-x-ds",
+  "required": {
+    "primitives": [
+      "Button",
+      "Badge",
+      "Card",
+      "Input",
+      "Dialog",
+      "Sheet",
+      "Select",
+      "Table",
+      "Toast",
+      "Tooltip"
+    ],
+    "patterns": [
+      "Sidebar",
+      "KanbanBoard",
+      "GateCard",
+      "ValidatingBar",
+      "MarchingBorder",
+      "Search",
+      "ActivityTimeline",
+      "NavHeader"
+    ],
+    "surfaces": [
+      "HomeView",
+      "FlowView",
+      "ExecutionView",
+      "ContextView",
+      "SpecsView",
+      "WorkspacesView"
+    ]
+  },
+  "coverage": {
+    "entries": 61,
+    "primitives": 10,
+    "patterns": 8,
+    "surfaces": 6
+  },
+  "components": [
+    {
+      "name": "Accordion",
+      "title": "Components/Accordion",
+      "path": "src/accordion.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-border",
+        "color-text-primary",
+        "color-text-secondary",
+        "duration-fast"
+      ],
+      "consumes": [
+        "Badge"
+      ],
+      "surfaces": [
+        "ContextView",
+        "SpecsView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "button-trigger",
+        "expanded-state",
+        "keyboard-navigation"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "Rich"
+      ]
+    },
+    {
+      "name": "AgentStatusIndicator",
+      "title": "Components/AgentStatusIndicator",
+      "path": "src/agent-status-indicator.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-agent",
+        "color-danger",
+        "color-success",
+        "color-text-disabled",
+        "motion-base"
+      ],
+      "consumes": [
+        "Tooltip"
+      ],
+      "surfaces": [
+        "ExecutionView",
+        "HomeView"
+      ],
+      "a11y": [
+        "tooltip-label",
+        "state-not-color-only"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "States",
+        "DotOnly"
+      ]
+    },
+    {
+      "name": "Alert",
+      "title": "Components/Alert",
+      "path": "src/alert.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-info",
+        "color-success",
+        "color-warning",
+        "color-danger",
+        "color-text-primary"
+      ],
+      "consumes": [
+        "Icon"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "semantic-message",
+        "state-not-color-only"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Info",
+        "Success",
+        "Warning",
+        "Error"
+      ]
+    },
+    {
+      "name": "AppShell",
+      "title": "Components/AppShell",
+      "path": "src/app-shell.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "layout-header-height",
+        "layout-sidebar-width",
+        "layout-sidebar-width-collapsed",
+        "app-sidebar-shadow",
+        "app-sidebar-border",
+        "app-header-bg",
+        "background"
+      ],
+      "consumes": [
+        "AppSidebar",
+        "SidebarProvider",
+        "GlobalHeader",
+        "Button",
+        "Icon"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView",
+        "ContextView",
+        "SpecsView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "landmark-ready-layout",
+        "responsive-frame",
+        "single-context-selector",
+        "collapsed-icon-labels",
+        "collapsed-hover-tooltips"
+      ],
+      "breakpoints": [
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "Collapsed",
+        "LightTheme",
+        "LongContent"
+      ]
+    },
+    {
+      "name": "Avatar",
+      "title": "Components/Avatar",
+      "path": "src/avatar.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-bg-sunken",
+        "color-border",
+        "color-text-primary",
+        "icon-sm"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "HomeView",
+        "ExecutionView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "fallback-required",
+        "image-alt"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Sm",
+        "Md",
+        "Lg",
+        "WithImage"
+      ]
+    },
+    {
+      "name": "AvatarWithStatus",
+      "title": "Components/AvatarWithStatus",
+      "path": "src/avatar-with-status.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-success",
+        "color-warning",
+        "color-danger",
+        "color-agent",
+        "color-border"
+      ],
+      "consumes": [
+        "Avatar",
+        "AvatarImage",
+        "AvatarFallback"
+      ],
+      "surfaces": [
+        "ExecutionView",
+        "HomeView"
+      ],
+      "a11y": [
+        "fallback-required",
+        "status-not-color-only"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "WithImage"
+      ]
+    },
+    {
+      "name": "Badge",
+      "title": "Components/Badge",
+      "path": "src/badge.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-success",
+        "color-info",
+        "color-danger",
+        "color-agent"
+      ],
+      "consumes": [
+        "Icon"
+      ],
+      "surfaces": [
+        "FlowView",
+        "ExecutionView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "icon-and-label",
+        "semantic-color-with-text"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Amber",
+        "Success",
+        "Info",
+        "Error",
+        "Agent",
+        "Count"
+      ]
+    },
+    {
+      "name": "Breadcrumb",
+      "title": "Components/Breadcrumb",
+      "path": "src/breadcrumb.stories.tsx",
+      "category": "navigation",
+      "status": "ready",
+      "tokens": [
+        "color-text-secondary",
+        "color-text-primary",
+        "color-text-muted",
+        "focus-ring-color"
+      ],
+      "consumes": [
+        "Icon"
+      ],
+      "surfaces": [
+        "ContextView",
+        "SpecsView",
+        "FlowView"
+      ],
+      "a11y": [
+        "nav-label",
+        "aria-current",
+        "focus-visible"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Basic",
+        "Collapsed"
+      ]
+    },
+    {
+      "name": "Button",
+      "title": "Components/Button",
+      "path": "src/button.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-primary-hover",
+        "color-danger",
+        "duration-fast",
+        "ease-standard"
+      ],
+      "consumes": [
+        "Icon"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView"
+      ],
+      "a11y": [
+        "focus-visible",
+        "disabled-state",
+        "loading-disabled"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Primary",
+        "Secondary",
+        "Danger",
+        "Ghost",
+        "Small",
+        "Loading",
+        "Disabled",
+        "WithIcon"
+      ]
+    },
+    {
+      "name": "ButtonGroup",
+      "title": "Components/ButtonGroup",
+      "path": "src/button-group.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-bg-sunken",
+        "color-bg-surface",
+        "color-border",
+        "color-text-secondary"
+      ],
+      "consumes": [
+        "Button"
+      ],
+      "surfaces": [
+        "FlowView"
+      ],
+      "a11y": [
+        "aria-label",
+        "aria-pressed",
+        "focus-visible"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "WorkFilters"
+      ]
+    },
+    {
+      "name": "Card",
+      "title": "Components/Card",
+      "path": "src/card.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-bg-surface",
+        "color-border",
+        "color-agent",
+        "shadow-glow"
+      ],
+      "consumes": [
+        "Badge",
+        "Button",
+        "Icon"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView"
+      ],
+      "a11y": [
+        "semantic-heading",
+        "action-grouping"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "AgentActive",
+        "WithActions"
+      ]
+    },
+    {
+      "name": "Checkbox",
+      "title": "Components/Checkbox",
+      "path": "src/checkbox.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-border",
+        "color-text-secondary",
+        "focus-ring-color"
+      ],
+      "consumes": [
+        "Label"
+      ],
+      "surfaces": [
+        "WorkspacesView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "native-checkbox",
+        "label-associated",
+        "disabled-state",
+        "focus-visible"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Unchecked",
+        "Checked",
+        "Disabled",
+        "DisabledChecked"
+      ]
+    },
+    {
+      "name": "Collapsible",
+      "title": "Components/Collapsible",
+      "path": "src/collapsible.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "duration-fast",
+        "ease-standard",
+        "radius-md",
+        "color-border"
+      ],
+      "consumes": [
+        "Card"
+      ],
+      "surfaces": [
+        "ContextView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "button-trigger",
+        "expanded-state",
+        "keyboard-navigation"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default"
+      ]
+    },
+    {
+      "name": "Command",
+      "title": "Components/Command",
+      "path": "src/command.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-bg-surface",
+        "color-border",
+        "color-text-primary",
+        "space-3"
+      ],
+      "consumes": [
+        "Icon"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView"
+      ],
+      "a11y": [
+        "search-input",
+        "grouped-options",
+        "empty-state",
+        "keyboard-navigation"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default"
+      ]
+    },
+    {
+      "name": "CommandResult",
+      "title": "Components/CommandResult",
+      "path": "src/command-result.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-bg-sunken",
+        "color-border",
+        "color-success",
+        "color-danger",
+        "font-mono"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "ExecutionView",
+        "FlowView"
+      ],
+      "a11y": [
+        "monospace-output",
+        "status-not-color-only"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Success",
+        "Error"
+      ]
+    },
+    {
+      "name": "DateField",
+      "title": "Components/DateField",
+      "path": "src/date-field.stories.tsx",
+      "category": "form",
+      "status": "ready",
+      "tokens": [
+        "color-border",
+        "focus-ring-color",
+        "radius-md"
+      ],
+      "consumes": [
+        "Field",
+        "Input"
+      ],
+      "surfaces": [
+        "WorkspaceView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "label",
+        "aria-invalid",
+        "aria-describedby"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "Invalid"
+      ]
+    },
+    {
+      "name": "DateRangeField",
+      "title": "Components/DateRangeField",
+      "path": "src/date-range-field.stories.tsx",
+      "category": "form",
+      "status": "ready",
+      "tokens": [
+        "color-border",
+        "focus-ring-color",
+        "space-3",
+        "radius-md"
+      ],
+      "consumes": [
+        "Field",
+        "Input"
+      ],
+      "surfaces": [
+        "WorkspaceView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "label",
+        "aria-invalid",
+        "aria-describedby"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "Invalid"
+      ]
+    },
+    {
+      "name": "Dialog",
+      "title": "Components/Dialog",
+      "path": "src/dialog.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "overlay",
+        "color-bg-surface",
+        "color-border",
+        "motion-slow"
+      ],
+      "consumes": [
+        "Button",
+        "Input",
+        "Label",
+        "Icon"
+      ],
+      "surfaces": [
+        "FlowView",
+        "ExecutionView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "esc-close",
+        "overlay-dismiss",
+        "dialog-label"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Generic",
+        "Confirm",
+        "Prompt"
+      ]
+    },
+    {
+      "name": "Drawer",
+      "title": "Components/Drawer",
+      "path": "src/drawer.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "overlay",
+        "card",
+        "card-foreground",
+        "radius-lg",
+        "shadow-xl"
+      ],
+      "consumes": [
+        "Button"
+      ],
+      "surfaces": [
+        "ExecutionView",
+        "FlowView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "title-required",
+        "description-optional",
+        "focus-trap",
+        "dismissible"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default"
+      ]
+    },
+    {
+      "name": "DriftIndicator",
+      "title": "Components/DriftIndicator",
+      "path": "src/drift-indicator.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-warning",
+        "color-text-primary",
+        "duration-fast"
+      ],
+      "consumes": [
+        "Button"
+      ],
+      "surfaces": [
+        "FlowView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "alert-role",
+        "action-visible",
+        "dismissible"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "WithAction"
+      ]
+    },
+    {
+      "name": "DropdownMenu",
+      "title": "Components/DropdownMenu",
+      "path": "src/dropdown-menu.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "card",
+        "color-border",
+        "color-danger",
+        "shadow-md",
+        "radius-md"
+      ],
+      "consumes": [
+        "Button"
+      ],
+      "surfaces": [
+        "FlowView",
+        "ExecutionView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "menu-semantics",
+        "keyboard-navigation",
+        "dismissible",
+        "destructive-labelled"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default"
+      ]
+    },
+    {
+      "name": "EmptyState",
+      "title": "Components/EmptyState",
+      "path": "src/empty-state.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-text-primary",
+        "color-text-secondary",
+        "space-4"
+      ],
+      "consumes": [
+        "Button",
+        "Icon"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "clear-heading",
+        "action-visible"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Basic",
+        "WithAction",
+        "WithIcon"
+      ]
+    },
+    {
+      "name": "ErrorBanner",
+      "title": "Components/ErrorBanner",
+      "path": "src/error-banner.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-danger",
+        "color-bg-sunken",
+        "color-border",
+        "font-code"
+      ],
+      "consumes": [
+        "Button",
+        "Icon"
+      ],
+      "surfaces": [
+        "FlowView",
+        "ExecutionView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "error-message",
+        "retry-action",
+        "details-readable"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Simple",
+        "WithRetry",
+        "WithDetails",
+        "Full"
+      ]
+    },
+    {
+      "name": "Form",
+      "title": "Components/Form",
+      "path": "src/form.stories.tsx",
+      "category": "form",
+      "status": "ready",
+      "tokens": [
+        "color-text-primary",
+        "color-text-secondary",
+        "color-danger",
+        "space-4",
+        "space-5"
+      ],
+      "consumes": [
+        "Button",
+        "Checkbox",
+        "DateField",
+        "DateRangeField",
+        "Input",
+        "Select",
+        "Textarea",
+        "TimeField"
+      ],
+      "surfaces": [
+        "WorkspaceView",
+        "SpecsView",
+        "ContextView"
+      ],
+      "a11y": [
+        "label",
+        "aria-invalid",
+        "aria-describedby",
+        "role-alert"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Basic",
+        "Validation"
+      ]
+    },
+    {
+      "name": "GlassPanel",
+      "title": "Components/GlassPanel",
+      "path": "src/glass-panel.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-bg-surface",
+        "color-border",
+        "color-agent",
+        "shadow-lg",
+        "radius-md"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "HomeView",
+        "ExecutionView"
+      ],
+      "a11y": [
+        "sufficient-contrast",
+        "non-decorative-surface"
+      ],
+      "breakpoints": [
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "Agent"
+      ]
+    },
+    {
+      "name": "Icon",
+      "title": "Components/Icon",
+      "path": "src/icon.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "icon-xs",
+        "icon-sm",
+        "icon-md",
+        "icon-lg",
+        "color-primary",
+        "color-agent",
+        "color-info",
+        "color-success",
+        "color-danger",
+        "color-text-secondary"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "decorative-by-default",
+        "pair-with-label-for-actions"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Sizes",
+        "Gallery",
+        "DomainMapping",
+        "BrandColor"
+      ]
+    },
+    {
+      "name": "Input",
+      "title": "Components/Input",
+      "path": "src/input.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-bg-base",
+        "color-border",
+        "focus-ring-color",
+        "duration-fast"
+      ],
+      "consumes": [
+        "Textarea"
+      ],
+      "surfaces": [
+        "ContextView",
+        "SpecsView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "focus-visible",
+        "aria-invalid",
+        "disabled-state"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "WithValue",
+        "Disabled",
+        "Invalid",
+        "TextareaDefault"
+      ]
+    },
+    {
+      "name": "Label",
+      "title": "Components/Label",
+      "path": "src/label.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-text-primary",
+        "space-2"
+      ],
+      "consumes": [
+        "Input"
+      ],
+      "surfaces": [
+        "ContextView",
+        "SpecsView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "label-associated",
+        "readable-text"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "WithInput"
+      ]
+    },
+    {
+      "name": "NavigationMenu",
+      "title": "Components/NavigationMenu",
+      "path": "src/navigation-menu.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-bg-surface",
+        "color-border",
+        "color-text-primary",
+        "shadow-md"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "HomeView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "navigation-semantics",
+        "keyboard-navigation",
+        "dismissible"
+      ],
+      "breakpoints": [
+        "desktop"
+      ],
+      "stories": [
+        "Default"
+      ]
+    },
+    {
+      "name": "Popover",
+      "title": "Components/Popover",
+      "path": "src/popover.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "card",
+        "color-border",
+        "shadow-md",
+        "radius-md",
+        "space-4"
+      ],
+      "consumes": [
+        "Button"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "trigger-associated",
+        "dismissible",
+        "keyboard-navigation"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default"
+      ]
+    },
+    {
+      "name": "Progress",
+      "title": "Components/Progress",
+      "path": "src/progress.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-agent",
+        "color-success",
+        "color-warning",
+        "color-danger",
+        "color-bg-sunken",
+        "progress-stripes"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "HomeView",
+        "ExecutionView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "progressbar-semantics",
+        "label-visible",
+        "state-not-color-only"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "Complete",
+        "Warning",
+        "Error",
+        "Active",
+        "Agent",
+        "Indeterminate",
+        "Sizes"
+      ]
+    },
+    {
+      "name": "RadioGroup",
+      "title": "Components/RadioGroup",
+      "path": "src/radio-group.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-border",
+        "color-text-primary",
+        "focus-ring-color"
+      ],
+      "consumes": [
+        "Label"
+      ],
+      "surfaces": [
+        "WorkspacesView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "radiogroup-semantics",
+        "label-associated",
+        "keyboard-navigation",
+        "focus-visible"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default"
+      ]
+    },
+    {
+      "name": "ScrollArea",
+      "title": "Components/ScrollArea",
+      "path": "src/scroll-area.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-border",
+        "muted",
+        "radius-sm",
+        "space-3"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "FlowView",
+        "ExecutionView",
+        "ContextView"
+      ],
+      "a11y": [
+        "bounded-region",
+        "keyboard-scroll"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default"
+      ]
+    },
+    {
+      "name": "Select",
+      "title": "Components/Select",
+      "path": "src/select.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-bg-surface",
+        "color-bg-sunken",
+        "color-primary",
+        "color-border"
+      ],
+      "consumes": [
+        "Icon"
+      ],
+      "surfaces": [
+        "FlowView",
+        "SpecsView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "keyboard-escape",
+        "aria-selected",
+        "focus-visible"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "WithPlaceholder"
+      ]
+    },
+    {
+      "name": "Separator",
+      "title": "Components/Separator",
+      "path": "src/separator.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-border",
+        "border-thin"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "ContextView",
+        "SpecsView",
+        "FlowView"
+      ],
+      "a11y": [
+        "decorative-divider",
+        "orientation"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Horizontal",
+        "Vertical"
+      ]
+    },
+    {
+      "name": "Sheet",
+      "title": "Components/Sheet",
+      "path": "src/sheet.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-bg-surface",
+        "color-border",
+        "motion-slow"
+      ],
+      "consumes": [
+        "Button"
+      ],
+      "surfaces": [
+        "ExecutionView",
+        "ContextView",
+        "WorkspacesView",
+        "AuditLogView"
+      ],
+      "a11y": [
+        "role-dialog",
+        "aria-modal",
+        "title-required"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Right",
+        "Left",
+        "EvidenceDetail"
+      ]
+    },
+    {
+      "name": "Skeleton",
+      "title": "Components/Skeleton",
+      "path": "src/skeleton.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "muted",
+        "card",
+        "color-border",
+        "radius-md",
+        "space-3",
+        "shimmer-slide"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "decorative-loading",
+        "layout-stability"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Base",
+        "Card",
+        "Pipeline",
+        "Table",
+        "AgentList",
+        "Kanban"
+      ]
+    },
+    {
+      "name": "Sparkline",
+      "title": "Components/Sparkline",
+      "path": "src/sparkline.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-success"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "HomeView",
+        "ExecutionView"
+      ],
+      "a11y": [
+        "decorative-trend",
+        "requires-visible-value"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "Success"
+      ]
+    },
+    {
+      "name": "StatusDot",
+      "title": "Components/StatusDot",
+      "path": "src/status-dot.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-success",
+        "color-danger",
+        "color-warning",
+        "color-info",
+        "color-agent"
+      ],
+      "consumes": [
+        "Tooltip"
+      ],
+      "surfaces": [
+        "HomeView",
+        "ExecutionView",
+        "FlowView"
+      ],
+      "a11y": [
+        "tooltip-label",
+        "state-not-color-only"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Colors",
+        "Pulsing"
+      ]
+    },
+    {
+      "name": "Switch",
+      "title": "Components/Switch",
+      "path": "src/switch.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-input",
+        "focus-ring-color",
+        "duration-fast"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "WorkspacesView",
+        "ContextView"
+      ],
+      "a11y": [
+        "switch-semantics",
+        "checked-state",
+        "disabled-state",
+        "focus-visible"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Off",
+        "On",
+        "Small",
+        "SmallOn",
+        "Disabled"
+      ]
+    },
+    {
+      "name": "Table",
+      "title": "Components/Table",
+      "path": "src/table.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-border",
+        "surface-hover",
+        "surface-selected",
+        "text-caption"
+      ],
+      "consumes": [
+        "Badge"
+      ],
+      "surfaces": [
+        "ExecutionView",
+        "LogsView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "native-table",
+        "responsive-overflow"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default"
+      ]
+    },
+    {
+      "name": "Tabs",
+      "title": "Components/Tabs",
+      "path": "src/tabs.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-border",
+        "color-text-primary",
+        "space-3"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "ContextView",
+        "SpecsView",
+        "FlowView"
+      ],
+      "a11y": [
+        "tablist-semantics",
+        "keyboard-navigation",
+        "disabled-state",
+        "focus-visible"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "SecondActive"
+      ]
+    },
+    {
+      "name": "Tag",
+      "title": "Components/Tag",
+      "path": "src/tag.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-agent",
+        "color-success",
+        "color-info",
+        "color-danger",
+        "color-border",
+        "radius-full"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "FlowView",
+        "ExecutionView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "text-label",
+        "not-status-only"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Variants"
+      ]
+    },
+    {
+      "name": "Textarea",
+      "title": "Components/Textarea",
+      "path": "src/textarea.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-bg-base",
+        "color-border",
+        "color-text-primary",
+        "focus-ring-color",
+        "space-3"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "ContextView",
+        "SpecsView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "native-textarea",
+        "disabled-state",
+        "focus-visible"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Empty",
+        "WithValue",
+        "Disabled"
+      ]
+    },
+    {
+      "name": "ThroughputMeter",
+      "title": "Components/ThroughputMeter",
+      "path": "src/throughput-meter.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-bg-sunken",
+        "color-text-secondary",
+        "duration-fast"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "HomeView",
+        "ExecutionView"
+      ],
+      "a11y": [
+        "visible-label",
+        "visible-value",
+        "baseline-not-color-only"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "WithBaseline"
+      ]
+    },
+    {
+      "name": "TimeField",
+      "title": "Components/TimeField",
+      "path": "src/time-field.stories.tsx",
+      "category": "form",
+      "status": "ready",
+      "tokens": [
+        "color-border",
+        "focus-ring-color",
+        "radius-md"
+      ],
+      "consumes": [
+        "Field",
+        "Input"
+      ],
+      "surfaces": [
+        "WorkspaceView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "label",
+        "aria-invalid",
+        "aria-describedby"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "Invalid"
+      ]
+    },
+    {
+      "name": "Timeline",
+      "title": "Components/Timeline",
+      "path": "src/timeline.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-agent",
+        "color-success",
+        "color-border",
+        "space-3"
+      ],
+      "consumes": [
+        "Icon"
+      ],
+      "surfaces": [
+        "ExecutionView",
+        "FlowView",
+        "HomeView"
+      ],
+      "a11y": [
+        "ordered-events",
+        "state-not-color-only",
+        "readable-labels"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default"
+      ]
+    },
+    {
+      "name": "Toast",
+      "title": "Components/Toast",
+      "path": "src/toast.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "color-success",
+        "color-danger",
+        "color-info",
+        "color-agent",
+        "shadow-lg"
+      ],
+      "consumes": [
+        "Button",
+        "Icon"
+      ],
+      "surfaces": [
+        "HomeView",
+        "ExecutionView",
+        "FlowView"
+      ],
+      "a11y": [
+        "icon-and-label",
+        "action-button"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "AllVariants"
+      ]
+    },
+    {
+      "name": "Tooltip",
+      "title": "Components/Tooltip",
+      "path": "src/tooltip.stories.tsx",
+      "category": "primitive",
+      "status": "ready",
+      "tokens": [
+        "foreground",
+        "background",
+        "radius-sm"
+      ],
+      "consumes": [
+        "Button"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView"
+      ],
+      "a11y": [
+        "hover",
+        "focus",
+        "role-tooltip"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Top",
+        "Bottom",
+        "Left",
+        "Right"
+      ]
+    },
+    {
+      "name": "Wizard",
+      "title": "Components/Wizard",
+      "path": "src/wizard.stories.tsx",
+      "category": "pattern",
+      "status": "ready",
+      "tokens": [
+        "color-border",
+        "color-primary",
+        "color-danger",
+        "radius-lg",
+        "space-5"
+      ],
+      "consumes": [
+        "Button",
+        "DateRangeField",
+        "Form",
+        "Icon",
+        "Input"
+      ],
+      "surfaces": [
+        "WorkspaceView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "aria-current-step",
+        "ordered-steps"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "ReviewFlow",
+        "WithError"
+      ]
+    },
+    {
+      "name": "ActivityTimeline",
+      "title": "Patterns/ActivityTimeline",
+      "path": "src/patterns/activity-timeline.stories.tsx",
+      "category": "pattern",
+      "status": "ready",
+      "tokens": [
+        "color-info",
+        "color-success",
+        "color-danger",
+        "color-agent",
+        "color-border"
+      ],
+      "consumes": [
+        "Badge",
+        "Icon",
+        "SkeletonAgentList"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView"
+      ],
+      "a11y": [
+        "icon-and-label",
+        "timestamp-text"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "AgentOnly",
+        "Empty",
+        "Loading",
+        "Error",
+        "Collapsed",
+        "Mobile"
+      ]
+    },
+    {
+      "name": "GateCard",
+      "title": "Patterns/GateCard",
+      "path": "src/patterns/gate-card.stories.tsx",
+      "category": "pattern",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-warning",
+        "color-success",
+        "color-danger",
+        "color-border"
+      ],
+      "consumes": [
+        "Badge",
+        "Button",
+        "SkeletonCard"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView"
+      ],
+      "a11y": [
+        "status-labels",
+        "color-plus-text"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "Waiting",
+        "Available",
+        "CriticalBlocked",
+        "Approved",
+        "Empty",
+        "Loading",
+        "Error",
+        "Collapsed",
+        "Mobile"
+      ]
+    },
+    {
+      "name": "GlobalHeader",
+      "title": "Patterns/GlobalHeader",
+      "path": "src/global-header.stories.tsx",
+      "category": "pattern",
+      "status": "ready",
+      "tokens": [
+        "layout-header-height",
+        "app-header-bg",
+        "color-bg-surface",
+        "color-border",
+        "color-text-primary",
+        "color-primary"
+      ],
+      "consumes": [
+        "Button",
+        "Badge",
+        "Select",
+        "Icon"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView",
+        "ContextView",
+        "SpecsView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "header-landmark",
+        "sidebar-toggle-first",
+        "single-context-selector",
+        "named-actionable-signals",
+        "future-user-slot"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "ActionableSignals",
+        "NoWorkspace",
+        "WithFutureUserSlot",
+        "Mobile"
+      ]
+    },
+    {
+      "name": "Index",
+      "title": "Patterns/Index",
+      "path": "src/patterns/index.stories.tsx",
+      "category": "pattern",
+      "status": "ready",
+      "tokens": [
+        "space-4",
+        "color-text-primary",
+        "color-primary"
+      ],
+      "consumes": [
+        "ValidatingBar",
+        "MarchingBorder",
+        "Search"
+      ],
+      "surfaces": [
+        "Storybook"
+      ],
+      "a11y": [
+        "pattern-overview",
+        "labels-visible"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default"
+      ]
+    },
+    {
+      "name": "KanbanBoard",
+      "title": "Patterns/KanbanBoard",
+      "path": "src/patterns/kanban.stories.tsx",
+      "category": "pattern",
+      "status": "ready",
+      "tokens": [
+        "color-bg-surface",
+        "color-bg-base",
+        "color-border",
+        "surface-hover"
+      ],
+      "consumes": [
+        "Badge",
+        "SkeletonCard"
+      ],
+      "surfaces": [
+        "FlowView"
+      ],
+      "a11y": [
+        "button-card",
+        "horizontal-scroll"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "Empty",
+        "Error",
+        "Loading",
+        "Collapsed",
+        "Mobile"
+      ]
+    },
+    {
+      "name": "MarchingBorder",
+      "title": "Patterns/MarchingBorder",
+      "path": "src/patterns/marching-border.stories.tsx",
+      "category": "pattern",
+      "status": "ready",
+      "tokens": [
+        "live",
+        "radius-md",
+        "dash-march"
+      ],
+      "consumes": [
+        "Badge",
+        "Card",
+        "SkeletonCard"
+      ],
+      "surfaces": [
+        "FlowView",
+        "ExecutionView"
+      ],
+      "a11y": [
+        "decorative-hidden"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "ActiveAgent",
+        "Default",
+        "Empty",
+        "Loading",
+        "Error",
+        "Collapsed",
+        "Mobile"
+      ]
+    },
+    {
+      "name": "NavHeader",
+      "title": "Patterns/NavHeader",
+      "path": "src/nav-header.stories.tsx",
+      "category": "pattern",
+      "status": "ready",
+      "tokens": [
+        "layout-header-height",
+        "color-bg-surface",
+        "color-border",
+        "text-h2"
+      ],
+      "consumes": [
+        "Badge",
+        "Button",
+        "Icon"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView",
+        "ContextView",
+        "SpecsView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "header-landmark",
+        "action-buttons"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "WithLeftAction",
+        "Loading",
+        "Empty",
+        "Error",
+        "Collapsed",
+        "Mobile"
+      ]
+    },
+    {
+      "name": "Search",
+      "title": "Patterns/Search",
+      "path": "src/patterns/search.stories.tsx",
+      "category": "pattern",
+      "status": "ready",
+      "tokens": [
+        "color-bg-surface",
+        "color-border",
+        "color-text-disabled",
+        "duration-fast"
+      ],
+      "consumes": [
+        "Icon"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "escape-clears",
+        "clear-button-label",
+        "focus-retention"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "WithShortDebounce",
+        "Empty",
+        "Loading",
+        "Error",
+        "Collapsed",
+        "Mobile"
+      ]
+    },
+    {
+      "name": "Sidebar",
+      "title": "Patterns/Sidebar",
+      "path": "src/patterns/sidebar.stories.tsx",
+      "category": "pattern",
+      "status": "ready",
+      "tokens": [
+        "color-bg-surface",
+        "color-bg-sunken",
+        "surface-hover",
+        "sidebar-width"
+      ],
+      "consumes": [
+        "Icon"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView",
+        "ContextView",
+        "SpecsView"
+      ],
+      "a11y": [
+        "button-labels",
+        "focus-visible",
+        "collapsed-labels-hidden",
+        "mobile-width"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "Collapsed",
+        "Empty",
+        "Loading",
+        "Error",
+        "Mobile"
+      ]
+    },
+    {
+      "name": "ValidatingBar",
+      "title": "Patterns/ValidatingBar",
+      "path": "src/patterns/validating-bar.stories.tsx",
+      "category": "pattern",
+      "status": "ready",
+      "tokens": [
+        "color-primary",
+        "color-bg-surface",
+        "color-bg-sunken",
+        "validating-bar",
+        "motion-base"
+      ],
+      "consumes": [],
+      "surfaces": [
+        "FlowView",
+        "SpecsView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "aria-live"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Default",
+        "CustomLabel",
+        "Empty",
+        "Loading",
+        "Error",
+        "Collapsed",
+        "Mobile"
+      ]
+    },
+    {
+      "name": "ClientViews",
+      "title": "Surfaces/ClientViews",
+      "path": "src/surfaces/client-surfaces.stories.tsx",
+      "category": "surface",
+      "status": "ready",
+      "tokens": [
+        "color-bg-base",
+        "color-bg-surface",
+        "color-text-primary",
+        "color-primary",
+        "border",
+        "radius-lg"
+      ],
+      "consumes": [
+        "Button",
+        "Card",
+        "Badge",
+        "Icon",
+        "Input",
+        "Sheet",
+        "ToastProvider"
+      ],
+      "surfaces": [
+        "HomeView",
+        "FlowView",
+        "ExecutionView",
+        "ContextView",
+        "SpecsView",
+        "WorkspacesView"
+      ],
+      "a11y": [
+        "mocked-api",
+        "keyboard-navigation",
+        "landmarks"
+      ],
+      "breakpoints": [
+        "mobile",
+        "desktop"
+      ],
+      "stories": [
+        "Home",
+        "Flow",
+        "Execution",
+        "Context",
+        "Specs",
+        "Workspaces"
+      ]
+    }
+  ]
+}
