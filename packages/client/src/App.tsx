@@ -10,6 +10,7 @@ import ContextView from "./components/Context/ContextView";
 import type { KnowledgeTab } from "./components/Context/ContextView";
 import AuditLogView from "./components/Logs/AuditLogView";
 import WorkspacesView from "./components/Workspaces/WorkspacesView";
+import WorkspaceSettings from "./components/Workspaces/WorkspaceSettings/WorkspaceSettings";
 import type { WorkspaceData } from "./components/Workspaces/WorkspacesView";
 import { AppShell, SidebarProvider, ToastProvider, SkeletonCard, useSidebar } from "@letra/ui";
 import { FlowDefinitionWarnings } from "./components/Flow/FlowDefinitionWarnings";
@@ -91,6 +92,7 @@ function AppContent() {
       return null;
     }
   });
+
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -301,6 +303,22 @@ function AppContent() {
         return <ContextView initialTab={knowledgeInitialTab} />;
       case "activity":
         return <AuditLogView />;
+      case "settings":
+        return (
+          <WorkspaceSettings
+            workspace={activeWorkspace!}
+            onWorkspaceUpdated={(updated) => {
+              setActiveWorkspace(updated);
+              setWorkspaces((prev) =>
+                prev.map((ws) => (ws.id === updated.id ? updated : ws)),
+              );
+            }}
+            onWorkspaceDeleted={() => {
+              setActiveWorkspace(null);
+            }}
+            onRefreshWorkflow={refreshWorkflow}
+          />
+        );
       default:
         return (
           <HomeView
@@ -361,6 +379,7 @@ function AppContent() {
             <FlowDefinitionWarnings activeFlow={activeFlow} />
             {renderPanel()}
           </main>
+
         </LetraAppShell>
       </SidebarProvider>
     </>

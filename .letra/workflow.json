@@ -2,7 +2,7 @@
   "version": "1.0",
   "name": "Letra",
   "createdAt": "2026-06-22T11:16:15Z",
-  "updatedAt": "2026-07-31T17:49:53.572Z",
+  "updatedAt": "2026-07-31T20:07:15.365Z",
   "stages": [
     {
       "id": "backlog",
@@ -612,9 +612,11 @@
     {
       "id": "ITEM-77",
       "description": "Painel de Configuracoes do Workspace — CRUD completo de targets, rename, template switch, adapters, delete com rollback",
-      "stage": "backlog",
+      "stage": "code",
       "createdAt": "2026-07-31T17:49:53.567Z",
-      "spec": "workspace-settings"
+      "spec": "workspace-settings",
+      "claimedBy": "opencode",
+      "claimedAt": "2026-07-31T19:13:04.578Z"
     }
   ],
   "specLinks": {
@@ -803,5 +805,6 @@
     "opencode"
   ],
   "template": "flow-main",
-  "harnessVersion": "v0.1.3"
+  "harnessVersion": "v0.1.3",
+  "primaryItemId": "ITEM-77"
 }

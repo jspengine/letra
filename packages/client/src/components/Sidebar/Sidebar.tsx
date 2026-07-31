@@ -8,6 +8,7 @@
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  Separator,
   useSidebar,
 } from "@letra/ui";
 import { Icon } from "@letra/ui";
@@ -19,7 +20,8 @@ export type Tab =
   | "supervision"
   | "work"
   | "knowledge"
-  | "activity";
+  | "activity"
+  | "settings";
 
 interface SidebarProps {
   activeTab: Tab;
@@ -43,6 +45,10 @@ const PRIMARY_DESTINATIONS: NavItem[] = [
   { id: "work", label: "Trabalho", icon: "grid", color: "var(--color-primary)" },
   { id: "knowledge", label: "Conhecimento e Regras", icon: "book", color: "var(--color-agent)" },
   { id: "activity", label: "Atividade", icon: "activity", color: "var(--color-success)" },
+];
+
+const SETTINGS_ITEMS: NavItem[] = [
+  { id: "settings", label: "Workspace", icon: "settings", color: "var(--color-text-secondary)" },
 ];
 
 export default function Sidebar({
@@ -79,6 +85,43 @@ export default function Sidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {PRIMARY_DESTINATIONS.map((item) => (
+                <SidebarMenuItem key={item.id}>
+                  <SidebarMenuButton
+                    aria-label={item.label}
+                    isActive={activeTab === item.id}
+                    disabled={!workspaceActive}
+                    onClick={() => {
+                      onTabChange(item.id);
+                      if (isMobile) setOpenMobile(false);
+                    }}
+                    tooltip={item.label}
+                  >
+                    <Icon
+                      name={item.icon}
+                      size={16}
+                      className="transition-transform duration-[var(--motion-fast)] group-hover/sidebar-menu-button:scale-110"
+                      style={{ color: item.color }}
+                    />
+                    <span
+                      data-sidebar-label={item.id}
+                      className={open ? "truncate" : "sr-only"}
+                    >
+                      {item.label}
+                    </span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <Separator />
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Configuração</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {SETTINGS_ITEMS.map((item) => (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton
                     aria-label={item.label}

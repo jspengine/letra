@@ -43,6 +43,7 @@ interface Props {
 interface FocusData {
 	active: boolean;
 	spec?: string;
+	itemId?: string;
 }
 
 interface HealthEntry {
@@ -740,7 +741,7 @@ export default function HomeView({ workflow, activeFlow, onTabChange }: Props) {
 	const selectedStageName = selectedItem
 		? stages.find((stage) => stage.id === selectedItem.stage)?.name ?? null
 		: null;
-	const primaryItemId = workflow.primaryItemId ?? workflow.items[0]?.id;
+	const primaryItemId = focus?.itemId ?? workflow.primaryItemId ?? workflow.items[0]?.id;
 	const primaryItem = primaryItemId
 		? workflow.items.find((item) => item.id === primaryItemId)
 		: undefined;

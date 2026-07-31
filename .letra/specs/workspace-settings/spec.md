@@ -40,41 +40,41 @@ Um workspace é o espaço de trabalho do usuário que representa uma **solução
 
 ### Fundação — workflow.json como fonte única
 
-- [ ] **AC1 — Índice leve**: workspace.json é substituído por um índice contendo apenas `id`, `name`, `slug`, `root`, `createdAt`. Campos `tools`, `template`, `directories`, `harnessVersion` são removidos de workspace.json. `GET /api/workspaces` lê o índice e enriquece com dados de workflow.json de cada workspace.
-- [ ] **AC2 — Migração**: Script de migração cria índices a partir de workspaces.json legados existentes. Workspaces sem workflow.json aparecem como "Não configurado" com botão "Configurar".
+- [x] **AC1 — Índice leve**: workspace.json é substituído por um índice contendo apenas `id`, `name`, `slug`, `root`, `createdAt`. Campos `tools`, `template`, `directories`, `harnessVersion` são removidos de workspace.json. `GET /api/workspaces` lê o índice e enriquece com dados de workflow.json de cada workspace.
+- [x] **AC2 — Migração**: Script de migração cria índices a partir de workspaces.json legados existentes. Workspaces sem workflow.json aparecem como "Não configurado" com botão "Configurar".
 
 ### Identidade do workspace
 
-- [ ] **AC3 — Acesso ao painel**: Um botão "Configurações" (ícone gear) aparece no header quando há workspace ativo. Ao clicar, abre um Sheet lateral direito com quatro abas: Geral, Locais, Fluxo, Avançado. O Sheet pode ser fechado com ESC ou botão X sem salvar alterações pendentes.
-- [ ] **AC4 — Edição de identidade**: Na aba Geral, o usuário pode alterar nome e descrição do workspace. Campos são validados (nome obrigatório, mínimo 2 caracteres). Alterações são salvas em workflow.json via `PATCH /api/workflow` e refletidas imediatamente no header sem recarregar a página.
+- [x] **AC3 — Acesso ao painel**: Um botão "Configurações" (ícone gear) aparece no header quando há workspace ativo. Ao clicar, abre um Sheet lateral direito com quatro abas: Geral, Locais, Fluxo, Avançado. O Sheet pode ser fechado com ESC ou botão X sem salvar alterações pendentes.
+- [x] **AC4 — Edição de identidade**: Na aba Geral, o usuário pode alterar nome e descrição do workspace. Campos são validados (nome obrigatório, mínimo 2 caracteres). Alterações são salvas em workflow.json via `PATCH /api/workflow` e refletidas imediatamente no header sem recarregar a página.
 
 ### Gestão de locais de mudança
 
-- [ ] **AC5 — Lista de locais**: A aba Locais mostra todos os locais atuais em cards, cada um exibindo: caminho relativo e label. Card vazio mostra "Nenhum local configurado" com botão "Adicionar primeiro local".
-- [ ] **AC6 — Adicionar local**: Botão "Adicionar Local" abre um seletor de diretório reutilizando o componente de tree browser existente (`/api/fs/dirs`). Diretório selecionado aparece como preview com caminho completo antes de confirmar. Local é adicionado ao array `locations` em workflow.json.
-- [ ] **AC7 — Editar local**: Ao clicar "Editar" em um local, abre inline editor com campo label (input). Salva via `PATCH /api/workflow` atualizando o local específico no array `locations`.
-- [ ] **AC8 — Remover local**: Botão "Remover" no card do local abre dialog de confirmação: "Remover {path}?" Confirmação requer clique em "Confirmar remoção". Remove o local do array `locations` em workflow.json.
+- [x] **AC5 — Lista de locais**: A aba Locais mostra todos os locais atuais em cards, cada um exibindo: caminho relativo e label. Card vazio mostra "Nenhum local configurado" com botão "Adicionar primeiro local".
+- [x] **AC6 — Adicionar local**: Botão "Adicionar Local" abre um seletor de diretório reutilizando o componente de tree browser existente (`/api/fs/dirs`). Diretório selecionado aparece como preview com caminho completo antes de confirmar. Local é adicionado ao array `locations` em workflow.json.
+- [x] **AC7 — Editar local**: Ao clicar "Editar" em um local, abre inline editor com campo label (input). Salva via `PATCH /api/workflow` atualizando o local específico no array `locations`.
+- [x] **AC8 — Remover local**: Botão "Remover" no card do local abre dialog de confirmação: "Remover {path}?" Confirmação requer clique em "Confirmar remoção". Remove o local do array `locations` em workflow.json.
 
 ### Fluxo de trabalho
 
-- [ ] **AC9 — Mudança de fluxo**: Na aba Fluxo, usuário pode selecionar novo template de uma lista (`GET /api/harness/templates`). Prévia mostra diff: stages a adicionar (verde), stages a remover (vermelho), stages inalterados (cinza). Itens em stages removidos são movidos para backlog. Mudança atualiza `template` e `stages` em workflow.json via `POST /api/workflow/template`.
+- [x] **AC9 — Mudança de fluxo**: Na aba Fluxo, usuário pode selecionar novo template de uma lista (`GET /api/harness/templates`). Prévia mostra diff: stages a adicionar (verde), stages a remover (vermelho), stages inalterados (cinza). Itens em stages removidos são movidos para backlog. Mudança atualiza `template` e `stages` em workflow.json via `POST /api/workflow/template`.
 
 ### Adapters
 
-- [ ] **AC10 — Lifecycle de adapters**: O usuário pode selecionar quais adapters estão ativos via checkboxes. Cada adapter mostra nome, label e capacidades (instructions, skills, MCP). O painel detecta automaticamente adapters já existentes no disco e mostra status "Detectado". Selecionar um adapter adiciona seu ID ao array `tools` em workflow.json. Desselecionar remove do array E limpa o arquivo correspondente do disco (`.cursorrules`, `CLAUDE.md`, etc). Adapters são regenerados automaticamente na próxima operação de escrita (`writeWorkflow()`). Preview mostra o conteúdo que será gerado para cada adapter antes de confirmar.
-- [ ] **AC11 — Detecção de adapters**: O painel verifica a existência de arquivos de adapter no disco (`.cursorrules`, `CLAUDE.md`, `.opencode/instructions.md`, etc) e exibe badge "Detectado" ao lado de cada adapter encontrado. Adapters detectados são sugeridos como selecionados por padrão na primeira configuração.
+- [x] **AC10 — Lifecycle de adapters**: O usuário pode selecionar quais adapters estão ativos via checkboxes. Cada adapter mostra nome, label e capacidades (instructions, skills, MCP). O painel detecta automaticamente adapters já existentes no disco e mostra status "Detectado". Selecionar um adapter adiciona seu ID ao array `tools` em workflow.json. Desselecionar remove do array E limpa o arquivo correspondente do disco (`.cursorrules`, `CLAUDE.md`, etc). Adapters são regenerados automaticamente na próxima operação de escrita (`writeWorkflow()`). Preview mostra o conteúdo que será gerado para cada adapter antes de confirmar.
+- [x] **AC11 — Detecção de adapters**: O painel verifica a existência de arquivos de adapter no disco (`.cursorrules`, `CLAUDE.md`, `.opencode/instructions.md`, etc) e exibe badge "Detectado" ao lado de cada adapter encontrado. Adapters detectados são sugeridos como selecionados por padrão na primeira configuração.
 
 ### Operações destrutivas
 
-- [ ] **AC12 — Exclusão de workspace**: Na aba Avançado, botão "Excluir Workspace" abre dialog de dois estágios: primeiro pede confirmação ("Esta ação é irreversível"), segundo pede para digitar o nome do workspace. Exclusão remove o índice de `~/.letra/workspaces/` e `.letra-link` dos locais, mas preserva o diretório original, workflow.json e todos os arquivos. Após excluir, redireciona para "Meus Workspaces".
+- [x] **AC12 — Exclusão de workspace**: Na aba Avançado, botão "Excluir Workspace" abre dialog de dois estágios: primeiro pede confirmação ("Esta ação é irreversível"), segundo pede para digitar o nome do workspace. Exclusão remove o índice de `~/.letra/workspaces/` e `.letra-link` dos locais, mas preserva o diretório original, workflow.json e todos os arquivos. Após excluir, redireciona para "Meus Workspaces".
 
 ### Qualidade operacional
 
-- [ ] **AC13 — Rollback**: Toda operação de alteração (locais, fluxo, adapters, rename) exibe toast "Alteração aplicada" com botão "Desfazer" por 30 segundos. Clique em "Desfazer" reverte a operação via `POST /api/workspace/setup/rollback` usando o manifest mais recente. Toast confirma "Alteração desfeita".
+- [x] **AC13 — Rollback**: Toda operação de alteração (locais, fluxo, adapters, rename) exibe toast "Alteração aplicada" com botão "Desfazer" por 30 segundos. Clique em "Desfazer" reverte a operação via `POST /api/workspace/setup/rollback` usando o manifest mais recente. Toast confirma "Alteração desfeita".
 
-- [ ] **AC14 — Persistência**: Todas as alterações são salvas em workflow.json via `writeWorkflow()` (gateway existente). O índice em workspace.json é atualizado apenas para campos de registro (name, description). Recarregamento da página reflete todas as alterações. Não há divergência entre cliente e servidor porque há uma única fonte.
+- [x] **AC14 — Persistência**: Todas as alterações são salvas em workflow.json via `writeWorkflow()` (gateway existente). O índice em workspace.json é atualizado apenas para campos de registro (name, description). Recarregamento da página reflete todas as alterações. Não há divergência entre cliente e servidor porque há uma única fonte.
 
-- [ ] **AC15 — Acessibilidade**: O painel passa em auditoria WCAG 2.2 AA: navegação por teclado entre abas e campos, foco visível em todos os elementos interativos, contraste mínimo 4.5:1 em textos, labels associados a todos os inputs, aria-label em botões de ícone, role="dialog" no Sheet.
+- [x] **AC15 — Acessibilidade**: O painel passa em auditoria WCAG 2.2 AA: navegação por teclado entre abas e campos, foco visível em todos os elementos interativos, contraste mínimo 4.5:1 em textos, labels associados a todos os inputs, aria-label em botões de ícone, role="dialog" no Sheet.
 
 ## Context
 

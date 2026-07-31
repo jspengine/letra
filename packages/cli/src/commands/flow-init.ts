@@ -68,6 +68,12 @@ export interface WorkflowTarget {
 	adapters?: string[];
 }
 
+export interface WorkflowLocation {
+	id: string;
+	path: string;
+	label: string;
+}
+
 export interface Workflow {
 	version: string;
 	name: string;
@@ -86,6 +92,7 @@ export interface Workflow {
 		locked?: boolean;
 	};
 	targets?: WorkflowTarget[];
+	locations?: WorkflowLocation[];
 	template?: string;
 	harnessVersion?: string;
 }
@@ -287,6 +294,7 @@ export async function writeWorkflow(root: string, options: WriteWorkflowOptions)
 	let graveIssueCount = 0;
 
 	// 1. Persist workflow.json
+	if (primaryItemId) workflow.primaryItemId = primaryItemId;
 	saveWorkflow(root, workflow);
 	filesUpdated.push(".letra/workflow.json");
 
