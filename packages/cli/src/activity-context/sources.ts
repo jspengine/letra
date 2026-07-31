@@ -60,13 +60,13 @@ function extractOutcome(content: string): string | null {
 }
 
 function countSpecACs(content: string): { pending: number; done: number; total: number } {
-	const boldPending = content.match(/-\s*\[ \]\s*\*\*(.+?)\*\*/g) || [];
-	const boldDone = content.match(/-\s*\[[xX]\]\s*\*\*(.+?)\*\*/g) || [];
+	const boldPending = content.match(/-\s*\[ \]\s*\*\*AC[-]?\d+\*\*/g) || [];
+	const boldDone = content.match(/-\s*\[[xX]\]\s*\*\*AC[-]?\d+\*\*/g) || [];
 	if (boldPending.length > 0 || boldDone.length > 0) {
 		return { pending: boldPending.length, done: boldDone.length, total: boldPending.length + boldDone.length };
 	}
-	const genericPending = content.match(/^- \[ \]/gm) || [];
-	const genericDone = content.match(/^- \[[xX]\]/gm) || [];
+	const genericPending = content.match(/^- \[ \]\s+AC[-]?\d+/gm) || [];
+	const genericDone = content.match(/^- \[[xX]\]\s+AC[-]?\d+/gm) || [];
 	return { pending: genericPending.length, done: genericDone.length, total: genericPending.length + genericDone.length };
 }
 

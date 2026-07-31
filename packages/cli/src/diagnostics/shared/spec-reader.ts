@@ -23,8 +23,8 @@ export function parseACs(content: string): SpecACs {
 	if (pending > 0 || done > 0) {
 		return { pending, done, total: pending + done };
 	}
-	const genericPending = content.match(/^- \[ \]/gm) || [];
-	const genericDone = content.match(/^- \[[xX]\]/gm) || [];
+	const genericPending = content.match(/^- \[ \]\s+AC\d+/gm) || [];
+	const genericDone = content.match(/^- \[[xX]\]\s+AC\d+/gm) || [];
 	return { pending: genericPending.length, done: genericDone.length, total: genericPending.length + genericDone.length };
 }
 

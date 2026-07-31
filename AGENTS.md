@@ -13,22 +13,15 @@ PASSO OBRIGATÓRIO #4: Leia .letra/specs/harness-agent-direction/spec.md — ACs
 
 Item: ITEM-63 · Direção de Agentes por Harness (Cross-Adapter)
 Spec: harness-agent-direction
-Estágio: Security → Done
+Estágio: Done
 ACs: 0/1 pendentes
 
 ## Direção do Harness
 
 <!-- harness-direction:start -->
-**Versão**: v0.1.3 | **Papel**: security | **Estágios**: security
-**Item**: ITEM-63 — Direção de Agentes por Harness (Cross-Adapter) (Security)
-**Objetivo**: Diagnosticar riscos e sinais operacionais antes da conclusão.
-**Comandos**:
-- `letra health` — Inspecionar alertas
-- `letra validate` — Validar antes da conclusão
-**Proibições**: Não ocultar alertas de alta severidade.
-**Próximas ações**:
-1. Ler sinais ativos — Inspecionar health, riscos e divergências do workspace.
-2. Priorizar impacto — Tratar primeiro os riscos que bloqueiam a conclusão.
+**Versão**: v0.1.3 | **Estágios**: done
+**Item**: ITEM-63 — Direção de Agentes por Harness (Cross-Adapter) (Done)
+_Estágio sem activity configurada no harness._
 <!-- harness-direction:end -->
 
 ## Alertas
@@ -37,35 +30,35 @@ Alerta · severidade baixa
   ID: hr-4652f8f0
   O que: AC "flow diff" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 30/07/2026, 20:25:10
+  Desde: 31/07/2026, 09:59:00
   Ação: `letra health ack hr-4652f8f0`
 
 Alerta · severidade baixa
   ID: hr-4103b765
   O que: AC "flow visualize" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 30/07/2026, 20:25:10
+  Desde: 31/07/2026, 09:59:00
   Ação: `letra health ack hr-4103b765`
 
 Alerta · severidade baixa
   ID: hr-dd77601
   O que: AC "flow export" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 30/07/2026, 20:25:10
+  Desde: 31/07/2026, 09:59:00
   Ação: `letra health ack hr-dd77601`
 
 Alerta · severidade baixa
   ID: hr-6380dc9e
   O que: AC "GET /" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 30/07/2026, 20:25:10
+  Desde: 31/07/2026, 09:59:00
   Ação: `letra health ack hr-6380dc9e`
 
 Alerta · severidade baixa
   ID: hr-352219f2
   O que: AC "letra sitrep" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 30/07/2026, 20:25:10
+  Desde: 31/07/2026, 09:59:00
   Ação: `letra health ack hr-352219f2`
 
   e mais 4 alertas
@@ -101,12 +94,10 @@ Alerta · severidade baixa
   ❌ Se falhar: letra health — checar alertas ativos
 - `letra sitrep` — sitrep
   ❌ Se falhar: corrija o erro e tente novamente
-- `letra flow move ITEM-63 --to done` — flow move
+- `letra flow move ITEM-63 --to proximo_estagio` — flow move
   ❌ Se falhar: letra validate — verificar ACs pendentes
 - `npm run build` — build
   ❌ Se falhar: corrija erros de compilação
-
-Após mover, verifique o novo estágio com `letra pulse`
 
 ## Comandos
 
