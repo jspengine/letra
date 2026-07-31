@@ -14,7 +14,7 @@
 ## AC3 — Acesso ao painel
 - [ ] Botão gear aparece no header com workspace ativo
 - [ ] Clique abre Sheet lateral direito
-- [ ] Quatro abas visíveis: Geral, Projetos, Fluxo, Avançado
+- [ ] Quatro abas visíveis: Geral, Locais, Fluxo, Avançado
 - [ ] ESC fecha o Sheet sem salvar
 - [ ] Botão X fecha o Sheet sem salvar
 - [ ] Sheet tem role="dialog" e aria-label="Configurações do workspace"
@@ -27,29 +27,25 @@
 - [ ] Header reflete novo nome imediatamente
 - [ ] Validação aparece em tempo real
 
-## AC5 — Lista de projetos
-- [ ] Cards mostram caminho, tipo, commands e adapters
+## AC5 — Lista de locais
+- [ ] Cards mostram caminho e label
 - [ ] Card vazio mostra mensagem e botão de ação
-- [ ] Projetos são listados em ordem alfabética por path
-- [ ] Tipo do projeto é exibido como badge
+- [ ] Locais são listados em ordem alfabética por path
 
-## AC6 — Adicionar projeto
+## AC6 — Adicionar local
 - [ ] Botão abre seletor de diretório
 - [ ] Tree browser reutiliza /api/fs/dirs
-- [ ] Diretório é analisado automaticamente
-- [ ] Preview mostra stack detectada e adapters propostos
-- [ ] Confirmação adiciona target ao array targets em workflow.json
+- [ ] Preview mostra caminho completo
+- [ ] Confirmação adiciona location ao array locations em workflow.json
 
-## AC7 — Editar projeto
-- [ ] Inline editor com campos projectType, buildCommand, testCommand
-- [ ] Checkboxes para adapters
-- [ ] Validação de caracteres perigosos em commands
-- [ ] Salva via PATCH /api/workflow atualizando target específico
+## AC7 — Editar local
+- [ ] Inline editor com campo label
+- [ ] Salva via PATCH /api/workflow atualizando location específico
 
-## AC8 — Remover projeto
-- [ ] Dialog de confirmação com nome do projeto
+## AC8 — Remover local
+- [ ] Dialog de confirmação com nome do local
 - [ ] Confirmação requer dois cliques
-- [ ] Remove target do array targets em workflow.json
+- [ ] Remove location do array locations em workflow.json
 
 ## AC9 — Mudança de fluxo
 - [ ] Lista de templates via GET /api/harness/templates
@@ -58,16 +54,16 @@
 - [ ] Atualiza template e stages em workflow.json
 
 ## AC10 — Gestão de adapters
-- [ ] Checkboxes por projeto
-- [ ] Cada adapter mostra nome e capacidades
+- [ ] Checkboxes para adapters (tools do workspace)
+- [ ] Cada adapter mostra nome e label
 - [ ] Desinstalar remove arquivo adapter
 - [ ] Diff preview antes de executar
-- [ ] Atualiza target correspondente em workflow.json
+- [ ] Atualiza campo tools em workflow.json
 
 ## AC11 — Exclusão de workspace
 - [ ] Dois estágios: confirmação + digitar nome
 - [ ] Remove índice de ~/.letra/workspaces/
-- [ ] Remove .letra-link dos projetos
+- [ ] Remove .letra-link dos locais
 - [ ] Preserva diretório original e workflow.json
 - [ ] Redireciona para Meus Workspaces
 
