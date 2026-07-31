@@ -53,33 +53,40 @@
 - [ ] Itens em stages removidos vão para backlog
 - [ ] Atualiza template e stages em workflow.json
 
-## AC10 — Gestão de adapters
-- [ ] Checkboxes para adapters (tools do workspace)
-- [ ] Cada adapter mostra nome e label
-- [ ] Desinstalar remove arquivo adapter
-- [ ] Diff preview antes de executar
-- [ ] Atualiza campo tools em workflow.json
+## AC10 — Lifecycle de adapters
+- [ ] Checkboxes para cada adapter do registry (7 opções)
+- [ ] Cada adapter mostra nome, label e capacidades
+- [ ] Selecionar adiciona ID ao array tools em workflow.json
+- [ ] Desselecionar remove do array E limpa arquivo do disco
+- [ ] Preview mostra conteúdo que será gerado
+- [ ] Adapters são regenerados automaticamente na próxima writeWorkflow()
+- [ ] Mudanças aplicadas via writeWorkflow() com toast de confirmação
 
-## AC11 — Exclusão de workspace
+## AC11 — Detecção de adapters
+- [ ] Painel verifica existência de arquivos no disco
+- [ ] Badge "Detectado" ao lado de cada adapter encontrado
+- [ ] Adapters detectados sugeridos como selecionados por padrão
+
+## AC12 — Exclusão de workspace
 - [ ] Dois estágios: confirmação + digitar nome
 - [ ] Remove índice de ~/.letra/workspaces/
 - [ ] Remove .letra-link dos locais
 - [ ] Preserva diretório original e workflow.json
 - [ ] Redireciona para Meus Workspaces
 
-## AC12 — Rollback
+## AC13 — Rollback
 - [ ] Toast "Alteração aplicada" com botão "Desfazer"
 - [ ] 30 segundos de janela
 - [ ] Reverte via POST /api/workspace/setup/rollback
 - [ ] Confirma "Alteração desfeita"
 
-## AC13 — Persistência
+## AC14 — Persistência
 - [ ] Todas as alterações em workflow.json via writeWorkflow()
 - [ ] Índice atualizado apenas para name/description
 - [ ] Reload reflete todas as alterações
 - [ ] Sem divergência cliente/servidor (única fonte)
 
-## AC14 — Acessibilidade
+## AC15 — Acessibilidade
 - [ ] Navegação por teclado entre abas e campos
 - [ ] Foco visível em todos os elementos
 - [ ] Contraste mínimo 4.5:1

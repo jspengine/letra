@@ -14,18 +14,20 @@ Um workspace é o espaço de trabalho do usuário que representa uma **solução
 2. Workspace continua sendo o único agregado raiz — locais de mudança são componentes, não concorrentes
 3. Um workspace = um workflow. Locais compartilham o mesmo fluxo de estágios
 4. **Letra não gerencia build/test** — isso é responsabilidade de CI/CD. Letra é sobre governança, harness e fluxo de trabalho agentico
-5. Toda alteração deve ter prévia antes de aplicar (princípio "Nothing is Magic")
-6. Alterações devem ser transacionais com rollback nos últimos 30 segundos
-7. O painel deve ser acessível sem perder o contexto atual (abre como Sheet lateral)
-8. Operações destrutivas (excluir workspace) exigem confirmação em dois estágios
-9. A UI deve seguir o design system shadcn-first, responsiva e acessível (WCAG 2.2 AA)
-10. Locais devem ser editáveis individualmente sem afetar outros locais
-11. Mudança de fluxo pode ocorrer sem perder itens existentes — itens em stages removidos vão para backlog
+5. **Adapters são workspace-level** — o campo `tools` em workflow.json define quais adapters estão ativos. Adapters são regenerados automaticamente a cada `writeWorkflow()`. Não existe config de adapter por local
+6. Toda alteração deve ter prévia antes de aplicar (princípio "Nothing is Magic")
+7. Alterações devem ser transacionais com rollback nos últimos 30 segundos
+8. O painel deve ser acessível sem perder o contexto atual (abre como Sheet lateral)
+9. Operações destrutivas (excluir workspace) exigem confirmação em dois estágios
+10. A UI deve seguir o design system shadcn-first, responsiva e acessível (WCAG 2.2 AA)
+11. Locais devem ser editáveis individualmente sem afetar outros locais
+12. Mudança de fluxo pode ocorrer sem perder itens existentes — itens em stages removidos vão para backlog
 
 ## Exclusions
 
 - **Build e test** — não são responsabilidade do Letra. Existe CI/CD para isso.
 - Comandos de build, test ou qualquer execução de código por projeto
+- **Adapters por target/projeto** — o modelo legado `targets[].adapters` é removido. Adapters são do workspace (campo `tools`)
 - Sincronização de estado entre múltiplas abas/janelas do navegador
 - Workspaces remotos ou compartilhados entre usuários
 - Migração automática de conteúdo entre templates
@@ -57,19 +59,22 @@ Um workspace é o espaço de trabalho do usuário que representa uma **solução
 
 - [ ] **AC9 — Mudança de fluxo**: Na aba Fluxo, usuário pode selecionar novo template de uma lista (`GET /api/harness/templates`). Prévia mostra diff: stages a adicionar (verde), stages a remover (vermelho), stages inalterados (cinza). Itens em stages removidos são movidos para backlog. Mudança atualiza `template` e `stages` em workflow.json via `POST /api/workflow/template`.
 
-- [ ] **AC10 — Gestão de adapters**: O usuário pode instalar ou desinstalar adapters via checkboxes. Cada adapter mostra nome e label. Desinstalar remove o arquivo adapter mas mantém o harness canônico. Operação gera diff preview antes de executar. Adapters são atualizados no campo `tools` dentro de workflow.json.
+### Adapters
+
+- [ ] **AC10 — Lifecycle de adapters**: O usuário pode selecionar quais adapters estão ativos via checkboxes. Cada adapter mostra nome, label e capacidades (instructions, skills, MCP). O painel detecta automaticamente adapters já existentes no disco e mostra status "Detectado". Selecionar um adapter adiciona seu ID ao array `tools` em workflow.json. Desselecionar remove do array E limpa o arquivo correspondente do disco (`.cursorrules`, `CLAUDE.md`, etc). Adapters são regenerados automaticamente na próxima operação de escrita (`writeWorkflow()`). Preview mostra o conteúdo que será gerado para cada adapter antes de confirmar.
+- [ ] **AC11 — Detecção de adapters**: O painel verifica a existência de arquivos de adapter no disco (`.cursorrules`, `CLAUDE.md`, `.opencode/instructions.md`, etc) e exibe badge "Detectado" ao lado de cada adapter encontrado. Adapters detectados são sugeridos como selecionados por padrão na primeira configuração.
 
 ### Operações destrutivas
 
-- [ ] **AC11 — Exclusão de workspace**: Na aba Avançado, botão "Excluir Workspace" abre dialog de dois estágios: primeiro pede confirmação ("Esta ação é irreversível"), segundo pede para digitar o nome do workspace. Exclusão remove o índice de `~/.letra/workspaces/` e `.letra-link` dos locais, mas preserva o diretório original, workflow.json e todos os arquivos. Após excluir, redireciona para "Meus Workspaces".
+- [ ] **AC12 — Exclusão de workspace**: Na aba Avançado, botão "Excluir Workspace" abre dialog de dois estágios: primeiro pede confirmação ("Esta ação é irreversível"), segundo pede para digitar o nome do workspace. Exclusão remove o índice de `~/.letra/workspaces/` e `.letra-link` dos locais, mas preserva o diretório original, workflow.json e todos os arquivos. Após excluir, redireciona para "Meus Workspaces".
 
 ### Qualidade operacional
 
-- [ ] **AC12 — Rollback**: Toda operação de alteração (locais, fluxo, rename) exibe toast "Alteração aplicada" com botão "Desfazer" por 30 segundos. Clique em "Desfazer" reverte a operação via `POST /api/workspace/setup/rollback` usando o manifest mais recente. Toast confirma "Alteração desfeita".
+- [ ] **AC13 — Rollback**: Toda operação de alteração (locais, fluxo, adapters, rename) exibe toast "Alteração aplicada" com botão "Desfazer" por 30 segundos. Clique em "Desfazer" reverte a operação via `POST /api/workspace/setup/rollback` usando o manifest mais recente. Toast confirma "Alteração desfeita".
 
-- [ ] **AC13 — Persistência**: Todas as alterações são salvas em workflow.json via `writeWorkflow()` (gateway existente). O índice em workspace.json é atualizado apenas para campos de registro (name, description). Recarregamento da página reflete todas as alterações. Não há divergência entre cliente e servidor porque há uma única fonte.
+- [ ] **AC14 — Persistência**: Todas as alterações são salvas em workflow.json via `writeWorkflow()` (gateway existente). O índice em workspace.json é atualizado apenas para campos de registro (name, description). Recarregamento da página reflete todas as alterações. Não há divergência entre cliente e servidor porque há uma única fonte.
 
-- [ ] **AC14 — Acessibilidade**: O painel passa em auditoria WCAG 2.2 AA: navegação por teclado entre abas e campos, foco visível em todos os elementos interativos, contraste mínimo 4.5:1 em textos, labels associados a todos os inputs, aria-label em botões de ícone, role="dialog" no Sheet.
+- [ ] **AC15 — Acessibilidade**: O painel passa em auditoria WCAG 2.2 AA: navegação por teclado entre abas e campos, foco visível em todos os elementos interativos, contraste mínimo 4.5:1 em textos, labels associados a todos os inputs, aria-label em botões de ícone, role="dialog" no Sheet.
 
 ## Context
 
@@ -79,7 +84,36 @@ Um workspace é o espaço de trabalho do usuário que representa uma **solução
 - **Local de mudança**: Diretório onde a solução faz alterações. Não tem comandos de build/test — isso é responsabilidade de CI/CD externo.
 - **Workflow**: Fluxo de trabalho único da solução. Composto por stages (Backlog → Design → Code → Review → Done). O kanban representa visualmente este workflow.
 - **Template**: Definição do fluxo de trabalho (quais stages existem, em que ordem). Pode ser trocado sem perder itens.
-- **Adapter**: Tradutor que converte `.letra/` para o formato que uma IDE/agent entende. Adaptador é do workspace, não do local.
+- **Adapter**: Arquivo gerado que traduz o estado do workspace Letra para o formato de uma IDE/agent. Cada adapter gera um ou mais arquivos (`.cursorrules`, `CLAUDE.md`, `AGENTS.md`, etc). Adapters são **workspace-level** — não existem por local.
+
+### Lifecycle de um adapter
+
+```
+1. Usuário seleciona adapter no painel
+   → ID adicionado a tools[] em workflow.json
+
+2. writeWorkflow() é chamado (qualquer operação)
+   → generateAdapters(root, tools, options)
+     → buildHarnessSnapshot() ← coleta estado do workspace
+     → formatAdapterContent() ← renderiza markdown/texto
+     → writeFileSync()        ← escreve arquivo (.cursorrules, etc)
+
+3. Usuário desseleciona adapter
+   → ID removido de tools[]
+   → Arquivo limpo do disco na próxima regeneração
+```
+
+### Registry de adapters (7)
+
+| Adapter | Arquivo(s) gerado(s) | Capacidades |
+|---------|---------------------|-------------|
+| OpenCode | `.opencode/instructions.md`, `AGENTS.md` | instructions, skills |
+| Cursor | `.cursorrules` | instructions |
+| Claude Code | `CLAUDE.md` | instructions |
+| Windsurf | `.windsurfrules` | instructions |
+| VSCode | `.github/copilot-instructions.md` | instructions |
+| Codex | `AGENTS.md`, `.codex/config.toml`, skill | instructions, skills, MCP, hooks |
+| Hermes | `.hermes/instructions.md` | instructions |
 
 ### Responsabilidades do Letra
 
