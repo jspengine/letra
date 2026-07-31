@@ -1,75 +1,89 @@
 # Acceptance Criteria — workspace-settings
 
-## AC1 — Acesso ao painel
+## AC1 — Índice leve
+- [ ] workspace.json contém apenas: id, name, slug, root, createdAt
+- [ ] Campos tools, template, directories, harnessVersion removidos de workspace.json
+- [ ] `GET /api/workspaces` lê índice e enriquece com workflow.json
+
+## AC2 — Migração
+- [ ] Script detecta workspaces.json legados
+- [ ] Cria índice a partir dos dados legados
+- [ ] Workspaces sem workflow.json aparecem como "Não configurado"
+- [ ] Botão "Configurar" abre o setup wizard
+
+## AC3 — Acesso ao painel
 - [ ] Botão gear aparece no header com workspace ativo
 - [ ] Clique abre Sheet lateral direito
-- [ ] Quatro abas visíveis: Geral, Targets, Fluxo, Avançado
+- [ ] Quatro abas visíveis: Geral, Projetos, Fluxo, Avançado
 - [ ] ESC fecha o Sheet sem salvar
 - [ ] Botão X fecha o Sheet sem salvar
 - [ ] Sheet tem role="dialog" e aria-label="Configurações do workspace"
 
-## AC2 — Edição de identidade
+## AC4 — Edição de identidade
 - [ ] Campo nome é obrigatório e aceita mínimo 2 caracteres
 - [ ] Campo descrição é opcional
-- [ ] Salva com PATCH /api/workspaces/:id
+- [ ] Salva em workflow.json via PATCH /api/workflow
+- [ ] Índice é atualizado se nome mudou
 - [ ] Header reflete novo nome imediatamente
 - [ ] Validação aparece em tempo real
 
-## AC3 — Lista de targets
+## AC5 — Lista de projetos
 - [ ] Cards mostram caminho, tipo, commands e adapters
 - [ ] Card vazio mostra mensagem e botão de ação
-- [ ] Targets são listados em ordem alfabética por path
-- [ ] Tipo do target é exibido como badge
+- [ ] Projetos são listados em ordem alfabética por path
+- [ ] Tipo do projeto é exibido como badge
 
-## AC4 — Adicionar target
+## AC6 — Adicionar projeto
 - [ ] Botão abre seletor de diretório
 - [ ] Tree browser reutiliza /api/fs/dirs
 - [ ] Diretório é analisado automaticamente
 - [ ] Preview mostra stack detectada e adapters propostos
-- [ ] Confirmação cria target com POST /api/workspaces/:id/targets
+- [ ] Confirmação adiciona target ao array targets em workflow.json
 
-## AC5 — Editar target
+## AC7 — Editar projeto
 - [ ] Inline editor com campos projectType, buildCommand, testCommand
 - [ ] Checkboxes para adapters
 - [ ] Validação de caracteres perigosos em commands
-- [ ] Salva com PATCH /api/workspaces/:id/targets/:tid
+- [ ] Salva via PATCH /api/workflow atualizando target específico
 
-## AC6 — Remover target
-- [ ] Dialog de confirmação com nome do target
+## AC8 — Remover projeto
+- [ ] Dialog de confirmação com nome do projeto
 - [ ] Confirmação requer dois cliques
-- [ ] Remove com DELETE /api/workspaces/:id/targets/:tid
+- [ ] Remove target do array targets em workflow.json
 
-## AC7 — Mudança de template
+## AC9 — Mudança de fluxo
 - [ ] Lista de templates via GET /api/harness/templates
 - [ ] Diff visual mostra adições, remoções e inalterados
 - [ ] Itens em stages removidos vão para backlog
-- [ ] Aplica com POST /api/workflow/template
+- [ ] Atualiza template e stages em workflow.json
 
-## AC8 — Gestão de adapters
-- [ ] Checkboxes por target
+## AC10 — Gestão de adapters
+- [ ] Checkboxes por projeto
 - [ ] Cada adapter mostra nome e capacidades
 - [ ] Desinstalar remove arquivo adapter
 - [ ] Diff preview antes de executar
+- [ ] Atualiza target correspondente em workflow.json
 
-## AC9 — Exclusão de workspace
+## AC11 — Exclusão de workspace
 - [ ] Dois estágios: confirmação + digitar nome
-- [ ] Remove workspace.json e .letra-link
-- [ ] Preserva diretório original
+- [ ] Remove índice de ~/.letra/workspaces/
+- [ ] Remove .letra-link dos projetos
+- [ ] Preserva diretório original e workflow.json
 - [ ] Redireciona para Meus Workspaces
 
-## AC10 — Rollback
+## AC12 — Rollback
 - [ ] Toast "Alteração aplicada" com botão "Desfazer"
 - [ ] 30 segundos de janela
 - [ ] Reverte via POST /api/workspace/setup/rollback
 - [ ] Confirma "Alteração desfeita"
 
-## AC11 — Persistência
-- [ ] workspace.json atualizado via API
-- [ ] workflow.json atualizado quando template muda
-- [ ] localStorage atualizado quando nome muda
+## AC13 — Persistência
+- [ ] Todas as alterações em workflow.json via writeWorkflow()
+- [ ] Índice atualizado apenas para name/description
 - [ ] Reload reflete todas as alterações
+- [ ] Sem divergência cliente/servidor (única fonte)
 
-## AC12 — Acessibilidade
+## AC14 — Acessibilidade
 - [ ] Navegação por teclado entre abas e campos
 - [ ] Foco visível em todos os elementos
 - [ ] Contraste mínimo 4.5:1
