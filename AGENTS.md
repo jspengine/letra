@@ -7,20 +7,19 @@ Execute `letra health` para detalhes e `letra health ack <id>` para reconhecer.
 PASSO OBRIGATÓRIO #1: letra pulse — verificar estado do workspace
 PASSO OBRIGATÓRIO #2: Leia .letra/context.md — contexto completo do projeto
 PASSO OBRIGATÓRIO #3: Leia .letra/focus.md — foco e outcome da sessão
-PASSO OBRIGATÓRIO #4: Leia .letra/specs/product-supervision-navigation/spec.md — ACs do item
+PASSO OBRIGATÓRIO #4: Leia .letra/specs/workspace-settings/spec.md — ACs do item
 
 ## Foco Atual
 
-Item: ITEM-62 · Verdade do Produto e Navegacao de Supervisao
-Spec: product-supervision-navigation
-Estágio: Done
-ACs: 0/12 pendentes
+Item: ITEM-77 · Painel de Configuracoes do Workspace — CRUD completo de targets, rename, template switch, adapters, delete com rollback
+Spec: workspace-settings
+Estágio: Backlog → Design
 
 ## Direção do Harness
 
 <!-- harness-direction:start -->
-**Versão**: v0.1.3 | **Estágios**: done
-**Item**: ITEM-62 — Verdade do Produto e Navegacao de Supervisao (Done)
+**Versão**: v0.1.3 | **Estágios**: backlog
+**Item**: ITEM-77 — Painel de Configuracoes do Workspace — CRUD completo de targets, rename, template switch, adapters, delete com rollback (Backlog)
 _Estágio sem activity configurada no harness._
 <!-- harness-direction:end -->
 
@@ -30,35 +29,35 @@ Alerta · severidade baixa
   ID: hr-4652f8f0
   O que: AC "flow diff" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 31/07/2026, 12:37:32
+  Desde: 31/07/2026, 14:50:21
   Ação: `letra health ack hr-4652f8f0`
 
 Alerta · severidade baixa
   ID: hr-4103b765
   O que: AC "flow visualize" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 31/07/2026, 12:37:32
+  Desde: 31/07/2026, 14:50:21
   Ação: `letra health ack hr-4103b765`
 
 Alerta · severidade baixa
   ID: hr-dd77601
   O que: AC "flow export" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 31/07/2026, 12:37:32
+  Desde: 31/07/2026, 14:50:21
   Ação: `letra health ack hr-dd77601`
 
 Alerta · severidade baixa
   ID: hr-6380dc9e
   O que: AC "GET /" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 31/07/2026, 12:37:32
+  Desde: 31/07/2026, 14:50:21
   Ação: `letra health ack hr-6380dc9e`
 
 Alerta · severidade baixa
   ID: hr-352219f2
   O que: AC "letra sitrep" marcado [ ] mas implementado
   Onde: ac-stale
-  Desde: 31/07/2026, 12:37:32
+  Desde: 31/07/2026, 14:50:21
   Ação: `letra health ack hr-352219f2`
 
   e mais 3 alertas
@@ -94,10 +93,12 @@ Alerta · severidade baixa
   ❌ Se falhar: letra health — checar alertas ativos
 - `letra sitrep` — sitrep
   ❌ Se falhar: corrija o erro e tente novamente
-- `letra flow move ITEM-62 --to proximo_estagio` — flow move
+- `letra flow move ITEM-77 --to design` — flow move
   ❌ Se falhar: letra validate — verificar ACs pendentes
 - `npm run build` — build
   ❌ Se falhar: corrija erros de compilação
+
+Após mover, verifique o novo estágio com `letra pulse`
 
 ## Comandos
 
@@ -158,5 +159,6 @@ Ações:
 - [Constitution](file:///C:/Workspace/letra/.letra/constitution.md)
 - [Glossary](file:///C:/Workspace/letra/.letra/glossary.md)
 - [Constraints](file:///C:/Workspace/letra/.letra/constraints.md)
-- [Spec: product-supervision-navigation](file:///C:/Workspace/letra/.letra/specs/product-supervision-navigation/spec.md)
-- [ITEM-62](file:///C:/Workspace/letra/.letra/workflow.json)
+- [Focus](file:///C:/Workspace/letra/.letra/focus.md)
+- [Spec: workspace-settings](file:///C:/Workspace/letra/.letra/specs/workspace-settings/spec.md)
+- [ITEM-77](file:///C:/Workspace/letra/.letra/workflow.json)

@@ -2,7 +2,7 @@
   "version": "1.0",
   "name": "Letra",
   "createdAt": "2026-06-22T11:16:15Z",
-  "updatedAt": "2026-07-31T15:37:31.761Z",
+  "updatedAt": "2026-07-31T17:49:53.572Z",
   "stages": [
     {
       "id": "backlog",
@@ -608,6 +608,13 @@
       "stage": "done",
       "createdAt": "2026-07-11T02:02:17.445Z",
       "spec": "ds-catalog"
+    },
+    {
+      "id": "ITEM-77",
+      "description": "Painel de Configuracoes do Workspace — CRUD completo de targets, rename, template switch, adapters, delete com rollback",
+      "stage": "backlog",
+      "createdAt": "2026-07-31T17:49:53.567Z",
+      "spec": "workspace-settings"
     }
   ],
   "specLinks": {
@@ -787,6 +794,9 @@
     },
     "release-readiness": {
       "path": ".letra/specs/release-readiness/spec.md"
+    },
+    "workspace-settings": {
+      "path": ".letra/specs/workspace-settings/spec.md"
     }
   },
   "tools": [
