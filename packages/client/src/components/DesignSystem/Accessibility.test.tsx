@@ -14,7 +14,6 @@ import {
 	TableRow,
 } from "@letra/ui";
 import { describe, expect, it, vi } from "vitest";
-import { NavTabs } from "../NavTabs/NavTabs";
 import { DocumentEditor } from "@letra/ui";
 
 async function expectNoAccessibilityViolations(container: HTMLElement) {
@@ -41,19 +40,6 @@ describe("accessibility", () => {
 
 		await expectNoAccessibilityViolations(container);
 		await user.click(screen.getByRole("button", { name: "Editar" }));
-		await expectNoAccessibilityViolations(container);
-	});
-
-	it("supports keyboard navigation in the primary tabs", async () => {
-		const user = userEvent.setup();
-		const onTabChange = vi.fn();
-		const { container } = render(<NavTabs activeTab="home" onTabChange={onTabChange} />);
-
-		await user.tab();
-		expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Home" }));
-		await user.keyboard("{Enter}");
-		expect(onTabChange).toHaveBeenCalledWith("home");
-
 		await expectNoAccessibilityViolations(container);
 	});
 

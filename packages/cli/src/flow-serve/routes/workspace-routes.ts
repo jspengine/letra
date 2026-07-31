@@ -240,7 +240,15 @@ export function createWorkspaceRoutes(dependencies: WorkspaceRouteDependencies):
 		}
 		if (path === "/api/harness/roles" && method === "GET") {
 			const harness = dependencies.loadHarness(workspaceRoot);
-			const roles = harness ? Object.values(harness.roles).map((r) => ({ id: r.id, label: r.label })) : [];
+			const roles = harness
+				? Object.values(harness.roles).map((r) => ({
+						id: r.id,
+						label: r.label,
+						description: r.description || "",
+						allowedStages: r.allowedStages || [],
+						capabilities: r.capabilities || [],
+					}))
+				: [];
 			sendJson(res, 200, roles);
 			return true;
 		}

@@ -50,10 +50,10 @@ interface HarnessData {
 }
 
 const LAYER_INFO: Record<string, { title: string; icon: string; desc: string }> = {
-	l1: { title: "Core Context", icon: "book", desc: "Arquivos fundamentais do projeto" },
-	l2: { title: "Focus & Spec", icon: "target", desc: "Foco atual e especificação ativa" },
-	l3: { title: "Signals & State", icon: "activity", desc: "Alertas, eventos e estado da sessão" },
-	l4: { title: "Constraints & Rules", icon: "shield", desc: "Regras compiladas do sistema" },
+	l1: { title: "Contexto Principal", icon: "book", desc: "Arquivos fundamentais do projeto" },
+	l2: { title: "Foco e Especificação", icon: "target", desc: "Foco atual e especificação ativa" },
+	l3: { title: "Sinais e Estado", icon: "activity", desc: "Alertas, eventos e estado da sessão" },
+	l4: { title: "Restrições e Regras", icon: "shield", desc: "Regras compiladas do sistema" },
 };
 
 function useCopyToClipboard() {
@@ -131,7 +131,7 @@ function L1Content({ files }: { files: LayerFile[] }) {
 						</div>
 					) : (
 						<p className="text-xs italic" style={{ color: "var(--color-text-secondary)" }}>
-							(empty)
+							(vazio)
 						</p>
 					)}
 				</div>
@@ -168,7 +168,7 @@ function L2Content({ l2 }: { l2: L2Data }) {
 						</div>
 					) : (
 						<p className="text-xs italic" style={{ color: "var(--color-text-secondary)" }}>
-							(no focus content)
+							(sem conteúdo de foco)
 						</p>
 					)}
 				</div>
@@ -309,7 +309,7 @@ export default function HarnessViewer() {
 		return (
 			<div className="flex items-center justify-center h-full">
 				<p className="text-sm animate-pulse" style={{ color: "var(--color-text-secondary)" }}>
-					Loading...
+					Carregando...
 				</p>
 			</div>
 		);
@@ -319,7 +319,7 @@ export default function HarnessViewer() {
 		return (
 			<div className="flex items-center justify-center h-full">
 				<p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
-					Unable to load harness data.
+					Não foi possível carregar os dados da configuração.
 				</p>
 			</div>
 		);
@@ -329,7 +329,7 @@ export default function HarnessViewer() {
 		<div className="flex flex-col min-h-0 overflow-hidden">
 			<div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: "var(--color-border)" }}>
 				<div>
-					<h2 className="text-sm font-semibold">Harness Composition</h2>
+					<h2 className="text-sm font-semibold">Composição da Configuração</h2>
 					<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
 						Camadas do prompt compilado para o agente
 					</p>
@@ -342,10 +342,10 @@ export default function HarnessViewer() {
 					}}
 					className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs transition-all duration-150 hover:bg-primary/10 active:scale-95"
 					style={{ backgroundColor: "var(--color-bg-surface)" }}
-					aria-label="Copy harness data"
+					aria-label="Copiar dados da configuração"
 				>
 					<Icon name={copied ? "check" : "copy"} size={12} />
-					{copied ? "Copied!" : "Copy"}
+					{copied ? "Copiado!" : "Copiar"}
 				</Button>
 			</div>
 

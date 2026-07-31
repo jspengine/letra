@@ -104,7 +104,7 @@ function ItemCard({
 		return {
 			done: acDone,
 			total: acTotal,
-			label: acTotal > 0 ? `${acDone}/${acTotal} ACs` : "Sem ACs",
+			label: acTotal > 0 ? `${acDone}/${acTotal} critérios` : "Sem critérios",
 			source: "Critérios",
 		};
 	})() : item.tasks && item.tasks.length > 0
@@ -195,7 +195,7 @@ function ItemCard({
 						<Tag>{ageLabel}</Tag>
 					</div>
 					<p className="line-clamp-2 text-caption leading-snug text-[var(--color-text-secondary)]">
-						{linkedSpec ? `Spec ${linkedSpec.id}` : `Evidência ${slug}`}
+						{linkedSpec ? `Especificação ${linkedSpec.id}` : `Evidência ${slug}`}
 					</p>
 				</div>
 

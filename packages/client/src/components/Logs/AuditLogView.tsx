@@ -1,33 +1,41 @@
 ﻿import { useState, useEffect, useCallback, useMemo } from "react";
 import { ActivityTimeline, Badge, Button, ButtonGroup, ButtonGroupItem, Card, CardContent, CardHeader, Collapsible, CollapsibleContent, CollapsibleTrigger, DateField, Icon, Input, List, ListItem, MetadataRow, Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, Tag, TimelineItem } from "@letra/ui";
+import type { IconName } from "@letra/ui";
+import { translateSubjectType } from "../../lib/term-translations";
+import { translateAction } from "../../lib/action-labels";
 
-interface LogEntry {
+type EventKind = "flow" | "execution" | "human" | "system";
+type EventStatus = "started" | "succeeded" | "failed" | "blocked" | "requested" | "info";
+
+interface OperationalAuditEvent {
 	id: string;
 	timestamp: string;
+	kind: EventKind;
 	action: string;
-	description: string;
-	itemId?: string | null;
-	acId?: string | null;
-	level?: "info" | "debug";
-	details?: {
-		systemAction?: boolean;
-		actionId?: string;
-		outcome?: string;
-		trigger?: string;
-		cadence?: string;
-		cause?: string;
-		effect?: string;
-		error?: string | null;
-		path?: string;
-		[key: string]: unknown;
-	};
+	status: EventStatus;
+	actor: { type: "human" | "agent" | "system"; id?: string; label: string };
+	source: { surface: string; command?: string };
+	subject?: { type: string; id: string; label?: string };
+	summary: string;
+	reason?: string;
+	correlationId?: string;
+	details: Record<string, unknown>;
+	legacy?: Record<string, unknown>;
 }
 
-interface LogResponse {
-	entries: LogEntry[];
+interface AuditFacets {
+	kinds: Record<string, number>;
+	statuses: Record<string, number>;
+	sources: Record<string, number>;
+	actions: Record<string, number>;
+}
+
+interface AuditResponse {
+	items: OperationalAuditEvent[];
 	total: number;
 	page: number;
 	limit: number;
+	facets: AuditFacets;
 }
 
 interface GroupedEvent {
@@ -38,7 +46,7 @@ interface GroupedEvent {
 
 interface EventGroup {
 	key: string;
-	events: LogEntry[];
+	events: OperationalAuditEvent[];
 	collapsed: boolean;
 	isNoise: boolean;
 }
@@ -50,13 +58,13 @@ const DATE_GROUPS = [
 	{ label: "Este mês", days: 30 },
 ] as const;
 
-const ACTION_FILTERS = [
-	{ label: "Toda atividade", value: "" },
-	{ label: "Automação", value: "system" },
-	{ label: "Movimento", value: "flow-move" },
-	{ label: "Validação", value: "validate" },
-	{ label: "Decisão", value: "decision" },
-] as const;
+	const KIND_FILTERS = [
+		{ label: "Todos", value: "" },
+		{ label: "Humano", value: "human" },
+		{ label: "Agente", value: "flow" },
+		{ label: "Sistema", value: "system" },
+		{ label: "Execução", value: "execution" },
+	] as const;
 
 function getDateGroup(ts: string): { label: string; order: number } {
 	const d = new Date(ts);
@@ -90,90 +98,69 @@ function fullTime(iso: string) {
 	}
 }
 
-function isSystemEvent(e: LogEntry): boolean {
-	return e.details?.systemAction === true || e.action === "system";
+function noiseKey(e: OperationalAuditEvent): string | null {
+	if (e.kind !== "system") return null;
+	const actionId = e.correlationId || (e.details?.actionId as string);
+	if (!actionId) return null;
+	return `${actionId}:${e.details?.outcome || "unknown"}`;
 }
 
-function noiseKey(e: LogEntry): string | null {
-	if (!isSystemEvent(e)) return null;
-	const d = e.details;
-	if (!d?.actionId) return null;
-	return `${d.actionId}:${d.outcome || "unknown"}`;
-}
-
-function actionVariant(action: string): "success" | "amber" | "info" {
-	if (action.includes("move") || action.includes("approve") || action.includes("create")) return "success";
-	if (action.includes("reject") || action.includes("fail") || action.includes("error")) return "amber";
-	if (action === "system") return "info";
+function statusVariant(status: EventStatus): "success" | "amber" | "info" {
+	if (status === "succeeded") return "success";
+	if (status === "failed" || status === "blocked") return "amber";
 	return "info";
 }
 
-function timelineStatus(entry: LogEntry): "default" | "success" | "error" | "info" | "agent" {
-	if (entry.action.includes("reject") || entry.action.includes("fail") || entry.action.includes("error")) return "error";
-	if (entry.action.includes("move") || entry.action.includes("approve") || entry.action.includes("create")) return "success";
-	if (isSystemEvent(entry)) return "info";
+function timelineStatus(e: OperationalAuditEvent): "default" | "success" | "error" | "info" | "agent" {
+	if (e.status === "failed" || e.status === "blocked") return "error";
+	if (e.status === "succeeded") return "success";
+	if (e.kind === "system") return "info";
+	if (e.kind === "human") return "default";
 	return "agent";
 }
 
-function timelineIcon(entry: LogEntry) {
-	if (entry.action.includes("reject") || entry.action.includes("fail") || entry.action.includes("error")) return "circle-x";
-	if (entry.action.includes("move")) return "flow";
-	if (entry.action.includes("approve") || entry.action.includes("create")) return "circle-check";
-	if (isSystemEvent(entry)) return "activity";
+function timelineIcon(e: OperationalAuditEvent): IconName {
+	if (e.status === "failed" || e.status === "blocked") return "circle-x";
+	if (e.status === "succeeded") return "circle-check";
+	if (e.kind === "system") return "activity";
+	if (e.kind === "human") return "user";
 	return "bot";
 }
 
-function actorLabel(e: LogEntry): string {
-	if (isSystemEvent(e)) return "automation";
-	if (e.details?.actionId) return e.details.actionId;
-	return e.action;
-}
-
-function summaryFromDesc(desc: string): { who: string; what: string; where: string; result: string } {
-	const parts = desc.split("|").map((s) => s.trim());
-	const who = parts[0] || desc;
-	const what = parts[1] || "";
-	const where = parts[2] || "";
-	const result = parts[3] || "";
-	return { who, what, where, result };
-}
-
-function detailText(entry: LogEntry, key: string): string | null {
-	const value = entry.details?.[key];
+function detailText(e: OperationalAuditEvent, key: string): string | null {
+	const value = e.details?.[key];
 	return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function evidenceRefs(entry: LogEntry): { label: string; value: string; tone: "info" }[] {
+function subjectLabel(type: string): string {
+	return translateSubjectType(type);
+}
+
+function evidenceRefs(e: OperationalAuditEvent): { label: string; value: string; tone: "info" }[] {
 	const refs: { label: string; value: string; tone: "info" }[] = [];
-	if (entry.itemId) refs.push({ label: "Item", value: entry.itemId, tone: "info" });
-	if (entry.acId) refs.push({ label: "AC", value: entry.acId, tone: "info" });
-	const decisionFile = detailText(entry, "decisionFile");
+	if (e.subject) refs.push({ label: subjectLabel(e.subject.type), value: e.subject.id, tone: "info" });
+	const decisionFile = detailText(e, "decisionFile");
 	if (decisionFile) refs.push({ label: "Decisão", value: decisionFile, tone: "info" });
-	const path = detailText(entry, "path");
+	const path = detailText(e, "path");
 	if (path) refs.push({ label: "Arquivo", value: path, tone: "info" });
-	const source = detailText(entry, "source");
-	if (source) refs.push({ label: "Origem", value: source, tone: "info" });
 	return refs;
 }
 
-function investigationSummary(entry: LogEntry) {
-	const parsed = summaryFromDesc(entry.description);
-	const outcome = detailText(entry, "outcome");
-	const trigger = detailText(entry, "trigger");
-	const source = detailText(entry, "source");
-	const path = detailText(entry, "path") ?? detailText(entry, "decisionFile");
+function investigationSummary(e: OperationalAuditEvent) {
+	const path = detailText(e, "path") ?? detailText(e, "decisionFile");
 	return {
-		who: actorLabel(entry),
-		what: parsed.what || entry.action,
-		where: parsed.where || entry.itemId || path || source || "Workspace",
-		result: parsed.result || outcome || entry.details?.effect || "Registrado como evidência",
-		why: entry.details?.cause || trigger || null,
-		evidence: evidenceRefs(entry),
+		who: e.actor.label,
+		what: e.summary || e.action,
+		where: e.subject?.id || path || detailText(e, "source") || "Workspace",
+		result: detailText(e, "outcome") || (e.details?.effect as string) || "Registrado como evidência",
+		why: e.reason || detailText(e, "trigger") || null,
+		evidence: evidenceRefs(e),
 	};
 }
 
 export default function AuditLogView() {
-	const [logs, setLogs] = useState<LogEntry[]>([]);
+	const [logs, setLogs] = useState<OperationalAuditEvent[]>([]);
+	const [facets, setFacets] = useState<AuditFacets>({ kinds: {}, statuses: {}, sources: {}, actions: {} });
 	const [total, setTotal] = useState(0);
 	const [page, setPage] = useState(1);
 	const [loading, setLoading] = useState(true);
@@ -181,9 +168,10 @@ export default function AuditLogView() {
 	const [search, setSearch] = useState("");
 	const [debouncedSearch, setDebouncedSearch] = useState("");
 	const [filterAction, setFilterAction] = useState("");
+	const [filterKind, setFilterKind] = useState("");
 	const [filterSince, setFilterSince] = useState("");
 	const [includeTechnicalEvents, setIncludeTechnicalEvents] = useState(false);
-	const [selectedEvent, setSelectedEvent] = useState<LogEntry | null>(null);
+	const [selectedEvent, setSelectedEvent] = useState<OperationalAuditEvent | null>(null);
 	const [technicalDetailsOpen, setTechnicalDetailsOpen] = useState(false);
 	const [expandedNoise, setExpandedNoise] = useState<Set<string>>(new Set());
 	const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set(["Hoje", "Ontem"]));
@@ -208,9 +196,9 @@ export default function AuditLogView() {
 
 			const res = await fetch(`/api/log?${params}`);
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			const data: LogResponse = await res.json();
-			const list = data.entries || [];
-			setLogs(list);
+			const data: AuditResponse = await res.json();
+			setLogs(data.items || []);
+			setFacets(data.facets || { kinds: {}, statuses: {}, sources: {}, actions: {} });
 			setTotal(data.total || 0);
 			setPage(data.page || 1);
 		} catch (err) {
@@ -224,7 +212,7 @@ export default function AuditLogView() {
 
 	useEffect(() => {
 		setPage(1);
-	}, [debouncedSearch, filterAction, filterSince, includeTechnicalEvents]);
+	}, [debouncedSearch, filterAction, filterKind, filterSince, includeTechnicalEvents]);
 
 	useEffect(() => {
 		fetchLogs(page);
@@ -235,15 +223,16 @@ export default function AuditLogView() {
 	}, [selectedEvent?.id]);
 
 	const noised = useMemo(() => {
-		const result: LogEntry[] = [];
+		const filtered = filterKind ? logs.filter((e) => e.kind === filterKind) : logs;
+		const result: OperationalAuditEvent[] = [];
 		let i = 0;
-		while (i < logs.length) {
-			const key = noiseKey(logs[i]);
+		while (i < filtered.length) {
+			const key = noiseKey(filtered[i]);
 			if (key) {
-				const group: LogEntry[] = [logs[i]];
+				const group: OperationalAuditEvent[] = [filtered[i]];
 				let j = i + 1;
-				while (j < logs.length && noiseKey(logs[j]) === key) {
-					group.push(logs[j]);
+				while (j < filtered.length && noiseKey(filtered[j]) === key) {
+					group.push(filtered[j]);
 					j++;
 				}
 				if (group.length > 1) {
@@ -251,22 +240,22 @@ export default function AuditLogView() {
 					if (isExpanded) {
 						result.push(...group);
 					} else {
-						result.push({ ...group[0], _noiseCount: group.length, _noiseKey: key } as LogEntry & { _noiseCount: number; _noiseKey: string });
+						result.push({ ...group[0], _noiseCount: group.length, _noiseKey: key } as OperationalAuditEvent & { _noiseCount: number; _noiseKey: string });
 					}
 				} else {
 					result.push(group[0]);
 				}
 				i = j;
 			} else {
-				result.push(logs[i]);
+				result.push(filtered[i]);
 				i++;
 			}
 		}
 		return result;
-	}, [logs, expandedNoise]);
+	}, [logs, filterKind, expandedNoise]);
 
 	const grouped = useMemo(() => {
-		const groups = new Map<string, LogEntry[]>();
+		const groups = new Map<string, OperationalAuditEvent[]>();
 		for (const entry of noised) {
 			const { label } = getDateGroup(entry.timestamp);
 			const list = groups.get(label) || [];
@@ -285,13 +274,13 @@ export default function AuditLogView() {
 
 	const metrics = useMemo(() => {
 		const totalEvents = logs.length;
-		const systemEvents = logs.filter((e) => isSystemEvent(e)).length;
-		const technicalEvents = logs.filter((e) => e.level === "debug").length;
-		const humanEvents = totalEvents - systemEvents;
+		const systemEvents = logs.filter((e) => e.kind === "system").length;
+		const humanEvents = logs.filter((e) => e.kind === "human").length;
+		const agentEvents = logs.filter((e) => e.kind === "execution" || e.kind === "flow").length;
 		const todayEvents = logs.filter((e) => getDateGroup(e.timestamp).label === "Hoje").length;
-		const evidenceEvents = logs.filter((e) => evidenceRefs(e).length > 0).length;
-		const resultEvents = logs.filter((e) => detailText(e, "outcome") || e.details?.effect).length;
-		return { totalEvents, systemEvents, technicalEvents, humanEvents, todayEvents, evidenceEvents, resultEvents };
+		const succeededEvents = logs.filter((e) => e.status === "succeeded").length;
+		const failedEvents = logs.filter((e) => e.status === "failed").length;
+		return { totalEvents, systemEvents, humanEvents, agentEvents, todayEvents, succeededEvents, failedEvents };
 	}, [logs]);
 
 	const totalPages = Math.ceil(total / limit);
@@ -335,18 +324,17 @@ export default function AuditLogView() {
 				<SheetContent side="right" className="w-full sm:max-w-3xl lg:max-w-4xl">
 					{selectedEvent && (
 						<>
-							<SheetHeader className="items-start gap-4">
+						<SheetHeader className="items-start gap-4">
 								<div className="min-w-0 flex-1">
 									<div className="mb-3 flex flex-wrap items-center gap-2">
-										<Badge variant={actionVariant(selectedEvent.action)} tone="soft" className="text-caption uppercase">
-											{selectedEvent.action}
+										<Badge variant={statusVariant(selectedEvent.status)} tone="soft" className="text-caption uppercase">
+											{translateAction(selectedEvent.action)}
 										</Badge>
-										{isSystemEvent(selectedEvent) ? <Badge variant="info" tone="soft">automação</Badge> : <Badge variant="agent" tone="soft">agente</Badge>}
-										{selectedEvent.level === "debug" ? <Badge variant="amber" tone="soft">evento técnico</Badge> : null}
-										{selectedEvent.details?.outcome ? (
-											<Badge variant={selectedEvent.details.outcome === "completed" ? "success" : "amber"} tone="soft">
-												{selectedEvent.details.outcome}
-											</Badge>
+										<Badge variant={selectedEvent.kind === "human" ? "info" : selectedEvent.kind === "system" ? "info" : "agent"} tone="soft">
+											{selectedEvent.actor.label}
+										</Badge>
+										{selectedEvent.status === "failed" || selectedEvent.status === "blocked" ? (
+											<Badge variant="amber" tone="soft">{selectedEvent.status}</Badge>
 										) : null}
 									</div>
 									<SheetTitle className="leading-tight">Evidência da atividade</SheetTitle>
@@ -372,10 +360,10 @@ export default function AuditLogView() {
 										<CardContent>
 											<MetadataRow
 												items={[
-													{ label: "Origem", value: actorLabel(selectedEvent), icon: <Icon name="activity" size={14} /> },
+													{ label: "Ator", value: `${selectedEvent.actor.label} (${selectedEvent.actor.type})`, icon: <Icon name="user" size={14} /> },
 													{ label: "Quando", value: fullTime(selectedEvent.timestamp), icon: <Icon name="clock" size={14} /> },
-													{ label: "Onde", value: selectedSummary.where, icon: <Icon name="box" size={14} /> },
-													{ label: "Resultado", value: String(selectedSummary.result), icon: <Icon name="check-circle" size={14} /> },
+													{ label: "Onde", value: selectedEvent.subject?.id || selectedSummary.where, icon: <Icon name="box" size={14} /> },
+													{ label: "Resultado", value: selectedEvent.status, icon: <Icon name="check-circle" size={14} /> },
 												]}
 											/>
 											{selectedSummary.why ? (
@@ -388,7 +376,7 @@ export default function AuditLogView() {
 									</Card>
 								)}
 
-								{selectedSummary && selectedSummary.evidence.length > 0 ? (
+							{selectedSummary && selectedSummary.evidence.length > 0 ? (
 									<Card>
 										<CardHeader>
 											<div className="grid gap-1">
@@ -401,11 +389,15 @@ export default function AuditLogView() {
 												{selectedSummary.evidence.map((ref) => (
 													<ListItem
 														key={`${ref.label}-${ref.value}`}
-														leading={<Icon name={ref.label === "Item" ? "box" : "activity"} size={16} />}
+														leading={<Icon name={ref.label === "Item" ? "box" : ref.label === "Spec" ? "specs" : "activity"} size={16} />}
 														title={ref.value}
 														meta={<Badge variant={ref.tone} tone="soft">{ref.label}</Badge>}
 														action={ref.label === "Item" ? (
 															<Button variant="secondary" size="sm" onClick={() => window.dispatchEvent(new CustomEvent("letra-open-item", { detail: ref.value }))}>
+																Abrir
+															</Button>
+														) : ref.label === "Spec" ? (
+															<Button variant="secondary" size="sm" onClick={() => window.dispatchEvent(new CustomEvent("letra-open-spec", { detail: ref.value }))}>
 																Abrir
 															</Button>
 														) : null}
@@ -416,7 +408,7 @@ export default function AuditLogView() {
 									</Card>
 								) : null}
 
-								<Card>
+							<Card>
 									<CardHeader>
 										<div className="grid gap-1">
 											<h3 className="text-body font-semibold">Registro original</h3>
@@ -424,9 +416,10 @@ export default function AuditLogView() {
 										</div>
 									</CardHeader>
 									<CardContent className="grid gap-3">
-										<p className="text-body-sm leading-relaxed text-[var(--color-text-primary)]">{selectedEvent.description}</p>
+										<p className="text-body-sm leading-relaxed text-[var(--color-text-primary)]">{selectedEvent.summary}</p>
 										<div className="flex flex-wrap gap-2">
-											{selectedEvent.details?.actionId ? <Tag>{selectedEvent.details.actionId}</Tag> : null}
+											{selectedEvent.correlationId ? <Tag>{selectedEvent.correlationId}</Tag> : null}
+											{selectedEvent.subject ? <Tag>{subjectLabel(selectedEvent.subject.type)}: {selectedEvent.subject.id}</Tag> : null}
 											<Tag>{selectedEvent.id}</Tag>
 										</div>
 									</CardContent>
@@ -473,18 +466,18 @@ export default function AuditLogView() {
 									Origem, resultado e evidências do workspace em uma linha do tempo auditável.
 								</p>
 							</div>
-							<div className="grid grid-cols-3 gap-2 text-right">
+						<div className="grid grid-cols-3 gap-2 text-right">
+								<div>
+									<p className="text-lg font-bold">{metrics.succeededEvents}</p>
+									<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>sucesso</p>
+								</div>
+								<div>
+									<p className="text-lg font-bold" style={{ color: "var(--color-primary)" }}>{metrics.failedEvents}</p>
+									<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>falhas</p>
+								</div>
 								<div>
 									<p className="text-lg font-bold">{metrics.todayEvents}</p>
 									<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>hoje</p>
-								</div>
-								<div>
-									<p className="text-lg font-bold" style={{ color: "var(--color-primary)" }}>{metrics.evidenceEvents}</p>
-									<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>com evidência</p>
-								</div>
-								<div>
-									<p className="text-lg font-bold">{metrics.resultEvents}</p>
-									<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>com resultado</p>
 								</div>
 							</div>
 						</CardHeader>
@@ -517,7 +510,7 @@ export default function AuditLogView() {
 									<Icon name="activity" size={18} className="text-[var(--color-warning)]" />
 									<div className="min-w-0">
 										<p className="text-body-sm font-semibold text-[var(--color-text-primary)]">Eventos técnicos incluídos</p>
-										<p className="text-caption text-[var(--color-text-secondary)]">{metrics.technicalEvents} ocorrência{metrics.technicalEvents !== 1 ? "s" : ""} nesta consulta</p>
+										<p className="text-caption text-[var(--color-text-secondary)]">{metrics.systemEvents} automaçõ{metrics.systemEvents !== 1 ? "es" : "o"} nesta consulta</p>
 									</div>
 								</div>
 								<Button variant="secondary" size="sm" onClick={() => setIncludeTechnicalEvents(false)}>
@@ -532,25 +525,25 @@ export default function AuditLogView() {
 						<Card>
 							<CardContent className="p-4">
 								<p className="text-2xl font-bold">{metrics.totalEvents}</p>
-								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Ocorrências</p>
+								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Total</p>
 							</CardContent>
 						</Card>
 						<Card>
 							<CardContent className="p-4">
 								<p className="text-2xl font-bold" style={{ color: "var(--color-text-secondary)" }}>{metrics.systemEvents}</p>
-								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Automações</p>
+								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Sistema</p>
 							</CardContent>
 						</Card>
 						<Card>
 							<CardContent className="p-4">
 								<p className="text-2xl font-bold" style={{ color: "var(--color-primary)" }}>{metrics.humanEvents}</p>
-								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Ações humanas</p>
+								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Humano</p>
 							</CardContent>
 						</Card>
 						<Card>
 							<CardContent className="p-4">
-								<p className="text-2xl font-bold">{metrics.todayEvents}</p>
-								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Hoje</p>
+								<p className="text-2xl font-bold" style={{ color: "var(--color-success)" }}>{metrics.agentEvents}</p>
+								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Agente</p>
 							</CardContent>
 						</Card>
 					</div>
@@ -573,14 +566,14 @@ export default function AuditLogView() {
 								</div>
 								<div className="min-w-0">
 									<p className="mb-1.5 text-caption font-semibold uppercase text-[var(--color-text-tertiary)]">
-										Tipo
+										Ator
 									</p>
-									<ButtonGroup ariaLabel="Filtrar atividade por tipo" className="w-full sm:w-auto">
-										{ACTION_FILTERS.map((filter) => (
+									<ButtonGroup ariaLabel="Filtrar atividade por ator" className="w-full sm:w-auto">
+										{KIND_FILTERS.map((filter) => (
 											<ButtonGroupItem
 												key={filter.label}
-												selected={filterAction === filter.value}
-												onClick={() => setFilterAction(filter.value)}
+												selected={filterKind === filter.value}
+												onClick={() => setFilterKind(filter.value)}
 											>
 												{filter.label}
 											</ButtonGroupItem>
@@ -596,21 +589,12 @@ export default function AuditLogView() {
 									/>
 								</div>
 								<div className="flex flex-wrap gap-2 lg:pb-0.5">
-									<Button
-										variant={includeTechnicalEvents ? "primary" : "secondary"}
-										size="sm"
-										aria-pressed={includeTechnicalEvents}
-										onClick={() => setIncludeTechnicalEvents((value) => !value)}
-									>
-										<Icon name="activity" size={14} />
-										Eventos técnicos
-									</Button>
 									<Button variant="secondary" size="sm" onClick={() => fetchLogs(page)}>
 										<Icon name="check" size={14} />
 										Atualizar
 									</Button>
-									{(search || filterAction || filterSince) && (
-										<Button variant="ghost" size="sm" onClick={() => { setSearch(""); setDebouncedSearch(""); setFilterAction(""); setFilterSince(""); setIncludeTechnicalEvents(false); }}>
+									{(search || filterKind || filterSince) && (
+										<Button variant="ghost" size="sm" onClick={() => { setSearch(""); setDebouncedSearch(""); setFilterKind(""); setFilterSince(""); }}>
 											Limpar
 										</Button>
 									)}
@@ -653,10 +637,9 @@ export default function AuditLogView() {
 										{isOpen && (
 											<ActivityTimeline className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] p-4">
 												{group.entries.map((entry, idx) => {
-													const isNoiseGroup = (entry as LogEntry & { _noiseCount?: number; _noiseKey?: string })._noiseCount !== undefined;
-													const noiseCount = (entry as LogEntry & { _noiseCount?: number })._noiseCount;
-													const noiseKeyVal = (entry as LogEntry & { _noiseKey?: string })._noiseKey;
-													const entrySummary = investigationSummary(entry);
+													const isNoiseGroup = (entry as OperationalAuditEvent & { _noiseCount?: number; _noiseKey?: string })._noiseCount !== undefined;
+													const noiseCount = (entry as OperationalAuditEvent & { _noiseCount?: number })._noiseCount;
+													const noiseKeyVal = (entry as OperationalAuditEvent & { _noiseKey?: string })._noiseKey;
 													const isLast = idx === group.entries.length - 1;
 													if (isNoiseGroup) {
 														return (
@@ -664,7 +647,7 @@ export default function AuditLogView() {
 																key={`${entry.id}-${idx}`}
 																status="info"
 																icon={<Icon name={expandedNoise.has(noiseKeyVal || "") ? "chevron-down" : "chevron-right"} size={16} />}
-																title={entry.action}
+																title={translateAction(entry.action)}
 																description={`${noiseCount} atividades similares agrupadas para reduzir ruído operacional.`}
 																timestamp={formatTime(entry.timestamp)}
 																action={(
@@ -684,18 +667,18 @@ export default function AuditLogView() {
 															key={`${entry.id}-${idx}`}
 															status={timelineStatus(entry)}
 															icon={<Icon name={timelineIcon(entry)} size={16} />}
-															title={entrySummary.what}
-															description={`${entrySummary.who} em ${entrySummary.where}. Resultado: ${String(entrySummary.result)}`}
+															title={entry.summary || entry.action}
+															description={`${entry.actor.label} · ${entry.subject?.id || "workspace"}`}
 															timestamp={formatTime(entry.timestamp)}
 															action={(
 																<div className="flex flex-wrap items-center gap-2">
-																	<Badge variant={actionVariant(entry.action)} tone="soft" className="text-caption uppercase">
-																		{entry.action}
+																	<Badge variant={statusVariant(entry.status)} tone="soft" className="text-caption uppercase">
+																		{translateAction(entry.action)}
 																	</Badge>
-																	{entry.itemId ? <Tag variant="info">{entry.itemId}</Tag> : null}
-																	{entrySummary.evidence.length > 0 ? (
-																		<Tag>{entrySummary.evidence.length} evidência{entrySummary.evidence.length !== 1 ? "s" : ""}</Tag>
-																	) : null}
+																	<Badge variant={entry.kind === "human" ? "info" : entry.kind === "system" ? "info" : "agent"} tone="soft" className="text-[10px]">
+																		{entry.actor.label}
+																	</Badge>
+																	{entry.subject ? <Tag variant="info">{subjectLabel(entry.subject.type)}: {entry.subject.id}</Tag> : null}
 																	<Button variant="secondary" size="sm" onClick={() => setSelectedEvent(entry)}>
 																		Detalhes
 																	</Button>

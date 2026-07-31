@@ -3,6 +3,7 @@ import { Button, DocumentEditor, Icon } from "@letra/ui";
 import type { IconName } from "@letra/ui";
 import { cn } from "../../lib/utils";
 import HarnessViewer from "../Harness/HarnessViewer";
+import RolesViewer from "./RolesViewer";
 import SpecsView from "../Specs/SpecsView";
 
 export type KnowledgeTab =
@@ -11,7 +12,8 @@ export type KnowledgeTab =
 	| "glossary.md"
 	| "decisions"
 	| "specs"
-	| "harness";
+	| "harness"
+	| "roles";
 
 interface Props {
 	initialTab?: KnowledgeTab;
@@ -68,6 +70,12 @@ const SOURCE_GROUPS: { title: string; sources: KnowledgeSource[] }[] = [
 				description: "Autoridade versionada que define fluxos, gates e agentes.",
 				icon: "cpu",
 			},
+			{
+				id: "roles",
+				label: "Papéis",
+				description: "Quem são os agentes e suas capacidades no fluxo.",
+				icon: "user",
+			},
 		],
 	},
 	{
@@ -103,6 +111,9 @@ const FILE_INFO: Record<string, { description: string }> = {
 	},
 	harness: {
 		description: "Autoridade versionada que define como o workspace deve operar.",
+	},
+	roles: {
+		description: "Agentes disponíveis no fluxo e suas capacidades.",
 	},
 };
 
@@ -183,7 +194,7 @@ export default function ContextView({ initialTab = "context.md" }: Props) {
 	useEffect(() => {
 		setLoading(true);
 
-		if (tab === "specs" || tab === "harness") {
+		if (tab === "specs" || tab === "harness" || tab === "roles") {
 			setLoading(false);
 			return;
 		}
@@ -306,6 +317,8 @@ export default function ContextView({ initialTab = "context.md" }: Props) {
 					</div>
 				) : tab === "harness" ? (
 					<HarnessViewer />
+				) : tab === "roles" ? (
+					<RolesViewer />
 				) : tab === "specs" ? (
 					<SpecsView />
 				) : tab === "decisions" && selectedDecisionData ? (

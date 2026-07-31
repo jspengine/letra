@@ -27,6 +27,7 @@ import {
 import { cn } from "../../lib/utils";
 import { createEventSourceWithReconnect } from "../../lib/withReconnect";
 import { computeSlug, countACs } from "../../lib/item-utils";
+import { translateTerm } from "../../lib/term-translations";
 import {
 	itemOperationalState,
 	orderedStages,
@@ -243,7 +244,7 @@ export default function ItemDetailModal({
 				{item.spec && onOpenSpec && (
 					<Button size="sm" variant="secondary" onClick={onOpenSpec}>
 						<Icon name="file-text" size={14} />
-						Abrir spec
+						Abrir especificação
 					</Button>
 				)}
 				<Button onClick={onClose} size="sm" variant="ghost" aria-label="Fechar">
@@ -275,7 +276,7 @@ export default function ItemDetailModal({
 								items={[
 									{ label: "Responsável", value: owner },
 									{ label: "Tempo no fluxo", value: daysInFlow === 0 ? "Hoje" : `${daysInFlow}d` },
-									{ label: "Evidência", value: linkedSpec ? linkedSpec.id : "Sem spec vinculada" },
+									{ label: "Evidência", value: linkedSpec ? linkedSpec.id : "Sem especificação vinculada" },
 								]}
 							/>
 						</CardContent>
@@ -302,7 +303,7 @@ export default function ItemDetailModal({
 							{item.spec && onOpenSpec && (
 								<Button size="sm" variant="secondary" onClick={onOpenSpec}>
 									<Icon name="file-text" size={14} />
-									Abrir spec vinculada
+									Abrir especificação vinculada
 								</Button>
 							)}
 							<Collapsible open={showAdvancedActions} onOpenChange={setShowAdvancedActions}>
@@ -342,7 +343,7 @@ export default function ItemDetailModal({
 									item.spec && onOpenSpec ? (
 										<Button size="sm" variant="secondary" onClick={onOpenSpec}>
 											<Icon name="file-text" size={14} />
-											Abrir spec
+											Abrir especificação
 										</Button>
 									) : null
 								}
@@ -358,7 +359,7 @@ export default function ItemDetailModal({
 										<div>
 											<h3 className="text-body-sm font-semibold">Evidência vinculada</h3>
 											<p className="text-caption text-[var(--color-text-secondary)]">
-												{linkedSpec ? linkedSpec.id : "Nenhuma spec vinculada a este item."}
+												{linkedSpec ? linkedSpec.id : "Nenhuma especificação vinculada a este item."}
 											</p>
 										</div>
 									</div>
@@ -378,7 +379,7 @@ export default function ItemDetailModal({
 											<div className="grid justify-items-center gap-2 text-center">
 												<Icon name="file-text" size={24} className="app-section-muted" />
 												<p className="app-section-muted text-sm">
-													{item.spec ? "Spec não encontrada" : "Nenhuma spec vinculada"}
+													{item.spec ? "Especificação não encontrada" : "Nenhuma especificação vinculada"}
 												</p>
 											</div>
 										</div>

@@ -12,6 +12,7 @@ import {
 	useToast,
 } from "@letra/ui";
 import { cn } from "../../lib/utils";
+import { translateTerm } from "../../lib/term-translations";
 
 type Filter = "all" | "errors" | "warnings" | "valid";
 
@@ -88,11 +89,11 @@ function validateSpecLocally(content: string): SpecValidation {
 	if (acMatch) {
 		const items = [...acMatch[1].matchAll(/-\s+\[(\s|x)\]\s+/g)];
 		if (items.length === 0) {
-			issues.push({ type: "warning", msg: "Acceptance Criteria sem itens de checklist" });
+			issues.push({ type: "warning", msg: "Critérios de aceite sem itens de checklist" });
 		}
 	}
 	if (content.length > 3000) {
-		issues.push({ type: "warning", msg: "Spec excede 3000 chars; considere manter a spec thin" });
+		issues.push({ type: "warning", msg: "Especificação excede 3000 caracteres; considere manter enxuta" });
 	}
 	return { id: "", issues, valid: issues.filter((i) => i.type === "error").length === 0 };
 }
@@ -368,10 +369,10 @@ export default function SpecsView() {
 					</div>
 
 					<Input
-						placeholder="Buscar specs..."
+						placeholder="Buscar especificações..."
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
-						aria-label="Buscar specs"
+						aria-label="Buscar especificações"
 					/>
 
 					<div className="overflow-x-auto">
@@ -392,12 +393,12 @@ export default function SpecsView() {
 									className="justify-center lg:flex-1"
 									title={
 										f.id === "errors"
-											? "Specs com erro de validação"
+											? "Especificações com erro de validação"
 											: f.id === "warnings"
-												? "Specs com avisos"
+												? "Especificações com avisos"
 												: f.id === "valid"
-													? "Specs válidas"
-													: "Todas as specs"
+													? "Especificações válidas"
+													: "Todas as especificações"
 									}
 								>
 									{f.label}
@@ -411,10 +412,10 @@ export default function SpecsView() {
 					{creating ? (
 						<div className="mb-2 grid gap-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] p-3">
 							<Input
-								placeholder="Nome da spec (ex: auth-flow)"
+								placeholder="Nome da especificação (ex: fluxo-de-autenticacao)"
 								value={newName}
 								onChange={(e) => setNewName(e.target.value)}
-								aria-label="Nome da nova spec"
+								aria-label="Nome da nova especificação"
 								autoFocus
 							/>
 							<div className="flex gap-2">
@@ -443,7 +444,7 @@ export default function SpecsView() {
 
 					{filtered.length === 0 && !creating ? (
 						<p className="px-3 py-4 text-center text-sm text-[var(--color-text-secondary)]">
-							{search ? "Nenhuma spec encontrada." : "Nenhuma spec registrada."}
+							{search ? "Nenhuma especificação encontrada." : "Nenhuma especificação registrada."}
 						</p>
 					) : null}
 				</div>
@@ -472,7 +473,7 @@ export default function SpecsView() {
 										</Badge>
 									))}
 									{validations.get(selectedSpec.id)?.issues.length === 0 ? (
-										<Badge variant="success">Spec válida</Badge>
+										<Badge variant="success">Especificação válida</Badge>
 									) : null}
 								</div>
 							) : null}
@@ -516,13 +517,13 @@ export default function SpecsView() {
 								load();
 							}}
 							title={selectedSpec.id}
-							description="Spec de funcionalidade: define objetivo, constraints, critérios de aceitação e contexto."
+							description="Especificação de funcionalidade: define objetivo, restrições, critérios de aceite e contexto."
 						/>
 					</>
 				) : (
 					<div className="flex flex-1 items-center justify-center p-6 text-center">
 						<p className="text-sm text-[var(--color-text-secondary)]">
-							Selecione uma spec ou crie uma nova.
+							Selecione uma especificação ou crie uma nova.
 						</p>
 					</div>
 				)}
