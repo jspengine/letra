@@ -29,6 +29,7 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	Tag,
+	useToast,
 } from "@letra/ui";
 import {
 	doneStageIds,
@@ -55,15 +56,13 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 	const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
 	const [showAddDialog, setShowAddDialog] = useState(false);
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-	const [adminMode, setAdminMode] = useState<"stages" | "webhooks" | null>(null);
-	const [editingStages, setEditingStages] = useState(workflow.stages);
+	const [adminMode, setAdminMode] = useState<"webhooks" | null>(null);
 	const [editingWebhooks, setEditingWebhooks] = useState(workflow.webhooks ?? []);
 	const [validateDialogItem, setValidateDialogItem] = useState<{
 		itemId: string;
 		targetStage: string;
 		pendingChecks: boolean[];
 	} | null>(null);
-	const [dragStageIdx, setDragStageIdx] = useState<number | null>(null);
 	const [activeFilter, setActiveFilter] = useState<WorkFilter>("all");
 	const humanGateStages = humanGateStageIds(workflow, activeFlow);
 	const doneStages = doneStageIds(workflow, activeFlow);
@@ -92,9 +91,6 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 		window.addEventListener("letra-open-item", handleOpenItem);
 		return () => window.removeEventListener("letra-open-item", handleOpenItem);
 	}, [workflow.items]);
-	useEffect(() => {
-		setEditingStages(workflow.stages);
-	}, [workflow.stages]);
 	useEffect(() => {
 		setEditingWebhooks(workflow.webhooks ?? []);
 	}, [workflow.webhooks]);
@@ -126,15 +122,39 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 		return srcStage?.validate ?? [];
 	}
 
+	const { toast } = useToast();
+
 	function doMoveItem(itemId: string, targetStage: string) {
+		if (humanGateStages.has(targetStage)) {
+			fetch(`/api/items/${itemId}/gate-decisions`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ decision: "approve" }),
+			})
+				.then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+				.then(({ ok, data }) => {
+					if (!ok) {
+						toast(data.error || "Não foi possível registrar a decisão.", "error");
+						return;
+					}
+					toast("Decisão aprovada e registrada.", "success");
+					onItemMoved();
+					if (selectedItemId === itemId) setSelectedItemId(null);
+				})
+				.catch(() => toast("Erro ao registrar decisão.", "error"));
+			return;
+		}
 		fetch(`/api/items/${itemId}`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ stage: targetStage }),
-		}).then(() => {
-			onItemMoved();
-			if (selectedItemId === itemId) setSelectedItemId(null);
-		});
+		})
+			.then((r) => {
+				if (!r.ok) throw new Error("Falha ao mover item");
+				onItemMoved();
+				if (selectedItemId === itemId) setSelectedItemId(null);
+			})
+			.catch(() => toast("Erro ao mover item.", "error"));
 	}
 
 	function handleDropItem(itemId: string, targetStage: string) {
@@ -215,27 +235,6 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 			});
 	}
 
-	function handleSaveStages() {
-		fetch("/api/workflow", {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ stages: editingStages }),
-		})
-			.then((r) => r.json())
-			.then(() => {
-				setAdminMode(null);
-				onItemMoved();
-			});
-	}
-
-	function handleUpdateStage(index: number, field: string, value: unknown) {
-		setEditingStages((prev) => {
-			const next = [...prev];
-			next[index] = { ...next[index], [field]: value };
-			return next;
-		});
-	}
-
 	function handleSaveWebhooks() {
 		fetch("/api/workflow", {
 			method: "PATCH",
@@ -287,43 +286,6 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 				handleUpdateWebhook(index, "lastStatus", "error");
 				handleUpdateWebhook(index, "lastSentAt", new Date().toISOString());
 			});
-	}
-
-	function handleAddStage() {
-		const id = `stage-${editingStages.length + 1}`;
-		setEditingStages((prev) => [
-			...prev,
-			{
-				id,
-				name: `Stage ${editingStages.length + 1}`,
-				order: prev.length,
-				zone: "doing" as const,
-			},
-		]);
-	}
-
-	function handleRemoveStage(index: number) {
-		setEditingStages((prev) => prev.filter((_, i) => i !== index));
-	}
-
-	function handleStageDragStart(index: number) {
-		setDragStageIdx(index);
-	}
-
-	function handleStageDragOver(e: React.DragEvent, index: number) {
-		e.preventDefault();
-		if (dragStageIdx === null || dragStageIdx === index) return;
-		setEditingStages((prev) => {
-			const next = [...prev];
-			const [moved] = next.splice(dragStageIdx, 1);
-			next.splice(index, 0, moved);
-			return next.map((s, i) => ({ ...s, order: i }));
-		});
-		setDragStageIdx(index);
-	}
-
-	function handleStageDragEnd() {
-		setDragStageIdx(null);
 	}
 
 	const validMoveIcon = (itemId: string, stageId: string) => {
@@ -387,7 +349,6 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 		{ key: "done", label: "Concluídos" },
 	];
 	const inAdminMode = adminMode !== null;
-	const stagesEditMode = adminMode === "stages";
 	const webhooksEditMode = adminMode === "webhooks";
 	const primaryItem =
 		workflow.items.find((item) => humanGateStages.has(item.stage)) ??
@@ -448,11 +409,7 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 												<Icon name="plus" size={12} />
 												Novo item
 											</DropdownMenuItem>
-											<DropdownMenuSeparator />
-											<DropdownMenuItem onClick={() => { setAdminMode("stages"); setOpen(false); }}>
-												<Icon name="list-three" size={12} />
-												Configurar estágios
-											</DropdownMenuItem>
+									<DropdownMenuSeparator />
 											<DropdownMenuItem onClick={() => { setAdminMode("webhooks"); setOpen(false); }}>
 												<Icon name="activity" size={12} />
 												Configurar webhooks
@@ -466,38 +423,8 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 				}
 			/>
 
-			<div className="flex min-w-0 flex-1 overflow-hidden">
-				{stagesEditMode ? (
-					<div className="flex-1 overflow-y-auto p-5">
-						<div className="flex flex-col gap-3 max-w-2xl">
-							<p className="app-section-muted text-xs font-medium">Arraste os estágios para reordenar. Configure permissões de transição e validação.</p>
-							{editingStages.map((stage, idx) => (
-								<div key={stage.id} draggable onDragStart={() => handleStageDragStart(idx)} onDragOver={(e) => handleStageDragOver(e, idx)} onDragEnd={handleStageDragEnd}
-									className={cn("app-section-card p-3 transition-all", dragStageIdx === idx && "opacity-40")}>
-									<div className="flex items-start gap-3">
-										<div className="flex-1 flex flex-col gap-2">
-											<div className="flex items-center gap-2">
-												<Icon name="list-three" size={16} className="app-section-muted cursor-grab" />
-												<Input value={stage.name} onChange={(e) => handleUpdateStage(idx, "name", e.target.value)}
-													className="app-input-surface flex-1 text-sm font-medium px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
-												<span className="app-muted-chip text-xs px-2 py-0.5 rounded-full">{stage.id}</span>
-												<Button onClick={() => handleRemoveStage(idx)} className="app-danger-button text-xs px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30" aria-label="Remover estágio">
-													<Icon name="x" size={12} />
-												</Button>
-											</div>
-										</div>
-									</div>
-								</div>
-							))}
-							<div className="flex gap-2">
-								<Button size="sm" variant="secondary" onClick={handleAddStage}>Adicionar estágio</Button>
-								<Button size="sm" variant="secondary" onClick={() => setAdminMode("webhooks")}>Webhooks</Button>
-								<Button size="sm" onClick={handleSaveStages}>Salvar</Button>
-								<Button size="sm" variant="secondary" onClick={() => { setAdminMode(null); setEditingStages(workflow.stages); }}>Voltar</Button>
-							</div>
-						</div>
-					</div>
-				) : webhooksEditMode ? (
+		<div className="flex min-w-0 flex-1 overflow-hidden">
+				{webhooksEditMode ? (
 					<div className="flex-1 overflow-y-auto p-5">
 						<div className="flex flex-col gap-3 max-w-2xl">
 							<p className="app-section-muted text-xs font-medium">Configure webhooks para receber notificações quando itens forem movidos entre estágios.</p>
@@ -515,7 +442,6 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 							))}
 							<div className="flex gap-2">
 								<Button size="sm" variant="secondary" onClick={handleAddWebhook}>Adicionar webhook</Button>
-								<Button size="sm" variant="secondary" onClick={() => setAdminMode("stages")}>Estágios</Button>
 								<Button size="sm" onClick={handleSaveWebhooks}>Salvar</Button>
 								<Button size="sm" variant="secondary" onClick={() => { setAdminMode(null); setEditingWebhooks(workflow.webhooks ?? []); }}>Voltar</Button>
 							</div>
@@ -712,7 +638,7 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 						{/* ─── 6+7. Kanban + Timeline ─── */}
 						<div className="flex min-w-0 flex-1 gap-3 overflow-hidden">
 							<div className="app-section-card flex min-w-0 flex-1 flex-col overflow-hidden">
-								<KanbanBoard
+							<KanbanBoard
 									workflow={workflow}
 									activeFlow={activeFlow}
 									onSelectItem={setSelectedItemId}
@@ -720,13 +646,7 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 									allowDrop={allowMoveToStage}
 									specRefreshKey={specRefreshKey}
 									filter={activeFilter}
-									onApproveGate={(gateId) => {
-										const next = nextStageId(gateId, workflow, activeFlow);
-										if (!next) return;
-										for (const item of workflow.items.filter((it) => it.stage === gateId)) {
-											doMoveItem(item.id, next);
-										}
-									}}
+									onItemDecided={onItemMoved}
 								/>
 							</div>
 							<div className="app-section-card hidden w-72 shrink-0 xl:block">

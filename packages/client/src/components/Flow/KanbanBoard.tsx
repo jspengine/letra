@@ -13,6 +13,7 @@ import {
 	type ActiveFlowDefinition,
 	type OperationalState,
 } from "../../lib/active-flow";
+import GateDecisionActions from "./GateDecisionActions";
 
 interface Props {
 	workflow: Workflow;
@@ -20,6 +21,7 @@ interface Props {
 	onSelectItem: (id: string) => void;
 	onDropItem: (itemId: string, targetStageId: string) => void;
 	onApproveGate?: (gateId: string) => void;
+	onItemDecided?: () => void;
 	allowDrop?: (item: Workflow["items"][0], targetStageId: string) => boolean;
 	specRefreshKey?: number;
 	onAddItem?: () => void;
@@ -238,6 +240,7 @@ export default function KanbanBoard({
 	onSelectItem,
 	onDropItem,
 	onApproveGate,
+	onItemDecided,
 	allowDrop,
 	specRefreshKey,
 	onAddItem,
@@ -386,7 +389,7 @@ export default function KanbanBoard({
 						/>
 					))}
 
-					{isHumanGate && hasAnyItems && onApproveGate && (
+					{isHumanGate && hasAnyItems && (
 						<div className="app-board-gate-banner mt-1 pt-2">
 							<div className="flex items-center gap-2 text-caption mb-1.5 px-1">
 								<Icon name="clock" size={10} style={{ color: "var(--color-success)" }} />
@@ -394,15 +397,14 @@ export default function KanbanBoard({
 									Aprovação necessária
 								</span>
 							</div>
-							<Button
-								variant="secondary"
-								size="sm"
-								className="w-full text-caption"
-								style={{ borderColor: "var(--color-success)", color: "var(--color-success)" }}
-								onClick={() => onApproveGate(col.id)}
-							>
-								Aprovar todos
-							</Button>
+							{items.map((item) => (
+								<div key={item.id} className="mb-2">
+									<GateDecisionActions
+										itemId={item.id}
+										onDecided={onItemDecided}
+									/>
+								</div>
+							))}
 						</div>
 					)}
 				</div>
