@@ -1,12 +1,13 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Detector, DiagnosticResult } from "../types.js";
+import { getLetraDir } from "./../../workspace/resolver.js";
 
 export const missingSpecLinkDetector: Detector = {
 	name: "missing-spec-link",
 	async run(rootDir: string): Promise<DiagnosticResult[]> {
 		const results: DiagnosticResult[] = [];
-		const workflowFile = join(rootDir, ".letra", "workflow.json");
+		const workflowFile = join(getLetraDir(rootDir), "workflow.json");
 		if (!existsSync(workflowFile)) return results;
 
 		const workflow = JSON.parse(readFileSync(workflowFile, "utf-8"));
@@ -37,7 +38,7 @@ export const missingSpecLinkDetector: Detector = {
 							.replace(/[^a-z0-9]+/g, "-")
 							.replace(/^-|-$/g, "");
 
-						const specsDir = join(rootDir, ".letra", "specs");
+						const specsDir = join(getLetraDir(rootDir), "specs");
 						if (!existsSync(specsDir)) return { files: [], snapshotId: "no-op" };
 
 						const specDirs = readdirSync(specsDir, { withFileTypes: true })
@@ -84,7 +85,7 @@ export const missingSpecLinkDetector: Detector = {
 				continue;
 			}
 
-			const specPath = join(rootDir, ".letra", "specs", item.spec, "spec.md");
+			const specPath = join(getLetraDir(rootDir), "specs", item.spec, "spec.md");
 			if (!existsSync(specPath)) {
 				results.push({
 					id: `missing-spec-link_${item.id}_notfound`,

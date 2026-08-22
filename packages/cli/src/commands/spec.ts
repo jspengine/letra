@@ -4,6 +4,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { loadWorkflow, writeWorkflow } from "./flow-init.js";
 import { logEntry } from "../session-log.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 const builtInTemplates: Record<string, { spec: string; acceptance: string }> = {
 	"web-api": {
@@ -217,7 +218,7 @@ Template para eventos corporativos, comunitários ou técnicos. Adaptado para o 
 
 function listTemplates(root: string): string[] {
 	const names = Object.keys(builtInTemplates);
-	const customDir = join(root, ".letra", "templates");
+	const customDir = join(getLetraDir(root), "templates");
 	if (existsSync(customDir)) {
 		for (const file of readdirSync(customDir)) {
 			if (file.endsWith(".md")) {
@@ -232,8 +233,8 @@ function listTemplates(root: string): string[] {
 function findTemplate(root: string, type: string): { spec: string; acceptance: string } | null {
 	const lower = type.toLowerCase();
 	if (builtInTemplates[lower]) return builtInTemplates[lower];
-	const customFile = join(root, ".letra", "templates", `${type}.md`);
-	const customAcceptance = join(root, ".letra", "templates", `${type}-acceptance.md`);
+	const customFile = join(getLetraDir(root), "templates", `${type}.md`);
+	const customAcceptance = join(getLetraDir(root), "templates", `${type}-acceptance.md`);
 	if (existsSync(customFile)) {
 		const spec = readFileSync(customFile, "utf-8");
 		const acceptance = existsSync(customAcceptance)
@@ -262,7 +263,7 @@ export function specLink(itemId: string, specName: string): void {
 		process.exit(1);
 	}
 
-	const specDir = join(root, ".letra", "specs", specName);
+	const specDir = join(getLetraDir(root), "specs", specName);
 	if (!existsSync(specDir)) {
 		console.log(chalk.red(`Spec "${specName}" not found at .letra/specs/${specName}/`));
 		return;
@@ -281,7 +282,7 @@ export function specLink(itemId: string, specName: string): void {
 
 export async function specNew(name: string, options?: { template?: string }) {
 	const root = resolve(process.cwd());
-	const letraDir = join(root, ".letra");
+	const letraDir = getLetraDir(root);
 	const specDir = join(letraDir, "specs", name);
 
 	if (!existsSync(letraDir)) {

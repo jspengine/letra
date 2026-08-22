@@ -1,7 +1,0 @@
-id: has-spec-file
-name: Spec Existe
-type: automated
-blocking: true
-policyRef: policies/sdlc-default.json
-description: >
-  Verifica se existe arquivo de spec vinculado ao item.

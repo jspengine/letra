@@ -7,6 +7,7 @@ import flowCommand from "./commands/flow.js";
 import focus from "./commands/focus.js";
 import healthCommand from "./commands/health.js";
 import logCommand from "./commands/log.js";
+import migrateCommand from "./commands/migrate.js";
 import pulseCommand from "./commands/pulse.js";
 import sitrepCommand from "./commands/sitrep.js";
 import syncCommand from "./commands/sync.js";
@@ -153,6 +154,7 @@ program.addCommand(logCommand());
 program.addCommand(pulseCommand());
 program.addCommand(sitrepCommand());
 program.addCommand(syncCommand());
+program.addCommand(migrateCommand());
 program.addCommand(gateCommand());
 
 program.parse();

@@ -24,13 +24,13 @@ export function searchInSource(
 	return false;
 }
 
-export function buildTargetSearchDirs(workflow: { targets?: Array<{ path: string; projectType?: string }> } | null): { dirs: string[]; isGeneral: boolean } {
-	if (!workflow?.targets || workflow.targets.length === 0) {
+export function buildTargetSearchDirs(workflow: { locations?: Array<{ path: string; projectType?: string }> } | null): { dirs: string[]; isGeneral: boolean } {
+	if (!workflow?.locations || workflow.locations.length === 0) {
 		return { dirs: [".", "packages/cli/src", "packages/client/src", "packages/ui/src"], isGeneral: false };
 	}
-	const isGeneral = workflow.targets.some((t) => t.projectType === "general");
+	const isGeneral = workflow.locations.some((location) => location.projectType === "general");
 	return {
-		dirs: workflow.targets.map((t) => t.path),
+		dirs: workflow.locations.map((location) => location.path),
 		isGeneral,
 	};
 }

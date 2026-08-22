@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type HTMLAttributes, type ButtonHTMLAttributes, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, type HTMLAttributes, type ButtonHTMLAttributes, useCallback } from "react";
 import { cn } from "./utils";
 
 interface SheetContextValue {
@@ -73,6 +73,15 @@ export function SheetContent({
 	...props
 }: SheetContentProps) {
 	const sheet = useContext(SheetContext);
+	useEffect(() => {
+		if (!sheet?.open) return;
+		const handler = (event: KeyboardEvent) => {
+			if (event.key === "Escape") sheet.setOpen(false);
+		};
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	}, [sheet]);
+
 	if (sheet && !sheet.open) return null;
 
 	const sideStyles: Record<string, string> = {

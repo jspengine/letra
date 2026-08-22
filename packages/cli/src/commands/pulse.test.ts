@@ -88,6 +88,8 @@ describe("pulse", () => {
 		const result = await pulse(dir, { json: true });
 
 		expect(result.workspace).toBe("test-project");
+		expect(result.dataDir).toBe(join(dir, ".letra"));
+		expect(result.locationPath).toBe(dir);
 		expect(result.currentItem).not.toBeNull();
 		expect(result.currentItem!.id).toBe("ITEM-1");
 		expect(result.currentItem!.description).toBe("Feature X");
@@ -224,6 +226,17 @@ describe("pulse", () => {
 			pathToFileURL(join(dir, ".letra", "specs", "feature-x", "spec.md")).href,
 		);
 		expect(output).toContain(pathToFileURL(join(dir, ".letra", "workflow.json")).href);
+	});
+
+	it("warns when running from a legacy local workspace", async () => {
+		writeWorkflow(dir);
+		const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const result = await pulse(dir);
+
+		expect(result.legacyWarning).toContain("Workspace legado local detectado");
+		const output = log.mock.calls.flat().join("\n");
+		expect(output).toContain("Workspace legado local detectado");
 	});
 
 	it("should return null spec when item has no spec", async () => {

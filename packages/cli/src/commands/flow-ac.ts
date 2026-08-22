@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { loadWorkflow, writeWorkflow } from "./flow-init.js";
 import { logEntry } from "../session-log.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 function findACLine(lines: string[], n: number): number | null {
 	let count = 0;
@@ -34,7 +35,7 @@ export function markAC(root: string, itemId: string, acNum: number): void {
 		process.exit(1);
 	}
 
-	const specDir = join(root, ".letra", "specs", item.spec);
+	const specDir = join(getLetraDir(root), "specs", item.spec);
 	const specFile = join(specDir, "spec.md");
 	if (!existsSync(specFile)) {
 		console.log(chalk.red(`Spec file not found: ${specFile}`));

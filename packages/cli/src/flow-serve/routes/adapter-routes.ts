@@ -4,6 +4,7 @@ import { ADAPTER_REGISTRY } from "../../adapters/registry.js";
 import { syncNow } from "../../commands/sync.js";
 import { sendJson, sendError } from "../http.js";
 import type { RouteHandler } from "../router.js";
+import { getLetraDir } from "./../../workspace/resolver.js";
 
 interface AdapterRouteDependencies {
 	logEntry: (workspaceRoot: string, action: string, message: string, meta?: Record<string, unknown>) => void;
@@ -41,7 +42,7 @@ function getAdapterStatus(workspaceRoot: string): AdapterStatus[] {
 		});
 
 		const detected = artifacts.some((a) => a.exists);
-		const wf = join(workspaceRoot, ".letra", "workflow.json");
+		const wf = join(getLetraDir(workspaceRoot), "workflow.json");
 		const wfMtime = existsSync(wf) ? statSync(wf).mtime.getTime() : 0;
 		const newestArtifact = artifacts
 			.filter((a) => a.exists && a.modifiedAt)

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -127,6 +127,39 @@ describe("flow-init", () => {
 			saveWorkflow(tmpDir, workflow);
 			expect(existsSync(join(tmpDir, ".letra"))).toBe(true);
 			expect(existsSync(join(tmpDir, ".letra", "workflow.json"))).toBe(true);
+		});
+
+		it("migrates legacy targets into locations when loading workflow", () => {
+			mkdirSync(join(tmpDir, ".letra"), { recursive: true });
+			writeFileSync(join(tmpDir, ".letra", "workflow.json"), JSON.stringify({
+				version: "1.0",
+				name: "legacy",
+				createdAt: "2026-01-01T00:00:00.000Z",
+				updatedAt: "2026-01-01T00:00:00.000Z",
+				stages: [],
+				items: [],
+				tools: [],
+				locations: [
+					{ id: "loc-app", path: "C:/Workspace/app", label: "app" },
+					{ id: "loc-api", path: "C:/Workspace/api", label: "api", adapters: ["codex"] },
+				],
+				targets: [
+					{ id: "target-api", path: "C:/Workspace/api", adapters: ["cursor", "codex"] },
+					{ id: "target-web", path: "C:/Workspace/web", adapters: ["opencode"] },
+				],
+			}), "utf-8");
+
+			const loaded = loadWorkflow(tmpDir);
+			expect(loaded?.targets).toBeUndefined();
+			expect(loaded?.locations).toEqual([
+				{ id: "loc-app", path: "C:/Workspace/app", label: "app", adapters: [] },
+				{ id: "loc-api", path: "C:/Workspace/api", label: "api", adapters: ["codex", "cursor"] },
+				{ id: "loc-web", path: "C:/Workspace/web", label: "web", adapters: ["opencode"] },
+			]);
+
+			const persisted = JSON.parse(readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"));
+			expect(persisted.targets).toBeUndefined();
+			expect(persisted.locations).toEqual(loaded?.locations);
 		});
 	});
 

@@ -1,12 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Detector, DiagnosticResult } from "../types.js";
+import { getLetraDir } from "./../../workspace/resolver.js";
 
 export const focusStaleDetector: Detector = {
 	name: "focus-stale",
 	async run(rootDir: string): Promise<DiagnosticResult[]> {
 		const results: DiagnosticResult[] = [];
-		const focusFile = join(rootDir, ".letra", "focus.md");
+		const focusFile = join(getLetraDir(rootDir), "focus.md");
 		if (!existsSync(focusFile)) return results;
 
 		const focusContent = readFileSync(focusFile, "utf-8");
@@ -15,7 +16,7 @@ export const focusStaleDetector: Detector = {
 		if (!specMatch) return results;
 
 		const focusSpec = specMatch[1].trim();
-		const specDir = join(rootDir, ".letra", "specs", focusSpec);
+		const specDir = join(getLetraDir(rootDir), "specs", focusSpec);
 		if (!existsSync(specDir)) {
 			results.push({
 				id: `focus-stale_missing-dir_${focusSpec}`,
@@ -28,7 +29,7 @@ export const focusStaleDetector: Detector = {
 			return results;
 		}
 
-		const workflowFile = join(rootDir, ".letra", "workflow.json");
+		const workflowFile = join(getLetraDir(rootDir), "workflow.json");
 		if (!existsSync(workflowFile)) return results;
 
 		const workflow = JSON.parse(readFileSync(workflowFile, "utf-8"));

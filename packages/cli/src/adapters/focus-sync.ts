@@ -2,6 +2,7 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Workflow } from "../commands/flow-init.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export interface FocusData {
 	specName: string;
@@ -20,7 +21,7 @@ export function syncFocus(
 	workflow: Workflow | null,
 	recommendedActions: FocusRecommendedAction[] = [],
 ): { cleared: boolean; generated: boolean; diverged: boolean } {
-	const focusFile = join(rootDir, ".letra", "focus.md");
+	const focusFile = join(getLetraDir(rootDir), "focus.md");
 	const focusData = readFocusFile(rootDir);
 	let cleared = false;
 	let generated = false;
@@ -71,7 +72,7 @@ function findActiveItem(workflow: Workflow) {
 }
 
 export function extractOutcome(rootDir: string, specName: string): string | null {
-	const specFile = join(rootDir, ".letra", "specs", specName, "spec.md");
+	const specFile = join(getLetraDir(rootDir), "specs", specName, "spec.md");
 	if (!existsSync(specFile)) return null;
 	const content = readFileSync(specFile, "utf-8");
 	const match = content.match(/## Outcome\s+([\s\S]*?)(?=\n## |\n*$)/);
@@ -84,9 +85,9 @@ export function writeFocusFile(
 	itemId: string,
 	recommendedActions: FocusRecommendedAction[] = [],
 ): void {
-	const focusFile = join(rootDir, ".letra", "focus.md");
+	const focusFile = join(getLetraDir(rootDir), "focus.md");
 	const outcome = extractOutcome(rootDir, specName) || specName;
-	const letraDir = join(rootDir, ".letra");
+	const letraDir = getLetraDir(rootDir);
 	const content = [
 		`# Focus: ${specName}`,
 		"",
@@ -120,14 +121,14 @@ export function writeFocusFile(
 }
 
 export function clearFocusFile(rootDir: string): void {
-	const focusFile = join(rootDir, ".letra", "focus.md");
+	const focusFile = join(getLetraDir(rootDir), "focus.md");
 	if (existsSync(focusFile)) {
 		unlinkSync(focusFile);
 	}
 }
 
 export function readFocusFile(rootDir: string): FocusData | null {
-	const focusFile = join(rootDir, ".letra", "focus.md");
+	const focusFile = join(getLetraDir(rootDir), "focus.md");
 	if (!existsSync(focusFile)) return null;
 
 	const content = readFileSync(focusFile, "utf-8");

@@ -2,6 +2,7 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Detector, DiagnosticResult } from "../types.js";
 import { searchInSource } from "../shared/file-search.js";
+import { getLetraDir } from "./../../workspace/resolver.js";
 
 const DONE_AC_PATTERN = /-\s\[x\]\s\*\*`([^`]+)`\*\*/g;
 
@@ -10,7 +11,7 @@ export const acFalsePosDetector: Detector = {
 	devOnly: true,
 	async run(rootDir: string): Promise<DiagnosticResult[]> {
 		const results: DiagnosticResult[] = [];
-		const specsDir = join(rootDir, ".letra", "specs");
+		const specsDir = join(getLetraDir(rootDir), "specs");
 
 		if (!existsSync(specsDir)) return results;
 

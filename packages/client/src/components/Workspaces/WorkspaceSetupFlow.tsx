@@ -1,14 +1,6 @@
-import { useState, useCallback } from "react";
-import { Button, Input, Textarea, Icon, Badge, Checkbox, useToast } from "@letra/ui";
+import { useMemo, useState } from "react";
+import { Badge, Button, Checkbox, Icon, Input, Textarea, useToast } from "@letra/ui";
 import { cn } from "../../lib/utils";
-
-interface WorkspaceData {
-	name: string;
-	description: string;
-	workDir: string;
-	targetFolders: string[];
-	tools: string[];
-}
 
 interface Props {
 	onComplete: (data: { name: string }) => void;
@@ -16,519 +8,507 @@ interface Props {
 	existingNames: string[];
 }
 
-const ADAPTERS = [
-	{ id: "opencode", label: "OpenCode" },
-	{ id: "cursor", label: "Cursor" },
-	{ id: "claude-code", label: "Claude Code" },
-	{ id: "windsurf", label: "Windsurf" },
-	{ id: "hermes", label: "Hermes" },
-	{ id: "vscode", label: "VS Code" },
-	{ id: "copilot", label: "Copilot" },
-];
-
-const COMMON_ROOTS = [
-	{ path: "C:/Workspace", label: "C:/Workspace" },
-	{ path: "C:/Dev", label: "C:/Dev" },
-	{ path: "C:/Projects", label: "C:/Projects" },
-	{ path: "C:/Users", label: "C:/Users" },
-	{ path: "D:/", label: "D:/" },
-];
-
-interface DirNode {
-	name: string;
-	path: string;
-	expanded: boolean;
-	loading: boolean;
-	children: DirNode[];
+interface AdapterProposal {
+	tool: string;
+	label: string;
+	state: "detected" | "available";
+	selected: boolean;
+	evidence: string[];
 }
 
-type Step = "info" | "directories" | "tools" | "review" | "done";
+interface LocationProposal {
+	id: string;
+	label: string;
+	path: string;
+	stack: string[];
+	evidence: string[];
+	adapters: AdapterProposal[];
+}
+
+interface SetupProposal {
+	id: string;
+	workspace: {
+		name: string;
+		root: string;
+		harnessVersion: string;
+	};
+	locations?: LocationProposal[];
+	warnings: string[];
+}
+
+interface SetupOperation {
+	kind: "create" | "update" | "preserve" | "conflict";
+	path: string;
+	reason: string;
+	tool?: string;
+}
+
+interface SetupPlan {
+	proposalId: string;
+	workspaceRoot: string;
+	conflictCount: number;
+	operations: SetupOperation[];
+}
+
+function targetAdapterKey(targetId: string, tool: string) {
+	return `${targetId}:${tool}`;
+}
+
+function workspaceSlug(name: string) {
+	return (name || "workspace")
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "") || "workspace";
+}
+
+function normalizePath(path: string) {
+	return path.replace(/\\/g, "/").replace(/\/+$/, "");
+}
 
 export default function WorkspaceSetupFlow({ onComplete, onCancel, existingNames }: Props) {
-	const [step, setStep] = useState<Step>("info");
-	const stepOrder: Step[] = ["info", "directories", "tools", "review"];
-	const stepLabels: Record<Step, string> = {
-		info: "Informações",
-		directories: "Diretórios",
-		tools: "Ferramentas",
-		review: "Revisão",
-		done: "Concluído",
-	};
-	const currentIndex = stepOrder.indexOf(step);
-
-	// ── Step 1: Info ──
+	const { toast } = useToast();
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
-	const [nameError, setNameError] = useState("");
+	const [root, setRoot] = useState("");
+	const [nameTouched, setNameTouched] = useState(false);
+	const [proposal, setProposal] = useState<SetupProposal | null>(null);
+	const [plan, setPlan] = useState<SetupPlan | null>(null);
+	const [created, setCreated] = useState(false);
+	const [selectedAdapters, setSelectedAdapters] = useState<Record<string, boolean>>({});
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState("");
 
-	const validateName = useCallback((value: string) => {
-		const trimmed = value.trim();
-		if (!trimmed) {
-			setNameError("Nome é obrigatório");
-			return false;
-		}
-		if (existingNames.some((n) => n.toLowerCase() === trimmed.toLowerCase())) {
-			setNameError("Já existe um workspace com este nome");
-			return false;
-		}
-		setNameError("");
-		return true;
-	}, [existingNames]);
+	const duplicateName = existingNames.some((entry) => entry.toLowerCase() === name.trim().toLowerCase());
+	const dataDir = `~/.letra/workspaces/${workspaceSlug(name.trim())}`;
+	const nameError = !name.trim()
+		? "Nome é obrigatório"
+		: duplicateName
+			? "Já existe um workspace com este nome"
+			: "";
+	const canAnalyze = !nameError && root.trim().length > 0 && !loading;
+	const proposalLocations = useMemo(() => {
+		if (!proposal) return [];
+		return proposal.locations ?? [];
+	}, [proposal]);
 
-	const step1Valid = name.trim().length > 0 && !nameError;
-
-	function handleNameChange(value: string) {
-		setName(value);
-		if (nameError) validateName(value);
-	}
-
-	function handleNameBlur() {
-		validateName(name);
-	}
-
-	// ── Step 2: Directories ──
-	const [workDir, setWorkDir] = useState("");
-	const [selectedDirs, setSelectedDirs] = useState<string[]>([]);
-	const [workDirTrees, setWorkDirTrees] = useState<DirNode[]>(
-		COMMON_ROOTS.map((r) => ({ name: r.label, path: r.path, expanded: false, loading: false, children: [] })),
+	const selectedLocations = useMemo(() => {
+		return proposalLocations.map((loc) => ({
+			id: loc.id,
+			label: loc.label,
+			path: loc.path,
+			adapters: loc.adapters
+				.filter((adapter) => selectedAdapters[targetAdapterKey(loc.id, adapter.tool)])
+				.map((adapter) => adapter.tool),
+		}));
+	}, [proposalLocations, selectedAdapters]);
+	const selectedTools = useMemo(
+		() => [...new Set(selectedLocations.flatMap((loc) => loc.adapters))],
+		[selectedLocations],
 	);
-	const [targetDirTrees, setTargetDirTrees] = useState<DirNode[]>(
-		COMMON_ROOTS.map((r) => ({ name: r.label, path: r.path, expanded: false, loading: false, children: [] })),
-	);
+	const governanceOperationCount = plan?.operations.filter((operation) => operation.path.endsWith("/workflow.json")).length ?? 0;
+	const linkOperationCount = plan?.operations.filter((operation) => operation.path.endsWith("/.letra-link")).length ?? 0;
+	const adapterOperationCount = plan?.operations.filter((operation) => !operation.path.endsWith("/workflow.json") && !operation.path.endsWith("/.letra-link")).length ?? 0;
+	const selectedAdapterLocations = selectedLocations.filter((loc) => loc.adapters.length > 0);
+	const canReview = !!proposal && selectedLocations.length > 0 && !loading;
+	const canCreate = !!proposal && !!plan && plan.conflictCount === 0 && !loading;
 
-	const step2Valid = workDir.trim().length > 0 && selectedDirs.length > 0;
-
-	function toggleDirTree(nodes: DirNode[], setNodes: (n: DirNode[]) => void, node: DirNode) {
-		if (node.expanded) {
-			node.expanded = false;
-			setNodes([...nodes]);
-			return;
-		}
-		if (node.children.length === 0 && !node.loading) {
-			node.loading = true;
-			setNodes([...nodes]);
-			fetch(`/api/fs/dirs?path=${encodeURIComponent(node.path)}`)
-				.then((r) => r.json())
-				.then((data) => {
-					node.children = (data.dirs || []).map((d: { name: string; path: string }) => ({
-						name: d.name,
-						path: d.path,
-						expanded: false,
-						loading: false,
-						children: [],
-					}));
-				})
-				.catch(() => {})
-				.finally(() => {
-					node.loading = false;
-					node.expanded = true;
-					setNodes([...nodes]);
-				});
-		} else {
-			node.expanded = true;
-			setNodes([...nodes]);
-		}
-	}
-
-	function toggleTargetDir(path: string) {
-		setSelectedDirs((prev) =>
-			prev.includes(path) ? prev.filter((d) => d !== path) : [...prev, path],
-		);
-	}
-
-	// ── Step 3: Tools ──
-	const [selectedTools, setSelectedTools] = useState<string[]>(["opencode"]);
-	const step3Valid = selectedTools.length > 0;
-
-	function toggleTool(id: string) {
-		setSelectedTools((prev) =>
-			prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
-		);
-	}
-
-	// ── Navigation ──
-	const [submitting, setSubmitting] = useState(false);
-	const [submitError, setSubmitError] = useState("");
-	const { toast } = useToast();
-
-	function goNext() {
-		const idx = stepOrder.indexOf(step);
-		if (idx < stepOrder.length - 1) setStep(stepOrder[idx + 1]);
-	}
-
-	function goBack() {
-		const idx = stepOrder.indexOf(step);
-		if (idx > 0) setStep(stepOrder[idx - 1]);
-		else onCancel();
-	}
-
-	function handleCreate() {
-		if (!step2Valid || !step3Valid) return;
-		setSubmitting(true);
-		setSubmitError("");
-		fetch("/api/workflow/setup", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				name: name.trim(),
-				description: description.trim(),
-				workspacePath: workDir.trim(),
-				directories: selectedDirs,
-				tools: selectedTools,
-				template: "padrao",
-			}),
-		})
-			.then((r) => r.json().then((data) => ({ ok: r.ok, status: r.status, data })))
-			.then(({ ok, status, data }) => {
-				setSubmitting(false);
-				if (data.workspace || data.version) {
-					toast("Workspace criado com sucesso!", "success");
-					onComplete({ name: name.trim() });
-					setStep("done");
-				} else {
-					const keys = Object.keys(data).join(", ");
-					setSubmitError(data.error || `Resposta inesperada (${status}, chaves: ${keys})`);
-				}
-			})
-			.catch(() => {
-				setSubmitting(false);
-				setSubmitError("Erro de conexão com o servidor");
+	async function analyzeWorkspace() {
+		if (!canAnalyze) return;
+		setLoading(true);
+		setError("");
+		setPlan(null);
+		setCreated(false);
+		try {
+			const res = await fetch("/api/workspace/setup/analyze", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name: name.trim(), root: root.trim() }),
 			});
+			const data = await res.json();
+			if (!res.ok) throw new Error(data.error || "Não foi possível analisar a pasta.");
+			const nextProposal = data as SetupProposal;
+			const nextSelected: Record<string, boolean> = {};
+			const list = nextProposal.locations ?? [];
+			for (const target of list) {
+				for (const adapter of target.adapters) {
+					nextSelected[targetAdapterKey(target.id, adapter.tool)] = adapter.selected;
+				}
+			}
+			setProposal(nextProposal);
+			setSelectedAdapters(nextSelected);
+		} catch (err) {
+			setError((err as Error).message);
+		} finally {
+			setLoading(false);
+		}
 	}
 
-	function renderDirTree(nodes: DirNode[], setNodes: (n: DirNode[]) => void, mode: "single" | "multi") {
-		return nodes.map((node) => (
-			<div key={node.path}>
-				<div className="flex items-center gap-1" style={{ paddingLeft: 0 }}>
-					<Button
-						onClick={() => toggleDirTree(nodes, setNodes, node)}
-						className="flex items-center justify-center w-5 h-5 rounded hover:bg-primary/10 transition-colors shrink-0"
-						aria-label={node.expanded ? "Recolher" : "Expandir"}
-					>
-						{node.loading ? (
-							<span className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-						) : (
-							<Icon
-								name="chevron-right"
-								size={12}
-								className={cn("transition-transform", node.expanded && "rotate-90")}
-								style={node.children.length === 0 ? { opacity: 0.3 } : undefined}
-							/>
-						)}
-					</Button>
-					{mode === "multi" ? (
-						<label className="flex items-center gap-2 flex-1 py-1 rounded cursor-pointer hover:bg-primary/5 px-1">
-							<Checkbox
-								checked={selectedDirs.includes(node.path)}
-								onChange={() => toggleTargetDir(node.path)}
-							/>
-							<Icon name="folder" size={14} className="text-primary shrink-0" />
-							<span className="text-sm truncate">{node.name}</span>
-							<span className="text-xs ml-auto shrink-0" style={{ color: "var(--color-text-secondary)" }}>
-								{node.path}
-							</span>
-						</label>
-					) : (
-						<Button
-							type="button"
-							onClick={() => setWorkDir(node.path)}
-							className={cn(
-								"flex items-center gap-2 flex-1 py-1 rounded px-1 text-left transition-colors",
-								workDir === node.path ? "bg-primary/10" : "hover:bg-primary/5",
-							)}
-						>
-							<Icon name="folder" size={14} className="text-primary shrink-0" />
-							<span className="text-sm truncate">{node.name}</span>
-							<span className="text-xs ml-auto shrink-0" style={{ color: "var(--color-text-secondary)" }}>
-								{node.path}
-							</span>
-							{workDir === node.path && (
-								<Icon name="check" size={14} className="shrink-0" style={{ color: "var(--color-primary)" }} />
-							)}
-						</Button>
-					)}
-				</div>
-				{node.expanded && node.children.length > 0 && (
-					<div style={{ paddingLeft: 20 }}>
-						{renderDirTree(node.children, setNodes, mode)}
-					</div>
-				)}
-			</div>
-		));
+	async function reviewInstallation() {
+		if (!proposal || selectedLocations.length === 0) return;
+		setLoading(true);
+		setError('');
+		try {
+			const res = await fetch('/api/workspace/setup/plan', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					proposalId: proposal.id,
+					workspaceRoot: dataDir,
+					dataDir,
+					name: name.trim(),
+					template: 'padrao',
+					locations: selectedLocations,
+				}),
+			});
+			const data = await res.json();
+			if (!res.ok) throw new Error(data.error || 'Não foi possível revisar a instalação.');
+			setPlan(data as SetupPlan);
+		} catch (err) {
+			setError((err as Error).message);
+		} finally {
+			setLoading(false);
+		}
+	}
+	async function confirmCreation() {
+		if (!proposal || !plan || plan.conflictCount > 0) return;
+		setLoading(true);
+		setError("");
+		try {
+			const res = await fetch("/api/workflow/setup", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					proposalId: proposal.id,
+					name: name.trim(),
+					description: description.trim(),
+					workspacePath: dataDir,
+					dataDir,
+					directories: selectedLocations.map((loc) => loc.path),
+					locations: selectedLocations,
+					tools: selectedTools,
+					template: "padrao",
+				}),
+			});
+			const data = await res.json();
+			if (!res.ok) throw new Error(data.error || "Não foi possível criar o workspace.");
+			toast("Workspace criado com sucesso!", "success");
+			setCreated(true);
+			onComplete({ name: name.trim() });
+		} catch (err) {
+			setError((err as Error).message);
+		} finally {
+			setLoading(false);
+		}
 	}
 
-	const btnClass = "transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100";
+	function toggleAdapter(targetId: string, tool: string) {
+		const key = targetAdapterKey(targetId, tool);
+		setSelectedAdapters((prev) => ({ ...prev, [key]: !prev[key] }));
+		setPlan(null);
+		setCreated(false);
+	}
+
+	function selectedAdapterCount(target: LocationProposal) {
+		return target.adapters.filter((adapter) => selectedAdapters[targetAdapterKey(target.id, adapter.tool)]).length;
+	}
+
+	function locationRole(target: LocationProposal) {
+		const isSolutionRoot = normalizePath(target.path) === normalizePath(proposal?.workspace.root ?? "");
+		if (isSolutionRoot) return "Raiz da solução";
+		return selectedAdapterCount(target) > 0 ? "Pasta com adapters" : "Somente vínculo";
+	}
 
 	return (
 		<div className="h-full overflow-y-auto p-6">
-			<div className="max-w-2xl mx-auto flex flex-col gap-6">
-				{/* ── Progress ── */}
-				{step !== "done" && (
-					<>
-						<div className="flex items-center justify-center gap-0">
-							{stepOrder.map((s, i) => (
-								<div key={s} className="flex items-center">
-									<Button
-										onClick={() => { if (i < currentIndex) setStep(s); }}
-										disabled={i > currentIndex}
-										className={cn("w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-all", i === currentIndex && "ring-2 ring-primary/30", i < currentIndex && "cursor-pointer")}
-										style={{
-											background: i < currentIndex ? "var(--color-success)" : i === currentIndex ? "var(--color-primary)" : "var(--color-bg-surface)",
-											color: i < currentIndex ? "var(--color-success)" : i === currentIndex ? "var(--color-primary)" : "var(--color-text-secondary)",
-										}}
-										aria-label={`Passo ${i + 1}: ${stepLabels[s]}${i < currentIndex ? " (concluído)" : ""}`}
-									>
-										{i < currentIndex ? <Icon name="check" size={14} /> : i + 1}
-									</Button>
-									{i < stepOrder.length - 1 && <div className="w-8 h-0.5 mx-1" style={{ background: i < currentIndex ? "var(--color-success)" : "var(--color-border)" }} />}
-								</div>
-							))}
-						</div>
-						<div className="flex justify-center gap-0 text-xs -mt-4" style={{ color: "var(--color-text-secondary)" }}>
-							{stepOrder.map((s, i) => (
-								<div key={s} className="flex items-center">
-									<span className={cn("px-1", i === currentIndex && "font-semibold text-primary")}>{stepLabels[s]}</span>
-									{i < stepOrder.length - 1 && <span className="w-8" />}
-								</div>
-							))}
-						</div>
-					</>
-				)}
-
-				{/* ═══ Step 1 — Info ═══ */}
-				{step === "info" && (
-					<div className="flex flex-col items-center text-center gap-6 pt-8 animate-fade-in">
-						<div className="inline-flex items-center justify-center w-16 h-16 rounded-[var(--radius-lg)] bg-primary/10">
-							<Icon name="grid" size={24} className="text-primary" />
-						</div>
+			<div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.12fr)_minmax(340px,0.88fr)]">
+				<section className="flex flex-col gap-6">
+					<div className="flex items-start justify-between gap-4 sm:grid sm:grid-cols-[1fr_auto]">
 						<div>
-							<h1 className="text-3xl font-bold mb-2">Novo Workspace</h1>
-							<p className="text-base max-w-md" style={{ color: "var(--color-text-secondary)" }}>
-								Defina o nome e a descrição do seu workspace.
+							<h1 className="text-2xl font-bold">Novo workspace</h1>
+							<p className="mt-1 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+								Crie a pasta de governança do Letra e vincule as pastas/projetos que ela deve acompanhar.
 							</p>
 						</div>
-						<div className="w-full max-w-sm flex flex-col gap-4">
-							<div className="flex flex-col gap-1.5 text-left">
-								<label className="text-sm font-medium">
-									Nome do workspace <span className="text-red-500">*</span>
-								</label>
-								<Input
-									placeholder="Ex: Meu Projeto"
-									value={name}
-									onChange={(e) => handleNameChange(e.target.value)}
-									onBlur={handleNameBlur}
-									autoFocus
-								/>
-								{nameError && <span className="text-xs text-red-500">{nameError}</span>}
-							</div>
-							<div className="flex flex-col gap-1.5 text-left">
-								<label className="text-sm font-medium">Descrição</label>
-								<Textarea
-									placeholder="Descreva o propósito do workspace..."
-									value={description}
-									onChange={(e) => setDescription(e.target.value)}
-									rows={3}
-								/>
-							</div>
-							<Button className={btnClass} disabled={!step1Valid} onClick={goNext}>
-								Próximo
-							</Button>
-						</div>
-					</div>
-				)}
-
-				{/* ═══ Step 2 — Directories ═══ */}
-				{step === "directories" && (
-					<div className="flex flex-col gap-6 pt-4 animate-fade-in">
-						<div>
-							<h2 className="text-xl font-bold">Diretórios do Projeto</h2>
-							<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
-								Selecione o diretório de trabalho e as pastas alvo que o Letra deve monitorar.
-							</p>
-						</div>
-
-						<div className="flex flex-col gap-2">
-							<h3 className="text-sm font-semibold flex items-center gap-2">
-								Diretório de Trabalho <span className="text-red-500">*</span>
-								{workDir && <Badge variant="info" className="text-caption">selecionado</Badge>}
-							</h3>
-							{workDir && (
-								<div className="flex items-center gap-2 px-3 py-2 rounded-[var(--radius-sm)] border text-sm font-mono" style={{ borderColor: "var(--color-border)", background: "var(--color-bg-surface)" }}>
-									<Icon name="folder" size={14} className="text-primary shrink-0" />
-									<span className="flex-1 truncate">{workDir}</span>
-									<Button
-										type="button"
-										onClick={() => setWorkDir("")}
-										className="text-xs hover:underline"
-										style={{ color: "var(--color-text-secondary)" }}
-									>
-										Alterar
-									</Button>
-								</div>
-							)}
-							<div className="rounded-[var(--radius-md)] border p-2 max-h-48 overflow-y-auto" style={{ borderColor: "var(--color-border)" }}>
-								{renderDirTree(workDirTrees, setWorkDirTrees, "single")}
-							</div>
-						</div>
-
-						<div className="flex flex-col gap-2">
-							<h3 className="text-sm font-semibold flex items-center gap-2">
-								Pastas Alvo <span className="text-red-500">*</span>
-								{selectedDirs.length > 0 && <Badge variant="info" className="text-caption">{selectedDirs.length} selecionada{selectedDirs.length > 1 ? "s" : ""}</Badge>}
-							</h3>
-							<div className="rounded-[var(--radius-md)] border p-2 max-h-48 overflow-y-auto" style={{ borderColor: "var(--color-border)" }}>
-								{renderDirTree(targetDirTrees, setTargetDirTrees, "multi")}
-							</div>
-						</div>
-
-						{!step2Valid && (
-							<p className="text-xs text-red-500">
-								{!workDir ? "Selecione um diretório de trabalho. " : ""}
-								{selectedDirs.length === 0 ? "Selecione pelo menos 1 pasta alvo." : ""}
-							</p>
-						)}
-
-						<div className="flex gap-2 justify-between">
-							<Button variant="ghost" onClick={goBack}>Voltar</Button>
-							<Button disabled={!step2Valid} onClick={goNext} className={btnClass}>Próximo</Button>
-						</div>
-					</div>
-				)}
-
-				{/* ═══ Step 3 — Tools ═══ */}
-				{step === "tools" && (
-					<div className="flex flex-col gap-6 pt-4 animate-fade-in">
-						<div>
-							<h2 className="text-xl font-bold">Ferramentas Agênticas</h2>
-							<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
-								Selecione as ferramentas de IA que este workspace utilizará.
-							</p>
-						</div>
-						<div>
-							<div className="flex items-center gap-2 mb-3">
-								<h3 className="text-sm font-semibold">Adaptadores</h3>
-								{selectedTools.length > 0 && <Badge variant="info">{selectedTools.length} selecionada{selectedTools.length > 1 ? "s" : ""}</Badge>}
-							</div>
-							<div className="grid grid-cols-2 gap-3">
-								{ADAPTERS.map((tool, i) => (
-									<label
-										key={tool.id}
-										className={cn(
-											"flex items-center gap-3 p-4 rounded-[var(--radius-md)] border transition-all duration-200 cursor-pointer hover:scale-[1.02] hover:shadow-sm",
-											selectedTools.includes(tool.id)
-												? "border-primary bg-primary/5 ring-2 ring-primary/20"
-												: "border-border hover:border-primary/50",
-										)}
-										style={{ animation: `fade-in 0.2s ease-out ${i * 40}ms both` }}
-									>
-										<Checkbox
-											checked={selectedTools.includes(tool.id)}
-											onChange={() => toggleTool(tool.id)}
-										/>
-										<div className="w-8 h-8 rounded-[var(--radius-sm)] bg-primary/10 flex items-center justify-center shrink-0">
-											<Icon name="code" size={16} className="text-primary" />
-										</div>
-										<span className="font-medium">{tool.label}</span>
-									</label>
-								))}
-							</div>
-							{!step3Valid && <p className="text-xs text-red-500 mt-2">Selecione pelo menos 1 ferramenta</p>}
-						</div>
-						<div className="flex gap-2 justify-between">
-							<Button variant="ghost" onClick={goBack}>Voltar</Button>
-							<Button disabled={!step3Valid} onClick={goNext} className={btnClass}>Revisar</Button>
-						</div>
-					</div>
-				)}
-
-				{/* ═══ Step 4 — Review ═══ */}
-				{step === "review" && (
-					<div className="flex flex-col gap-6 pt-4 animate-fade-in">
-						<div>
-							<h2 className="text-xl font-bold">Revisar Configuração</h2>
-							<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
-								Confira os dados antes de finalizar.
-							</p>
-						</div>
-
-						<div className="flex flex-col gap-4">
-							<div className="p-4 rounded-[var(--radius-md)]" style={{ background: "var(--color-bg-surface)" }}>
-								<h3 className="text-sm font-semibold mb-2">Workspace</h3>
-								<div className="text-sm space-y-1">
-									<div>
-										<span style={{ color: "var(--color-text-secondary)" }}>Nome:</span>{" "}
-										<span className="font-medium">{name}</span>
-									</div>
-									{description && (
-										<div>
-											<span style={{ color: "var(--color-text-secondary)" }}>Descrição:</span>{" "}
-											{description}
-										</div>
-									)}
-									<div>
-										<span style={{ color: "var(--color-text-secondary)" }}>Diretório de trabalho:</span>{" "}
-										<span className="font-mono text-xs">{workDir}</span>
-									</div>
-								</div>
-							</div>
-							<div className="p-4 rounded-[var(--radius-md)]" style={{ background: "var(--color-bg-surface)" }}>
-								<h3 className="text-sm font-semibold mb-2">Pastas Alvo</h3>
-								{selectedDirs.map((d) => (
-									<div key={d} className="flex items-center gap-2 text-sm font-mono">
-										<Icon name="folder" size={14} className="text-primary shrink-0" />
-										<span>{d}</span>
-									</div>
-								))}
-							</div>
-							<div className="p-4 rounded-[var(--radius-md)]" style={{ background: "var(--color-bg-surface)" }}>
-								<h3 className="text-sm font-semibold mb-2">Ferramentas</h3>
-								<div className="flex gap-2 flex-wrap mt-1">
-									{selectedTools.map((t) => {
-										const tool = ADAPTERS.find((a) => a.id === t);
-										return tool ? <Badge key={t} variant="info">{tool.label}</Badge> : null;
-									})}
-								</div>
-							</div>
-						</div>
-
-						{submitError && (
-							<div className="p-3 rounded-[var(--radius-sm)] text-sm" style={{ background: "var(--surface-1)", border: "1px solid var(--color-border)", color: "var(--color-danger)" }}>
-								<Icon name="alert-triangle" size={14} className="inline mr-1" />
-								{submitError}
-							</div>
-						)}
-
-						<div className="flex gap-2 justify-between">
-							<Button variant="ghost" onClick={goBack}>Voltar</Button>
-							<Button disabled={submitting} onClick={handleCreate} className={btnClass}>
-								{submitting ? (
-									<span className="flex items-center gap-2">
-										<span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-										Criando...
-									</span>
-								) : "Criar Workspace"}
-							</Button>
-						</div>
-					</div>
-				)}
-
-				{/* ═══ Step 5 — Done ═══ */}
-				{step === "done" && (
-					<div className="flex flex-col items-center text-center gap-6 pt-8 animate-fade-in">
-						<div className="inline-flex items-center justify-center w-16 h-16 rounded-[var(--radius-lg)] bg-success/20">
-							<Icon name="check-circle" size={24} style={{ color: "var(--color-success)" }} />
-						</div>
-						<div>
-							<h2 className="text-2xl font-bold">Workspace criado!</h2>
-							<p className="text-sm mt-2" style={{ color: "var(--color-text-secondary)" }}>
-								O workspace <strong>{name}</strong> foi registrado com sucesso.
-							</p>
-						</div>
-						<Button onClick={onCancel} className="mt-2">
-							Ir para Meus Workspaces
+						<Button type="button" variant="ghost" onClick={onCancel}>
+							Voltar para Meus Workspaces
 						</Button>
 					</div>
-				)}
+
+					<div className="grid gap-4 rounded-[var(--radius-md)] border p-4" style={{ borderColor: "var(--color-border)" }}>
+						<div>
+							<h2 className="text-lg font-semibold">Workspace e pastas/projetos</h2>
+							<p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+								Informe o nome do workspace e uma pasta de projeto inicial. Nada será escrito antes da confirmação final.
+							</p>
+						</div>
+						<label className="flex flex-col gap-1.5">
+							<span className="text-sm font-medium">Nome do workspace</span>
+							<Input
+								value={name}
+								onBlur={() => setNameTouched(true)}
+								onChange={(event) => {
+									setName(event.target.value);
+									setProposal(null);
+									setPlan(null);
+									setCreated(false);
+								}}
+								placeholder="Ex: Portal de atendimento"
+								aria-invalid={nameTouched && !!nameError}
+							/>
+							{nameTouched && nameError && (
+								<span className="text-xs" style={{ color: "var(--color-danger)" }}>
+									{nameError}
+								</span>
+							)}
+						</label>
+						<label className="flex flex-col gap-1.5">
+							<span className="text-sm font-medium">Descrição opcional</span>
+							<Textarea
+								value={description}
+								onChange={(event) => setDescription(event.target.value)}
+								placeholder="Descreva o propósito deste workspace"
+								rows={3}
+							/>
+						</label>
+						<label className="flex flex-col gap-1.5">
+							<span className="text-sm font-medium">Data directory do workspace</span>
+							<Input value={dataDir} readOnly aria-readonly="true" />
+						</label>
+						<label className="flex flex-col gap-1.5">
+							<span className="text-sm font-medium">Pasta/projeto inicial</span>
+							<Input
+								value={root}
+								onChange={(event) => {
+									setRoot(event.target.value);
+									setProposal(null);
+									setPlan(null);
+									setCreated(false);
+								}}
+								placeholder="C:/Workspace/meu-projeto"
+							/>
+						</label>
+						<div className="flex flex-wrap items-center gap-3">
+							<Button type="button" onClick={analyzeWorkspace} loading={loading} disabled={!canAnalyze}>
+								<Icon name="search" size={14} />
+								Analisar pasta/projeto
+							</Button>
+							<span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+								O harness fica fora do projeto; a pasta recebe apenas o vínculo.
+							</span>
+						</div>
+					</div>
+
+					<div className="flex flex-col gap-4 rounded-[var(--radius-md)] border p-4" style={{ borderColor: "var(--color-border)" }}>
+						<div>
+							<h2 className="text-lg font-semibold">Proposta do Letra</h2>
+							<p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+								Revise as pastas/projetos vinculadas ao workspace antes de gerar a prévia.
+							</p>
+						</div>
+						{proposal ? (
+							<>
+								{proposal.warnings.map((warning) => (
+									<div key={warning} className="rounded-[var(--radius-sm)] border p-3 text-sm" style={{ borderColor: "var(--color-border)" }}>
+										{warning}
+										<span className="mt-1 block text-xs" style={{ color: "var(--color-text-secondary)" }}>
+											Adapters disponíveis aparecem nas opções avançadas e só serão escritos nas pastas onde forem marcados.
+										</span>
+									</div>
+								))}
+								<div className="flex flex-col gap-3">
+									{proposalLocations.map((target) => (
+										<div key={target.id} className="rounded-[var(--radius-md)] border p-4" style={{ borderColor: "var(--color-border)" }}>
+											<div className="flex flex-col gap-2">
+												<div className="flex items-start justify-between gap-3">
+													<div className="min-w-0">
+														<div className="flex flex-wrap items-center gap-2">
+															<h3 className="font-semibold">{target.label}</h3>
+															<Badge variant="info" tone="soft">{locationRole(target)}</Badge>
+														</div>
+														<p className="truncate font-mono text-xs" style={{ color: "var(--color-text-secondary)" }}>
+															{target.path}
+														</p>
+													</div>
+													<Badge variant={selectedAdapterCount(target) > 0 ? "success" : "info"} tone="soft">
+														{selectedAdapterCount(target) > 0 ? `${selectedAdapterCount(target)} adapter(s)` : "só .letra-link"}
+													</Badge>
+												</div>
+												<div className="flex flex-wrap gap-2">
+													{target.stack.map((stack) => (
+														<Badge key={stack} variant="info" tone="soft">{stack}</Badge>
+													))}
+													{target.evidence.map((evidence) => (
+														<Badge key={evidence} variant="info" tone="soft">{evidence}</Badge>
+													))}
+												</div>
+												<details className="rounded-[var(--radius-sm)] border p-3" style={{ borderColor: "var(--color-border)" }}>
+													<summary className="cursor-pointer text-sm font-medium">Opções avançadas</summary>
+													<p className="mt-2 text-xs" style={{ color: "var(--color-text-secondary)" }}>
+														Marque adapters apenas nas pastas onde o Letra deve criar instruções para agentes. Em geral, use a raiz Git/solução.
+													</p>
+													<div className="mt-3 grid gap-2 sm:grid-cols-2">
+														{target.adapters.map((adapter) => (
+															<div
+																key={adapter.tool}
+																className={cn(
+																	"rounded-[var(--radius-sm)] border p-3",
+																	selectedAdapters[targetAdapterKey(target.id, adapter.tool)] && "bg-[var(--color-primary-subtle)]",
+																)}
+																style={{ borderColor: "var(--color-border)" }}
+															>
+																<div className="flex items-start gap-3">
+																	<Checkbox
+																		aria-label={`${adapter.label} em ${target.label}`}
+																		checked={!!selectedAdapters[targetAdapterKey(target.id, adapter.tool)]}
+																		onChange={() => toggleAdapter(target.id, adapter.tool)}
+																	/>
+																	<div className="min-w-0">
+																		<p className="text-sm font-medium">{adapter.label}</p>
+																		<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
+																			{selectedAdapters[targetAdapterKey(target.id, adapter.tool)]
+																				? `Será escrito em ${target.label}`
+																				: `Disponível para ${target.label}`}
+																		</p>
+																	</div>
+																</div>
+																<div className="mt-2 flex flex-wrap gap-2">
+																	<Badge variant={adapter.state === "detected" ? "success" : "info"} tone="soft">
+																		{adapter.state === "detected" ? "detectado" : "disponível"}
+																	</Badge>
+																	{adapter.evidence.map((evidence) => (
+																		<Badge key={evidence} variant="info" tone="soft">{evidence}</Badge>
+																	))}
+																</div>
+															</div>
+														))}
+													</div>
+												</details>
+											</div>
+										</div>
+									))}
+								</div>
+								<div className="flex justify-end">
+									<Button type="button" onClick={reviewInstallation} loading={loading} disabled={!canReview}>
+										Gerar prévia de escrita
+									</Button>
+								</div>
+							</>
+						) : (
+							<div className="rounded-[var(--radius-sm)] border p-4 text-sm" style={{ borderColor: "var(--color-border)", color: "var(--color-text-secondary)" }}>
+								A proposta aparecerá aqui depois da análise da pasta/projeto inicial.
+							</div>
+						)}
+					</div>
+
+					{created && (
+						<div className="flex flex-col items-center gap-4 rounded-[var(--radius-md)] border p-8 text-center" style={{ borderColor: "var(--color-border)" }}>
+							<Icon name="check-circle" size={24} style={{ color: "var(--color-success)" }} />
+							<div>
+								<h2 className="text-xl font-semibold">Workspace criado!</h2>
+								<p className="mt-1 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+									O workspace {name.trim()} já pode ser supervisionado no Letra.
+								</p>
+							</div>
+							<Button type="button" onClick={onCancel}>Ir para Meus Workspaces</Button>
+						</div>
+					)}
+
+					{error && (
+						<div className="rounded-[var(--radius-sm)] border p-3 text-sm" style={{ borderColor: "var(--color-danger)", color: "var(--color-danger)" }}>
+							{error}
+						</div>
+					)}
+				</section>
+
+				<aside className="flex flex-col gap-4 rounded-[var(--radius-md)] border p-4" style={{ borderColor: "var(--color-border)" }}>
+					<div>
+						<h2 className="text-lg font-semibold">Prévia de escrita</h2>
+						<p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+							Confira os artefatos antes de criar o workspace.
+						</p>
+					</div>
+					{proposal && plan ? (
+						<>
+							<div className="grid gap-2 rounded-[var(--radius-sm)] border p-3" style={{ borderColor: "var(--color-border)" }}>
+								<p className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-secondary)" }}>Resumo</p>
+								<p className="text-sm">
+									{governanceOperationCount || 1} pasta de governança fora do projeto, {linkOperationCount} vínculo(s) .letra-link e {adapterOperationCount} arquivo(s) de adapter.
+								</p>
+								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
+									Adapters serão escritos em {selectedAdapterLocations.length > 0 ? selectedAdapterLocations.map((loc) => loc.label).join(", ") : "nenhuma pasta"}.
+								</p>
+							</div>
+							<div className="grid gap-3">
+								<div className="rounded-[var(--radius-sm)] border p-3" style={{ borderColor: "var(--color-border)" }}>
+									<p className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-secondary)" }}>workflow.json</p>
+									<p className="mt-1 text-sm">Criado em {dataDir}/workflow.json</p>
+								</div>
+								<div className="rounded-[var(--radius-sm)] border p-3" style={{ borderColor: "var(--color-border)" }}>
+									<p className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-secondary)" }}>Vínculo</p>
+									<p className="mt-1 text-sm">Cada pasta/projeto recebe apenas .letra-link apontando para o data directory.</p>
+								</div>
+								<div className="rounded-[var(--radius-sm)] border p-3" style={{ borderColor: "var(--color-border)" }}>
+									<p className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-secondary)" }}>Adapters</p>
+									<p className="mt-1 text-sm">{selectedTools.length > 0 ? selectedTools.join(", ") : "Nenhum adapter selecionado"}</p>
+								</div>
+							</div>
+							<div className="flex flex-col gap-2">
+								{plan.operations.map((operation) => (
+									<div key={`${operation.kind}:${operation.path}:${operation.tool || ""}`} className="rounded-[var(--radius-sm)] border p-3" style={{ borderColor: "var(--color-border)" }}>
+										<div className="flex items-start justify-between gap-3">
+											<div className="min-w-0">
+												<p className="truncate font-mono text-xs">{operation.path}</p>
+												<p className="mt-1 text-sm" style={{ color: "var(--color-text-secondary)" }}>{operation.reason}</p>
+											</div>
+											<Badge variant={operation.kind === "conflict" ? "error" : operation.kind === "preserve" ? "info" : "success"} tone="soft">
+												{operation.kind}
+											</Badge>
+										</div>
+									</div>
+								))}
+							</div>
+							{plan.conflictCount > 0 && (
+								<p className="text-sm" style={{ color: "var(--color-danger)" }}>
+									Resolva os conflitos antes de criar o workspace.
+								</p>
+							)}
+						</>
+					) : (
+						<div className="rounded-[var(--radius-sm)] border p-4 text-sm" style={{ borderColor: "var(--color-border)", color: "var(--color-text-secondary)" }}>
+							Gere a prévia para ver exatamente quais arquivos serão criados, preservados ou bloqueados por conflito.
+						</div>
+					)}
+					<Button type="button" onClick={confirmCreation} loading={loading} disabled={!canCreate}>
+						Criar workspace
+					</Button>
+					<div className="flex flex-col gap-3">
+						<h2 className="text-sm font-semibold">Checklist do cadastro</h2>
+					{[
+						["Analisar pasta", !!proposal],
+						["Revisar proposta", !!plan],
+						["Revisar opções avançadas", !!proposal],
+						["Confirmar criação", created],
+						["Validar workflow.json", created],
+						["Validar .letra-link", created],
+						["Validar pastas/projetos", created],
+					].map(([label, done]) => (
+						<div key={String(label)} className="flex items-center gap-2 text-sm">
+							<Icon name={done ? "check" : "circle"} size={14} style={{ color: done ? "var(--color-success)" : "var(--color-text-secondary)" }} />
+							<span>{label}</span>
+						</div>
+					))}
+					</div>
+					{proposal && (
+						<div className="mt-2 rounded-[var(--radius-sm)] border p-3" style={{ borderColor: "var(--color-border)" }}>
+							<p className="text-xs font-semibold uppercase" style={{ color: "var(--color-text-secondary)" }}>Pasta analisada</p>
+							<p className="mt-1 truncate font-mono text-xs">{proposal.workspace.root}</p>
+							<p className="mt-2 text-sm">{proposalLocations.length} pasta(s)/projeto(s) detectado(s)</p>
+							<p className="text-sm">{selectedTools.length} adapter(s): {selectedTools.join(", ")}</p>
+						</div>
+					)}
+				</aside>
 			</div>
 		</div>
 	);

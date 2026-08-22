@@ -11,6 +11,7 @@ import {
 	writeSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { getLetraDir } from "./workspace/resolver.js";
 
 export type LogAction =
 	| "validate"
@@ -67,11 +68,11 @@ const ensuredDirectories = new Set<string>();
 const appendFileDescriptors = new Map<string, number>();
 
 function logPath(root: string): string {
-	return join(root, ".letra", LOG_FILE);
+	return join(getLetraDir(root), LOG_FILE);
 }
 
 function logDir(root: string): string {
-	return join(root, ".letra", LOG_DIR);
+	return join(getLetraDir(root), LOG_DIR);
 }
 
 function jsonlPathForDate(root: string, date = new Date()): string {
@@ -187,6 +188,12 @@ function closeAppendDescriptor(file: string): void {
 	appendFileDescriptors.delete(file);
 }
 
+/** Fecha todos os descritores de arquivo de append abertos pelo session-log. */
+export function closeSessionLogHandles(): void {
+	for (const [, fd] of appendFileDescriptors) closeSync(fd);
+	appendFileDescriptors.clear();
+}
+
 export function loadSessionLog(root: string): SessionLog {
 	return {
 		schemaVersion: SCHEMA_VERSION,
@@ -236,7 +243,7 @@ export function saveSessionLog(
 	log: SessionLog,
 	options: SessionLogWriteOptions = {},
 ): void {
-	const dir = join(root, ".letra");
+	const dir = getLetraDir(root);
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 	if (log.entries.length > MAX_ENTRIES) {
 		log.entries = log.entries.slice(-MAX_ENTRIES);

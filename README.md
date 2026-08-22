@@ -104,6 +104,19 @@ letra focus --clear                 # Limpar foco
 
 Cria `.letra/focus.md` com o Outcome da spec referenciada.
 
+### `letra migrate`
+
+Externaliza o diretório de dados do workspace para fora do repositório.
+
+```bash
+letra migrate                       # copy .leta/ → ~/.leta/workspaces/<slug> + link
+letra migrate . --clean             # ...e remove a pasta .leta/ original
+letra migrate . --to ./out          # externaliza para diretório custom
+letra migrate . --dry-run           # pré-visualiza sem escrever
+```
+
+> Veja [Externalização de Dados](#externalização-de-dados) para detalhes sobre leitura via link e harness compartilhado.
+
 ### `letra flow`
 
 Workflow engine completo.
@@ -144,6 +157,36 @@ letra flow serve --port 8080 --open
 ```
 
 ## Web UI
+
+## Externalização de Dados
+
+O diretório de dados do workspace (`.leta/`) pode viver fora do repositório, numa
+pasta compartilhada por todos os workspaces — útil para monorepos, CI sem
+credenciais locais e para manter o histórico do repositório limpo.
+
+- **Layout padrão**: `<workspace-root>/.leta/` (dados embutidos no projeto).
+- **Layout externalizado**: `~/.le.etra/workspaces/<slug>/` + link `.leta-link`
+  na raiz do workspace. Leituras via `letra migrate` e via `GET /api/workspaces`
+  (`dataDir`) passam a resolver pelo link.
+- **Harness compartilhado**: `~/.le.tera/shared-harness/<versão>/`. O `flow-serve`
+  faz *bootstrap* automático a partir dos templates embutidos na CLI
+  (`src/harness/default/`) na primeira requisição que precisa de harness.
+
+### `letra migrate`
+
+Externalize o diretório de dados do workspace atual (ou de um caminho explícito).
+
+```bash
+letra migrate                       # copy .leta/ → ~/.leta/workspaces/<slug>, deixa .leta-link
+letra migrate . --clean             # ... e remove a pasta .leta/ original
+letra migrate . --to /caminho/usado # externaliza para um diretório custom
+letra migrate . --dry-run           # mostra o que seria feito sem escrever
+letra migrate . --clean --to ./out  # combina opções
+```
+
+> Após migrar, comandos como `letra flow init`, `flow serve`, `sitrep` e
+> `focus` resolvem os dados pelo link — nenhuma flag extra é necessária.
+
 
 Acesse via `letra init --serve` ou `letra flow serve` — abre em `http://localhost:3000`.
 
@@ -202,6 +245,7 @@ Acesse via `letra init --serve` ou `letra flow serve` — abre em `http://localh
 | GET | `/api/workflow` | Obter workflow |
 | PATCH | `/api/workflow` | Atualizar workflow |
 | POST | `/api/workflow/template` | Criar de template (padrão/kanban/ágil/custom) |
+| POST | `/api/workflow/migrate-harness` | Externalize o `.leta/` do workspace para `~/.le.etra/workspaces/<slug>` (body: `{ workspaceRoot?, clean?, dryRun? }`) |
 | GET | `/api/specs` | Listar specs |
 | POST | `/api/specs` | Criar spec |
 | PUT | `/api/specs/:id` | Atualizar spec |

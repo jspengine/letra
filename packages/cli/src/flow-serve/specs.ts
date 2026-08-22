@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join } from "node:path";
 import type { Workflow } from "../commands/flow-init.js";
 import { validateSpecStructure } from "../validation/structure.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export interface ResolvedSpec {
 	id: string;
@@ -20,7 +21,7 @@ export function loadResolvedSpecs(root: string, workflow: Workflow | null): Reso
 		}
 	}
 
-	const specsDir = join(root, ".letra", "specs");
+	const specsDir = join(getLetraDir(root), "specs");
 	const registered = new Set(result.map((entry) => entry.id));
 	if (!existsSync(specsDir)) return result;
 

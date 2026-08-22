@@ -20,6 +20,28 @@ export function getWorkspacePath(name: string): string {
 	return join(getWorkspacesDir(), name);
 }
 
+export const CANONICAL_WORKSPACE_DIRS = [
+	"harness",
+	"specs",
+	"decisions",
+	"memories",
+	"adapters",
+	"operations",
+	"session-log",
+	"reports",
+	"cache",
+] as const;
+
+export const CANONICAL_WORKSPACE_FILES = [
+	"workflow.json",
+	"workspace.json",
+	"context.md",
+	"focus.md",
+	"constitution.md",
+	"constraints.md",
+	"glossary.md",
+] as const;
+
 export function ensureLetraDirs(): void {
 	mkdirSync(getWorkspacesDir(), { recursive: true });
 	mkdirSync(getHarnessDir(), { recursive: true });
@@ -56,6 +78,48 @@ function copyDir(src: string, dest: string): void {
 	}
 }
 
+export function slugifyWorkspaceName(input: string): string {
+	return input
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "")
+		.slice(0, 64) || "workspace";
+}
+
+export function ensureExternalWorkspaceLayout(workspaceDir: string, defaults?: {
+	workspace?: Record<string, unknown>;
+	workflow?: Record<string, unknown>;
+}): void {
+	mkdirSync(workspaceDir, { recursive: true });
+	for (const dir of CANONICAL_WORKSPACE_DIRS) {
+		mkdirSync(join(workspaceDir, dir), { recursive: true });
+	}
+
+	const fallbackFiles: Record<string, string> = {
+		"workflow.json": JSON.stringify(defaults?.workflow ?? {
+			version: "1.0",
+			name: "Workspace",
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+			stages: [],
+			items: [],
+			tools: [],
+		}, null, 2),
+		"workspace.json": JSON.stringify(defaults?.workspace ?? {}, null, 2),
+		"context.md": "# Context\n",
+		"focus.md": "# Focus\n",
+		"constitution.md": "# Constitution\n",
+		"constraints.md": "# Constraints\n",
+		"glossary.md": "# Glossary\n",
+	};
+	for (const file of CANONICAL_WORKSPACE_FILES) {
+		const path = join(workspaceDir, file);
+		if (!existsSync(path)) writeFileSync(path, fallbackFiles[file], "utf-8");
+	}
+}
+
 function harnessDefaultDir(version: string): string {
 	const candidates = [
 		join(fileURLToPath(new URL(".", import.meta.url)), "..", "harness", "default", version),
@@ -83,17 +147,12 @@ export function ensureDefaultHarness(version = "v0.1.0"): string {
 export function initWorkspace(name: string): { workspaceDir: string; info: WorkspaceInfo } {
 	ensureLetraDirs();
 
-	const workspaceDir = getWorkspacePath(name);
+	const workspaceDir = getWorkspacePath(slugifyWorkspaceName(name));
 	if (existsSync(workspaceDir)) {
 		throw new Error(`Workspace "${name}" already exists at ${workspaceDir}`);
 	}
 
 	const workspaceId = `ws_${crypto.randomBytes(4).toString("hex")}`;
-	mkdirSync(workspaceDir, { recursive: true });
-	mkdirSync(join(workspaceDir, "specs"), { recursive: true });
-	mkdirSync(join(workspaceDir, "decisions"), { recursive: true });
-	mkdirSync(join(workspaceDir, "backups"), { recursive: true });
-
 	const templateId = "sdlc";
 	const harnessVersion = "v0.1.0";
 
@@ -106,7 +165,7 @@ export function initWorkspace(name: string): { workspaceDir: string; info: Works
 		templateId,
 		harnessVersion,
 	};
-	writeFileSync(join(workspaceDir, "workspace.json"), JSON.stringify(info, null, 2), "utf-8");
+	ensureExternalWorkspaceLayout(workspaceDir, { workspace: info });
 
 	return { workspaceDir, info };
 }

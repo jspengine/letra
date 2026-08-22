@@ -31,6 +31,7 @@ interface SidebarProps {
   activeWorkspace?: WorkspaceData | null;
   activeDirectory?: string | null;
   onDirectoryChange?: (dir: string | null) => void;
+  onOpenWorkspaceSettings?: () => void;
 }
 
 interface NavItem {
@@ -55,6 +56,7 @@ export default function Sidebar({
   activeTab,
   onTabChange,
   workspaceActive,
+  onOpenWorkspaceSettings,
 }: SidebarProps) {
   const {
     open,
@@ -91,7 +93,11 @@ export default function Sidebar({
                     isActive={activeTab === item.id}
                     disabled={!workspaceActive}
                     onClick={() => {
-                      onTabChange(item.id);
+                      if (item.id === "settings") {
+                        onOpenWorkspaceSettings?.();
+                      } else {
+                        onTabChange(item.id);
+                      }
                       if (isMobile) setOpenMobile(false);
                     }}
                     tooltip={item.label}
@@ -128,7 +134,7 @@ export default function Sidebar({
                     isActive={activeTab === item.id}
                     disabled={!workspaceActive}
                     onClick={() => {
-                      onTabChange(item.id);
+                      onOpenWorkspaceSettings?.();
                       if (isMobile) setOpenMobile(false);
                     }}
                     tooltip={item.label}

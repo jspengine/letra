@@ -10,6 +10,7 @@ import {
 	checkLowConfidence,
 	checkSpecContent,
 } from "../validation/content.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export {
 	checkBinaryCriteria,
@@ -157,7 +158,7 @@ export async function validate(
 	options?: { watch?: boolean; format?: string; exit?: boolean; log?: boolean },
 ): Promise<ValidationSummary> {
 	const root = resolve(process.cwd(), targetPath || ".");
-	const specsDir = join(root, ".letra", "specs");
+	const specsDir = join(getLetraDir(root), "specs");
 	const fmt: Format = (options?.format as Format) || "text";
 
 	if (!existsSync(specsDir)) {
@@ -303,7 +304,7 @@ export async function validate(
 								}
 							}
 						} else if (label.includes("Arquivo de Config")) {
-							const configFile = join(root, ".letra", "config.json");
+							const configFile = join(getLetraDir(root), "config.json");
 							if (existsSync(configFile)) {
 								const cfgContent = readFileSync(configFile, "utf-8");
 								try {

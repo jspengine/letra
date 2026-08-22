@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe("workspace smart setup", () => {
-	it("detects targets, stack and only preselects evidenced adapters", () => {
+	it("detects locations, stack and only preselects evidenced adapters", () => {
 		const root = tempRoot();
 		const frontend = join(root, "apps", "frontend");
 		mkdirSync(join(frontend, ".opencode"), { recursive: true });
@@ -43,20 +43,20 @@ describe("workspace smart setup", () => {
 
 		const proposal = analyzeWorkspaceSetup({ name: "Acme", root });
 
-		expect(proposal.targets).toHaveLength(1);
-		expect(proposal.targets[0]).toMatchObject({
+		expect(proposal.locations).toHaveLength(1);
+		expect(proposal.locations[0]).toMatchObject({
 			label: "frontend",
 			stack: expect.arrayContaining(["Node.js", "React", "Vite", "TypeScript"]),
 		});
-		expect(proposal.targets[0].adapters.find((adapter) => adapter.tool === "opencode")).toMatchObject({
+		expect(proposal.locations[0].adapters.find((adapter) => adapter.tool === "opencode")).toMatchObject({
 			state: "detected",
 			selected: true,
 		});
-		expect(proposal.targets[0].adapters.find((adapter) => adapter.tool === "cursor")).toMatchObject({
+		expect(proposal.locations[0].adapters.find((adapter) => adapter.tool === "cursor")).toMatchObject({
 			state: "available",
 			selected: false,
 		});
-		expect(proposal.targets[0].adapters.find((adapter) => adapter.tool === "codex")).toMatchObject({
+		expect(proposal.locations[0].adapters.find((adapter) => adapter.tool === "codex")).toMatchObject({
 			label: "Codex",
 			state: "detected",
 			selected: true,

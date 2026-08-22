@@ -8,6 +8,7 @@ export interface WorkspaceData {
 	description?: string;
 	slug: string;
 	root?: string;
+	dataDir?: string | null;
 	createdAt: string;
 	directories?: string[];
 	tools?: string[];
@@ -16,9 +17,11 @@ export interface WorkspaceData {
 
 interface Props {
 	onSelect?: (ws: WorkspaceData) => void;
+	onWorkspacesLoaded?: (workspaces: WorkspaceData[]) => void;
 	activeSlug?: string;
 	gateMode?: boolean;
 	activeDirectory?: string | null;
+	startCreating?: boolean;
 }
 
 function formatDate(iso: string) {

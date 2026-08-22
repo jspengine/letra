@@ -10,6 +10,7 @@ import { resolveActiveFlow } from "../flow-definition/resolve.js";
 import { createWorkspaceBoundary } from "../security/workspace-boundary.js";
 import { logEntry, type LogAction } from "../session-log.js";
 import { GateChecker } from "../harness/gate-checker.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export type OperationOutcome = "accepted" | "rejected" | "approval-required";
 
@@ -221,7 +222,7 @@ export function completeAcOperation(root: string, input: CompleteAcInput): Opera
 		);
 	}
 
-	const specDir = join(workspaceRoot, ".letra", "specs", spec);
+	const specDir = join(getLetraDir(workspaceRoot), "specs", spec);
 	const specPath = boundary.assertPath(join(specDir, "spec.md"));
 	if (!existsSync(specPath)) {
 		return rejected(

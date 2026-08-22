@@ -5,6 +5,7 @@ import { logEntry } from "../session-log.js";
 import type { PhaseDef } from "../harness/types.js";
 import type { Item } from "../commands/flow-init.js";
 import { GateChecker } from "../harness/gate-checker.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export interface PhaseActionResult {
 	ok: boolean;
@@ -35,7 +36,7 @@ export class PhaseActionRunner {
 						break;
 					}
 					case "agent-prompt": {
-						const promptDir = join(root, ".letra");
+						const promptDir = getLetraDir(root);
 						if (!existsSync(promptDir)) mkdirSync(promptDir, { recursive: true });
 						const content = [
 							`# Phase Prompt: ${phaseDef.label}`,
@@ -46,14 +47,14 @@ export class PhaseActionRunner {
 							`Item: ${item.id}`,
 							`Phase: ${phaseDef.id}`,
 						].join("\n");
-						writeFileSync(join(root, ".letra", "phase-prompt.md"), content, "utf-8");
+						writeFileSync(join(getLetraDir(root), "phase-prompt.md"), content, "utf-8");
 						const label = `agent-prompt: ${action.prompt}`;
 						results.push(label);
 						logEntry(root, "system", `action:${label}`, { itemId: item.id, details: { phase: phaseDef.id } });
 						break;
 					}
 					case "generate-report": {
-						const reportDir = join(root, ".letra", "reports");
+						const reportDir = join(getLetraDir(root), "reports");
 						if (!existsSync(reportDir)) mkdirSync(reportDir, { recursive: true });
 						const reportContent = [
 							`# Report: ${item.id} - ${phaseDef.label}`,
@@ -72,7 +73,7 @@ export class PhaseActionRunner {
 							itemId: item.id,
 							details: { phase: phaseDef.id },
 						});
-						const notifyPath = join(root, ".letra", "human-notify.md");
+						const notifyPath = join(getLetraDir(root), "human-notify.md");
 						writeFileSync(
 							notifyPath,
 							`# Human Notification\n\n${action.message}\n\nItem: ${item.id}\nPhase: ${phaseDef.id}`,
@@ -114,7 +115,7 @@ export class PhaseActionRunner {
 }
 
 export function loadGate(root: string, gateId: string): { blocking: boolean; status: string } | null {
-	const harnessDir = join(root, ".letra", "harness");
+	const harnessDir = join(getLetraDir(root), "harness");
 	if (!existsSync(harnessDir)) return null;
 	const files = [join(harnessDir, "gates", `${gateId}.yaml`), join(harnessDir, "gates", `${gateId}.yml`)];
 	for (const f of files) {

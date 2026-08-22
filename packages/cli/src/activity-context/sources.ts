@@ -11,6 +11,7 @@ import type { LogEntry } from "../session-log.js";
 import { resolveActiveFlow } from "../flow-definition/resolve.js";
 import type { ResolvedFlowPhase, ResolvedFlowStage } from "../flow-definition/types.js";
 import type { GateExpectationConfig, PhaseHarnessConfig, ReviewExpectationConfig } from "../harness/types.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export interface SpecMeta {
 	name: string;
@@ -72,7 +73,7 @@ function countSpecACs(content: string): { pending: number; done: number; total: 
 
 export function loadSpecMeta(root: string, specName: string | null): SpecMeta | null {
 	if (!specName) return null;
-	const specPath = join(root, ".letra", "specs", specName, "spec.md");
+	const specPath = join(getLetraDir(root), "specs", specName, "spec.md");
 	if (!existsSync(specPath)) {
 		return {
 			name: specName,

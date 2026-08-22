@@ -7,6 +7,7 @@ import type { Item, Workflow } from "./flow-init.js";
 import { loadHealthRecord, getSummary } from "../health-record.js";
 import { logEntry } from "../session-log.js";
 import { resolveWorkspaceRoot } from "../workspace/resolver.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 const START_MARKER = "<!-- sitrep:start -->";
 const END_MARKER = "<!-- sitrep:end -->";
@@ -29,7 +30,7 @@ interface SitrepData {
 }
 
 function getRecentDecisions(root: string, max: number): DecisionInfo[] {
-	const dir = join(root, ".letra", "decisions");
+	const dir = join(getLetraDir(root), "decisions");
 	if (!existsSync(dir)) return [];
 	try {
 		const files = readdirSync(dir)
@@ -51,7 +52,7 @@ function getRecentDecisions(root: string, max: number): DecisionInfo[] {
 }
 
 function countItemACs(root: string, specName: string): { pending: number; total: number } {
-	const specDir = join(root, ".letra", "specs", specName);
+	const specDir = join(getLetraDir(root), "specs", specName);
 	const acceptanceFile = join(specDir, "acceptance.md");
 	const specFile = join(specDir, "spec.md");
 
@@ -242,7 +243,7 @@ export async function sitrep(
 	rootPath: string,
 	options?: { dryRun?: boolean; quiet?: boolean; skipLog?: boolean },
 ): Promise<void> {
-	const contextFile = join(rootPath, ".letra", "context.md");
+	const contextFile = join(getLetraDir(rootPath), "context.md");
 	if (!existsSync(contextFile)) {
 		if (!options?.quiet) console.log(chalk.yellow("Aviso: .letra/context.md não encontrado"));
 		return;

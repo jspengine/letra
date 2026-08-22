@@ -22,14 +22,16 @@ beforeAll(() => {
 	});
 });
 
-function renderSidebar(onTabChange = vi.fn()) {
+function renderSidebar(onTabChange = vi.fn(), onOpenWorkspaceSettings = vi.fn()) {
 	return {
 		onTabChange,
+		onOpenWorkspaceSettings,
 		...render(
 			<SidebarProvider>
 				<Sidebar
 					activeTab="supervision"
 					onTabChange={onTabChange}
+					onOpenWorkspaceSettings={onOpenWorkspaceSettings}
 					workspaceActive
 				/>
 			</SidebarProvider>,
@@ -117,6 +119,16 @@ describe("Sidebar", () => {
 
 		expect(screen.queryByRole("button", { name: "Recolher menu" })).toBeNull();
 		expect(screen.queryByRole("button", { name: "Expandir menu" })).toBeNull();
+	});
+
+	it("opens workspace settings without switching to a deprecated settings route", async () => {
+		const user = userEvent.setup();
+		const { onTabChange, onOpenWorkspaceSettings } = renderSidebar();
+
+		await user.click(screen.getByRole("button", { name: "Workspace" }));
+
+		expect(onOpenWorkspaceSettings).toHaveBeenCalledOnce();
+		expect(onTabChange).not.toHaveBeenCalledWith("settings");
 	});
 
 	it("keeps collapsed navigation icon-only while preserving accessible labels", () => {

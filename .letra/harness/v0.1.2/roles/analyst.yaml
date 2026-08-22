@@ -1,9 +1,0 @@
-id: analyst
-label: Analista de Requisitos
-description: Gera especificações a partir de tickets e contexto do projeto.
-allowedStages:
-  - spec-draft
-capabilities:
-  - read_code
-  - write_spec
-  - generate_doc

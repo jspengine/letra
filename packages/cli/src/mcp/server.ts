@@ -16,6 +16,7 @@ import {
 } from "../domain-operations/service.js";
 import { logEntry } from "../session-log.js";
 import { createWorkspaceBoundary, type WorkspaceBoundary } from "../security/workspace-boundary.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 interface ActiveSpecPayload {
 	name: string | null;
@@ -249,7 +250,7 @@ export function createLetraMcpServer(root: string): McpServer {
 		{ title: "Constituição do workspace", mimeType: "text/markdown" },
 		async () => {
 			auditRead("constitution");
-			const path = boundary.assertPath(join(workspaceRoot, ".letra", "constitution.md"));
+			const path = boundary.assertPath(join(getLetraDir(workspaceRoot), "constitution.md"));
 			return resourceText(
 				"letra://constitution",
 				existsSync(path) ? readFileSync(path, "utf-8") : "",

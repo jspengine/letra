@@ -14,6 +14,7 @@ interface Props {
 	onDirectoryChange?: (dir: string | null) => void;
 	health?: { activeAlerts: number; criticalAlerts: number } | null;
 	onOpenHealthCenter?: () => void;
+	onOpenWorkspaceSettings?: () => void;
 }
 
 function directoryLabel(path?: string | null) {
@@ -32,6 +33,7 @@ export default function Header({
 	onDirectoryChange,
 	health,
 	onOpenHealthCenter,
+	onOpenWorkspaceSettings,
 }: Props) {
 	const { open: sidebarOpen, setOpen: setSidebarOpen } = useSidebar();
 	const directories = activeWorkspace?.directories ?? [];
@@ -52,6 +54,7 @@ export default function Header({
 			pendingDecisions={gateCount}
 			health={health}
 			onOpenHealthCenter={onOpenHealthCenter}
+			onOpenSettings={activeWorkspace ? onOpenWorkspaceSettings : undefined}
 			theme={theme}
 			onThemeChange={onThemeChange}
 		/>

@@ -32,6 +32,7 @@ export interface GlobalHeaderProps {
 	pendingDecisions?: number;
 	health?: GlobalHeaderHealth | null;
 	onOpenHealthCenter?: () => void;
+	onOpenSettings?: () => void;
 	/**
 	 * @deprecated Diagnostics belong in the supervision surface, not in the global header.
 	 */
@@ -63,6 +64,7 @@ export function GlobalHeader({
 	pendingDecisions = 0,
 	health,
 	onOpenHealthCenter,
+	onOpenSettings,
 	theme,
 	onThemeChange,
 	userSlot,
@@ -200,6 +202,19 @@ export function GlobalHeader({
 						title={`Tema ${nextTheme === "light" ? "claro" : "escuro"}`}
 					>
 						<Icon name={theme === "dark" ? "sun" : "moon"} size={16} />
+					</Button>
+				) : null}
+
+				{onOpenSettings ? (
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						onClick={onOpenSettings}
+						aria-label="Abrir configurações do workspace"
+						title="Configurações do workspace"
+					>
+						<Icon name="settings" size={16} />
 					</Button>
 				) : null}
 

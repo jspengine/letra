@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 import chalk from "chalk";
 import { type Item, type Workflow, loadWorkflow, writeWorkflow } from "./flow-init.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 function now(): string {
 	return new Date().toISOString();
@@ -30,7 +31,7 @@ export function backlogAdd(root: string, description: string, spec?: string): vo
 	}
 
 	if (spec) {
-		const specsDir = join(root, ".letra", "specs", spec);
+		const specsDir = join(getLetraDir(root), "specs", spec);
 		if (!existsSync(specsDir)) {
 			console.log(chalk.red(`Spec "${spec}" not found at .letra/specs/${spec}/`));
 			return;

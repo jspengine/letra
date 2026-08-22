@@ -92,6 +92,7 @@ function AppContent() {
       return null;
     }
   });
+  const [startWorkspaceCreation, setStartWorkspaceCreation] = useState(false);
 
 
   useEffect(() => {
@@ -101,6 +102,7 @@ function AppContent() {
   }, [theme]);
 
   function handleSelectWorkspace(ws: WorkspaceData) {
+    setStartWorkspaceCreation(false);
     localStorage.setItem("letra-active-workspace", JSON.stringify(ws));
     if (activeDirectory) {
       localStorage.removeItem("letra-active-directory");
@@ -132,6 +134,15 @@ function AppContent() {
     })
       .then(() => refreshWorkflow())
       .catch(() => refreshWorkflow());
+  }
+
+  function handleCreateWorkspaceFromSettings() {
+    localStorage.removeItem("letra-active-workspace");
+    localStorage.removeItem("letra-active-directory");
+    setActiveWorkspace(null);
+    setActiveDirectory(null);
+    setStartWorkspaceCreation(true);
+    setTab("supervision");
   }
 
   function refreshWorkflow() {
@@ -275,8 +286,10 @@ function AppContent() {
       return (
         <WorkspacesView
           onSelect={handleSelectWorkspace}
+          onWorkspacesLoaded={setWorkspaces}
           gateMode
           activeDirectory={activeDirectory}
+          startCreating={startWorkspaceCreation}
         />
       );
     }
@@ -306,7 +319,7 @@ function AppContent() {
       case "settings":
         return (
           <WorkspaceSettings
-            workspace={activeWorkspace!}
+            workspace={activeWorkspace}
             onWorkspaceUpdated={(updated) => {
               setActiveWorkspace(updated);
               setWorkspaces((prev) =>
@@ -314,9 +327,12 @@ function AppContent() {
               );
             }}
             onWorkspaceDeleted={() => {
+              setStartWorkspaceCreation(false);
               setActiveWorkspace(null);
+              setTab("supervision");
             }}
             onRefreshWorkflow={refreshWorkflow}
+            onCreateWorkspace={handleCreateWorkspaceFromSettings}
           />
         );
       default:
@@ -358,6 +374,7 @@ function AppContent() {
               activeWorkspace={activeWorkspace}
               activeDirectory={activeDirectory}
               onDirectoryChange={handleSelectDirectory}
+              onOpenWorkspaceSettings={() => setTab("settings")}
             />
           }
           header={
@@ -372,6 +389,7 @@ function AppContent() {
               onDirectoryChange={handleSelectDirectory}
               health={health}
               onOpenHealthCenter={() => setTab("supervision")}
+              onOpenWorkspaceSettings={() => setTab("settings")}
             />
           }
         >

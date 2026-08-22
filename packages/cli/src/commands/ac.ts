@@ -6,6 +6,7 @@ import { loadWorkflow } from "./flow-init.js";
 import { logEntry } from "../session-log.js";
 import { validate } from "./validate.js";
 import { generateAdapters } from "../adapters/generate.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export function findAcByPattern(lines: string[], acId: string): number | null {
 	const normalized = acId.trim();
@@ -56,7 +57,7 @@ export function markAcById(root: string, acId: string, specName?: string): void 
 		throw new Error("Spec name required. Use --spec <name> or ensure an active item has a linked spec.");
 	}
 
-	const specFile = join(root, ".letra", "specs", spec, "spec.md");
+	const specFile = join(getLetraDir(root), "specs", spec, "spec.md");
 	if (!existsSync(specFile)) {
 		throw new Error(`Spec file not found: ${specFile}`);
 	}
@@ -111,7 +112,7 @@ function listPendingAction(root: string, specName?: string): void {
 		return;
 	}
 
-	const specFile = join(root, ".letra", "specs", spec, "spec.md");
+	const specFile = join(getLetraDir(root), "specs", spec, "spec.md");
 	if (!existsSync(specFile)) {
 		console.log(chalk.red(`Spec file not found: ${specFile}`));
 		return;

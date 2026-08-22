@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 import { logEntry } from "../session-log.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 function sanitizeTitle(title: string): string {
 	return title
@@ -22,7 +23,7 @@ export default function decisionCommand() {
 		.description("Cria um novo Registro de Decisão")
 		.action((title: string) => {
 			const root = resolve(process.cwd());
-			const decisionsDir = join(root, ".letra", "decisions");
+			const decisionsDir = join(getLetraDir(root), "decisions");
 			const slug = sanitizeTitle(title);
 			const filePath = join(decisionsDir, `${slug}.md`);
 
@@ -66,7 +67,7 @@ What are the trade-offs? What does this enable or prevent?
 		.description("Lista todos os Registros de Decisão")
 		.action(() => {
 			const root = resolve(process.cwd());
-			const decisionsDir = join(root, ".letra", "decisions");
+			const decisionsDir = join(getLetraDir(root), "decisions");
 
 			if (!existsSync(decisionsDir)) {
 				console.log(chalk.yellow("No decisions directory found at .letra/decisions/"));

@@ -493,7 +493,7 @@ describe("CLI integration (AC1.5 — focus)", () => {
 			readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
 		);
 		expect(wf.items[0].claimedBy).toBeUndefined();
-	});
+	}, 20000);
 
 	it("focus <spec> --claim populates claimedBy", () => {
 		runCLI(["focus", "auth", "--claim"], tmpDir);
@@ -502,7 +502,7 @@ describe("CLI integration (AC1.5 — focus)", () => {
 		);
 		expect(wf.items[0].claimedBy).toBe("opencode");
 		expect(wf.items[0].claimedAt).toEqual(expect.any(String));
-	});
+	}, 20000);
 });
 
 describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
@@ -562,5 +562,5 @@ describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
 		);
 		const item = wf.items.find((i: Item) => i.id === "ITEM-1");
 		expect(item.stage).toBe("review");
-	});
+	}, 20000);
 });

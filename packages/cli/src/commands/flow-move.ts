@@ -8,6 +8,7 @@ import { enterStage } from "../phases/engine.js";
 import { autopilotRun, canAutopilot } from "../phases/autopilot.js";
 import { resolveActiveFlow } from "../flow-definition/resolve.js";
 import { GateChecker } from "../harness/gate-checker.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 function now(): string {
 	return new Date().toISOString();
@@ -58,7 +59,7 @@ export async function flowMove(root: string, itemId: string, targetStageInput: s
 		targetStageInput = nextStage.id;
 
 		if (!options?.force && item.spec) {
-			const specFile = join(root, ".letra", "specs", item.spec, "spec.md");
+			const specFile = join(getLetraDir(root), "specs", item.spec, "spec.md");
 			if (existsSync(specFile)) {
 				const content = readFileSync(specFile, "utf-8");
 				const pendingACs = content.match(/^- \[ \]/gm) || [];
@@ -80,7 +81,7 @@ export async function flowMove(root: string, itemId: string, targetStageInput: s
 	}
 
 	if (!options?.auto && !options?.force && item.spec) {
-		const specFile = join(root, ".letra", "specs", item.spec, "spec.md");
+		const specFile = join(getLetraDir(root), "specs", item.spec, "spec.md");
 		if (existsSync(specFile)) {
 			const content = readFileSync(specFile, "utf-8");
 			const pendingACs = content.match(/^- \[ \]/gm) || [];

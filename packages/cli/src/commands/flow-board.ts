@@ -5,6 +5,7 @@ import { resolveActiveFlow } from "../flow-definition/resolve.js";
 import type { ResolvedFlowStage } from "../flow-definition/types.js";
 import { loadWorkflow } from "./flow-init.js";
 import type { Workflow } from "./flow-init.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 type BoardStage = Pick<ResolvedFlowStage, "id" | "name" | "order" | "zone">;
 
@@ -56,7 +57,7 @@ export function flowBoard(root: string): void {
 	const boardStages = resolveBoardStages(workflow, resolveActiveFlow(root).flow?.stages);
 
 	// Load health alerts for badge display
-	const healthPath = join(root, ".letra", "health-record.json");
+	const healthPath = join(getLetraDir(root), "health-record.json");
 	let itemAlerts = new Map<string, number>();
 	try {
 		if (existsSync(healthPath)) {

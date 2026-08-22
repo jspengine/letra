@@ -17,13 +17,15 @@ import type {
 	StageActivityContextConfig,
 	StagePhases,
 } from "./types";
+import { getLetraDir } from "./../workspace/resolver.js";
+export { ensureSharedHarness } from "../workspace/resolution.js";
 
 export const DEFAULT_HARNESS_VERSION = "v0.1.0";
 
 export function resolveHarnessRoot(cwd: string, version = DEFAULT_HARNESS_VERSION): string {
 	const candidates = [
-		join(cwd, ".letra", "harness", version),
-		join(cwd, "..", ".letra", "harness", version),
+		join(getLetraDir(cwd), "harness", version),
+		join(cwd, "..", ".leta", "harness", version),
 	];
 	for (const p of candidates) {
 		if (existsSync(p)) return p;

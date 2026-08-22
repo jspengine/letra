@@ -7,12 +7,14 @@ import type { GenerateOptions, HarnessItem, HarnessSnapshot, HandoffStep, Harnes
 import type { StagePhases } from "../harness/types.js";
 import { loadHarness, resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "../harness/loader.js";
 import { loadWorkflow } from "../commands/flow-init.js";
+import { getLetraDir } from "./../workspace/resolver.js";
+import { queryLog } from "../session-log.js";
 
 function countACs(stateDir: string, specName: string | null): { pending: number; total: number; pendingIds: string[] } {
 	if (!specName) return { pending: 0, total: 0, pendingIds: [] };
 	let specDir = join(stateDir, "specs", specName);
 	if (!existsSync(specDir)) {
-		const legacyDir = join(stateDir, ".letra", "specs", specName);
+		const legacyDir = join(getLetraDir(stateDir), "specs", specName);
 		if (!existsSync(legacyDir)) return { pending: 0, total: 0, pendingIds: [] };
 		specDir = legacyDir;
 	}
@@ -40,7 +42,7 @@ function countACs(stateDir: string, specName: string | null): { pending: number;
 function loadLastSession(stateDir: string): { lastDate: string; actionsSummary: string } | null {
 	let logPath = join(stateDir, "session-log.json");
 	if (!existsSync(logPath)) {
-		const legacy = join(stateDir, ".letra", "session-log.json");
+		const legacy = join(getLetraDir(stateDir), "session-log.json");
 		if (!existsSync(legacy)) return null;
 		logPath = legacy;
 	}
@@ -108,7 +110,7 @@ function loadHarnessDirection(root: string, activeStageId: string): HarnessDirec
 export function buildHarnessSnapshot(root: string, options: GenerateOptions): HarnessSnapshot {
 	const isWorkspace = options.workspaceDir !== undefined;
 	const stateDir = isWorkspace ? options.workspaceDir! : root;
-	const dotLetra = isWorkspace ? stateDir : join(stateDir, ".letra");
+	const dotLetra = isWorkspace ? stateDir : getLetraDir(stateDir);
 	const hasFocus = existsSync(join(dotLetra, "focus.md"));
 	const buildReferenceLinks = (specName: string | null): HarnessSnapshot["referenceLinks"] => ({
 		context: pathToFileURL(join(dotLetra, "context.md")).href,

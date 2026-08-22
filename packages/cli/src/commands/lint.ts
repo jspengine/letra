@@ -2,10 +2,11 @@ import { existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { validateSpecStructure } from "../validation/structure.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export async function lint(targetPath?: string) {
 	const root = resolve(process.cwd(), targetPath || ".");
-	const specsDir = join(root, ".letra", "specs");
+	const specsDir = join(getLetraDir(root), "specs");
 
 	if (!existsSync(specsDir)) {
 		console.log(chalk.red("Error: .letra/specs/ not found. Run 'letra init' first."));

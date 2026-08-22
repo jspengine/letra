@@ -6,6 +6,7 @@ import { clearFocusFile } from "../adapters/focus-sync.js";
 import { writeFocusWithRecommendations } from "../adapters/focus-recommendations.js";
 import { loadWorkflow, writeWorkflow } from "./flow-init.js";
 import { logEntry } from "../session-log.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export default function () {
 	return new Command("focus")
@@ -14,7 +15,7 @@ export default function () {
 		.option("--clear", "Remove focus file")
 		.action(async (spec: string | undefined, options: { clear?: boolean; claim?: boolean }) => {
 			const root = resolve(process.cwd());
-			const focusFile = join(root, ".letra", "focus.md");
+			const focusFile = join(getLetraDir(root), "focus.md");
 
 			if (options.clear) {
 				if (existsSync(focusFile)) {
@@ -50,7 +51,7 @@ export default function () {
 			}
 
 			if (spec) {
-				const specDir = join(root, ".letra", "specs", spec);
+				const specDir = join(getLetraDir(root), "specs", spec);
 				const specFile = join(specDir, "spec.md");
 
 				if (!existsSync(specFile)) {

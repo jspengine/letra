@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { markAcById, listPendingACs, findAcByPattern } from "./ac.js";
 import { type Workflow, saveWorkflow } from "./flow-init.js";
+import { loadSessionLog, closeSessionLogHandles } from "../session-log.js";
 
 function createTestDir(): string {
 	const dir = join(tmpdir(), `letra-ac-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -48,6 +49,7 @@ describe("ac command", () => {
 	});
 
 	afterEach(() => {
+		closeSessionLogHandles();
 		if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true });
 		vi.restoreAllMocks();
 	});
@@ -150,10 +152,8 @@ describe("ac command", () => {
 
 			markAcById(tmpDir, "AC1.1", "test-spec");
 
-			const sessionLogFile = join(tmpDir, ".letra", "session-log.json");
-			expect(existsSync(sessionLogFile)).toBe(true);
-			const log = JSON.parse(readFileSync(sessionLogFile, "utf-8"));
-			const acDoneEntries = log.entries.filter((e: any) => e.action === "ac_done");
+			const log = loadSessionLog(tmpDir);
+			const acDoneEntries = log.entries.filter((e) => e.action === "ac_done");
 			expect(acDoneEntries.length).toBeGreaterThanOrEqual(1);
 			expect(acDoneEntries[0].acId).toBe("AC1.1");
 			expect(acDoneEntries[0].details?.spec).toBe("test-spec");

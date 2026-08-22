@@ -17,7 +17,6 @@ import {
 	loadWorkflow,
 	stageFromTemplateStage,
 	type Workflow,
-	type WorkflowTarget,
 } from "../commands/flow-init.js";
 import {
 	generateAdapters,
@@ -26,6 +25,7 @@ import {
 } from "../adapters/generate.js";
 import { DEFAULT_HARNESS_VERSION } from "../harness/loader.js";
 import type { HarnessManifest } from "../harness/types.js";
+import { ensureExternalWorkspaceLayout, getLetraDir as getHomeLetraDir } from "../workspace/index.js";
 
 interface TemplateStage {
 	id: string;
@@ -89,7 +89,7 @@ export interface WorkspaceSetupProposal {
 		root: string;
 		harnessVersion: string;
 	};
-	targets: WorkspaceSetupTargetProposal[];
+	locations: WorkspaceSetupTargetProposal[];
 	warnings: string[];
 }
 
@@ -233,11 +233,11 @@ export function analyzeWorkspaceSetup(input: { name: string; root: string }): Wo
 	}
 
 	const tools = supportedAdapterTools();
-	const targets = discoverTargetPaths(root).map((path) => {
+	const locations = discoverTargetPaths(root).map((path) => {
 		const detectedTools = new Set(detectExistingTools(path));
 		const detected = detectStack(path);
 		return {
-			id: targetId(path),
+			id: targetId(path).replace(/^target-/, "loc-"),
 			label: detectProjectName(path) || basename(path),
 			path: path.replace(/\\/g, "/"),
 			stack: detected.stack,
@@ -265,8 +265,8 @@ export function analyzeWorkspaceSetup(input: { name: string; root: string }): Wo
 			root: root.replace(/\\/g, "/"),
 			harnessVersion: DEFAULT_HARNESS_VERSION,
 		},
-		targets,
-		warnings: targets.every((target) => target.adapters.every((adapter) => !adapter.selected))
+		locations,
+		warnings: locations.every((location) => location.adapters.every((adapter) => !adapter.selected))
 			? ["Nenhuma ferramenta agêntica foi detectada. Selecione os adapters manualmente."]
 			: [],
 	};
@@ -346,7 +346,7 @@ export function planWorkspaceSetup(input: {
 	const workspaceRoot = resolve(input.workspaceRoot);
 	const normalizedRoot = workspaceRoot.replace(/\\/g, "/");
 	const operations: WorkspaceSetupOperation[] = [];
-	const workflowPath = join(workspaceRoot, ".letra", "workflow.json");
+	const workflowPath = join(workspaceRoot, "workflow.json");
 	const workflowBefore = existsSync(workflowPath) ? readFileSync(workflowPath, "utf-8") : undefined;
 	const workflowAfter = input.workflow ? JSON.stringify(input.workflow, null, 2) : undefined;
 	operations.push({
@@ -386,7 +386,7 @@ export function planWorkspaceSetup(input: {
 		const renderedAdapters = renderAdapterFiles(resolvedTarget, target.adapters, {
 			source: "init",
 			quiet: true,
-			workspaceDir: join(workspaceRoot, ".letra"),
+			workspaceDir: workspaceRoot,
 			workflow: input.workflow
 				? {
 					name: input.workflow.name,
@@ -462,8 +462,7 @@ export function registerWorkspaceSetup(input: {
 	mkdirSync(workspaceRoot, { recursive: true });
 
 	const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 64);
-	const home = process.env.HOME || process.env.USERPROFILE || ".";
-	const registryDir = join(home, ".letra", "workspaces", slug);
+	const registryDir = join(getHomeLetraDir(), "workspaces", slug);
 	mkdirSync(registryDir, { recursive: true });
 
 	const workspaceId = `ws_${Date.now().toString(36)}`;
@@ -500,7 +499,7 @@ export function writeWorkspaceTargetAdapters(
 		generateAdapters(targetPath, target.adapters, {
 			source: "init",
 			quiet: true,
-			workspaceDir: join(workspaceRoot, ".letra"),
+			workspaceDir: workspaceRoot,
 			workflow: {
 				name: workflow.name,
 				stages: workflow.stages,
@@ -511,14 +510,23 @@ export function writeWorkspaceTargetAdapters(
 	}
 }
 
-export function workflowTargets(targets: WorkspaceSetupTargetInput[], workspaceRoot: string): WorkflowTarget[] {
+export function writeExternalWorkspaceSetup(
+	workspaceRoot: string,
+	workflow: Workflow,
+	workspace: Record<string, unknown>,
+): void {
+	const root = resolve(workspaceRoot);
+	ensureExternalWorkspaceLayout(root, { workflow, workspace });
+	writeFileSync(join(root, "workflow.json"), JSON.stringify(workflow, null, 2), "utf-8");
+	writeFileSync(join(root, "workspace.json"), JSON.stringify(workspace, null, 2), "utf-8");
+}
+
+export function workflowLocations(targets: WorkspaceSetupTargetInput[], workspaceRoot: string): Array<{ id: string; path: string; label: string; adapters: string[] }> {
 	return targets.map((target) => ({
 		id: target.id,
 		path: target.path.replace(/\\/g, "/"),
-		projectType: "software",
+		label: target.label,
 		adapters: [...target.adapters],
-		buildCommand: null,
-		testCommand: null,
 	})).filter((target) => resolve(target.path) !== resolve(workspaceRoot) || target.adapters.length > 0);
 }
 
@@ -552,7 +560,7 @@ export function saveWorkspaceSetupManifest(
 	snapshots: WorkspaceSetupFileSnapshot[],
 ): string {
 	const manifestId = `setup-${Date.now().toString(36)}`;
-	const manifestDir = join(workspaceRoot, ".letra", "setup-manifests");
+	const manifestDir = join(resolve(workspaceRoot), "operations", "setup-manifests");
 	mkdirSync(manifestDir, { recursive: true });
 	writeFileSync(join(manifestDir, `${manifestId}.json`), JSON.stringify({
 		id: manifestId,
@@ -566,14 +574,17 @@ export function saveWorkspaceSetupManifest(
 
 export function rollbackWorkspaceSetup(workspaceRoot: string, manifestId: string): void {
 	if (!/^setup-[a-z0-9]+$/i.test(manifestId)) throw new Error("Manifest de rollback inválido.");
-	const manifestPath = join(resolve(workspaceRoot), ".letra", "setup-manifests", `${manifestId}.json`);
+	const root = resolve(workspaceRoot);
+	const manifestPath = existsSync(join(root, "operations", "setup-manifests", `${manifestId}.json`))
+		? join(root, "operations", "setup-manifests", `${manifestId}.json`)
+		: join(root, ".letra", "setup-manifests", `${manifestId}.json`);
 	if (!existsSync(manifestPath)) throw new Error("Manifest de rollback não encontrado.");
 	const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
 		snapshots?: WorkspaceSetupFileSnapshot[];
 	};
 	restoreWorkspaceSetup(Array.isArray(manifest.snapshots) ? manifest.snapshots : []);
 	writeFileSync(
-		join(resolve(workspaceRoot), ".letra", "setup-manifests", `${manifestId}.rollback.json`),
+		join(manifestPath, "..", `${manifestId}.rollback.json`),
 		JSON.stringify({ manifestId, rolledBackAt: new Date().toISOString() }, null, 2),
 		"utf-8",
 	);

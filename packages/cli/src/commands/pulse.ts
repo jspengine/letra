@@ -11,9 +11,13 @@ import { loadHealthRecord, getSummary } from "../health-record.js";
 import { readFocusFile, syncFocus } from "../adapters/focus-sync.js";
 import { resolveFocusRecommendations } from "../adapters/focus-recommendations.js";
 import { resolveWorkspaceRoot } from "../workspace/resolver.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export interface PulseData {
 	workspace: string;
+	dataDir: string;
+	locationPath: string;
+	legacyWarning?: string;
 	pulseAt: string;
 	currentItem: {
 		id: string;
@@ -77,7 +81,7 @@ function getStageName(workflow: Workflow, stageId: string): string {
 function countSpecACs(stateDir: string, specName: string): { pending: number; done: number; total: number } {
 	let specDir = join(stateDir, "specs", specName);
 	if (!existsSync(specDir)) {
-		specDir = join(stateDir, ".letra", "specs", specName);
+		specDir = join(getLetraDir(stateDir), "specs", specName);
 	}
 	const specFile = join(specDir, "spec.md");
 	if (!existsSync(specFile)) return { pending: 0, done: 0, total: 0 };
@@ -110,10 +114,16 @@ export async function pulse(
 	const statePath = resolution.workspaceDir;
 	const workflow = loadWorkflow(resolution.targetDir);
 	const name = workflow?.name ?? "meu-projeto";
+	const legacyWarning = resolution.type === "local" && existsSync(join(resolution.workspaceRoot, ".letra", "workflow.json"))
+		? "Workspace legado local detectado. Migre para um workspace externo com `letra migrate`."
+		: undefined;
 
 	if (!workflow) {
 		const empty: PulseData = {
 			workspace: name,
+			dataDir: statePath,
+			locationPath: resolution.locationPath,
+			legacyWarning,
 			pulseAt: new Date().toISOString(),
 			currentItem: null,
 			alerts: { novo: 0, acknowledged: 0, resolved: 0, dismissed: 0, highSeverity: 0 },
@@ -141,6 +151,9 @@ export async function pulse(
 
 	const pulseData: PulseData = {
 		workspace: name,
+		dataDir: statePath,
+		locationPath: resolution.locationPath,
+		legacyWarning,
 		pulseAt: new Date().toISOString(),
 		currentItem: currentItem
 			? {
@@ -209,6 +222,10 @@ function renderPulseText(data: PulseData, focusDiverged = false, statePath?: str
 	console.log(`${chalk.bold("║     Pulso do Workspace")}                  `);
 	console.log(`${chalk.bold("║")}     ${chalk.gray(`${data.workspace} · ${dateStr}`)}`);
 	console.log(`${chalk.bold("╚══════════════════════════════════════════╝")}\n`);
+	if (data.legacyWarning) {
+		console.log(`  ${chalk.yellow(data.legacyWarning)}`);
+		console.log();
+	}
 
 	if (data.currentItem) {
 		const ci = data.currentItem;
@@ -288,13 +305,15 @@ export default function () {
 			if (options.build || options.test) {
 				const resolution = resolveWorkspaceRoot(root);
 				const workflow = loadWorkflow(resolution.targetDir);
-				const target = workflow?.targets?.[0];
+				const location = workflow?.locations?.[0] as
+					| { path: string; buildCommand?: string | null; testCommand?: string | null }
+					| undefined;
 				if (options.build) {
-					const result = runTargetCommand(target?.path || root, "Build", target?.buildCommand ?? null);
+					const result = runTargetCommand(location?.path || root, "Build", location?.buildCommand ?? null);
 					if (result) console.log(chalk.gray(result));
 				}
 				if (options.test) {
-					const result = runTargetCommand(target?.path || root, "Test", target?.testCommand ?? null);
+					const result = runTargetCommand(location?.path || root, "Test", location?.testCommand ?? null);
 					if (result) console.log(chalk.gray(result));
 				}
 			}

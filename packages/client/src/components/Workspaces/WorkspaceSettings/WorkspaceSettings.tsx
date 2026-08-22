@@ -13,6 +13,7 @@ import {
 	Icon,
 	Label,
 	ConfirmDialog,
+	Dialog,
 	useToast,
 } from "@letra/ui";
 import type { WorkspaceData } from "../WorkspacesView";
@@ -21,6 +22,9 @@ interface WorkflowLocation {
 	id: string;
 	path: string;
 	label: string;
+	adapters?: string[];
+	linkStatus?: "ok" | "missing" | "broken" | "unknown";
+	linkOk?: boolean;
 }
 
 interface TemplateOption {
@@ -54,6 +58,8 @@ interface Props {
 	onWorkspaceUpdated: (updated: WorkspaceData) => void;
 	onWorkspaceDeleted: () => void;
 	onRefreshWorkflow: () => void;
+	onCreateWorkspace?: () => void;
+	onClose?: () => void;
 }
 
 export default function WorkspaceSettings({
@@ -61,8 +67,10 @@ export default function WorkspaceSettings({
 	onWorkspaceUpdated,
 	onWorkspaceDeleted,
 	onRefreshWorkflow,
+	onCreateWorkspace,
+	onClose,
 }: Props) {
-	const { toast } = useToast();
+	const { toast, toastWithOptions } = useToast();
 	const [activeTab, setActiveTab] = useState("general");
 	const [name, setName] = useState(workspace.name);
 	const [description, setDescription] = useState(workspace.description || "");
@@ -79,6 +87,8 @@ export default function WorkspaceSettings({
 	const [editLabel, setEditLabel] = useState("");
 	const [deleteLocationId, setDeleteLocationId] = useState<string | null>(null);
 	const [deleteLocationPath, setDeleteLocationPath] = useState("");
+	const [locationAdapters, setLocationAdapters] = useState<Record<string, string[]>>({});
+	const [savingLocationAdapters, setSavingLocationAdapters] = useState(false);
 
 	// Directory browser state
 	const [dirBrowserOpen, setDirBrowserOpen] = useState(false);
@@ -101,6 +111,10 @@ export default function WorkspaceSettings({
 	const [loadingAdapters, setLoadingAdapters] = useState(false);
 	const [savingAdapters, setSavingAdapters] = useState(false);
 
+	// Externalization state (ITEM-79)
+	const [migrating, setMigrating] = useState(false);
+	const [migrationError, setMigrationError] = useState("");
+
 	// Undo state
 	const undoTimerRef = useState<ReturnType<typeof setTimeout> | null>(null);
 	const pendingUndoRef = useState<{ undo: () => void; label: string } | null>(null);
@@ -112,7 +126,14 @@ export default function WorkspaceSettings({
 			pendingUndoRef[0] = null;
 		}, 30000);
 		undoTimerRef[0] = timer;
-		toast(`${label} — Desfazer disponível por 30s`, "success");
+		toastWithOptions(`${label} — desfazer disponível por 30s`, {
+			type: "success",
+			duration: 30000,
+			action: {
+				label: "Desfazer",
+				onClick: handleUndo,
+			},
+		});
 	}
 
 	function handleUndo() {
@@ -178,9 +199,18 @@ export default function WorkspaceSettings({
 		try {
 			const res = await fetch("/api/workflow");
 			const data = await res.json();
-			setLocations(data.locations || []);
+			const locs = data.locations || [];
+			setLocations(locs);
+			const adaptersMap: Record<string, string[]> = {};
+			for (const loc of locs) {
+				if (loc.id) {
+					adaptersMap[loc.id] = Array.isArray(loc.adapters) ? loc.adapters : [];
+				}
+			}
+			setLocationAdapters(adaptersMap);
 		} catch {
 			setLocations([]);
+			setLocationAdapters({});
 		} finally {
 			setLoadingLocations(false);
 		}
@@ -274,6 +304,7 @@ export default function WorkspaceSettings({
 
 	async function handleSaveLabel(locId: string) {
 		if (!editLabel.trim()) return;
+		const previousLocation = locations.find((location) => location.id === locId);
 		try {
 			const res = await fetch(`/api/workflow/locations/${locId}`, {
 				method: "PATCH",
@@ -284,7 +315,18 @@ export default function WorkspaceSettings({
 			const updated = await res.json();
 			setLocations((prev) => prev.map((l) => (l.id === locId ? updated : l)));
 			setEditingLocationId(null);
-			toast("Label atualizado", "success");
+			if (previousLocation) {
+				showUndoToast("Label atualizado", () => {
+					setLocations((prev) => prev.map((l) => (l.id === locId ? previousLocation : l)));
+					fetch(`/api/workflow/locations/${locId}`, {
+						method: "PATCH",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ label: previousLocation.label }),
+					});
+				});
+			} else {
+				toast("Label atualizado", "success");
+			}
 		} catch {
 			toast("Erro ao atualizar label", "error");
 		}
@@ -315,7 +357,85 @@ export default function WorkspaceSettings({
 		} catch {
 			toast("Erro ao remover local", "error");
 		}
+		}
+
+	async function handleRepairLocation(locId: string) {
+		const previousLocation = locations.find((location) => location.id === locId);
+		try {
+			const res = await fetch(`/api/workflow/locations/${locId}/repair-link`, {
+				method: "POST",
+			});
+			if (!res.ok) throw new Error("Failed to repair link");
+			const data = await res.json();
+			if (data.location) {
+				setLocations((prev) => prev.map((location) => (
+					location.id === locId
+						? { ...location, ...data.location, linkStatus: "ok", linkOk: true }
+						: location
+				)));
+			} else if (previousLocation) {
+				setLocations((prev) => prev.map((location) => (
+					location.id === locId ? { ...location, linkStatus: "ok", linkOk: true } : location
+				)));
+			}
+			toast("Vínculo reparado", "success");
+		} catch {
+			toast("Erro ao reparar vínculo", "error");
+		}
 	}
+
+	function linkStatusLabel(location: WorkflowLocation) {
+		if (location.linkOk === true || location.linkStatus === "ok") return "Vínculo ok";
+		if (location.linkOk === false || location.linkStatus === "missing") return ".letra-link ausente";
+		if (location.linkStatus === "broken") return ".letra-link quebrado";
+		return "Vínculo não verificado";
+	}
+
+	function linkStatusTone(location: WorkflowLocation): "success" | "warning" | "info" {
+		if (location.linkOk === true || location.linkStatus === "ok") return "success";
+		if (location.linkOk === false || location.linkStatus === "missing" || location.linkStatus === "broken") return "warning";
+		return "info";
+	}
+
+		const ALL_ADAPTERS = [
+		{ id: "opencode", label: "OpenCode" },
+		{ id: "cursor", label: "Cursor" },
+		{ id: "codex", label: "Codex" },
+		{ id: "claude-code", label: "Claude Code" },
+		{ id: "vscode", label: "VS Code" },
+		{ id: "windsurf", label: "Windsurf" },
+		{ id: "hermes", label: "Hermes" },
+		];
+
+		async function handleToggleLocationAdapter(locId: string, adapterId: string) {
+		const previous = locationAdapters[locId] || [];
+		const next = previous.includes(adapterId)
+			? previous.filter((id) => id !== adapterId)
+			: [...previous, adapterId];
+		setLocationAdapters((prev) => ({ ...prev, [locId]: next }));
+		setSavingLocationAdapters(true);
+		try {
+			const res = await fetch(`/api/workflow/locations/${locId}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ adapters: next }),
+			});
+			if (!res.ok) throw new Error("Failed to update adapters");
+			showUndoToast("Adapters atualizados", () => {
+				setLocationAdapters((prev) => ({ ...prev, [locId]: previous }));
+				fetch(`/api/workflow/locations/${locId}`, {
+					method: "PATCH",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ adapters: previous }),
+				});
+			});
+		} catch {
+			setLocationAdapters((prev) => ({ ...prev, [locId]: previous }));
+			toast("Erro ao atualizar adapters", "error");
+		} finally {
+			setSavingLocationAdapters(false);
+		}
+		}
 
 	// ── Adapter toggle ──
 
@@ -360,6 +480,8 @@ export default function WorkspaceSettings({
 		if (!selectedTemplate || switchingTemplate) return;
 		const prevTemplate = currentTemplate;
 		const prevStages = [...currentStages];
+		const nextTemplate = templates.find((template) => template.id === selectedTemplate);
+		const removedStages = prevStages.filter((stage) => !nextTemplate?.stages.some((candidate) => candidate.id === stage.id));
 		setSwitchingTemplate(true);
 		try {
 			const res = await fetch("/api/workflow/template", {
@@ -373,6 +495,9 @@ export default function WorkspaceSettings({
 			setCurrentStages(data.stages?.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })) || []);
 			setSelectedTemplate(null);
 			onRefreshWorkflow();
+			if (removedStages.length > 0) {
+				toast(`${removedStages.length} estágio(s) removido(s); itens preservados no backlog`, "success");
+			}
 			showUndoToast("Template atualizado", () => {
 				setCurrentTemplate(prevTemplate);
 				setCurrentStages(prevStages);
@@ -391,6 +516,58 @@ export default function WorkspaceSettings({
 	}
 
 	// ── Directory browser ──
+
+	// ── Externalization (ITEM-79) ──
+
+	async function handleMigrate() {
+		if (!workspace.root || migrating) return;
+		setMigrating(true);
+		setMigrationError("");
+		try {
+			const res = await fetch("/api/workflow/migrate-harness", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ workspaceRoot: workspace.root, clean: false }),
+			});
+			if (!res.ok) throw new Error(`Migration failed (${res.status})`);
+			const data = await res.json();
+			if (data.ok) {
+				toast("Workspace externalizado com sucesso", "success");
+				onRefreshWorkflow();
+			} else {
+				setMigrationError(data.message || "Erro ao externalizar");
+			}
+		} catch (error: unknown) {
+			setMigrationError((error as Error)?.message || "Erro ao externalizar");
+		} finally {
+			setMigrating(false);
+		}
+	}
+
+	async function handleCleanMigrate() {
+		if (!workspace.root || migrating) return;
+		setMigrating(true);
+		setMigrationError("");
+		try {
+			const res = await fetch("/api/workflow/migrate-harness", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ workspaceRoot: workspace.root, clean: true }),
+			});
+			if (!res.ok) throw new Error(`Migration failed (${res.status})`);
+			const data = await res.json();
+			if (data.ok) {
+				toast("Workspace externalizado e pasta original removida", "success");
+				onRefreshWorkflow();
+			} else {
+				setMigrationError(data.message || "Erro ao externalizar");
+			}
+		} catch (error: unknown) {
+			setMigrationError((error as Error)?.message || "Erro ao externalizar");
+		} finally {
+			setMigrating(false);
+		}
+	}
 
 	async function browseDir(path?: string) {
 		setDirLoading(true);
@@ -412,6 +589,8 @@ export default function WorkspaceSettings({
 	function openDirBrowser() {
 		setDirBrowserOpen(true);
 		setSelectedDir(null);
+		setDirPath("");
+		setDirEntries([]);
 		browseDir();
 	}
 
@@ -426,15 +605,35 @@ export default function WorkspaceSettings({
 							{workspace.name}
 						</p>
 					</div>
-					{activeTab === "general" && (
-						<Button
-							onClick={handleSave}
-							disabled={!hasChanges || !nameValid || saving}
-							loading={saving}
-						>
-							Salvar
-						</Button>
-					)}
+					<div className="flex items-center gap-2">
+						{onCreateWorkspace ? (
+							<Button type="button" variant="secondary" onClick={onCreateWorkspace}>
+								<Icon name="plus" size={14} />
+								Novo workspace
+							</Button>
+						) : null}
+						{activeTab === "general" && (
+							<Button
+								onClick={handleSave}
+								disabled={!hasChanges || !nameValid || saving}
+								loading={saving}
+							>
+								Salvar
+							</Button>
+						)}
+						{onClose ? (
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="size-8 px-0"
+								aria-label="Fechar configurações do workspace"
+								onClick={onClose}
+							>
+								<Icon name="x" size={16} />
+							</Button>
+						) : null}
+					</div>
 				</div>
 			</div>
 
@@ -443,19 +642,23 @@ export default function WorkspaceSettings({
 				<Tabs
 					tabs={[
 						{ id: "general", label: "Geral", icon: <Icon name="settings" size={14} /> },
-						{ id: "locations", label: "Locais", icon: <Icon name="folder" size={14} /> },
+						{ id: "locations", label: "Pastas/projetos", icon: <Icon name="folder" size={14} /> },
 						{ id: "flow", label: "Fluxo", icon: <Icon name="flow" size={14} /> },
 						{ id: "adapters", label: "Adapters", icon: <Icon name="cpu" size={14} /> },
-						{ id: "advanced", label: "Avançado", icon: <Icon name="shield" size={14} /> },
-					]}
+												{ id: "advanced", label: "Avançado", icon: <Icon name="shield" size={14} /> },
+												{ id: "externalization", label: "Externalização", icon: <Icon name="folder" size={14} /> },
+											]}
 					activeTab={activeTab}
 					onChange={setActiveTab}
 					ariaLabel="Configurações do workspace"
 				>
 					{(activeId) => (
-						<>
+						<div
+							data-testid="workspace-settings-tab-panel"
+							className="px-4 py-5 sm:px-6 lg:px-8"
+						>
 							{activeId === "general" && (
-								<div className="space-y-6 mt-4">
+								<div className="space-y-6">
 									<div className="space-y-4">
 										<Label className="flex flex-col items-start gap-[var(--space-2)]">
 											<span className="text-caption font-medium" style={{ color: "var(--color-text-secondary)" }}>
@@ -501,14 +704,20 @@ export default function WorkspaceSettings({
 							)}
 
 							{activeId === "locations" && (
-								<div className="mt-4 space-y-4">
+								<div className="space-y-4">
+									<Label className="flex flex-col items-start gap-[var(--space-2)]">
+										<span className="text-caption font-medium" style={{ color: "var(--color-text-secondary)" }}>
+											Data directory do workspace
+										</span>
+										<Input value={workspace.dataDir || workspace.root || ""} readOnly aria-readonly="true" />
+									</Label>
 									<div className="flex items-center justify-between">
 										<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
-											Gerencie os diretórios onde esta solução faz alterações.
+											Gerencie as pastas/projetos vinculadas a este workspace.
 										</p>
 										<Button size="sm" onClick={openDirBrowser}>
 											<Icon name="plus" size={14} />
-											Adicionar Local
+											Adicionar pasta
 										</Button>
 									</div>
 
@@ -520,10 +729,10 @@ export default function WorkspaceSettings({
 										<div className="rounded-[var(--radius-md)] border border-dashed p-6 text-center" style={{ borderColor: "var(--color-border)" }}>
 											<Icon name="folder" size={24} className="mx-auto mb-2" style={{ color: "var(--color-text-secondary)" }} />
 											<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
-												Nenhum local configurado
+												Nenhuma pasta/projeto vinculada
 											</p>
 											<Button size="sm" className="mt-3" onClick={openDirBrowser}>
-												Adicionar primeiro local
+												Adicionar primeira pasta
 											</Button>
 										</div>
 									) : (
@@ -542,16 +751,27 @@ export default function WorkspaceSettings({
 																	value={editLabel}
 																	onChange={(e) => setEditLabel(e.target.value)}
 																	className="h-8"
+																	aria-label={`Label do local ${loc.label}`}
 																	autoFocus
 																	onKeyDown={(e) => {
 																		if (e.key === "Enter") handleSaveLabel(loc.id);
 																		if (e.key === "Escape") setEditingLocationId(null);
 																	}}
 																/>
-																<Button size="sm" variant="ghost" onClick={() => handleSaveLabel(loc.id)}>
+																<Button
+																	size="sm"
+																	variant="ghost"
+																	aria-label={`Salvar local ${loc.label}`}
+																	onClick={() => handleSaveLabel(loc.id)}
+																>
 																	<Icon name="check" size={14} />
 																</Button>
-																<Button size="sm" variant="ghost" onClick={() => setEditingLocationId(null)}>
+																<Button
+																	size="sm"
+																	variant="ghost"
+																	aria-label={`Cancelar edição de ${loc.label}`}
+																	onClick={() => setEditingLocationId(null)}
+																>
 																	<Icon name="x" size={14} />
 																</Button>
 															</div>
@@ -561,6 +781,42 @@ export default function WorkspaceSettings({
 																<p className="text-caption font-mono truncate" style={{ color: "var(--color-text-secondary)" }}>
 																	{loc.path}
 																</p>
+																<span
+																	className="mt-2 inline-flex rounded-full px-2 py-0.5 text-caption"
+																	style={{
+																		background: linkStatusTone(loc) === "success"
+																			? "var(--color-success-subtle)"
+																			: "var(--color-surface-secondary)",
+																		color: linkStatusTone(loc) === "success"
+																			? "var(--color-success)"
+																			: "var(--color-text-secondary)",
+																	}}
+																>
+																	{linkStatusLabel(loc)}
+																</span>
+																{!savingLocationAdapters && (
+																	<details className="mt-2 rounded-[var(--radius-sm)] border p-2" style={{ borderColor: "var(--color-border)" }}>
+																		<summary className="cursor-pointer text-caption font-medium">Adapters da pasta</summary>
+																		<div className="mt-2 flex flex-wrap gap-2">
+																			{ALL_ADAPTERS.map((adapter) => {
+																				const selected = (locationAdapters[loc.id] || []).includes(adapter.id);
+																				return (
+																					<Button
+																						key={adapter.id}
+																						size="sm"
+																						variant={selected ? "secondary" : "ghost"}
+																						className="h-7 px-2"
+																						aria-pressed={selected}
+																						disabled={savingLocationAdapters}
+																						onClick={() => handleToggleLocationAdapter(loc.id, adapter.id)}
+																					>
+																						{adapter.label}
+																					</Button>
+																				);
+																			})}
+																		</div>
+																	</details>
+																)}
 															</>
 														)}
 													</div>
@@ -569,6 +825,7 @@ export default function WorkspaceSettings({
 															<Button
 																size="sm"
 																variant="ghost"
+																aria-label={`Editar label da pasta ${loc.label}`}
 																onClick={() => {
 																	setEditingLocationId(loc.id);
 																	setEditLabel(loc.label);
@@ -579,6 +836,15 @@ export default function WorkspaceSettings({
 															<Button
 																size="sm"
 																variant="ghost"
+																aria-label={`Reparar vínculo da pasta ${loc.label}`}
+																onClick={() => handleRepairLocation(loc.id)}
+															>
+																<Icon name="activity" size={14} />
+															</Button>
+															<Button
+																size="sm"
+																variant="ghost"
+																aria-label={`Remover vínculo da pasta ${loc.label}`}
 																onClick={() => {
 																	setDeleteLocationId(loc.id);
 																	setDeleteLocationPath(loc.path);
@@ -596,7 +862,7 @@ export default function WorkspaceSettings({
 							)}
 
 							{activeId === "flow" && (
-								<div className="mt-4 space-y-4">
+								<div className="space-y-4">
 									<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
 										Altere o template do fluxo de trabalho. Itens em estágios removidos vão para o backlog.
 									</p>
@@ -633,12 +899,14 @@ export default function WorkspaceSettings({
 												const isSelected = tpl.id === selectedTemplate;
 												const addedStages = tpl.stages.filter((s) => !currentStages.some((cs) => cs.id === s.id));
 												const removedStages = currentStages.filter((cs) => !tpl.stages.some((s) => s.id === cs.id));
+												const unchangedStages = tpl.stages.filter((s) => currentStages.some((cs) => cs.id === s.id));
 
 												return (
-													<button
+													<Button
 														key={tpl.id}
 														type="button"
-														className={`flex w-full flex-col gap-2 rounded-[var(--radius-md)] border p-3 text-left transition-colors ${
+														variant="ghost"
+														className={`h-auto w-full flex-col items-stretch gap-2 rounded-[var(--radius-md)] border p-3 text-left ${
 															isSelected
 																? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)]"
 																: "hover:bg-[var(--color-surface-secondary)]"
@@ -687,20 +955,30 @@ export default function WorkspaceSettings({
 															})}
 														</div>
 														{!isCurrent && (addedStages.length > 0 || removedStages.length > 0) && (
-															<div className="text-caption space-y-1" style={{ color: "var(--color-text-secondary)" }}>
+															<div className="text-caption flex flex-col gap-1" style={{ color: "var(--color-text-secondary)" }}>
+																{unchangedStages.length > 0 && (
+																	<p>
+																		Inalterados: {unchangedStages.map((s) => s.name).join(", ")}
+																	</p>
+																)}
 																{addedStages.length > 0 && (
 																	<p style={{ color: "var(--color-success)" }}>
-																		+ {addedStages.map((s) => s.name).join(", ")}
+																		Adicionados: {addedStages.map((s) => s.name).join(", ")}
 																	</p>
 																)}
 																{removedStages.length > 0 && (
 																	<p style={{ color: "var(--color-error)" }}>
-																		- {removedStages.map((s) => s.name).join(", ")}
+																		Removidos: {removedStages.map((s) => s.name).join(", ")}
+																	</p>
+																)}
+																{removedStages.length > 0 && (
+																	<p>
+																		Itens nesses estágios serão preservados no backlog.
 																	</p>
 																)}
 															</div>
 														)}
-													</button>
+													</Button>
 												);
 											})}
 										</div>
@@ -715,7 +993,7 @@ export default function WorkspaceSettings({
 							)}
 
 							{activeId === "adapters" && (
-								<div className="mt-4 space-y-4">
+								<div className="space-y-4">
 									<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
 										Selecione quais adapters estão ativos. Adapters são regenerados automaticamente.
 									</p>
@@ -738,15 +1016,18 @@ export default function WorkspaceSettings({
 												if (adapter.capabilities.hooks) caps.push("Hooks");
 
 												return (
-													<button
+													<Button
 														key={adapter.id}
 														type="button"
-														className={`flex w-full items-start gap-3 rounded-[var(--radius-md)] border p-3 text-left transition-colors ${
+														variant="ghost"
+														className={`h-auto w-full items-start justify-start gap-3 rounded-[var(--radius-md)] border p-3 text-left ${
 															adapter.active
 																? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)]"
 																: "hover:bg-[var(--color-surface-secondary)]"
 														}`}
 														style={{ borderColor: adapter.active ? undefined : "var(--color-border)" }}
+														aria-label={`${adapter.active ? "Desativar" : "Ativar"} adapter ${adapter.displayName}`}
+														aria-pressed={adapter.active}
 														onClick={() => handleToggleAdapter(adapter.id)}
 														disabled={savingAdapters}
 													>
@@ -786,13 +1067,11 @@ export default function WorkspaceSettings({
 																	))}
 																</div>
 															)}
-															{adapter.detected && (
-																<p className="text-caption mt-1" style={{ color: "var(--color-text-secondary)" }}>
-																	Arquivo(s): {adapter.detectionPaths.join(", ")}
-																</p>
-															)}
+															<p className="text-caption mt-1" style={{ color: "var(--color-text-secondary)" }}>
+																Arquivo(s) esperado(s): {adapter.detectionPaths.join(", ")}
+															</p>
 														</div>
-													</button>
+													</Button>
 												);
 											})}
 										</div>
@@ -801,7 +1080,7 @@ export default function WorkspaceSettings({
 							)}
 
 							{activeId === "advanced" && (
-								<div className="mt-4 space-y-4">
+								<div className="space-y-4">
 									<div className="rounded-[var(--radius-md)] border p-4" style={{ borderColor: "var(--color-error)" }}>
 										<h4 className="text-sm font-semibold" style={{ color: "var(--color-error)" }}>
 											Zona de perigo
@@ -820,34 +1099,104 @@ export default function WorkspaceSettings({
 									</div>
 								</div>
 							)}
-						</>
+							{activeId === "externalization" && (
+								<div className="space-y-6">
+									<h2 className="text-sm font-semibold">Externalização de dados</h2>
+									<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
+										Os arquivos do workspace (workflow.json, harness, specs, memories) podem ser externalizados para fora do projeto, mantendo apenas o link .le.etra-link.
+									</p>
+									{workspace.dataDir ? (
+										<div className="text-caption break-all" style={{ color: "var(--color-text-secondary)" }}>{workspace.dataDir}</div>
+									) : (
+										<Button size="sm" variant="secondary" onClick={onRefreshWorkflow}>Atualizar localização</Button>
+									)}
+
+									{migrationError && (<p className="text-caption" style={{ color: "var(--color-error)" }}>{migrationError}</p>)}
+									<div className="flex items-center gap-2">
+										<Button size="sm" loading={migrating} onClick={handleMigrate}>Migrar para diretório externo</Button>
+										<Button size="sm" variant="secondary" loading={migrating} onClick={handleCleanMigrate}>Migrar e remover origem</Button>
+									</div>
+								</div>
+							)}
+						</div>
 					)}
 				</Tabs>
 			</div>
 
 			{/* Delete workspace dialogs */}
 			{deleteStep === "confirm" && (
-				<ConfirmDialog
+				<Dialog
 					open={showDeleteConfirm}
 					onClose={() => setShowDeleteConfirm(false)}
-					onConfirm={() => setDeleteStep("type-name")}
 					title="Excluir workspace?"
-					message={`Tem certeza que deseja excluir "${workspace.name}"? Esta ação é irreversível.`}
-					confirmLabel="Continuar"
-					variant="danger"
-				/>
+					actions={
+						<>
+							<Button type="button" variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
+								Cancelar
+							</Button>
+							<Button type="button" variant="danger" onClick={() => setDeleteStep("type-name")}>
+								Continuar
+							</Button>
+						</>
+					}
+				>
+					<p className="text-body" style={{ color: "var(--color-text-secondary)" }}>
+						Tem certeza que deseja excluir "{workspace.name}"? Esta ação é irreversível.
+					</p>
+				</Dialog>
 			)}
 
 			{deleteStep === "type-name" && (
-				<ConfirmDialog
+				<Dialog
 					open={showDeleteConfirm}
-					onClose={() => setShowDeleteConfirm(false)}
-					onConfirm={handleDelete}
+					onClose={() => {
+						setShowDeleteConfirm(false);
+						setDeleteStep("confirm");
+						setDeleteInput("");
+					}}
 					title={`Digite "${workspace.name}" para confirmar`}
-					message="Todos os dados serão preservados no disco, mas o registro será removido."
-					confirmLabel="Excluir permanentemente"
-					variant="danger"
-				/>
+					actions={
+						<>
+							<Button
+								type="button"
+								variant="secondary"
+								onClick={() => {
+									setShowDeleteConfirm(false);
+									setDeleteStep("confirm");
+									setDeleteInput("");
+								}}
+							>
+								Cancelar
+							</Button>
+							<Button
+								type="button"
+								variant="danger"
+								disabled={deleteInput !== workspace.name}
+								onClick={handleDelete}
+							>
+								Excluir permanentemente
+							</Button>
+						</>
+					}
+				>
+					<div className="grid gap-3">
+						<p className="text-body" style={{ color: "var(--color-text-secondary)" }}>
+							Todos os dados serão preservados no disco, mas o registro será removido.
+						</p>
+						<Label className="flex flex-col items-start gap-[var(--space-2)]">
+							<span className="text-caption font-medium" style={{ color: "var(--color-text-secondary)" }}>
+								Nome do workspace
+							</span>
+							<Input
+								value={deleteInput}
+								onChange={(event) => setDeleteInput(event.target.value)}
+								aria-label="Digite o nome do workspace para confirmar exclusão"
+								placeholder={workspace.name}
+								autoFocus
+							/>
+						</Label>
+					</div>
+				</Dialog>
 			)}
 
 			{/* Delete location dialog */}
@@ -881,12 +1230,13 @@ export default function WorkspaceSettings({
 									<Input
 										value={dirPath}
 										onChange={(e) => setDirPath(e.target.value)}
+										aria-label="Caminho do diretório"
 										placeholder="Caminho do diretório"
 										onKeyDown={(e) => {
 											if (e.key === "Enter") browseDir(dirPath);
 										}}
 									/>
-									<Button size="sm" onClick={() => browseDir(dirPath)}>
+									<Button size="sm" aria-label="Buscar diretório" onClick={() => browseDir(dirPath)}>
 										<Icon name="search" size={14} />
 									</Button>
 								</div>
@@ -904,10 +1254,11 @@ export default function WorkspaceSettings({
 								) : (
 									<div className="space-y-1">
 										{dirEntries.map((entry) => (
-											<button
+											<Button
 												key={entry.path}
 												type="button"
-												className={`flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm transition-colors ${
+												variant="ghost"
+												className={`h-auto w-full justify-start gap-2 rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm ${
 													selectedDir?.path === entry.path
 														? "bg-[var(--color-primary)] text-[var(--color-text-on-primary)]"
 														: "hover:bg-[var(--color-surface-secondary)]"
@@ -916,8 +1267,16 @@ export default function WorkspaceSettings({
 											>
 												<Icon name="folder" size={14} />
 												<span className="truncate">{entry.name}</span>
-											</button>
+											</Button>
 										))}
+										{selectedDir && (
+											<div className="rounded-[var(--radius-md)] border p-3" style={{ borderColor: "var(--color-border)" }}>
+												<p className="text-caption font-medium">Diretório selecionado</p>
+												<p className="mt-1 truncate font-mono text-caption" style={{ color: "var(--color-text-secondary)" }}>
+													{selectedDir.path}
+												</p>
+											</div>
+										)}
 										{dirEntries.length === 0 && !dirError && (
 											<p className="text-caption py-4 text-center" style={{ color: "var(--color-text-secondary)" }}>
 												Nenhum subdiretório encontrado

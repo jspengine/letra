@@ -4,6 +4,7 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { loadWorkflow, writeWorkflow } from "./flow-init.js";
 import { readFocusFile } from "../adapters/focus-sync.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export async function validateFocus(focusSpec: string, items: Array<{ id: string; spec?: string; stage: string; description: string }>, stages: Array<{ id: string }>): Promise<string[]> {
 	const warnings: string[] = [];
@@ -23,7 +24,7 @@ export async function validateFocus(focusSpec: string, items: Array<{ id: string
 }
 
 export async function syncNow(rootPath: string, options?: { dryRun?: boolean; skipSitrep?: boolean }): Promise<{ ok: boolean; filesUpdated: string[]; warnings: string[]; error?: string }> {
-	const workflowFile = join(rootPath, ".letra", "workflow.json");
+	const workflowFile = join(getLetraDir(rootPath), "workflow.json");
 	if (!existsSync(workflowFile)) {
 		return { ok: false, filesUpdated: [], warnings: [], error: "No workflow found at .letra/workflow.json" };
 	}

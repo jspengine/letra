@@ -9,6 +9,7 @@ import { acFalsePosDetector } from "./detectors/ac-false-pos.js";
 import { missingSpecLinkDetector } from "./detectors/missing-spec-link.js";
 import { focusStaleDetector } from "./detectors/focus-stale.js";
 import { writeWorkflow } from "../commands/flow-init.js";
+import { getLetraDir } from "../workspace/resolver.js";
 import type { DiagnosticResult } from "./types.js";
 
 export type DiagnosticType = "info" | "warning" | "error";
@@ -152,12 +153,13 @@ export class DiagnosticEngine {
 
   ensureDirs(): void {
     const requiredDirs = [
-      ".letra/templates",
-      ".letra/brand",
-      ".letra/snapshots",
+      "templates",
+      "brand",
+      "snapshots",
     ];
+    const dataDir = getLetraDir(this.rootDir);
     for (const dir of requiredDirs) {
-      const fullPath = join(this.rootDir, dir);
+      const fullPath = join(dataDir, dir);
       if (!existsSync(fullPath)) {
         try {
           const { mkdirSync } = require("node:fs");

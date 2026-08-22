@@ -1,9 +1,15 @@
 import { type IncomingMessage, type ServerResponse, createServer } from "node:http";
 
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { detectProjectName, loadWorkflow, writeWorkflow } from "./flow-init.js";
 import type { Workflow } from "./flow-init.js";
-import { loadHarness, resolveHarnessRoot } from "../harness/loader";
+import {
+	loadHarness,
+	resolveHarnessRoot,
+	ensureSharedHarness,
+	DEFAULT_HARNESS_VERSION,
+} from "../harness/loader";
 import { DiagnosticEngine } from "../diagnostics/engine.js";
 import { resolveWorkspaceRoot } from "../workspace/resolver.js";
 import type { WorkspaceResolution } from "../workspace/resolver.js";
@@ -47,6 +53,7 @@ import {
 	rollbackWorkspaceSetup,
 	saveWorkspaceSetupManifest,
 	restoreWorkspaceSetup,
+	writeExternalWorkspaceSetup,
 	writeWorkspaceTargetAdapters,
 } from "../flow-serve/workspace.js";
 import { getRecurringSystemActions, logSystemAction } from "../flow-serve/system-actions.js";
@@ -63,6 +70,19 @@ import { ClientAssets } from "../flow-serve/client-assets.js";
 import { AutomationRuntime, type AutomationBinding } from "../flow-serve/automation-runtime.js";
 
 const DEFAULT_PORT = 3000;
+
+/**
+ * Resolve the harness directory for `root`, preferring the workspace-local
+ * harness and falling back to the externalized shared harness (bootstrapping
+ * it from the CLI defaults on first use). Used by flow-serve only — keeps
+ * `letra flow init --quick` on its inline 5-stage default when no local
+ * harness exists (see resolveHarnessRoot, which is local-only).
+ */
+function resolveHarnessWithShared(root: string): string {
+	const local = resolveHarnessRoot(root, DEFAULT_HARNESS_VERSION);
+	if (existsSync(local)) return local;
+	return ensureSharedHarness(DEFAULT_HARNESS_VERSION);
+}
 
 function esc(s: string): string {
 	return s
@@ -173,7 +193,7 @@ export class FlowServer {
 				writeWorkflow,
 				resolveActiveFlow: resolveActiveFlowFor,
 				detectWorkspaceName: detectProjectName,
-				loadHarness: (workspaceRoot) => loadHarness(resolveHarnessRoot(workspaceRoot)),
+				loadHarness: (workspaceRoot) => loadHarness(resolveHarnessWithShared(workspaceRoot)),
 				createFromTemplate: createWorkflowFromTemplateService,
 				broadcast: () => this.broadcast(),
 			}),
@@ -188,6 +208,7 @@ export class FlowServer {
 				registerSetup: registerWorkspaceSetup,
 				createFromTemplate: createWorkflowFromTemplateService,
 				writeWorkflow,
+				writeExternalSetup: writeExternalWorkspaceSetup,
 				writeTargetAdapters: writeWorkspaceTargetAdapters,
 				analyzeSetup: analyzeWorkspaceSetup,
 				planSetup: planWorkspaceSetup,
@@ -195,7 +216,7 @@ export class FlowServer {
 				restoreSetup: restoreWorkspaceSetup,
 				saveSetupManifest: saveWorkspaceSetupManifest,
 				rollbackSetup: rollbackWorkspaceSetup,
-				loadHarness: (root) => loadHarness(resolveHarnessRoot(root)),
+				loadHarness: (root) => loadHarness(resolveHarnessWithShared(root)),
 			}),
 		);
 		this.router.register(

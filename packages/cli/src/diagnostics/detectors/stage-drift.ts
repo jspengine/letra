@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Detector, DiagnosticResult } from "../types.js";
+import { getLetraDir } from "./../../workspace/resolver.js";
 
 const STALE_AC_PATTERN = /-\s\[ \]\s\*\*`([^`]+)`\*\*/g;
 const DONE_AC_PATTERN = /-\s\[x\]\s\*\*`([^`]+)`\*\*/g;
@@ -9,7 +10,7 @@ export const stageDriftDetector: Detector = {
 	name: "stage-drift",
 	async run(rootDir: string): Promise<DiagnosticResult[]> {
 		const results: DiagnosticResult[] = [];
-		const workflowFile = join(rootDir, ".letra", "workflow.json");
+		const workflowFile = join(getLetraDir(rootDir), "workflow.json");
 
 		if (!existsSync(workflowFile)) return results;
 
@@ -29,7 +30,7 @@ export const stageDriftDetector: Detector = {
 
 		for (const item of items) {
 			if (!item.spec) continue;
-			const specDir = join(rootDir, ".letra", "specs", item.spec);
+			const specDir = join(getLetraDir(rootDir), "specs", item.spec);
 			const specFile = join(specDir, "spec.md");
 			if (!existsSync(specFile)) continue;
 

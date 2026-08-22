@@ -8,9 +8,10 @@ import {
 	statSync,
 } from "node:fs";
 import { join } from "node:path";
+import { getLetraDir } from "../workspace/resolver.js";
 import type { Snapshot } from "./types.js";
 
-const SNAPSHOTS_DIR = ".letra/snapshots";
+const SNAPSHOTS_DIR = "snapshots";
 const MAX_SNAPSHOTS = 20;
 const TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -20,7 +21,7 @@ export class SnapshotStore {
 
 	constructor(rootDir: string) {
 		this.rootDir = rootDir;
-		this.snapshotsDir = join(rootDir, SNAPSHOTS_DIR);
+		this.snapshotsDir = join(getLetraDir(rootDir), SNAPSHOTS_DIR);
 		if (!existsSync(this.snapshotsDir)) {
 			mkdirSync(this.snapshotsDir, { recursive: true });
 		}

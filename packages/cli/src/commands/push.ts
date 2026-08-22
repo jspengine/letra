@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { resolveWorkspaceRoot, getSpecsDir, isWorkspaceMode } from "../workspace/resolver.js";
 import { loadWorkflow } from "./flow-init.js";
 import { generateAdapters } from "../adapters/generate.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export async function push(targetPath?: string, options?: { dryRun?: boolean; quiet?: boolean }): Promise<void> {
 	const cwd = targetPath ? join(process.cwd(), targetPath) : process.cwd();
@@ -33,9 +34,9 @@ export async function push(targetPath?: string, options?: { dryRun?: boolean; qu
 	const files: string[] = [];
 
 	// Copy specs to target
-	const specsDir = getSpecsDir(resolution);
+	const specsDir = getSpecsDir(resolution.workspaceDir);
 	if (existsSync(specsDir)) {
-		const targetSpecs = join(targetDir, ".letra", "specs");
+		const targetSpecs = join(getLetraDir(targetDir), "specs");
 		if (!existsSync(targetSpecs)) mkdirSync(targetSpecs, { recursive: true });
 		if (!dryRun) {
 			cpSync(specsDir, targetSpecs, { recursive: true, force: true });
@@ -46,9 +47,16 @@ export async function push(targetPath?: string, options?: { dryRun?: boolean; qu
 		}
 	}
 
-	// Determine which tools to use (per-target adapters override global tools)
-	const targetConfig = workflow.targets?.find((t) => t.path === targetPath || t.path === relative(process.cwd(), targetDir));
-	const effectiveTools = targetConfig?.adapters ?? workflow.tools;
+	// Determine which tools to use (per-location adapters override global tools)
+	const normalizedTarget = targetDir.replace(/\\/g, "/");
+	const relativeTarget = relative(process.cwd(), targetDir).replace(/\\/g, "/");
+	const targetConfig = workflow.locations?.find((location) => {
+		const locationPath = location.path.replace(/\\/g, "/");
+		return locationPath === normalizedTarget || locationPath === relativeTarget || locationPath === targetPath;
+	});
+	const effectiveTools = targetConfig?.adapters && targetConfig.adapters.length > 0
+		? targetConfig.adapters
+		: workflow.tools;
 
 	// Generate adapters in target
 	if (effectiveTools && effectiveTools.length > 0 && !dryRun) {

@@ -112,6 +112,16 @@ describe("Header", () => {
 		expect(onOpenHealthCenter).toHaveBeenCalledOnce();
 	});
 
+	it("opens workspace settings from the global header", async () => {
+		const user = userEvent.setup();
+		const onOpenWorkspaceSettings = vi.fn();
+		renderHeader({ onOpenWorkspaceSettings });
+
+		await user.click(screen.getByRole("button", { name: "Abrir configurações do workspace" }));
+
+		expect(onOpenWorkspaceSettings).toHaveBeenCalledOnce();
+	});
+
 	it("keeps history and theme as global utilities without pending-state copy", () => {
 		renderHeader();
 

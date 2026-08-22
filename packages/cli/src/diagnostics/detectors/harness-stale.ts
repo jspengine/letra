@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { adapterDiagnosticFiles } from "../../adapters/registry.js";
 import type { Detector, DiagnosticResult } from "../types.js";
+import { getLetraDir } from "./../../workspace/resolver.js";
 
 const ADAPTER_FILES = adapterDiagnosticFiles();
 
@@ -9,7 +10,7 @@ export const harnessStaleDetector: Detector = {
 	name: "harness-stale",
 	async run(rootDir: string): Promise<DiagnosticResult[]> {
 		const results: DiagnosticResult[] = [];
-		const workflowFile = join(rootDir, ".letra", "workflow.json");
+		const workflowFile = join(getLetraDir(rootDir), "workflow.json");
 
 		let tools: string[] = ["cursor", "opencode", "vscode"];
 		let workflow:

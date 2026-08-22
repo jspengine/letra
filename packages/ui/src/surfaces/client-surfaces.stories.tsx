@@ -5,7 +5,6 @@ import { ToastProvider } from "@letra/ui";
 
 import HomeView from "../../../client/src/components/Home/HomeView";
 import FlowView from "../../../client/src/components/Flow/FlowView";
-import ExecutionView, { type ExecStage } from "../../../client/src/components/Execution/ExecutionView";
 import ContextView from "../../../client/src/components/Context/ContextView";
 import SpecsView from "../../../client/src/components/Specs/SpecsView";
 import WorkspacesView from "../../../client/src/components/Workspaces/WorkspacesView";
@@ -175,14 +174,6 @@ Superficies criticas convergem para supervisao de agentes.
 	},
 ];
 
-const executionStages: ExecStage[] = [
-	{ id: "backlog", label: "Backlog", agent: "Planner", agentIcon: "list-three", status: "done", duration: "1m" },
-	{ id: "code", label: "Code", agent: "Codex", agentIcon: "cpu", status: "running", output: "Storybook surfaces mounted with DS mocks." },
-	{ id: "review", label: "Review", agent: "Reviewer", agentIcon: "search", status: "waiting", isHumanGate: true, nextStageId: "security", rejectStageId: "code" },
-	{ id: "security", label: "Security", agent: "Security", agentIcon: "shield", status: "idle" },
-	{ id: "done", label: "Done", agent: "Letra", agentIcon: "check-circle", status: "idle" },
-];
-
 const markdownContext = `# Context
 
 ## Estado
@@ -332,7 +323,7 @@ export default {
 			status: "ready",
 			tokens: ["color-bg-base", "color-bg-surface", "color-text-primary", "color-primary", "border", "radius-lg"],
 			consumes: ["Button", "Card", "Badge", "Icon", "Input", "Sheet", "ToastProvider"],
-			surfaces: ["HomeView", "FlowView", "ExecutionView", "ContextView", "SpecsView", "WorkspacesView"],
+			surfaces: ["HomeView", "FlowView", "ContextView", "SpecsView", "WorkspacesView"],
 			a11y: ["mocked-api", "keyboard-navigation", "landmarks"],
 			breakpoints: ["mobile", "desktop"],
 		},
@@ -353,14 +344,6 @@ export const Flow: Story = {
 	render: () => (
 		<SurfaceFrame>
 			<FlowView workflow={workflow} activeFlow={activeFlow} onItemMoved={() => {}} onOpenSpec={() => {}} />
-		</SurfaceFrame>
-	),
-};
-
-export const Execution: Story = {
-	render: () => (
-		<SurfaceFrame>
-			<ExecutionView stages={executionStages} workflow={workflow} flowName="Letra SDLC" />
 		</SurfaceFrame>
 	),
 };

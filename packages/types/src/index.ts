@@ -46,6 +46,13 @@ export interface WebhookConfig {
 	lastSentAt?: string;
 }
 
+export interface WorkflowLocation {
+	id: string;
+	path: string;
+	label: string;
+	adapters: string[];
+}
+
 export interface Workflow {
 	version: string;
 	name: string;
@@ -61,6 +68,7 @@ export interface Workflow {
 	tools: string[];
 	webhooks?: WebhookConfig[];
 	primaryItemId?: string;
+	locations?: WorkflowLocation[];
 }
 
 export type AdapterLiveContextMode = "none" | "cli" | "mcp";

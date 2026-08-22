@@ -1,8 +1,0 @@
-id: security-clear
-name: Segurança Limpa
-type: automated
-blocking: true
-policyRef: policies/sdlc-default.json
-description: >
-  Nenhuma vulnerabilidade crítica ou alta encontrada.
-  Scan deve passar antes de criar PR.

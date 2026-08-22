@@ -2,6 +2,7 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Detector, DiagnosticResult } from "../types.js";
 import { searchInSource, walkDir } from "../shared/file-search.js";
+import { getLetraDir } from "./../../workspace/resolver.js";
 
 const DONE_AC_PATTERN = /-\s\[x\]\s\*\*`([^`]+)`\*\*/g;
 
@@ -41,8 +42,8 @@ export const specCodeDriftDetector: Detector = {
 	devOnly: true,
 	async run(rootDir: string): Promise<DiagnosticResult[]> {
 		const results: DiagnosticResult[] = [];
-		const workflowPath = join(rootDir, ".letra", "workflow.json");
-		const specsDir = join(rootDir, ".letra", "specs");
+		const workflowPath = join(getLetraDir(rootDir), "workflow.json");
+		const specsDir = join(getLetraDir(rootDir), "specs");
 
 		if (!existsSync(workflowPath) || !existsSync(specsDir)) return results;
 

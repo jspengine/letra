@@ -12,6 +12,7 @@ import type {
 import { readFocusFile } from "../adapters/focus-sync.js";
 import type { Item, Workflow } from "../commands/flow-init.js";
 import { resolveActiveFlow } from "../flow-definition/resolve.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export interface CreateAgentDirectionSnapshotInput {
 	workspaceRoot: string;
@@ -175,7 +176,7 @@ export function createAgentDirectionSnapshot(
 
 function readActiveSpec(root: string, specName: string | null): string | null {
 	if (!specName) return null;
-	const specDir = join(root, ".letra", "specs", specName);
+	const specDir = join(getLetraDir(root), "specs", specName);
 	const acceptancePath = join(specDir, "acceptance.md");
 	const specPath = join(specDir, "spec.md");
 	if (existsSync(acceptancePath)) return readFileSync(acceptancePath, "utf-8");

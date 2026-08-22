@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { readdirSync } from "node:fs";
 import type { Detector, DiagnosticResult } from "../types.js";
 import { searchInSource, escapeRegex } from "../shared/file-search.js";
+import { getLetraDir } from "./../../workspace/resolver.js";
 
 const STALE_AC_PATTERN = /-\s\[ \]\s\*\*`([^`]+)`\*\*/g;
 
@@ -21,7 +22,7 @@ export const acStaleDetector: Detector = {
 	devOnly: true,
 	async run(rootDir: string): Promise<DiagnosticResult[]> {
 		const results: DiagnosticResult[] = [];
-		const specsDir = join(rootDir, ".letra", "specs");
+		const specsDir = join(getLetraDir(rootDir), "specs");
 
 		if (!existsSync(specsDir)) return results;
 
