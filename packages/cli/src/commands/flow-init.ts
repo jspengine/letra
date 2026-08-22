@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import chalk from "chalk";
 import { ADAPTER_REGISTRY } from "../adapters/registry.js";
@@ -12,6 +12,7 @@ import { loadHealthRecord, mergeScanResults, saveHealthRecord } from "../health-
 import { DEFAULT_HARNESS_VERSION, loadHarness, resolveHarnessRoot } from "../harness/loader.js";
 import type { StageDef, StagePhases } from "../harness/types.js";
 import { resolveWorkspaceRoot, getWorkflowPath, type WorkspaceResolution } from "../workspace/resolver.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export interface Stage {
 	id: string;
@@ -31,6 +32,16 @@ export interface Task {
 	done: boolean;
 }
 
+export interface ItemHandoff {
+	from: string;
+	to: string;
+	summary: string;
+	evidence: string[];
+	timestamp: string;
+	expiresAt: string;
+	executorId?: string;
+}
+
 export interface Item {
 	id: string;
 	description: string;
@@ -43,6 +54,7 @@ export interface Item {
 	claimedBy?: string;
 	claimedAt?: string;
 	currentPhase?: string;
+	handoff?: ItemHandoff;
 }
 
 export interface SpecLink {
@@ -59,7 +71,7 @@ export interface WebhookConfig {
 	lastSentAt?: string;
 }
 
-export interface WorkflowTarget {
+export interface LegacyWorkflowTarget {
 	id: string;
 	path: string;
 	projectType?: string;
@@ -72,6 +84,7 @@ export interface WorkflowLocation {
 	id: string;
 	path: string;
 	label: string;
+	adapters: string[];
 }
 
 export interface Workflow {
@@ -91,7 +104,7 @@ export interface Workflow {
 		currentStage?: string;
 		locked?: boolean;
 	};
-	targets?: WorkflowTarget[];
+	targets?: LegacyWorkflowTarget[];
 	locations?: WorkflowLocation[];
 	template?: string;
 	harnessVersion?: string;
@@ -183,25 +196,89 @@ export function stageFromTemplateStage(stage: StageDef): Stage {
 }
 
 function workflowFilePath(root: string): string {
-	return join(root, ".letra", "workflow.json");
+	return join(getLetraDir(root), "workflow.json");
+}
+
+function normalizedPath(path: string): string {
+	return path.replace(/\\/g, "/");
+}
+
+function locationLabel(path: string, fallback: string): string {
+	const name = basename(normalizedPath(path));
+	return name || fallback;
+}
+
+export function migrateTargetsToLocations(workflow: Workflow): { workflow: Workflow; migrated: boolean } {
+	let migrated = false;
+	const locations: WorkflowLocation[] = Array.isArray(workflow.locations)
+		? workflow.locations.map((location, index) => ({
+				id: location.id || `loc-${index + 1}`,
+				path: normalizedPath(location.path),
+				label: location.label || locationLabel(location.path, `Projeto ${index + 1}`),
+				adapters: Array.isArray(location.adapters) ? [...new Set(location.adapters)] : [],
+			}))
+		: [];
+
+	if (Array.isArray(workflow.locations)) {
+		migrated = workflow.locations.some((location, index) => (
+			location.path !== locations[index]?.path ||
+			location.label !== locations[index]?.label ||
+			!Array.isArray(location.adapters)
+		));
+	}
+
+	const byPath = new Map(locations.map((location) => [normalizedPath(location.path), location]));
+	if (Array.isArray(workflow.targets) && workflow.targets.length > 0) {
+		for (const target of workflow.targets) {
+			const targetPath = normalizedPath(target.path);
+			const targetAdapters = Array.isArray(target.adapters) ? target.adapters : [];
+			const existing = byPath.get(targetPath);
+			if (existing) {
+				existing.adapters = [...new Set([...existing.adapters, ...targetAdapters])];
+			} else {
+				const location: WorkflowLocation = {
+					id: target.id?.replace(/^target-/, "loc-") || `loc-${locations.length + 1}`,
+					path: targetPath,
+					label: locationLabel(targetPath, `Projeto ${locations.length + 1}`),
+					adapters: [...new Set(targetAdapters)],
+				};
+				locations.push(location);
+				byPath.set(targetPath, location);
+			}
+		}
+		delete workflow.targets;
+		migrated = true;
+	}
+
+	if (Array.isArray(workflow.locations) || migrated) {
+		workflow.locations = locations;
+	}
+
+	return { workflow, migrated };
 }
 
 export function loadWorkflow(root: string): Workflow | null {
 	const filePath = workflowFilePath(root);
 	if (!existsSync(filePath)) return null;
 	try {
-		return JSON.parse(readFileSync(filePath, "utf-8")) as Workflow;
+		const workflow = JSON.parse(readFileSync(filePath, "utf-8")) as Workflow;
+		const result = migrateTargetsToLocations(workflow);
+		if (result.migrated) {
+			result.workflow.updatedAt = now();
+			writeFileSync(filePath, JSON.stringify(result.workflow, null, 2), "utf-8");
+		}
+		return result.workflow;
 	} catch {
 		return null;
 	}
 }
 
 export function saveWorkflow(root: string, workflow: Workflow): void {
-	const dir = join(root, ".letra");
+	const dir = getLetraDir(root);
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 	const filePath = workflowFilePath(root);
 	if (existsSync(filePath)) {
-		const backupDir = join(root, ".letra", "backups");
+		const backupDir = join(getLetraDir(root), "backups");
 		if (!existsSync(backupDir)) mkdirSync(backupDir, { recursive: true });
 		const ts = new Date().toISOString().replace(/[:.]/g, "-");
 		const backupPath = join(backupDir, `workflow-${ts}.json`);
@@ -411,15 +488,17 @@ export async function flowInit(root: string, options?: { quick?: boolean; templa
 	const templateInput = await askText("Spec template? (web-api/cli-tool/mobile-feature/campanha-marketing/pesquisa/evento/none)", templateDefault);
 	const template = templateInput.trim().toLowerCase() === "none" ? undefined : templateInput.trim().toLowerCase();
 
-	const targetsInput = await askText("Target paths (comma-separated, or leave empty)?", "");
-	const targets: WorkflowTarget[] = [];
-	if (targetsInput.trim()) {
-		for (const raw of targetsInput.split(",")) {
+	const locationsInput = await askText("Location paths (comma-separated, or leave empty)?", "");
+	const locations: WorkflowLocation[] = [];
+	if (locationsInput.trim()) {
+		for (const raw of locationsInput.split(",")) {
 			const t = raw.trim();
 			if (!t) continue;
-			targets.push({
-				id: t.replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || `target-${targets.length + 1}`,
-				path: t,
+			locations.push({
+				id: t.replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || `loc-${locations.length + 1}`,
+				path: normalizedPath(t),
+				label: locationLabel(t, `Projeto ${locations.length + 1}`),
+				adapters: [],
 			});
 		}
 	}
@@ -436,7 +515,7 @@ export async function flowInit(root: string, options?: { quick?: boolean; templa
 
 	if (template) workflow.template = template;
 	if (template) workflow.harnessVersion = DEFAULT_HARNESS_VERSION;
-	if (targets.length > 0) workflow.targets = targets;
+	if (locations.length > 0) workflow.locations = locations;
 
 	return workflow;
 }

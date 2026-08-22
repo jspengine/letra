@@ -2,22 +2,25 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { queryLog } from "../session-log.js";
 import type { Item } from "../commands/flow-init.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export interface GateResult {
 	allowed: boolean;
 	reason?: string;
+	blocksHandoff?: boolean;
 }
 
-function loadGateStatus(root: string, gateId: string): { blocking: boolean; status: string } | null {
-	const harnessDir = join(root, ".letra", "harness");
+function loadGateStatus(root: string, gateId: string): { blocking: boolean; status: string; blocksHandoff: boolean } | null {
+	const harnessDir = join(getLetraDir(root), "harness");
 	if (!existsSync(harnessDir)) return null;
 	const files = [join(harnessDir, "gates", `${gateId}.yaml`), join(harnessDir, "gates", `${gateId}.yml`)];
 	for (const f of files) {
 		if (existsSync(f)) {
 			const raw = readFileSync(f, "utf-8");
 			const blocking = raw.includes("blocking: true");
+			const blocksHandoff = raw.includes("blocksHandoff: true");
 			const status = raw.includes("status: approved") ? "approved" : "pending";
-			return { blocking, status };
+			return { blocking, status, blocksHandoff };
 		}
 	}
 	return null;
@@ -25,6 +28,12 @@ function loadGateStatus(root: string, gateId: string): { blocking: boolean; stat
 
 export class GateChecker {
 	constructor(private readonly root: string) {}
+
+	checkBlocksHandoff(gateId: string): boolean {
+		const status = loadGateStatus(this.root, gateId);
+		if (!status) return false;
+		return status.blocksHandoff;
+	}
 
 	check(gateId: string, item: Item): GateResult {
 		switch (gateId) {
@@ -46,7 +55,7 @@ export class GateChecker {
 		if (!item.spec) {
 			return { allowed: false, reason: "Item sem spec vinculada" };
 		}
-		const specDir = join(this.root, ".letra", "specs", item.spec);
+		const specDir = join(getLetraDir(this.root), "specs", item.spec);
 		if (!existsSync(specDir)) {
 			return { allowed: false, reason: `Pasta de spec não encontrada: ${item.spec}` };
 		}
@@ -57,7 +66,7 @@ export class GateChecker {
 		if (!item.spec) {
 			return { allowed: false, reason: "Item sem spec vinculada" };
 		}
-		const specPath = join(this.root, ".letra", "specs", item.spec, "spec.md");
+		const specPath = join(getLetraDir(this.root), "specs", item.spec, "spec.md");
 		if (!existsSync(specPath)) {
 			return { allowed: false, reason: `Spec não encontrada: ${item.spec}` };
 		}

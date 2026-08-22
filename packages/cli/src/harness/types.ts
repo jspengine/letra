@@ -1,9 +1,18 @@
+export interface AgentHandoffConfig {
+	blocksHandoff: boolean;
+	allowedTargets: string[];
+	requireEvidence: boolean;
+	ttlMinutes?: number;
+}
+
 export interface AgentCapability {
 	id: string;
 	label: string;
 	description: string;
 	allowedStages: string[];
 	capabilities: string[];
+	handoff?: AgentHandoffConfig;
+	promptTemplate?: string;
 }
 
 export interface Gate {
@@ -11,6 +20,7 @@ export interface Gate {
 	name: string;
 	type: "human" | "automated" | "external";
 	blocking: boolean;
+	blocksHandoff?: boolean;
 	policyRef?: string;
 	description: string;
 	decisions?: Partial<Record<"approve" | "request-changes" | "reject", string>>;
@@ -111,6 +121,7 @@ export interface StageDef {
 	description: string;
 	agents: string[];
 	gate: string | null;
+	preferredExecutor?: string;
 	phases?: StagePhases;
 	activity?: StageActivityContextConfig;
 }
@@ -151,4 +162,66 @@ export interface HarnessManifest {
 	gates: Record<string, Gate>;
 	roles: Record<string, AgentCapability>;
 	policies: Record<string, Policy>;
+}
+
+// Orchestration Types
+
+export interface HandoffPayload {
+	itemId: string;
+	from: string;
+	to: string;
+	summary: string;
+	evidence: string[];
+	context?: Record<string, unknown>;
+	timestamp: string;
+	expiresAt: string;
+	executorId?: string;
+}
+
+export interface HandoffEvent {
+	type: "handoff";
+	itemId: string;
+	from: string;
+	to: string;
+	summary: string;
+	evidence: string[];
+	timestamp: string;
+}
+
+export interface ExecutionContext {
+	itemId: string;
+	item: unknown;
+	agent: string;
+	stage: string;
+	spec: string | null;
+	diff: string | null;
+	snapshot: unknown;
+	sessionLog: unknown[];
+	commands: string[];
+	prohibitions: string[];
+}
+
+export interface ExecutionResult {
+	success: boolean;
+	output: string;
+	artifacts: string[];
+	evidences: string[];
+	handoff?: HandoffEvent;
+	error?: string;
+}
+
+export interface ExecutorConfig {
+	id: string;
+	label: string;
+	capabilities: string[];
+	notification: ("sse" | "polling" | "file-watch")[];
+	heartbeat: boolean;
+	maxExecutionTime: number;
+	priority: number;
+}
+
+export interface HeartbeatInfo {
+	executorId: string;
+	lastHeartbeat: string;
+	isOnline: boolean;
 }
