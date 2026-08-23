@@ -273,6 +273,15 @@ export interface LogEntryOptions {
 	spec?: string;
 	details?: Record<string, unknown>;
 	level?: LogLevel;
+	from?: string;
+	to?: string;
+	reason?: string;
+	executorId?: string;
+	agentId?: string;
+	expiresAt?: string;
+	retry?: boolean;
+	summary?: string;
+	evidence?: string[];
 }
 
 function inferLogLevel(action: string, options?: LogEntryOptions): LogLevel {

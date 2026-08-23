@@ -8,8 +8,8 @@ import { loadHarness, resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "../har
 const DEFAULT_HANDOFF_TTL_MINUTES = 30;
 
 export interface HandoffOptions {
-	to: string;
-	summary: string;
+	to?: string;
+	summary?: string;
 	evidence?: string[];
 	executor?: string;
 	rollback?: boolean;

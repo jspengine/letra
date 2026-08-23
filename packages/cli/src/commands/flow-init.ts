@@ -24,6 +24,7 @@ export interface Stage {
 	allow?: string[];
 	validate?: string[];
 	color?: string;
+	gate?: string | null;
 }
 
 export interface Task {
@@ -312,6 +313,11 @@ export type WriteWorkflowSource =
 	| "flow-ac"
 	| "flow-claim"
 	| "flow-release"
+	| "flow-handoff"
+	| "flow-handoff-rollback"
+	| "orchestrator"
+	| "orchestrator-reclaim"
+	| "orchestrator-retry"
 	| "init"
 	| "stage-drift"
 	| "web-ui"
