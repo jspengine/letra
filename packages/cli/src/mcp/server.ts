@@ -16,7 +16,7 @@ import {
 } from "../domain-operations/service.js";
 import { logEntry } from "../session-log.js";
 import { createWorkspaceBoundary, type WorkspaceBoundary } from "../security/workspace-boundary.js";
-import { getLetraDir } from "./../workspace/resolver.js";
+import { getLetraDir, resolveWorkspaceRoot } from "./../workspace/resolver.js";
 
 interface ActiveSpecPayload {
 	name: string | null;
@@ -90,7 +90,9 @@ function resourceText(uri: string, text: string, mimeType = "application/json") 
 }
 
 export function createLetraMcpServer(root: string): McpServer {
-	const boundary = createWorkspaceBoundary(resolve(root));
+	const resolution = resolveWorkspaceRoot(root);
+	const workspaceDir = resolution.workspaceDir;
+	const boundary = createWorkspaceBoundary(workspaceDir);
 	const workspaceRoot = boundary.root;
 	const auditedReads = new Set<string>();
 	const server = new McpServer({
@@ -251,9 +253,21 @@ export function createLetraMcpServer(root: string): McpServer {
 		async () => {
 			auditRead("constitution");
 			const path = boundary.assertPath(join(getLetraDir(workspaceRoot), "constitution.md"));
+			const content = existsSync(path) ? readFileSync(path, "utf-8") : "";
+			
+			// Log constitution_read
+			logEntry(workspaceRoot, "constitution_read", "Constitution read via MCP", {
+				details: {
+					adapter: "mcp",
+					by: "mcp:constitution-resource",
+					available: existsSync(path),
+					version: content.match(/\*\*Version:\*\*\s*(.+)/)?.[1]?.trim() ?? null,
+				},
+			});
+			
 			return resourceText(
 				"letra://constitution",
-				existsSync(path) ? readFileSync(path, "utf-8") : "",
+				content,
 				"text/markdown",
 			);
 		},

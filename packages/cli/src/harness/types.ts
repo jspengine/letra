@@ -162,6 +162,7 @@ export interface HarnessManifest {
 	gates: Record<string, Gate>;
 	roles: Record<string, AgentCapability>;
 	policies: Record<string, Policy>;
+	constitutionVersion?: string;
 }
 
 // Orchestration Types

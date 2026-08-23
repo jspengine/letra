@@ -36,7 +36,8 @@ export type LogAction =
 	| "agent_validation_run"
 	| "agent_ac_completion_requested"
 	| "agent_transition_requested"
-	| "agent_operation_rejected";
+	| "agent_operation_rejected"
+	| "constitution_read";
 
 export interface LogEntry {
 	id: string;

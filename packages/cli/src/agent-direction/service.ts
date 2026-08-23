@@ -6,6 +6,7 @@ import type {
 	AgentDirectionCommand,
 	AgentDirectionSnapshot,
 	FlowActivityHint,
+	GovernanceReference,
 	ResolvedFlowDefinition,
 	ResolvedFlowStage,
 } from "@letra/types";
@@ -21,6 +22,7 @@ export interface CreateAgentDirectionSnapshotInput {
 	specContent: string | null;
 	currentItemId?: string | null;
 	now?: string;
+	constitutionVersion?: string | null;
 }
 
 function slug(value: string): string {
@@ -141,6 +143,32 @@ export function createAgentDirectionSnapshot(
 			: "active";
 	const allowedStageIds = [...new Set(stage?.roles.flatMap((role) => role.allowedStages) ?? [])];
 	const gateEvidence = stage?.activity?.gate?.evidence;
+
+	// Constitution governance
+	const constitutionPath = join(getLetraDir(input.workspaceRoot), "constitution.md");
+	const constitutionAvailable = existsSync(constitutionPath);
+	const constitutionVersion = input.constitutionVersion ?? (constitutionAvailable ? readConstitutionVersion(input.workspaceRoot) : null);
+	const governanceReferences: GovernanceReference[] = [];
+	if (constitutionAvailable) {
+		governanceReferences.push({
+			path: "constitution.md",
+			version: constitutionVersion ?? "unknown",
+			available: true,
+			source: "workspace",
+		});
+	} else {
+		governanceReferences.push({
+			path: "constitution.md",
+			version: "unknown",
+			available: false,
+			source: "workspace",
+		});
+		warnings.push({
+			code: "CONSTITUTION_MISSING",
+			message: "Constitution file not found in workspace",
+		});
+	}
+
 	const semantic = {
 		schemaVersion: "1" as const,
 		source: {
@@ -166,6 +194,8 @@ export function createAgentDirectionSnapshot(
 		requiredEvidence: gateEvidence ? [gateEvidence] : [],
 		nextActions: resolveActions(hint),
 		warnings,
+		governanceReferences,
+		constitutionVersion: constitutionVersion ?? undefined,
 	};
 	return {
 		...semantic,
@@ -182,6 +212,14 @@ function readActiveSpec(root: string, specName: string | null): string | null {
 	if (existsSync(acceptancePath)) return readFileSync(acceptancePath, "utf-8");
 	if (existsSync(specPath)) return readFileSync(specPath, "utf-8");
 	return null;
+}
+
+function readConstitutionVersion(root: string): string | null {
+	const constitutionPath = join(getLetraDir(root), "constitution.md");
+	if (!existsSync(constitutionPath)) return null;
+	const content = readFileSync(constitutionPath, "utf-8");
+	const versionMatch = content.match(/\*\*Version:\*\*\s*(.+)/);
+	return versionMatch ? versionMatch[1].trim() : null;
 }
 
 export function resolveAgentDirection(root: string): AgentDirectionSnapshot {

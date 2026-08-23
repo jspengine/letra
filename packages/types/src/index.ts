@@ -109,6 +109,13 @@ export interface AgentDirectionWarning {
 	message: string;
 }
 
+export interface GovernanceReference {
+	path: string;
+	version: string;
+	available: boolean;
+	source: string;
+}
+
 export interface AgentDirectionCommand {
 	id: string;
 	command: string;
@@ -150,6 +157,8 @@ export interface AgentDirectionSnapshot {
 	requiredEvidence: string[];
 	nextActions: AgentDirectionAction[];
 	warnings: AgentDirectionWarning[];
+	governanceReferences?: GovernanceReference[];
+	constitutionVersion?: string;
 }
 
 export interface ResolvedSpec {
@@ -267,7 +276,8 @@ export type FlowDefinitionWarningCode =
 	| "GATE_NOT_FOUND"
 	| "ROLE_NOT_FOUND"
 	| "INSTANCE_STAGE_NOT_IN_TEMPLATE"
-	| "TEMPLATE_STAGE_NOT_IN_INSTANCE";
+	| "TEMPLATE_STAGE_NOT_IN_INSTANCE"
+	| "CONSTITUTION_MISSING";
 
 export interface FlowDefinitionWarning {
 	code: FlowDefinitionWarningCode;
