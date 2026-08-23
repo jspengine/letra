@@ -6,6 +6,7 @@ import type {
 	ActivityCommandHint,
 	ActivityHintConfig,
 	ActivityReferenceHint,
+	AgentHandoffConfig,
 	GateExpectationConfig,
 	HarnessManifest,
 	PhaseAction,
@@ -340,17 +341,20 @@ export function loadHarness(root: string): HarnessManifest | null {
 				: typeof raw.capabilities === "string"
 					? raw.capabilities.split(",").map((a: string) => a.trim()).filter(Boolean)
 					: [];
-			const handoff = raw.handoff && typeof raw.handoff === "object"
-				? {
-						blocksHandoff: raw.handoff.blocksHandoff === true,
-						allowedTargets: Array.isArray(raw.handoff.allowedTargets)
-							? raw.handoff.allowedTargets.map(String)
-							: [],
-						requireEvidence: raw.handoff.requireEvidence === true,
-						ttlMinutes: typeof raw.handoff.ttlMinutes === "number"
-							? raw.handoff.ttlMinutes
-							: undefined,
-					}
+			const handoff: AgentHandoffConfig | undefined = raw.handoff && typeof raw.handoff === "object"
+				? (() => {
+						const h = raw.handoff as Record<string, unknown>;
+						return {
+							blocksHandoff: h.blocksHandoff === true,
+							allowedTargets: Array.isArray(h.allowedTargets)
+								? (h.allowedTargets as unknown[]).map(String)
+								: [],
+							requireEvidence: h.requireEvidence === true,
+							ttlMinutes: typeof h.ttlMinutes === "number"
+								? h.ttlMinutes
+								: undefined,
+						};
+					})()
 				: undefined;
 			roles[String(raw.id)] = {
 				id: String(raw.id),
