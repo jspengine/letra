@@ -1,104 +1,208 @@
 # Especificação: Governança da Constituição no Harness
 
-**ID:** ITEM-80  
+**ID:** ITEM-80
+**Status:** Design (v2 — revisada com confronto código/espéc)
 **Descrição:** Integrar a `constitution.md` como camada de governança ativa no harness, garantindo que ela seja vista, resolvida do caminho correto via `.letra-link`, versionada e auditável pelo LLM em cada decisão crítica.
 
 ---
 
 ## Problema
 
-A `constitution.md` define as regras não-negociáveis do Letra (ex: "human in the loop", "harness is authority", "LLM is a tool not the owner"). Ela existe no workspace externo (`C:\Users\rnasc\.letra\workspaces\letra\.letra/constitution.md`), mas existem problemas que impedem que ela funcione como governança efetiva para o LLM:
+A `constitution.md` define as regras não-negociáveis do Letra (ex: "human in the loop", "harness is authority", "LLM is a tool not the owner"). Existem **5 problemas concretos** que impedem que ela funcione como governança efetiva para o LLM:
 
-**Problema A — Resolução de caminho incorreta:** O MCP server (`server.ts`) e outras camadas usam `getLetraDir(workspaceRoot)` para ler a constituição. Quando o `workspaceRoot` é resolvido a partir do monorepo (`C:\Workspace\letra`), o sistema pode ler o `.letra/` local (onde os arquivos foram deletados) em vez do `.letra/` do target do `.letra-link` (onde a constituição real existe). Resultado: o LLM pode receber uma string vazia ou achar que não existe constituição.
+### Problema A — Constitution.md deletada do workspace
 
-**Problema B — Ausência do contexto no direction:** O `AgentDirectionSnapshot` (o "bilhete" que `get_direction` retorna) não inclui a constituição como evidência obrigatória ou referência de governança. Ela aparece como L1 file nos adapters, mas não como parte da direção que o LLM pode consumir diretamente. Consequência: o LLM que só consulta `get_direction` pode não ter a constituição disponível.
+O commit `378fdd4` (externalização) **deletou** `.letra/constitution.md` do monorepo local. O arquivo **não existe** no workspace externo (`~/.letra/workspaces/letra/.letra/constitution.md`).
 
-**Problema C — Sem versão vinculada ao harness:** A constituição tem versão (1.3.0) no seu conteúdo, mas não há campo no `HarnessManifest` ou no `AgentDirectionSnapshot` que indique qual versão da constituição deve ser usada com tal versão do harness. Se a constituição for atualizada, o LLM pode continuar usando uma versão desatualizada sem saber.
+**Consequência:** Toda a feature falha na base — não há o que ler, versionar, ou auditar. A constituição precisa ser restaurada antes da implementação.
 
-**Problema D — Sem registro de consulta:** Quando o LLM lê a constituição ou quando uma operação a considera, não há log no `session-log` que registre esse fato. Sem isso, não é possível auditar se o LLM realmente consultou a constituição em decisões críticas.
+### Problema B — Resolução de caminho incorreta no MCP
 
-**Problema E — Sem cargo de bloqueio de governança:** A constituição não está integrada como pré-requisito em gates críticos. Não há gate que verifique "a constituição está disponível e foi consultada" antes de permitir avanço.
+O MCP server (`server.ts`) inicia com `root = monorepo root` (`C:\Workspace\letra`), não com o workspace resolvido via `.letra-link`.
+
+```typescript
+// server.ts:253 — BUG CONFIRMADO
+const path = boundary.assertPath(join(getLetraDir(workspaceRoot), "constitution.md"));
+```
+
+`getLetraDir(root)` com `root = monorepo root` resolve para `.letra/` local (vazio/deletado), não para o target do `.letra-link` (`C:\Users\rnasc\.letra\workspaces\letra`).
+
+**Consequência:** MCP resource `letra://constitution` retorna string vazia. O LLM recebe uma constituição fantasma.
+
+### Problema C — AgentDirection não usa `.letra-link`
+
+O `resolveAgentDirection(root)` e `readActiveSpec(root, specName)` usam `getLetraDir(root)` — se chamado com monorepo root, lê do caminho errado.
+
+```typescript
+// service.ts:179
+const specDir = join(getLetraDir(root), "specs", specName);
+```
+
+**Consequência:** O `AgentDirectionSnapshot` pode não incluir a spec ativa nem a constituição, mesmo que existam no workspace correto.
+
+### Problema D — Sem versão vinculada ao harness
+
+A constituição tem versão (1.2.0 no conteúdo), mas `HarnessManifest` não tem campo `constitutionVersion`. Se a constituição for atualizada, o LLM pode continuar usando uma versão desatualizada sem saber.
+
+### Problema E — Sem registro de consulta
+
+O `session-log.ts` não tem a action `constitution_read` no tipo `LogAction`. Não há como auditar se o LLM realmente consultou a constituição antes de decisões críticas.
+
+---
+
+## Diagnóstico Arquitetural
+
+O problema **não é só "ler do caminho errado"** — é **quem passa qual `root` para quem**:
+
+```
+MONOREPO ROOT (C:\Workspace\letra)
+├── .letra-link → C:\Users\rnasc\.letra\workspaces\letra
+└── packages/... (código fonte)
+        │
+        ▼
+CLI COMMANDS (flow, pulse, push)
+├── Chamam resolveWorkspaceRoot(cwd) → linked mode
+├── workspaceDir = C:\Users\rnasc\.letra\workspaces\letra
+└── ✅ FUNCIONA — caminho resolvido corretamente
+        │
+        ▼
+MCP SERVER (stdio transport)
+├── Recebe root = C:\Workspace\letra (monorepo root)
+├── Chama getLetraDir(root) → C:\Workspace\letra\.letra/
+└── ❌ CAMINHO ERRADO — arquivos deletados
+        │
+        ▼
+AGENT DIRECTION SERVICE
+├── resolveAgentDirection(root) usa getLetraDir(root)
+├── Se chamado via MCP com monorepo root → ❌ ERRO
+└── Se chamado via CLI com cwd correto → ✅ OK
+```
+
+**Root cause:** O MCP server é iniciado com `root = monorepo root`, mas deveria usar o **workspace resolvido** (target do `.letra-link`).
 
 ---
 
 ## Transformação desejada
 
-1. **Resolução correta:** Quaisquer que leia a constituição deve usar a lógica de `.letra-link` para achar o arquivo no caminho correto (target do link), não no diretório local incorreto.
-2. **Constituição no direction:** O `AgentDirectionSnapshot` deve incluir um campo `governanceReferences` ou `constitution` que liste a constituição (com versão, disponibilidade) como evidência de governança que o LLM deve consultar.
-3. **Versão vinculada:** Adicionar no harness (ou no direction) um campo `constitutionVersion` que vincula a versão do harness à versão da constituição esperada.
-4. **Registro de consulta:** Logar no `session-log` uma ação `constitution_read` sempre que a constituição for lida (via MCP, via direction, via adapter).
-5. **Gates de governança (avenida futura):** Criar ou adaptar um gate que verifique constituição disponível antes de decisões críticas.
+### Fase 0 — Restaurar constitution.md
+- [ ] Restaurar `constitution.md` (v1.2.0) no workspace externo (`~/.letra/workspaces/letra/.letra/constitution.md`)
+- [ ] Garantir que o arquivo é tracked no git (não pode ser deletado novamente)
+
+### Fase 1 — Fixar resolução de caminho (Problemas B + C)
+- [ ] MCP server deve chamar `resolveWorkspaceRoot(root)` antes de criar boundary
+- [ ] Usar `resolution.workspaceDir` (target do `.letra-link`) em vez de `root` direto
+- [ ] AgentDirection service deve receber workspace root resolvido, não monorepo root
+- [ ] `readActiveSpec()` e `readFocusFile()` devem usar o mesmo workspace resolvido
+- [ ] Validar: MCP `letra://constitution` retorna conteúdo real, não vazio
+
+### Faze 2 — Versão vinculada (Problema D)
+- [ ] Adicionar `constitutionVersion?: string` ao tipo `HarnessManifest`
+- [ ] Adicionar `constitutionVersion?: string` ao `AgentDirectionSnapshot`
+- [ ] No `createAgentDirectionSnapshot`, ler versão da constitution.md e incluir no snapshot
+- [ ] Se harness declara `constitutionVersion` e constitution tem versão diferente → warning no direction
+
+### Fase 3 — Registro de consulta (Problema E)
+- [ ] Adicionar `"constitution_read"` ao tipo `LogAction` em `session-log.ts`
+- [ ] Logar `constitution_read` quando:
+  - MCP resource `letra://constitution` é lido
+  - `AgentDirectionSnapshot` é gerado com constitution disponível
+  - Adapter prompt é gerado com constitution como mustRead
+- [ ] Registrar: itemId, timestamp, source (mcp|direction|adapter), version
+
+### Fase 4 — Constitution no Direction (Problema C)
+- [ ] Adicionar `governanceReferences?: GovernanceReference[]` ao `AgentDirectionSnapshot`
+- [ ] Interface `GovernanceReference`: `{ path: string; version: string; available: boolean; source: string }`
+- [ ] Em `createAgentDirectionSnapshot`, incluir constitution como governance reference
+- [ ] Se constitution indisponível → `available: false` + warning no direction
+
+### Fase 5 — Constitution como mustRead nos adapters
+- [ ] Garantir que `constitution.md` aparece em `activity.mustRead[]` de todos os estágios
+- [ ] Activity context deve incluir constitution como referência obrigatória
+- [ ] Adaptadores (Cursor, OpenCode, etc.) devem listar constitution.md como L1 file
+
+---
+
+## Acceptance Criteria
+
+### AC1 — Constitution restaurada e versionada
+- [ ] `constitution.md` (v1.2.0) existe em `~/.letra/workspaces/letra/.letra/constitution.md`
+- [ ] Arquivo é tracked no git
+- [ ] `letra validate` não reporta constituição faltante
+
+### AC2 — MCP lê constitution do caminho correto
+- [ ] `letra://constitution` retorna conteúdo real (não vazio) quando constitution existe
+- [ ] `letra://constitution` retorna vazio com warning quando constitution não existe
+- [ ] `auditRead("constitution")` é chamado e registrado no session-log
+- [ ] MCP server usa `resolveWorkspaceRoot()` antes de criar boundary
+
+### AC3 — Constitution no AgentDirectionSnapshot
+- [ ] `governanceReferences` inclui constitution quando disponível
+- [ ] `constitutionVersion` reflete versão lida do arquivo
+- [ ] Se constitution indisponível → `available: false` + warning code `CONSTITUTION_MISSING`
+- [ ] Snapshot revisão (`revision`) muda quando constitution é adicionada/removida
+
+### AC4 — Constitution versionada no Harness
+- [ ] `HarnessManifest.constitutionVersion` existe como campo opcional
+- [ ] Se declarado, `createAgentDirectionSnapshot` valida se versão lida confere
+- [ ] Se versão não confere → warning `CONSTITUTION_VERSION_MISMATCH` no direction
+
+### AC5 — Registro de consulta
+- [ ] `constitution_read` é logado no session-log quando:
+  - MCP resource `letra://constitution` é lido
+  - Direction é gerado com constitution disponível
+  - Adapter prompt inclui constitution
+- [ ] Entrada inclui: itemId, timestamp, source, version, available
+- [ ] `letra log --filter constitution` mostra registros
+
+### AC6 — Constitution como mustRead
+- [ ] Constitution.md aparece em `activity.mustRead[]` de pelo menos 1 estágio
+- [ ] Activity context a inclui como referência de governança
+- [ ] Agent direction a lista em `governanceReferences`
+
+### AC7 — Testes
+- [ ] Teste: MCP `letra://constitution` retorna conteúdo quando arquivo existe
+- [ ] Teste: MCP `letra://constitution` retorna vazio quando arquivo não existe
+- [ ] Teste: AgentDirectionSnapshot inclui governanceReferences
+- [ ] Teste: AgentDirectionSnapshot inclui constitutionVersion
+- [ ] Teste: session-log registra constitution_read
+- [ ] Teste: warning CONSTITUTION_MISSING quando arquivo ausente
+- [ ] Teste: warning CONSTITUTION_VERSION_MISMATCH quando versão não confere
 
 ---
 
 ## Escopo
 
-Este item cobre a resolução dos problemas A, B, C e D. O problema E (gate de governança) será tratado como extensão futura, pois exige mudança na semântica de gate enforcement.
+- Fases 0-5: restauração, fix de caminho, versão, registro, direction, adapters
+- Constitution como mustRead obrigatório
+- Testes para todos os ACs
+
+## Exclusions
+
+- Gate de governança que bloqueia operação (avenida futura, fora do escopo)
+- Modificar conteúdo da constituição (item separado)
+- Múltiplas versões da constituição em paralelo (single source of truth)
+- Migração automática de versões da constituição
 
 ---
 
-## Não abrange
+## Impacto no Produto
 
-- Criar gate que bloqueia operação por falta de constituição (avenida futura).
-- Modificar o conteúdo da constituição (isso é item separado).
-- Copiar constituição para o monorepo local (pode criar drift; a preferência é usar o caminho correto do link).
-- Gerir múltiplas versões da constituição em paralelo (single source of truth).
+### Para o Letra
+1. **Confiança operacional** — O LLM sempre recebe a constituição quando disponível
+2. **Auditoria real** — É possível provar que o LLM consultou a constituição antes de decisões
+3. **Prevenção de drift** — Versão vinculada evita que LLM use constituição desatualizada
+4. **Transparência** — Usuário vê no direction se constituição está disponível e qual versão
 
----
+### Para o Harness da LLM
+1. **Contexto garantido** — LLM recebe constituição junto com tarefa (não precisa buscar)
+2. **Governança visível** — `governanceReferences` mostra o que é obrigatório consultar
+3. **Rastreabilidade** — Cada consulta é logada; possível medir frequência de uso
+4. **Fallback explícito** — Se constituição indisponível, LLM sabe que precisa de intervenção humana
 
-## História do usuário
-
-**Como responsável pelo projeto, eu quero que o robô sempre use a Constituição vigente como referência obrigatória em decisões críticas, de forma que ele não invente regras, não ignore as regras, e nós possamos auditar quando ele as consultou.**
-
-Isso se traduz em quatro mudanças concretas:
-
-1. **O robô acha a Constituição sempre do lugar correto.** Hoje o robô pode estar olhando para uma estante vazia (o `.letra/` local deletado) em vez da estante onde o livreto está (o target do `.letra-link`). A spec resolve isso fazendo com que qualquer leitura da constituição siga o mesmo caminho que o resolver de workspace usa — ou seja, respeita o `.letra-link`.
-
-2. **O robô recebe a Constituição junto com a tarefa.** Quando o humano pede uma decisão para o robô, ele recebe um bilhete com a tarefa e o contexto (o `AgentDirectionSnapshot`). Hoje esse bilhete nem sempre diz "leia a Constituição". A spec inclui a Constituição no próprio bilhete, como parte da governança, de forma que o robô a tenha mesmo que só consulte a direção.
-
-3. **O robô sabe qual versão da Constituição está usando.** A Constituição tem número de versão (ex: 1.3.0). Se ela mudar, o robô não deve continuar usando a versão antiga sem saber. A spec inclui a versão da Constituição no direction e, se o harness tiver uma referência à versão esperada, valida se a constituição lida é a correta.
-
-4. **Nós sabemos quando o robô leu a Constituição.** Quando o robô lê a Constituição (via MCP, via direction, via prompt de adapter), isso é registrado no diário de sessão (`session-log`). Assim podemos auditar se o robô realmente consultou a Constituição antes de decisões difíceis, e medir se isso está acontecendo com mais frequência depois da mudança.
-
----
-
-## Arquitetura do contexto (como a constituição deve fluir)
-
-```
-[Workspace Externo (.letra-link target)]
-└── .letra/
-    ├── constitution.md (v1.3.0, Regras não-negociáveis)
-    ├── context.md
-    ├── glossary.md
-    └── constraints.md
-
-[MCP Server]
-    └── get_direction → AgentDirectionSnapshot
-        └── governanceReferences: [{ path: "constitution.md", version: "1.3.0", available: true }]
-    └── get_constitution → "letra://constitution"
-        └── Lê do caminho correto (resolvido via .letra-link)
-
-[ActivityContext]
-    └── mustRead via compatibility sempre inclui constitution.md
-
-[Adapter Prompts]
-    └── L1 files sempre listam constitution.md
-
-[SessionLog]
-    └── constitution_read registrado quando:
-        - MCP lê o resource constitution
-        - Direction é gerado com constituição disponível
-        - Adapter prompt é gerado com constitution
-```
-
----
-
-## Métricas de sucesso
-
-Para que a teoria de que o harness está evoluindo seja sustentável, precisamos de métricas que mostrem o que foi melhorado. Aqui estão as métricas que a spec vai habilitar:
-
-1. **Disponibilidade da Constituição:** antes da mudança, em quantos casos o agente recebe a Constituição disponível? Depois da mudança, espera-se que o número suba (porque o caminho de leitura está correto).
-2. **Visibilidade da Constituição no direction:** antes da mudança, em quantos directions a Constituição está presente? Depois da mudança, espera-se que esteja sempre presente quando disponível.
-3. **Versão da Constituição vinculada:** antes da mudança, a versão da Constituição é conhecida pelo agente? Depois da mudança, sim — e podemos validar se a versão lida é a esperada pelo harness.
-4. **Registro de leitura da Constituição:** antes da mudança, há registros de leitura da Constituição no session-log? Depois da mudança, sim — e podemos auditar quantas vezes a Constituição foi consultada.
-5. **Indicador de indisponibilidade:** antes da mudança, quando a Constituição não está disponível, o agente recebe alguma sinalização? Depois da mudança, sim — e o agente pode pedir para o humano resolver.
+### Valor mensurável
+| Métrica | Antes | Depois | Impacto |
+|---------|-------|--------|---------|
+| Disponibilidade da constituição no direction | ~0% | 100% | LLM sempre a vê |
+| Versão conhecida pelo agente | Nunca | Sempre | Previne uso de versão antiga |
+| Registros de consulta no session-log | 0 | N+ | Auditoria possível |
+| Indicador de indisponibilidade | Não existe | Sempre sinaliza | LLM pode pedir ajuda |
