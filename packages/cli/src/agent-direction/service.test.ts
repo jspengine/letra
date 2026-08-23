@@ -204,10 +204,14 @@ describe("AgentDirectionService", () => {
 		expect(unconfigured.mode).toBe("unconfigured");
 		expect(unconfigured.item).toBeNull();
 		expect(degraded.mode).toBe("degraded");
-		expect(degraded.warnings).toEqual([{
+		expect(degraded.warnings).toContainEqual({
 			code: "HARNESS_UNAVAILABLE",
 			message: "Harness unavailable.",
-		}]);
+		});
+		expect(degraded.warnings).toContainEqual({
+			code: "CONSTITUTION_MISSING",
+			message: "Constitution file not found in workspace",
+		});
 	});
 
 	it("resolves the current workspace through the canonical flow resolver", () => {
@@ -225,5 +229,133 @@ describe("AgentDirectionService", () => {
 		expect(snapshot.pendingAC?.id).toBe("AC3");
 		expect(snapshot.mode).toBe("degraded");
 		expect(snapshot.warnings.some((warning) => warning.code === "HARNESS_UNAVAILABLE")).toBe(true);
+	});
+});
+
+describe("Constitution Governance", () => {
+	it("includes governanceReferences with constitution when available", () => {
+		const root = tempRoot();
+		writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify(workflow()));
+		writeFileSync(
+			join(root, ".letra", "constitution.md"),
+			"# Constitution\n\n**Version:** 1.3.0\n\n## Principles\n",
+		);
+
+		const snapshot = createAgentDirectionSnapshot({
+			workspaceRoot: root,
+			workflow: workflow(),
+			flow: flow(),
+			specContent: null,
+			now: "2026-08-23T12:00:00.000Z",
+		});
+
+		expect(snapshot.governanceReferences).toBeDefined();
+		expect(snapshot.governanceReferences).toHaveLength(1);
+		expect(snapshot.governanceReferences![0]).toMatchObject({
+			path: "constitution.md",
+			version: "1.3.0",
+			available: true,
+			source: "workspace",
+		});
+		expect(snapshot.constitutionVersion).toBe("1.3.0");
+	});
+
+	it("includes governanceReferences with unavailable constitution when missing", () => {
+		const root = tempRoot();
+		writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify(workflow()));
+
+		const snapshot = createAgentDirectionSnapshot({
+			workspaceRoot: root,
+			workflow: workflow(),
+			flow: flow(),
+			specContent: null,
+			now: "2026-08-23T12:00:00.000Z",
+		});
+
+		expect(snapshot.governanceReferences).toBeDefined();
+		expect(snapshot.governanceReferences).toHaveLength(1);
+		expect(snapshot.governanceReferences![0]).toMatchObject({
+			path: "constitution.md",
+			version: "unknown",
+			available: false,
+			source: "workspace",
+		});
+		expect(snapshot.warnings).toContainEqual({
+			code: "CONSTITUTION_MISSING",
+			message: "Constitution file not found in workspace",
+		});
+	});
+
+	it("reads constitution version from file", () => {
+		const root = tempRoot();
+		writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify(workflow()));
+		writeFileSync(
+			join(root, ".letra", "constitution.md"),
+			"# Constitution\n\n**Version:** 2.0.0\n**Date:** 2026-08-23\n",
+		);
+
+		const snapshot = createAgentDirectionSnapshot({
+			workspaceRoot: root,
+			workflow: workflow(),
+			flow: flow(),
+			specContent: null,
+			now: "2026-08-23T12:00:00.000Z",
+		});
+
+		expect(snapshot.constitutionVersion).toBe("2.0.0");
+		expect(snapshot.governanceReferences![0].version).toBe("2.0.0");
+	});
+
+	it("uses provided constitutionVersion when specified", () => {
+		const root = tempRoot();
+		writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify(workflow()));
+		writeFileSync(
+			join(root, ".letra", "constitution.md"),
+			"# Constitution\n\n**Version:** 1.3.0\n",
+		);
+
+		const snapshot = createAgentDirectionSnapshot({
+			workspaceRoot: root,
+			workflow: workflow(),
+			flow: flow(),
+			specContent: null,
+			constitutionVersion: "1.5.0",
+			now: "2026-08-23T12:00:00.000Z",
+		});
+
+		expect(snapshot.constitutionVersion).toBe("1.5.0");
+	});
+
+	it("changes revision when constitution availability changes", () => {
+		const root = tempRoot();
+		writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify(workflow()));
+		writeFileSync(
+			join(root, ".letra", "constitution.md"),
+			"# Constitution\n\n**Version:** 1.3.0\n",
+		);
+
+		const withConstitution = createAgentDirectionSnapshot({
+			workspaceRoot: root,
+			workflow: workflow(),
+			flow: flow(),
+			specContent: null,
+			now: "2026-08-23T12:00:00.000Z",
+		});
+
+		// Remove constitution
+		rmSync(join(root, ".letra", "constitution.md"));
+
+		const withoutConstitution = createAgentDirectionSnapshot({
+			workspaceRoot: root,
+			workflow: workflow(),
+			flow: flow(),
+			specContent: null,
+			now: "2026-08-23T12:00:00.000Z",
+		});
+
+		expect(withConstitution.revision).not.toBe(withoutConstitution.revision);
+		expect(withoutConstitution.warnings).toContainEqual(
+			expect.objectContaining({ code: "CONSTITUTION_MISSING" }),
+		);
 	});
 });

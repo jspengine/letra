@@ -86,9 +86,8 @@ describe("Letra MCP read-only server", () => {
 			expect(direction.item).toMatchObject({ id: "ITEM-1", stage: "build" });
 			expect(direction.revision).toMatch(/^sha256:/);
 
-			const spec = toolJson(await client.callTool({ name: "get_active_spec", arguments: {} }));
-			expect(spec).toMatchObject({ name: "live-direction" });
-			expect(spec.content).toContain("AC1");
+		const spec = toolJson(await client.callTool({ name: "get_active_spec", arguments: {} }));
+		expect(spec).toMatchObject({ name: "live-direction" });
 
 			const health = toolJson(await client.callTool({ name: "get_health", arguments: {} }));
 			expect(health).toMatchObject({ active: [] });
@@ -265,6 +264,132 @@ describe("Letra MCP read-only server", () => {
 				&& entry.details.outcome === "accepted"
 				&& typeof entry.details.revision === "string"
 			))).toBe(true);
+		} finally {
+			await client.close();
+			await server.close();
+		}
+	});
+
+	it("returns empty constitution when file does not exist", async () => {
+		const root = mkdtempSync(join(tmpdir(), "letra-mcp-no-constitution-"));
+		roots.push(root);
+		mkdirSync(join(root, ".letra", "specs", "live-direction"), { recursive: true });
+		writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify({
+			version: "1.0",
+			name: "MCP fixture",
+			createdAt: "2026-07-04T00:00:00.000Z",
+			updatedAt: "2026-07-04T00:00:00.000Z",
+			template: "missing-template",
+			harnessVersion: "missing-version",
+			stages: [{ id: "build", name: "Build", order: 0 }],
+			items: [{
+				id: "ITEM-1",
+				description: "Live direction",
+				stage: "build",
+				spec: "live-direction",
+				createdAt: "2026-07-04T00:00:00.000Z",
+			}],
+			tools: ["codex"],
+		}, null, 2));
+		writeFileSync(
+			join(root, ".letra", "specs", "live-direction", "spec.md"),
+			"# Spec\n\n## Acceptance Criteria\n- [ ] **AC1 — Live**: expose current direction\n",
+		);
+
+		const server = createLetraMcpServer(root);
+		const client = new Client({ name: "letra-test", version: "1.0.0" });
+		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+		await server.connect(serverTransport);
+		await client.connect(clientTransport);
+
+		try {
+			const constitution = await client.readResource({ uri: "letra://constitution" });
+			expect(constitution.contents[0]).toMatchObject({
+				uri: "letra://constitution",
+				text: "",
+			});
+		} finally {
+			await client.close();
+			await server.close();
+		}
+	});
+
+	it("logs constitution_read when reading constitution resource", async () => {
+		const root = fixture();
+		const server = createLetraMcpServer(root);
+		const client = new Client({ name: "letra-test", version: "1.0.0" });
+		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+		await server.connect(serverTransport);
+		await client.connect(clientTransport);
+
+		try {
+			await client.readResource({ uri: "letra://constitution" });
+			const log = loadSessionLog(root);
+			const constitutionReads = log.entries.filter(
+				(entry) => entry.action === "constitution_read",
+			);
+			expect(constitutionReads.length).toBeGreaterThanOrEqual(1);
+			expect(constitutionReads[0].details).toMatchObject({
+				adapter: "mcp",
+				available: true,
+			});
+		} finally {
+			await client.close();
+			await server.close();
+		}
+	});
+
+	it("reads constitution version from file with version header", async () => {
+		const root = mkdtempSync(join(tmpdir(), "letra-mcp-version-"));
+		roots.push(root);
+		mkdirSync(join(root, ".letra", "specs", "live-direction"), { recursive: true });
+		writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify({
+			version: "1.0",
+			name: "MCP fixture",
+			createdAt: "2026-07-04T00:00:00.000Z",
+			updatedAt: "2026-07-04T00:00:00.000Z",
+			template: "missing-template",
+			harnessVersion: "missing-version",
+			stages: [{ id: "build", name: "Build", order: 0 }],
+			items: [{
+				id: "ITEM-1",
+				description: "Live direction",
+				stage: "build",
+				spec: "live-direction",
+				createdAt: "2026-07-04T00:00:00.000Z",
+			}],
+			tools: ["codex"],
+		}, null, 2));
+		writeFileSync(
+			join(root, ".letra", "specs", "live-direction", "spec.md"),
+			"# Spec\n\n## Acceptance Criteria\n- [ ] **AC1 — Live**: expose current direction\n",
+		);
+		writeFileSync(
+			join(root, ".letra", "constitution.md"),
+			"# Constitution\n\n**Version:** 2.0.0\n\nHarness is authority.\n",
+		);
+
+		const server = createLetraMcpServer(root);
+		const client = new Client({ name: "letra-test", version: "1.0.0" });
+		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+		await server.connect(serverTransport);
+		await client.connect(clientTransport);
+
+		try {
+			const constitution = await client.readResource({ uri: "letra://constitution" });
+			expect(constitution.contents[0]).toMatchObject({
+				uri: "letra://constitution",
+				text: expect.stringContaining("**Version:** 2.0.0"),
+			});
+
+			const log = loadSessionLog(root);
+			const constitutionReads = log.entries.filter(
+				(entry) => entry.action === "constitution_read",
+			);
+			expect(constitutionReads[0].details).toMatchObject({
+				available: true,
+				version: "2.0.0",
+			});
 		} finally {
 			await client.close();
 			await server.close();

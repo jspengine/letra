@@ -36,20 +36,22 @@
 - [ ] Agent direction a lista em `governanceReferences`
 
 ## AC7 — Testes
-- [ ] Teste: MCP `letra://constitution` retorna conteúdo quando arquivo existe
-- [ ] Teste: MCP `letra://constitution` retorna vazio quando arquivo não existe
-- [ ] Teste: AgentDirectionSnapshot inclui governanceReferences
-- [ ] Teste: AgentDirectionSnapshot inclui constitutionVersion
-- [ ] Teste: session-log registra constitution_read
-- [ ] Teste: warning CONSTITUTION_MISSING quando arquivo ausente
+- [x] Teste: AgentDirectionSnapshot inclui governanceReferences com constitution disponível
+- [x] Teste: AgentDirectionSnapshot inclui governanceReferences com constitution indisponível
+- [x] Teste: AgentDirectionSnapshot inclui constitutionVersion
+- [x] Teste: warning CONSTITUTION_MISSING quando arquivo ausente
+- [x] Teste: revision muda quando constitution disponibilidade muda
+- [x] Teste: MCP `letra://constitution` retorna conteúdo quando arquivo existe
+- [x] Teste: MCP `letra://constitution` retorna vazio quando arquivo não existe
+- [x] Teste: session-log registra constitution_read
 - [ ] Teste: warning CONSTITUTION_VERSION_MISMATCH quando versão não confere
 
 ## Progresso
 - [ ] AC1: 0/3
 - [ ] AC2: 0/4
-- [ ] AC3: 0/4
-- [ ] AC4: 0/3
+- [x] AC3: 4/4 ✅
+- [ ] AC4: 1/3
 - [ ] AC5: 0/3
 - [ ] AC6: 0/3
-- [ ] AC7: 0/7
-- [ ] **Total: 0/27**
+- [x] AC7: 8/9 ✅ (9/9 quando AC4版本不匹配 test adicionado)
+- [ ] **Total: 13/27**
