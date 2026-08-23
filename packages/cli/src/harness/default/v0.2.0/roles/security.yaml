@@ -1,0 +1,17 @@
+id: security
+label: Security
+description: Analyzes security, vulnerabilities, and dependencies.
+allowedStages:
+  - security
+capabilities:
+  - read_code
+  - security_scan
+  - dependency_audit
+handoff:
+  blocksHandoff: false
+  allowedTargets:
+    - implementer
+    - human
+  requireEvidence: true
+  ttlMinutes: 30
+prompt-template: roles/prompts/security.md

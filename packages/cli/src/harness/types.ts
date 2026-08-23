@@ -156,6 +156,21 @@ export interface Policy {
 	};
 }
 
+export interface ExecutorRegistryEntry {
+	id: string;
+	label: string;
+	capabilities: string[];
+	notification: ("sse" | "polling" | "file-watch")[];
+	heartbeat: boolean;
+	maxExecutionTime: number;
+	priority: number;
+}
+
+export interface ExecutorRegistry {
+	executors: ExecutorRegistryEntry[];
+	stageExecutorPreferences: Record<string, string[]>;
+}
+
 export interface HarnessManifest {
 	version: string;
 	flows: Record<string, FlowTemplate>;
@@ -163,6 +178,7 @@ export interface HarnessManifest {
 	roles: Record<string, AgentCapability>;
 	policies: Record<string, Policy>;
 	constitutionVersion?: string;
+	executors?: ExecutorRegistry;
 }
 
 // Orchestration Types

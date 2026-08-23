@@ -1,0 +1,17 @@
+id: implementer
+label: Implementer
+description: Writes code, implements ACs, runs tests.
+allowedStages:
+  - code
+capabilities:
+  - read_code
+  - write_code
+  - run_tests
+handoff:
+  blocksHandoff: false
+  allowedTargets:
+    - reviewer
+    - security
+  requireEvidence: true
+  ttlMinutes: 30
+prompt-template: roles/prompts/implementer.md

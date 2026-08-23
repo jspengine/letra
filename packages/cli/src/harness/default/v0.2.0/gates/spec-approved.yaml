@@ -1,0 +1,10 @@
+id: spec-approved
+name: Spec Approved
+type: human
+blocking: true
+blocksHandoff: true
+description: Human approves the spec before implementation begins.
+decisions:
+  approve: "Spec is clear and complete. Proceed to implementation."
+  request-changes: "Spec needs revisions. Return to analyst."
+  reject: "Spec is not viable. Reject item."

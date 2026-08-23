@@ -20,7 +20,7 @@ import type {
 import { getLetraDir } from "./../workspace/resolver.js";
 export { ensureSharedHarness } from "../workspace/resolution.js";
 
-export const DEFAULT_HARNESS_VERSION = "v0.1.0";
+export const DEFAULT_HARNESS_VERSION = "v0.2.0";
 
 export function resolveHarnessRoot(cwd: string, version = DEFAULT_HARNESS_VERSION): string {
 	const candidates = [
@@ -300,6 +300,9 @@ export function loadHarness(root: string): HarnessManifest | null {
 							? s.agents.split(",").map((a: string) => a.trim()).filter(Boolean)
 							: [],
 					gate: typeof s.gate === "string" && s.gate.trim() ? s.gate.trim() : null,
+					preferredExecutor: typeof s.preferredExecutor === "string"
+						? s.preferredExecutor
+						: undefined,
 					phases: normalizeStagePhases(s.phases),
 					activity: normalizeStageActivity(s.activity),
 				})),
@@ -319,6 +322,7 @@ export function loadHarness(root: string): HarnessManifest | null {
 					? (raw.type as HarnessManifest["gates"][string]["type"])
 					: "automated",
 				blocking: raw.blocking === true,
+				blocksHandoff: raw.blocksHandoff === true,
 				policyRef: (raw.policyRef as string | undefined) ?? undefined,
 				description: String(raw.description ?? ""),
 				decisions: normalizeGateDecisions(raw.decisions),
@@ -336,6 +340,18 @@ export function loadHarness(root: string): HarnessManifest | null {
 				: typeof raw.capabilities === "string"
 					? raw.capabilities.split(",").map((a: string) => a.trim()).filter(Boolean)
 					: [];
+			const handoff = raw.handoff && typeof raw.handoff === "object"
+				? {
+						blocksHandoff: raw.handoff.blocksHandoff === true,
+						allowedTargets: Array.isArray(raw.handoff.allowedTargets)
+							? raw.handoff.allowedTargets.map(String)
+							: [],
+						requireEvidence: raw.handoff.requireEvidence === true,
+						ttlMinutes: typeof raw.handoff.ttlMinutes === "number"
+							? raw.handoff.ttlMinutes
+							: undefined,
+					}
+				: undefined;
 			roles[String(raw.id)] = {
 				id: String(raw.id),
 				label: String(raw.label ?? raw.id),
@@ -346,6 +362,10 @@ export function loadHarness(root: string): HarnessManifest | null {
 						? raw.allowedStages.split(",").map((a: string) => a.trim()).filter(Boolean)
 						: [],
 				capabilities,
+				handoff,
+				promptTemplate: typeof raw["prompt-template"] === "string"
+					? raw["prompt-template"]
+					: undefined,
 			};
 		}
 	}
@@ -363,11 +383,56 @@ export function loadHarness(root: string): HarnessManifest | null {
 		}
 	}
 
+	const executorsDir = join(harnessDir, "executors");
+	let executors: HarnessManifest["executors"] | undefined;
+	if (existsSync(executorsDir)) {
+		const registryPath = join(executorsDir, "registry.yaml");
+		if (existsSync(registryPath)) {
+			try {
+				const raw = parseSimpleYaml(readFileSync(registryPath, "utf-8"));
+				const executorList = Array.isArray(raw.executors)
+					? raw.executors.map((e: any) => ({
+							id: String(e.id ?? ""),
+							label: String(e.label ?? e.id ?? ""),
+							capabilities: Array.isArray(e.capabilities)
+								? e.capabilities.map(String)
+								: [],
+							notification: Array.isArray(e.notification)
+								? e.notification.filter((n: string) => ["sse", "polling", "file-watch"].includes(n))
+								: [],
+							heartbeat: e.heartbeat === true,
+							maxExecutionTime: typeof e.maxExecutionTime === "number"
+								? e.maxExecutionTime
+								: 1800,
+							priority: typeof e.priority === "number" ? e.priority : 0,
+						}))
+					: [];
+				const stagePreferences = raw.stageExecutorPreferences
+					&& typeof raw.stageExecutorPreferences === "object"
+					? Object.entries(raw.stageExecutorPreferences as Record<string, unknown>).reduce<Record<string, string[]>>(
+							(acc, [stage, value]) => {
+								acc[stage] = Array.isArray(value) ? value.map(String) : [];
+								return acc;
+							},
+							{},
+						)
+					: {};
+				executors = {
+					executors: executorList,
+					stageExecutorPreferences: stagePreferences,
+				};
+			} catch {
+				// ignore malformed registry
+			}
+		}
+	}
+
 	return {
 		version: basename(harnessDir).replace(/^v/, ""),
 		flows,
 		gates,
 		roles,
 		policies,
+		executors,
 	};
 }
