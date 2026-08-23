@@ -216,6 +216,7 @@ export interface ExecutionContext {
 	sessionLog: unknown[];
 	commands: string[];
 	prohibitions: string[];
+	promptTemplate?: string | null;
 }
 
 export interface ExecutionResult {

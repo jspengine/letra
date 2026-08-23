@@ -22,17 +22,17 @@ export default function flowCommand() {
 
 	cmd.command("init [path]")
 		.option("--quick", "Quick setup with 3 questions only")
-		.option("--template <name>", "Template to use (default: sdlc)")
+		.option("--template <name>", "Template to use (default: flow-main)")
 		.description("Initialize workflow in .letra/workflow.json")
 		.action((path: string | undefined, options: { quick?: boolean; template?: string }) => {
 			flowInitAction(path, { quick: options.quick, template: options.template });
 		});
 
 	cmd.command("start")
-		.option("--template <name>", "Template to use (default: sdlc)")
+		.option("--template <name>", "Template to use (default: flow-main)")
 		.description("Quick start workflow with SDLC default template")
 		.action((options: { template?: string }) => {
-			flowInitAction(undefined, { quick: true, template: options.template || "sdlc" });
+			flowInitAction(undefined, { quick: true, template: options.template || "flow-main" });
 		});
 
 	const backlog = cmd.command("backlog").description("Manage backlog items");

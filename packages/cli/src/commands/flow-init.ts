@@ -520,7 +520,7 @@ export async function flowInit(root: string, options?: { quick?: boolean; templa
 	return workflow;
 }
 
-async function flowInitQuick(root: string, templateId = "sdlc"): Promise<Workflow> {
+async function flowInitQuick(root: string, templateId = "flow-main"): Promise<Workflow> {
 	const defaultName = detectProjectName(root);
 	const harness = loadHarness(resolveHarnessRoot(root));
 	const template = harness?.flows?.[templateId];

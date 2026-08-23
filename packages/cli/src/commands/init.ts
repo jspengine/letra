@@ -112,7 +112,7 @@ function externalWorkspaceWorkflow(workspaceName: string, projectRoot: string, h
 		],
 		items: [],
 		tools: [],
-		template: "sdlc",
+		template: "flow-main",
 		harnessVersion,
 		locations: [{
 			id: stableLocationId(locationPath),

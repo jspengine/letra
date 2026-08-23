@@ -31,6 +31,13 @@ export interface PulseData {
 		claimedBy?: string;
 		claimedAt?: string;
 	} | null;
+	handoff: {
+		itemId: string;
+		from: string;
+		to: string;
+		summary: string;
+		expiresAt: string;
+	} | null;
 	alerts: {
 		novo: number;
 		acknowledged: number;
@@ -126,6 +133,7 @@ export async function pulse(
 			legacyWarning,
 			pulseAt: new Date().toISOString(),
 			currentItem: null,
+			handoff: null,
 			alerts: { novo: 0, acknowledged: 0, resolved: 0, dismissed: 0, highSeverity: 0 },
 			lastUpdated: null,
 			daysIdle: null,
@@ -176,6 +184,15 @@ export async function pulse(
 			dismissed: summary.descartado,
 			highSeverity: summary.alta,
 		},
+		handoff: currentItem?.handoff
+			? {
+					itemId: currentItem.id,
+					from: currentItem.handoff.from,
+					to: currentItem.handoff.to,
+					summary: currentItem.handoff.summary,
+					expiresAt: currentItem.handoff.expiresAt,
+				}
+			: null,
 		lastUpdated: workflow.updatedAt ?? null,
 		daysIdle: workflow.updatedAt ? daysSince(new Date(workflow.updatedAt)) : null,
 		nextItem: findNextBacklog(workflow)
@@ -252,6 +269,17 @@ function renderPulseText(data: PulseData, focusDiverged = false, statePath?: str
 		console.log(`  ${chalk.yellow("Nenhum item em andamento.")}`);
 	}
 	console.log();
+
+	if (data.handoff) {
+		const h = data.handoff;
+		const isExpired = new Date(h.expiresAt) < new Date();
+		const status = isExpired ? chalk.red("EXPIRADO") : chalk.green("ATIVO");
+		console.log(`  ${chalk.bold("Handoff pendente:")}`);
+		console.log(`    ${chalk.cyan(h.itemId)} · ${h.from} → ${h.to} [${status}]`);
+		console.log(`    ${chalk.gray(h.summary)}`);
+		console.log(`    ${chalk.gray(`Expira: ${new Date(h.expiresAt).toLocaleString("pt-BR")}`)}`);
+		console.log();
+	}
 
 	const alerts = data.alerts;
 	if (alerts.novo > 0 || alerts.acknowledged > 0 || alerts.resolved > 0) {

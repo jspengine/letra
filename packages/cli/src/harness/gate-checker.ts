@@ -1,8 +1,11 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { queryLog } from "../session-log.js";
 import type { Item } from "../commands/flow-init.js";
 import { getLetraDir } from "./../workspace/resolver.js";
+import type { Gate, HarnessManifest } from "./types.js";
+import { parseSimpleYaml } from "./parse.js";
+import { resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "./loader.js";
 
 export interface GateResult {
 	allowed: boolean;
@@ -10,65 +13,187 @@ export interface GateResult {
 	blocksHandoff?: boolean;
 }
 
-function loadGateStatus(root: string, gateId: string): { blocking: boolean; status: string; blocksHandoff: boolean } | null {
-	const harnessDir = join(getLetraDir(root), "harness");
-	if (!existsSync(harnessDir)) return null;
-	const files = [join(harnessDir, "gates", `${gateId}.yaml`), join(harnessDir, "gates", `${gateId}.yml`)];
-	for (const f of files) {
-		if (existsSync(f)) {
-			const raw = readFileSync(f, "utf-8");
-			const blocking = raw.includes("blocking: true");
-			const blocksHandoff = raw.includes("blocksHandoff: true");
-			const status = raw.includes("status: approved") ? "approved" : "pending";
-			return { blocking, status, blocksHandoff };
+interface GateRuntimeStatus {
+	blocksHandoff: boolean;
+	status: string;
+}
+
+function loadGateStatusFromDisk(root: string, gateId: string): GateRuntimeStatus | null {
+	const candidates = [
+		join(getLetraDir(root), "harness", "gates"),
+		join(root, ".letra", "harness", "gates"),
+	];
+	for (const gatesDir of candidates) {
+		if (!existsSync(gatesDir)) continue;
+		const files = [
+			join(gatesDir, `${gateId}.yaml`),
+			join(gatesDir, `${gateId}.yml`),
+		];
+		for (const f of files) {
+			if (existsSync(f)) {
+				const raw = parseSimpleYaml(readFileSync(f, "utf-8"));
+				return {
+					blocksHandoff: raw.blocksHandoff === true,
+					status: raw.status === "approved" ? "approved" : "pending",
+				};
+			}
 		}
 	}
 	return null;
 }
 
+function loadManifestGates(root: string): Record<string, Gate> {
+	const candidates = [
+		join(getLetraDir(root), "harness", DEFAULT_HARNESS_VERSION),
+		join(resolveHarnessRoot(root, DEFAULT_HARNESS_VERSION)),
+	];
+	const gates: Record<string, Gate> = {};
+	for (const harnessDir of candidates) {
+		const gatesDir = join(harnessDir, "gates");
+		if (!existsSync(gatesDir)) continue;
+		for (const file of readdirSync(gatesDir)) {
+			if (!file.endsWith(".yaml")) continue;
+			try {
+				const raw = parseSimpleYaml(readFileSync(join(gatesDir, file), "utf-8"));
+				const id = String(raw.id ?? file.replace(/\.ya?ml$/, ""));
+				gates[id] = {
+					id,
+					name: String(raw.name ?? id),
+					type: ["human", "automated", "external"].includes(raw.type as string)
+						? (raw.type as Gate["type"])
+						: "automated",
+					blocking: raw.blocking === true,
+					blocksHandoff: raw.blocksHandoff === true,
+					policyRef: typeof raw.policyRef === "string" ? raw.policyRef : undefined,
+					description: String(raw.description ?? ""),
+					decisions: raw.decisions && typeof raw.decisions === "object"
+						? Object.fromEntries(
+							Object.entries(raw.decisions as Record<string, unknown>)
+								.filter(([, v]) => typeof v === "string" && (v as string).trim())
+								.map(([k, v]) => [k, (v as string).trim()]),
+						)
+						: undefined,
+				};
+			} catch {
+				// ignore malformed gate file
+			}
+		}
+		if (Object.keys(gates).length > 0) break;
+	}
+	return gates;
+}
+
 export class GateChecker {
-	constructor(private readonly root: string) {}
+	private readonly root: string;
+	private readonly manifestGates: Record<string, Gate>;
+
+	constructor(root: string, manifest?: HarnessManifest) {
+		this.root = root;
+		this.manifestGates = manifest?.gates ?? loadManifestGates(root);
+	}
+
+	private getGate(gateId: string): Gate | undefined {
+		return this.manifestGates[gateId];
+	}
+
+	private getRuntimeStatus(gateId: string): GateRuntimeStatus | null {
+		return loadGateStatusFromDisk(this.root, gateId);
+	}
 
 	checkBlocksHandoff(gateId: string): boolean {
-		const status = loadGateStatus(this.root, gateId);
-		if (!status) return false;
-		return status.blocksHandoff;
+		const gate = this.getGate(gateId);
+		if (gate) return gate.blocksHandoff === true;
+		const status = this.getRuntimeStatus(gateId);
+		if (status) return status.blocksHandoff;
+		return false;
 	}
 
 	checkHandoffAllowed(gateId: string, item: Item): GateResult {
 		if (!gateId) return { allowed: true };
+		const blocksHandoff = this.checkBlocksHandoff(gateId);
+
+		if (!blocksHandoff) {
+			return { allowed: true };
+		}
+
 		const gateResult = this.check(gateId, item);
 		if (!gateResult.allowed) {
-			return gateResult;
+			return {
+				...gateResult,
+				blocksHandoff: true,
+			};
 		}
-		const blocksHandoff = this.checkBlocksHandoff(gateId);
-		if (blocksHandoff) {
-			const status = loadGateStatus(this.root, gateId);
-			if (status && status.status !== "approved") {
-				return {
-					allowed: false,
-					reason: `Gate "${gateId}" blocks handoff and is not approved`,
-					blocksHandoff: true,
-				};
-			}
+
+		const runtime = this.getRuntimeStatus(gateId);
+		if (runtime && runtime.status !== "approved") {
+			return {
+				allowed: false,
+				reason: `Gate "${gateId}" blocks handoff and is not approved`,
+				blocksHandoff: true,
+			};
 		}
 		return { allowed: true };
 	}
 
 	check(gateId: string, item: Item): GateResult {
-		switch (gateId) {
-			case "has-spec-file":
-				return this.checkHasSpecFile(item);
-			case "all-acs-passing":
-				return this.checkAllAcsPassing(item);
-			case "human-approved-code":
-			case "human-approved-spec":
-				return this.checkHumanApproved(gateId);
-			case "security-clear":
-				return this.checkSecurityClear(item);
+		const gate = this.getGate(gateId);
+
+		if (!gate) {
+			return this.checkByConvention(gateId, item);
+		}
+
+		switch (gate.type) {
+			case "human":
+				return this.checkHumanGate(gate);
+			case "automated":
+				return this.checkAutomatedGate(gate, item);
+			case "external":
+				return this.checkExternalGate(gate);
 			default:
 				return { allowed: true };
 		}
+	}
+
+	private checkByConvention(gateId: string, item: Item): GateResult {
+		if (gateId === "has-spec-file") return this.checkHasSpecFile(item);
+		if (gateId === "all-acs-passing") return this.checkAllAcsPassing(item);
+		return { allowed: true };
+	}
+
+	private checkHumanGate(gate: Gate): GateResult {
+		const runtime = this.getRuntimeStatus(gate.id);
+		if (!runtime) {
+			return { allowed: false, reason: `Gate "${gate.id}" não encontrado` };
+		}
+		if (runtime.status !== "approved") {
+			const decisionLabel = gate.decisions?.approve ?? "aprovação";
+			return { allowed: false, reason: `Gate "${gate.id}" pendente de ${decisionLabel}` };
+		}
+		return { allowed: true };
+	}
+
+	private checkAutomatedGate(gate: Gate, item: Item): GateResult {
+		if (gate.id === "has-spec-file") return this.checkHasSpecFile(item);
+		if (gate.id === "all-acs-passing") return this.checkAllAcsPassing(item);
+		const runtime = this.getRuntimeStatus(gate.id);
+		if (!runtime) {
+			return { allowed: false, reason: `Gate "${gate.id}" não encontrado` };
+		}
+		if (runtime.status !== "approved") {
+			return { allowed: false, reason: `Gate "${gate.id}" pendente de aprovação` };
+		}
+		return { allowed: true };
+	}
+
+	private checkExternalGate(gate: Gate): GateResult {
+		const runtime = this.getRuntimeStatus(gate.id);
+		if (!runtime) {
+			return { allowed: false, reason: `Gate "${gate.id}" não encontrado` };
+		}
+		if (runtime.status !== "approved") {
+			return { allowed: false, reason: `Gate "${gate.id}" pendente de validação externa` };
+		}
+		return { allowed: true };
 	}
 
 	private checkHasSpecFile(item: Item): GateResult {
@@ -113,28 +238,6 @@ export class GateChecker {
 			};
 		}
 
-		return { allowed: true };
-	}
-
-	private checkHumanApproved(gateId: string): GateResult {
-		const status = loadGateStatus(this.root, gateId);
-		if (!status) {
-			return { allowed: false, reason: `Gate "${gateId}" não encontrado` };
-		}
-		if (status.status !== "approved") {
-			return { allowed: false, reason: `Gate "${gateId}" pendente de aprovação humana` };
-		}
-		return { allowed: true };
-	}
-
-	private checkSecurityClear(_item: Item): GateResult {
-		const status = loadGateStatus(this.root, "security-clear");
-		if (!status) {
-			return { allowed: false, reason: 'Gate "security-clear" não encontrado' };
-		}
-		if (status.status !== "approved") {
-			return { allowed: false, reason: 'Gate "security-clear" pendente de aprovação' };
-		}
 		return { allowed: true };
 	}
 }

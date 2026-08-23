@@ -12,14 +12,16 @@ export default function () {
 		.option("--json", "Output in JSON format")
 		.option("--item <id>", "Filter by item ID")
 		.option("--action <action>", "Filter by action type")
+		.option("--filter <type>", "Filter by type (alias for --action, e.g. handoff)")
 		.option("--since <date>", "Filter by date (ISO or YYYY-MM-DD)")
 		.option("--debug", "Include debug/system entries")
-		.action((options: { all?: boolean; json?: boolean; item?: string; action?: string; since?: string; debug?: boolean }) => {
+		.action((options: { all?: boolean; json?: boolean; item?: string; action?: string; filter?: string; since?: string; debug?: boolean }) => {
 			const root = resolve(process.cwd());
+			const action = options.action ?? options.filter;
 			const entries = queryLog(root, {
 				all: options.all,
 				itemId: options.item,
-				action: options.action,
+				action,
 				since: options.since,
 				debug: options.debug,
 			});
@@ -110,4 +112,9 @@ const actionColors: Record<string, (s: string) => string> = {
 	focus_set: (s: string) => chalk.cyan(s),
 	manual: (s: string) => chalk.white(s),
 	session_end: (s: string) => chalk.red(s),
+	handoff: (s: string) => chalk.yellowBright(s),
+	handoff_emitted: (s: string) => chalk.yellowBright(s),
+	handoff_rollback: (s: string) => chalk.redBright(s),
+	item_claim: (s: string) => chalk.greenBright(s),
+	item_reclaim: (s: string) => chalk.red(s),
 };

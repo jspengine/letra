@@ -3,8 +3,9 @@ import chalk from "chalk";
 import { type Item, loadWorkflow, writeWorkflow } from "./flow-init.js";
 import { logEntry } from "../session-log.js";
 import { GateChecker } from "../harness/gate-checker.js";
+import { loadHarness, resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "../harness/loader.js";
 
-const HANDOFF_TTL_MINUTES = 30;
+const DEFAULT_HANDOFF_TTL_MINUTES = 30;
 
 export interface HandoffOptions {
 	to: string;
@@ -72,8 +73,21 @@ export async function handoffItem(root: string, itemId: string, options: Handoff
 		}
 	}
 
+	let ttlMinutes = DEFAULT_HANDOFF_TTL_MINUTES;
+	try {
+		const manifest = loadHarness(resolveHarnessRoot(root, DEFAULT_HARNESS_VERSION));
+		if (manifest) {
+			const role = manifest.roles[options.to];
+			if (role?.handoff?.ttlMinutes) {
+				ttlMinutes = role.handoff.ttlMinutes;
+			}
+		}
+	} catch {
+		// fallback to default TTL
+	}
+
 	const now = new Date();
-	const expiresAt = new Date(now.getTime() + HANDOFF_TTL_MINUTES * 60 * 1000);
+	const expiresAt = new Date(now.getTime() + ttlMinutes * 60 * 1000);
 
 	item.handoff = {
 		from: item.claimedBy || "unknown",

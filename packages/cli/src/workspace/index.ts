@@ -153,7 +153,7 @@ export function initWorkspace(name: string): { workspaceDir: string; info: Works
 	}
 
 	const workspaceId = `ws_${crypto.randomBytes(4).toString("hex")}`;
-	const templateId = "sdlc";
+	const templateId = "flow-main";
 	const harnessVersion = "v0.1.0";
 
 	ensureDefaultHarness(harnessVersion);
