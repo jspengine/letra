@@ -54,10 +54,10 @@
 - [x] Timeout: se executor não responde em 30s, marca como offline
 
 ## AC8 — Mecanismos de Notificação
-- [ ] SSE (Server-Sent Events) para executores web
-- [ ] Polling via `GET /api/handoff/pending?agent=<id>` para executores CLI/desktop
+- [x] SSE (Server-Sent Events) para executores web
+- [x] Polling via `GET /api/handoff/pending?agent=<id>` para executores CLI/desktop
 - [x] File watch: handoff salvo em `.letra/handoffs/<item-id>.json` para ferramentas que leem arquivos
-- [ ] Executor pode escolher mecanismo preferido no registro
+- [x] Executor pode escolher mecanismo preferido no registro
 
 ## AC9 — Concorrência e Race Conditions
 - [x] `autoClaim` usa Compare-And-Swap (CAS) para evitar race condition
@@ -129,7 +129,7 @@
 - [x] AC5: 7/7 ✅
 - [x] AC6: 5/5 ✅
 - [x] AC7: 5/5 ✅
-- [x] AC8: 1/4 (file watch done, SSE/polling pendentes)
+- [x] AC8: 4/4 ✅ (SSE + polling + file watch + registry choice)
 - [x] AC9: 4/4 ✅
 - [x] AC10: 5/5 ✅
 - [x] AC11: 4/4 ✅
@@ -139,4 +139,4 @@
 - [x] AC15: 6/6 ✅ (Gap fixes)
 - [x] AC16: 5/5 ✅ (Gap fixes)
 - [x] AC17: 5/5 ✅ (Gap fixes)
-- [ ] **Total: 79/84**
+- [ ] **Total: 82/84**

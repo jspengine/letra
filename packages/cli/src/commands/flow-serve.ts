@@ -66,6 +66,7 @@ import { createContextRoutes } from "../flow-serve/routes/context-routes.js";
 import { createWorkflowRoutes } from "../flow-serve/routes/workflow-routes.js";
 import { createWorkspaceRoutes } from "../flow-serve/routes/workspace-routes.js";
 import { createAdapterRoutes } from "../flow-serve/routes/adapter-routes.js";
+import { createHandoffRoutes } from "../flow-serve/routes/handoff-routes.js";
 import { ClientAssets } from "../flow-serve/client-assets.js";
 import { AutomationRuntime, type AutomationBinding } from "../flow-serve/automation-runtime.js";
 
@@ -223,6 +224,32 @@ export class FlowServer {
 			createAdapterRoutes({
 				logEntry,
 				broadcast: () => this.broadcast(),
+			}),
+		);
+		this.router.register(
+			createHandoffRoutes({
+				getPendingHandoffs: (agentId?: string) => {
+					const workflow = this.loadWorkflow();
+					if (!workflow) return [];
+					const now = new Date();
+					return workflow.items
+						.filter((item) => {
+							if (!item.handoff) return false;
+							if (new Date(item.handoff.expiresAt) < now) return false;
+							if (agentId && item.handoff.to !== agentId) return false;
+							return true;
+						})
+						.map((item) => ({
+							itemId: item.id,
+							from: item.handoff!.from,
+							to: item.handoff!.to,
+							summary: item.handoff!.summary,
+							evidence: item.handoff!.evidence || [],
+							executorId: item.handoff!.executorId,
+							timestamp: item.handoff!.timestamp,
+							expiresAt: item.handoff!.expiresAt,
+						}));
+				},
 			}),
 		);
 	}

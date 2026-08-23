@@ -11,6 +11,18 @@ export interface SystemActionEventPayload {
 	outcome: "armed" | "triggered" | "completed" | "failed";
 }
 
+export interface HandoffEventPayload {
+	itemId: string;
+	from: string;
+	to: string;
+	summary: string;
+	evidence: string[];
+	executorId?: string;
+	timestamp: string;
+	expiresAt: string;
+	action: "emitted" | "claimed" | "expired" | "rollback" | "retry";
+}
+
 export class FlowServerEvents {
 	private clients = new Set<ServerResponse>();
 
@@ -35,6 +47,10 @@ export class FlowServerEvents {
 
 	broadcastSystemActionUpdated(payload: SystemActionEventPayload): void {
 		this.broadcast("system-action-updated", payload);
+	}
+
+	broadcastHandoff(payload: HandoffEventPayload): void {
+		this.broadcast("handoff", payload);
 	}
 
 	close(): void {

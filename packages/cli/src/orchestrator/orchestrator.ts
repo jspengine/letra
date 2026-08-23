@@ -1,7 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Item, Workflow } from "../commands/flow-init.js";
 import type { HandoffPayload, ExecutorConfig, HeartbeatInfo, HarnessManifest } from "../harness/types.js";
+import type { HandoffEventPayload } from "../flow-serve/events.js";
 import { loadWorkflow, writeWorkflow } from "../commands/flow-init.js";
 import { logEntry } from "../session-log.js";
 import { GateChecker } from "../harness/gate-checker.js";
@@ -13,12 +14,18 @@ const DEFAULT_HEARTBEAT_TIMEOUT = 60_000;
 const DEFAULT_MAX_EXECUTION_TIME = 1_800_000;
 const RECLAIM_INTERVAL = 60_000;
 
+export interface FileLock {
+	executor: string;
+	claimedAt: number;
+}
+
 export interface OrchestratorConfig {
 	root: string;
 	heartbeatInterval?: number;
 	heartbeatTimeout?: number;
 	maxExecutionTime?: number;
 	reclaimInterval?: number;
+	onHandoffEvent?: (payload: HandoffEventPayload) => void;
 }
 
 export class Orchestrator {
@@ -27,14 +34,15 @@ export class Orchestrator {
 	private readonly manifest: HarnessManifest | null;
 	private readonly executors: Map<string, ExecutorConfig> = new Map();
 	private readonly heartbeats: Map<string, HeartbeatInfo> = new Map();
-	private readonly claimLocks: Map<string, { executor: string; claimedAt: number }> = new Map();
 	private readonly stageExecutorPreferences: Map<string, string[]> = new Map();
+	private readonly onHandoffEvent?: (payload: HandoffEventPayload) => void;
 	private reclaimTimer: ReturnType<typeof setInterval> | null = null;
 
 	constructor(config: OrchestratorConfig) {
 		this.root = config.root;
 		this.manifest = loadHarness(resolveHarnessRoot(config.root, DEFAULT_HARNESS_VERSION));
 		this.gateChecker = new GateChecker(config.root, this.manifest ?? undefined);
+		this.onHandoffEvent = config.onHandoffEvent;
 	}
 
 	registerExecutor(executor: ExecutorConfig): void {
@@ -142,6 +150,20 @@ export class Orchestrator {
 			evidence: payload.evidence,
 		});
 
+		if (this.onHandoffEvent) {
+			this.onHandoffEvent({
+				itemId: payload.itemId,
+				from: payload.from,
+				to: payload.to,
+				summary: payload.summary,
+				evidence: payload.evidence,
+				executorId: payload.executorId,
+				timestamp: payload.timestamp,
+				expiresAt: payload.expiresAt,
+				action: "emitted",
+			});
+		}
+
 		return { success: true };
 	}
 
@@ -160,7 +182,7 @@ export class Orchestrator {
 			return { success: false, reason: `Item ${itemId} not found` };
 		}
 
-		const lock = this.claimLocks.get(itemId);
+		const lock = this.readFileLock(itemId);
 		if (lock && lock.executor !== executorId) {
 			const lockOwnerConfig = this.executors.get(lock.executor);
 			const lockMaxExecTime = lockOwnerConfig?.maxExecutionTime
@@ -176,13 +198,14 @@ export class Orchestrator {
 			return { success: false, reason: `Item handoff is for ${item.handoff.to}, not ${agentId}` };
 		}
 
-		this.claimLocks.set(itemId, {
-			executor: executorId,
-			claimedAt: Date.now(),
-		});
+		this.writeFileLock(itemId, { executor: executorId, claimedAt: Date.now() });
 
 		item.claimedBy = executorId;
 		item.claimedAt = new Date().toISOString();
+
+		const handoffData = item.handoff && item.handoff.to === agentId
+			? { ...item.handoff }
+			: null;
 
 		if (item.handoff && item.handoff.to === agentId) {
 			delete item.handoff;
@@ -197,6 +220,20 @@ export class Orchestrator {
 			executorId,
 			agentId,
 		});
+
+		if (this.onHandoffEvent && handoffData) {
+			this.onHandoffEvent({
+				itemId,
+				from: handoffData.from,
+				to: handoffData.to,
+				summary: handoffData.summary,
+				evidence: handoffData.evidence || [],
+				executorId: handoffData.executorId,
+				timestamp: handoffData.timestamp,
+				expiresAt: handoffData.expiresAt,
+				action: "claimed",
+			});
+		}
 
 		return { success: true };
 	}
@@ -266,7 +303,8 @@ export class Orchestrator {
 		const reclaimed: string[] = [];
 		const now = Date.now();
 
-		for (const [itemId, lock] of this.claimLocks) {
+		const lockFiles = this.listLockFiles();
+		for (const [itemId, lock] of lockFiles) {
 			const executorConfig = this.executors.get(lock.executor);
 			const maxExecTime = executorConfig?.maxExecutionTime
 				? executorConfig.maxExecutionTime * 1000
@@ -284,7 +322,7 @@ export class Orchestrator {
 						executorId: lock.executor,
 					});
 				}
-				this.claimLocks.delete(itemId);
+				this.deleteFileLock(itemId);
 			}
 		}
 
@@ -330,6 +368,48 @@ export class Orchestrator {
 
 	getAllExecutorStatuses(): HeartbeatInfo[] {
 		return Array.from(this.heartbeats.values());
+	}
+
+	private getLocksDir(): string {
+		return join(this.root, ".letra", "locks");
+	}
+
+	private readFileLock(itemId: string): FileLock | null {
+		const lockPath = join(this.getLocksDir(), `${itemId}.lock`);
+		if (!existsSync(lockPath)) return null;
+		try {
+			const data = JSON.parse(readFileSync(lockPath, "utf-8"));
+			return { executor: data.executor, claimedAt: data.claimedAt };
+		} catch {
+			return null;
+		}
+	}
+
+	private writeFileLock(itemId: string, lock: FileLock): void {
+		const dir = this.getLocksDir();
+		mkdirSync(dir, { recursive: true });
+		const lockPath = join(dir, `${itemId}.lock`);
+		writeFileSync(lockPath, JSON.stringify(lock, null, 2));
+	}
+
+	private deleteFileLock(itemId: string): void {
+		const lockPath = join(this.getLocksDir(), `${itemId}.lock`);
+		if (existsSync(lockPath)) {
+			unlinkSync(lockPath);
+		}
+	}
+
+	private listLockFiles(): Map<string, FileLock> {
+		const dir = this.getLocksDir();
+		if (!existsSync(dir)) return new Map();
+		const files = readdirSync(dir).filter((f) => f.endsWith(".lock"));
+		const locks = new Map<string, FileLock>();
+		for (const file of files) {
+			const itemId = file.replace(".lock", "");
+			const lock = this.readFileLock(itemId);
+			if (lock) locks.set(itemId, lock);
+		}
+		return locks;
 	}
 
 	private getHandoffsDir(): string {
@@ -431,6 +511,20 @@ export class Orchestrator {
 			executorId: nextExecutor.id,
 			retry: true,
 		});
+
+		if (this.onHandoffEvent) {
+			this.onHandoffEvent({
+				itemId,
+				from: previousFrom,
+				to: previousTo,
+				summary,
+				evidence,
+				executorId: nextExecutor.id,
+				timestamp: now.toISOString(),
+				expiresAt: expiresAt.toISOString(),
+				action: "retry",
+			});
+		}
 
 		return { success: true, reEmittedTo: nextExecutor.id };
 	}

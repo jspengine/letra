@@ -1,7 +1,7 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Orchestrator } from "./orchestrator.js";
 import { loadWorkflow } from "../commands/flow-init.js";
 
@@ -179,8 +179,10 @@ describe("Orchestrator", () => {
 			const orchestrator = new Orchestrator({ root });
 			orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
 
-			const lock = (orchestrator as any).claimLocks.get("ITEM-1");
+			const lockPath = join(root, ".letra", "locks", "ITEM-1.lock");
+			const lock = JSON.parse(readFileSync(lockPath, "utf-8"));
 			lock.claimedAt = Date.now() - 2 * 60 * 60 * 1000;
+			writeFileSync(lockPath, JSON.stringify(lock, null, 2));
 
 			const reclaimed = orchestrator.reclaimStaleItems();
 			expect(reclaimed).toContain("ITEM-1");
@@ -294,8 +296,10 @@ describe("Orchestrator", () => {
 			const first = orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
 			expect(first.success).toBe(true);
 
-			const lock = (orchestrator as any).claimLocks.get("ITEM-1");
+			const lockPath = join(root, ".letra", "locks", "ITEM-1.lock");
+			const lock = JSON.parse(readFileSync(lockPath, "utf-8"));
 			lock.claimedAt = Date.now() - 61 * 1000;
+			writeFileSync(lockPath, JSON.stringify(lock, null, 2));
 
 			const result = orchestrator.autoClaim("ITEM-1", "cursor", "implementer");
 			expect(result.success).toBe(true);
@@ -318,8 +322,10 @@ describe("Orchestrator", () => {
 
 			orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
 
-			const lock = (orchestrator as any).claimLocks.get("ITEM-1");
+			const lockPath = join(root, ".letra", "locks", "ITEM-1.lock");
+			const lock = JSON.parse(readFileSync(lockPath, "utf-8"));
 			lock.claimedAt = Date.now() - 30 * 1000;
+			writeFileSync(lockPath, JSON.stringify(lock, null, 2));
 
 			const result = orchestrator.autoClaim("ITEM-1", "cursor", "implementer");
 			expect(result.success).toBe(false);
@@ -495,6 +501,140 @@ describe("Orchestrator", () => {
 
 			const pending = orchestrator.getPendingHandoffFiles();
 			expect(pending).toHaveLength(0);
+		});
+	});
+
+	describe("file lock persistence", () => {
+		it("writes lock file to disk on claim", () => {
+			const root = tempRoot();
+			createWorkflow(root);
+
+			const orchestrator = new Orchestrator({ root });
+			orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
+
+			const lockPath = join(root, ".letra", "locks", "ITEM-1.lock");
+			expect(existsSync(lockPath)).toBe(true);
+
+			const lock = JSON.parse(readFileSync(lockPath, "utf-8"));
+			expect(lock.executor).toBe("opencode");
+			expect(lock.claimedAt).toBeDefined();
+		});
+
+		it("reads lock from another orchestrator instance", () => {
+			const root = tempRoot();
+			createWorkflow(root);
+
+			const orchestrator1 = new Orchestrator({ root });
+			orchestrator1.autoClaim("ITEM-1", "opencode", "implementer");
+
+			const orchestrator2 = new Orchestrator({ root });
+			const result = orchestrator2.autoClaim("ITEM-1", "cursor", "implementer");
+			expect(result.success).toBe(false);
+			expect(result.reason).toContain("already claimed");
+		});
+
+		it("deletes lock file on reclaim", () => {
+			const root = tempRoot();
+			createWorkflow(root);
+
+			const orchestrator = new Orchestrator({ root });
+			orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
+
+			const lockPath = join(root, ".letra", "locks", "ITEM-1.lock");
+			const lock = JSON.parse(readFileSync(lockPath, "utf-8"));
+			lock.claimedAt = Date.now() - 2 * 60 * 60 * 1000;
+			writeFileSync(lockPath, JSON.stringify(lock, null, 2));
+
+			orchestrator.reclaimStaleItems();
+			expect(existsSync(lockPath)).toBe(false);
+		});
+	});
+
+	describe("onHandoffEvent callback", () => {
+		it("calls onHandoffEvent on emitHandoff", () => {
+			const root = tempRoot();
+			createWorkflow(root);
+
+			const onHandoffEvent = vi.fn();
+			const orchestrator = new Orchestrator({ root, onHandoffEvent });
+
+			orchestrator.emitHandoff({
+				itemId: "ITEM-1",
+				from: "opencode",
+				to: "reviewer",
+				summary: "Review code",
+				evidence: [],
+				timestamp: new Date().toISOString(),
+				expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+			});
+
+			expect(onHandoffEvent).toHaveBeenCalledWith(
+				expect.objectContaining({
+					itemId: "ITEM-1",
+					action: "emitted",
+				}),
+			);
+		});
+
+		it("calls onHandoffEvent on autoClaim with handoff", () => {
+			const root = tempRoot();
+			createWorkflow(root);
+
+			const onHandoffEvent = vi.fn();
+			const orchestrator = new Orchestrator({ root, onHandoffEvent });
+
+			orchestrator.emitHandoff({
+				itemId: "ITEM-1",
+				from: "opencode",
+				to: "reviewer",
+				summary: "Review code",
+				evidence: [],
+				timestamp: new Date().toISOString(),
+				expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+			});
+
+			orchestrator.autoClaim("ITEM-1", "cursor", "reviewer");
+
+			expect(onHandoffEvent).toHaveBeenCalledWith(
+				expect.objectContaining({
+					itemId: "ITEM-1",
+					action: "claimed",
+				}),
+			);
+		});
+
+		it("calls onHandoffEvent on retryHandoff", () => {
+			const root = tempRoot();
+			createWorkflow(root);
+			writeHarnessFile(root, "v0.2.0/gates/code-reviewed.yaml", "id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n");
+			writeHarnessFile(root, "v0.2.0/roles/implementer.yaml", "id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\n");
+			writeHarnessFile(root, "v0.2.0/flows/flow-main.yaml", "id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n");
+			writeHarnessFile(root, "v0.2.0/executors/registry.yaml",
+				"executors:\n  - id: opencode\n    label: OpenCode\n    capabilities: [code]\n    notification: [sse]\n    heartbeat: true\n    maxExecutionTime: 1800\n    priority: 1\n  - id: cursor\n    label: Cursor\n    capabilities: [code]\n    notification: [file-watch]\n    heartbeat: false\n    maxExecutionTime: 1800\n    priority: 2\n",
+			);
+
+			const onHandoffEvent = vi.fn();
+			const orchestrator = new Orchestrator({ root, onHandoffEvent });
+
+			const past = new Date(Date.now() - 60 * 60 * 1000);
+			orchestrator.emitHandoff({
+				itemId: "ITEM-1",
+				from: "opencode",
+				to: "reviewer",
+				summary: "Review code",
+				evidence: [],
+				timestamp: past.toISOString(),
+				expiresAt: past.toISOString(),
+			});
+
+			orchestrator.retryHandoff("ITEM-1");
+
+			expect(onHandoffEvent).toHaveBeenCalledWith(
+				expect.objectContaining({
+					itemId: "ITEM-1",
+					action: "retry",
+				}),
+			);
 		});
 	});
 });
