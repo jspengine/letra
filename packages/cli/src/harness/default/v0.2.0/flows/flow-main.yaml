@@ -21,6 +21,35 @@ stages:
       - analyst
     gate: spec-approved
     preferredExecutor: opencode
+    phases:
+      initialState: analyze
+      states:
+        analyze:
+          id: analyze
+          label: Analyze
+          description: Read and understand the spec
+          actions:
+            - type: command
+              cmd: "letra flow phases <ITEM-ID>"
+          transitions:
+            - target: define
+        define:
+          id: define
+          label: Define ACs
+          description: Create acceptance criteria
+          actions:
+            - type: command
+              cmd: "letra flow ac <ITEM-ID> <AC-NUMBER>"
+          transitions:
+            - target: handoff
+              gate: spec-approved
+        handoff:
+          id: handoff
+          label: Handoff
+          description: Handoff to implementer
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to implementer --summary 'Spec analyzed. ACs defined.'"
     activity:
       design:
         objective: "Analyze the spec and define acceptance criteria."
@@ -48,6 +77,34 @@ stages:
       - implementer
     gate: code-reviewed
     preferredExecutor: opencode
+    phases:
+      initialState: implement
+      states:
+        implement:
+          id: implement
+          label: Implement
+          description: Implement acceptance criteria
+          actions:
+            - type: command
+              cmd: "letra ac done <AC-ID>"
+          transitions:
+            - target: test
+        test:
+          id: test
+          label: Test
+          description: Run tests and validate
+          actions:
+            - type: command
+              cmd: "letra validate"
+          transitions:
+            - target: handoff
+        handoff:
+          id: handoff
+          label: Handoff
+          description: Handoff to reviewer
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to reviewer --summary 'Implementation complete.'"
     activity:
       implement:
         objective: "Implement acceptance criteria one by one."
@@ -72,6 +129,42 @@ stages:
       - reviewer
     gate: null
     preferredExecutor: opencode
+    phases:
+      initialState: review
+      states:
+        review:
+          id: review
+          label: Review
+          description: Review code quality and adherence
+          actions:
+            - type: command
+              cmd: "letra flow phases <ITEM-ID>"
+          transitions:
+            - target: decide
+        decide:
+          id: decide
+          label: Decide
+          description: Approve or reject
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to security --summary 'Review approved.'"
+          transitions:
+            - target: handoff-approve
+            - target: handoff-reject
+        handoff-approve:
+          id: handoff-approve
+          label: Handoff Approve
+          description: Handoff to security
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to security --summary 'Review approved.'"
+        handoff-reject:
+          id: handoff-reject
+          label: Handoff Reject
+          description: Handoff back to implementer
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to implementer --summary 'Review rejected.'"
     activity:
       review:
         objective: "Review code for adherence, quality, and regression."
@@ -95,6 +188,42 @@ stages:
       - security
     gate: security-clear
     preferredExecutor: opencode
+    phases:
+      initialState: scan
+      states:
+        scan:
+          id: scan
+          label: Scan
+          description: Scan for vulnerabilities
+          actions:
+            - type: command
+              cmd: "letra flow phases <ITEM-ID>"
+          transitions:
+            - target: decide
+        decide:
+          id: decide
+          label: Decide
+          description: Approve or reject
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to human --summary 'Security clear.'"
+          transitions:
+            - target: handoff-approve
+            - target: handoff-reject
+        handoff-approve:
+          id: handoff-approve
+          label: Handoff Approve
+          description: Handoff to human
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to human --summary 'Security clear. Awaiting approval.'"
+        handoff-reject:
+          id: handoff-reject
+          label: Handoff Reject
+          description: Handoff back to implementer
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to implementer --summary 'Vulnerability found.'"
     activity:
       implement:
         objective: "Analyze security, vulnerabilities, and dependencies."

@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import chalk from "chalk";
 import { type Item, loadWorkflow, writeWorkflow } from "./flow-init.js";
 import { logEntry } from "../session-log.js";
+import { GateChecker } from "../harness/gate-checker.js";
 
 const HANDOFF_TTL_MINUTES = 30;
 
@@ -59,6 +60,16 @@ export async function handoffItem(root: string, itemId: string, options: Handoff
 	if (!options.summary) {
 		console.log(chalk.red("Summary is required (--summary)"));
 		process.exit(1);
+	}
+
+	const currentStage = workflow.stages.find((s) => s.id === item.stage);
+	if (currentStage?.gate) {
+		const gateChecker = new GateChecker(root);
+		const gateResult = gateChecker.checkHandoffAllowed(currentStage.gate, item);
+		if (!gateResult.allowed) {
+			console.log(chalk.red(`Cannot handoff: ${gateResult.reason}`));
+			process.exit(1);
+		}
 	}
 
 	const now = new Date();
