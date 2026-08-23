@@ -116,10 +116,10 @@
 - [x] Testes unitários para Orchestrator (detect, emit, claim, context, heartbeat, reclaim)
 - [x] Testes para GateChecker com novos gates e blocksHandoff
 - [x] Testes para handoff protocol (validação, atomicidade, TTL, expiry)
-- [ ] Testes de concorrência (dois claims simultâneos — cross-process com file lock)
+- [x] Testes de concorrência (dois claims simultâneos — cross-process com file lock)
 - [x] Testes de timeout (executor offline, item órfão)
-- [ ] Teste de regressão: fluxo completo design->code->review->security->done
-- [ ] Teste cross-adapter: handoff entre executores diferentes
+- [x] Teste de regressão: fluxo completo design->code->review->security->done
+- [x] Teste cross-adapter: handoff entre executores diferentes
 
 ## Progresso
 - [x] AC1: 5/5 ✅
@@ -135,8 +135,8 @@
 - [x] AC11: 4/4 ✅
 - [x] AC12: 4/4 ✅
 - [x] AC13: 3/3 ✅
-- [x] AC14: 4/8
+- [x] AC14: 8/8 ✅
 - [x] AC15: 6/6 ✅ (Gap fixes)
 - [x] AC16: 5/5 ✅ (Gap fixes)
 - [x] AC17: 5/5 ✅ (Gap fixes)
-- [ ] **Total: 82/84**
+- [x] **Total: 84/84 ✅**
