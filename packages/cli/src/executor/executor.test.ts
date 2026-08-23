@@ -103,5 +103,15 @@ describe("ExecutorRegistry", () => {
 			const selected = registry.selectForStage("code", "code");
 			expect(selected).toBeNull();
 		});
+
+		it("selects from multiple capable executors when no preference", () => {
+			const registry = new ExecutorRegistry();
+			registry.register(createExecutor({ id: "executor-1", capabilities: ["code"] }));
+			registry.register(createExecutor({ id: "executor-2", capabilities: ["code"] }));
+
+			const selected = registry.selectForStage("code", "code");
+			expect(selected).not.toBeNull();
+			expect(["executor-1", "executor-2"]).toContain(selected!.id);
+		});
 	});
 });
