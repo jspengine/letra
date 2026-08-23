@@ -89,6 +89,7 @@ describe("session-log", () => {
 			const actions = [
 				"validate", "diagnose", "health_scan", "health_ack", "health_dismiss",
 				"ac_complete", "ac_done", "item_move", "decision", "sitrep", "focus_set", "manual", "session_end",
+				"handoff", "handoff_emitted", "handoff_rollback", "item_reclaim",
 			] as const;
 			for (const action of actions) {
 				const entry = logEntry(tmpDir, action, `${action} entry`);

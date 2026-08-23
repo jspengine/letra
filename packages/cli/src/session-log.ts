@@ -24,6 +24,7 @@ export type LogAction =
 	| "item_move"
 	| "item_claim"
 	| "item_release"
+	| "item_reclaim"
 	| "decision"
 	| "sitrep"
 	| "focus_set"
@@ -37,7 +38,10 @@ export type LogAction =
 	| "agent_ac_completion_requested"
 	| "agent_transition_requested"
 	| "agent_operation_rejected"
-	| "constitution_read";
+	| "constitution_read"
+	| "handoff"
+	| "handoff_emitted"
+	| "handoff_rollback";
 
 export interface LogEntry {
 	id: string;
