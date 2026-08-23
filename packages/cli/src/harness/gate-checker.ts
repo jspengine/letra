@@ -35,6 +35,26 @@ export class GateChecker {
 		return status.blocksHandoff;
 	}
 
+	checkHandoffAllowed(gateId: string, item: Item): GateResult {
+		if (!gateId) return { allowed: true };
+		const gateResult = this.check(gateId, item);
+		if (!gateResult.allowed) {
+			return gateResult;
+		}
+		const blocksHandoff = this.checkBlocksHandoff(gateId);
+		if (blocksHandoff) {
+			const status = loadGateStatus(this.root, gateId);
+			if (status && status.status !== "approved") {
+				return {
+					allowed: false,
+					reason: `Gate "${gateId}" blocks handoff and is not approved`,
+					blocksHandoff: true,
+				};
+			}
+		}
+		return { allowed: true };
+	}
+
 	check(gateId: string, item: Item): GateResult {
 		switch (gateId) {
 			case "has-spec-file":

@@ -279,4 +279,133 @@ describe("GateChecker", () => {
 			expect(result.allowed).toBe(true);
 		});
 	});
+
+	describe("checkBlocksHandoff", () => {
+		function writeGate(root: string, gateId: string, content: string) {
+			mkdirSync(join(root, ".letra", "harness", "gates"), { recursive: true });
+			writeFileSync(join(root, ".letra", "harness", "gates", `${gateId}.yaml`), content);
+		}
+
+		it("returns true when gate has blocksHandoff: true", () => {
+			const root = fixture();
+			writeGate(
+				root,
+				"spec-approved",
+				"id: spec-approved\nname: Spec Approved\ntype: human\nblocking: true\nblocksHandoff: true\nstatus: pending\n",
+			);
+
+			const checker = new GateChecker(root);
+			expect(checker.checkBlocksHandoff("spec-approved")).toBe(true);
+		});
+
+		it("returns false when gate has blocksHandoff: false", () => {
+			const root = fixture();
+			writeGate(
+				root,
+				"code-reviewed",
+				"id: code-reviewed\nname: Code Reviewed\ntype: automated\nblocking: true\nblocksHandoff: false\nstatus: approved\n",
+			);
+
+			const checker = new GateChecker(root);
+			expect(checker.checkBlocksHandoff("code-reviewed")).toBe(false);
+		});
+
+		it("returns false when gate does not exist", () => {
+			const root = fixture();
+			const checker = new GateChecker(root);
+			expect(checker.checkBlocksHandoff("nonexistent")).toBe(false);
+		});
+	});
+
+	describe("checkHandoffAllowed", () => {
+		function writeGate(root: string, gateId: string, content: string) {
+			mkdirSync(join(root, ".letra", "harness", "gates"), { recursive: true });
+			writeFileSync(join(root, ".letra", "harness", "gates", `${gateId}.yaml`), content);
+		}
+
+		it("allows handoff when gate does not exist", () => {
+			const root = fixture();
+			const checker = new GateChecker(root);
+			const result = checker.checkHandoffAllowed("nonexistent", {
+				id: "ITEM-1",
+				description: "test",
+				stage: "design",
+				createdAt: new Date().toISOString(),
+			} as any);
+
+			expect(result.allowed).toBe(true);
+		});
+
+		it("allows handoff when gate has no gateId", () => {
+			const root = fixture();
+			const checker = new GateChecker(root);
+			const result = checker.checkHandoffAllowed("", {
+				id: "ITEM-1",
+				description: "test",
+				stage: "design",
+				createdAt: new Date().toISOString(),
+			} as any);
+
+			expect(result.allowed).toBe(true);
+		});
+
+		it("blocks handoff when gate blocksHandoff and is not approved", () => {
+			const root = fixture();
+			writeGate(
+				root,
+				"spec-approved",
+				"id: spec-approved\nname: Spec Approved\ntype: human\nblocking: true\nblocksHandoff: true\nstatus: pending\n",
+			);
+
+			const checker = new GateChecker(root);
+			const result = checker.checkHandoffAllowed("spec-approved", {
+				id: "ITEM-1",
+				description: "test",
+				stage: "design",
+				createdAt: new Date().toISOString(),
+			} as any);
+
+			expect(result.allowed).toBe(false);
+			expect(result.blocksHandoff).toBe(true);
+			expect(result.reason).toContain("blocks handoff");
+		});
+
+		it("allows handoff when gate blocksHandoff but is approved", () => {
+			const root = fixture();
+			writeGate(
+				root,
+				"spec-approved",
+				"id: spec-approved\nname: Spec Approved\ntype: human\nblocking: true\nblocksHandoff: true\nstatus: approved\n",
+			);
+
+			const checker = new GateChecker(root);
+			const result = checker.checkHandoffAllowed("spec-approved", {
+				id: "ITEM-1",
+				description: "test",
+				stage: "design",
+				createdAt: new Date().toISOString(),
+			} as any);
+
+			expect(result.allowed).toBe(true);
+		});
+
+		it("allows handoff when gate does not block handoff", () => {
+			const root = fixture();
+			writeGate(
+				root,
+				"code-reviewed",
+				"id: code-reviewed\nname: Code Reviewed\ntype: automated\nblocking: true\nblocksHandoff: false\nstatus: pending\n",
+			);
+
+			const checker = new GateChecker(root);
+			const result = checker.checkHandoffAllowed("code-reviewed", {
+				id: "ITEM-1",
+				description: "test",
+				stage: "code",
+				createdAt: new Date().toISOString(),
+			} as any);
+
+			expect(result.allowed).toBe(true);
+		});
+	});
 });
