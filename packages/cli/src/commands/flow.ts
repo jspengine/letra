@@ -8,6 +8,7 @@ import { backlogImportGitHubAction, backlogImportLinearAction } from "./flow-imp
 import { flowInitAction } from "./flow-init.js";
 import { flowMoveAction } from "./flow-move.js";
 import { claimAction, releaseAction } from "./flow-claim.js";
+import { handoffAction } from "./flow-handoff.js";
 import { flowAcAction } from "./flow-ac.js";
 import { flowServeAction } from "./flow-serve.js";
 import { flowVisualizeAction } from "./flow-visualize.js";
@@ -131,6 +132,17 @@ export default function flowCommand() {
 		.description("Release claimed item(s)")
 		.action(async (options: { item?: string }) => {
 			await releaseAction(undefined, options);
+		});
+
+	cmd.command("handoff <item-id>")
+		.option("--to <agent>", "Target agent role (e.g., reviewer, security)")
+		.option("--summary <text>", "Handoff summary")
+		.option("--evidence <items...>", "Evidence files or descriptions")
+		.option("--executor <id>", "Executor ID performing the handoff")
+		.option("--rollback", "Rollback the last handoff")
+		.description("Handoff item to another agent or rollback")
+		.action(async (itemId: string, options: { to?: string; summary?: string; evidence?: string[]; executor?: string; rollback?: boolean }) => {
+			await handoffAction(undefined, itemId, options);
 		});
 
 	cmd.command("ac <item-id> <ac-number>")
