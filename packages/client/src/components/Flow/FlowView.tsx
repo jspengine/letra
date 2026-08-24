@@ -788,9 +788,10 @@ export default function FlowView({
 														className={cn(
 															"text-caption font-medium px-1.5 py-0.5 rounded-full self-start",
 															isRunning
-																? "bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+																? ""
 																: "bg-muted text-muted-foreground",
 														)}
+														style={isRunning ? { backgroundColor: "#282414", color: "#FFB800" } : undefined}
 													>
 														{isRunning ? "Em andamento" : "Na fila"}
 													</div>

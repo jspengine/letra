@@ -12,12 +12,12 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 	icon?: IconName;
 }
 
-const variantTokens: Record<Variant, { color: string; onColor: string; softColor: string }> = {
-	amber: { color: "var(--color-primary)", onColor: "var(--color-on-accent)", softColor: "var(--color-primary)" },
-	success: { color: "var(--color-success)", onColor: "var(--color-on-status)", softColor: "var(--color-success)" },
-	info: { color: "var(--color-info)", onColor: "var(--color-on-status)", softColor: "#60A5FA" },
-	error: { color: "var(--color-danger)", onColor: "var(--color-on-status)", softColor: "var(--color-danger)" },
-	agent: { color: "var(--color-agent)", onColor: "var(--color-on-status)", softColor: "#A78BFA" },
+const variantTokens: Record<Variant, { color: string; onColor: string; softColor: string; softBg: string; softBorder: string; outlineBorder: string; solidBg: string }> = {
+	amber: { color: "var(--color-primary)", onColor: "var(--color-on-accent)", softColor: "#FFB800", softBg: "#1C1808", softBorder: "#5C4F1A", outlineBorder: "#8B7A25", solidBg: "var(--color-primary)" },
+	success: { color: "var(--color-success)", onColor: "var(--color-on-status)", softColor: "#4ADE80", softBg: "#1A2B20", softBorder: "#244A33", outlineBorder: "#2D6A45", solidBg: "#178640" },
+	info: { color: "var(--color-info)", onColor: "var(--color-on-status)", softColor: "#93C5FD", softBg: "#1C2636", softBorder: "#2B4264", outlineBorder: "#3B5E8A", solidBg: "#2858A7" },
+	error: { color: "var(--color-danger)", onColor: "var(--color-on-status)", softColor: "#F87171", softBg: "#2C1A1A", softBorder: "#542626", outlineBorder: "#7A3636", solidBg: "#A22E2E" },
+	agent: { color: "var(--color-agent)", onColor: "var(--color-on-status)", softColor: "#C4B5FD", softBg: "#22203A", softBorder: "#3C3568", outlineBorder: "#564D96", solidBg: "#7260AA" },
 };
 
 const variantIcons: Record<Variant, IconName> = {
@@ -34,22 +34,20 @@ function badgeColors(variant: Variant, tone: Tone) {
 		return {
 			background: "transparent",
 			color: tokens.softColor,
-			borderColor: `color-mix(in oklch, ${tokens.softColor} 48%, transparent)`,
+			borderColor: tokens.outlineBorder,
 		};
 	}
 	if (tone === "soft") {
 		return {
-			background: `color-mix(in oklch, ${tokens.softColor} 14%, transparent)`,
+			background: tokens.softBg,
 			color: tokens.softColor,
-			borderColor: `color-mix(in oklch, ${tokens.softColor} 36%, transparent)`,
+			borderColor: tokens.softBorder,
 		};
 	}
 	return {
-		background:
-			variant === "amber" ? tokens.color : `color-mix(in oklch, ${tokens.color} 68%, black)`,
+		background: tokens.solidBg,
 		color: tokens.onColor,
-		borderColor:
-			variant === "amber" ? tokens.color : `color-mix(in oklch, ${tokens.color} 68%, black)`,
+		borderColor: tokens.solidBg,
 	};
 }
 

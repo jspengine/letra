@@ -10,34 +10,34 @@ const variantColors: Record<
 	{ backgroundColor: string; color: string; borderColor: string }
 > = {
 	default: {
-		backgroundColor: "color-mix(in oklch, var(--color-text-secondary) 10%, transparent)",
+		backgroundColor: "#282B32",
 		color: "var(--color-text-secondary)",
-		borderColor: "color-mix(in oklch, var(--color-border) 70%, transparent)",
+		borderColor: "#2E3138",
 	},
 	agent: {
-		backgroundColor: "color-mix(in oklch, #A78BFA 14%, transparent)",
-		color: "#A78BFA",
-		borderColor: "color-mix(in oklch, #A78BFA 42%, transparent)",
+		backgroundColor: "#22203A",
+		color: "#C4B5FD",
+		borderColor: "#53497C",
 	},
 	success: {
-		backgroundColor: "color-mix(in oklch, var(--color-success) 14%, transparent)",
-		color: "var(--color-success)",
-		borderColor: "color-mix(in oklch, var(--color-success) 42%, transparent)",
+		backgroundColor: "#1A2B20",
+		color: "#4ADE80",
+		borderColor: "#1C623A",
 	},
 	info: {
-		backgroundColor: "color-mix(in oklch, #60A5FA 14%, transparent)",
-		color: "#60A5FA",
-		borderColor: "color-mix(in oklch, #60A5FA 42%, transparent)",
+		backgroundColor: "#1C2636",
+		color: "#93C5FD",
+		borderColor: "#36547C",
 	},
 	warning: {
-		backgroundColor: "color-mix(in oklch, var(--color-primary) 16%, transparent)",
-		color: "var(--color-primary)",
-		borderColor: "color-mix(in oklch, var(--color-primary) 48%, transparent)",
+		backgroundColor: "#1C1808",
+		color: "#FCD34D",
+		borderColor: "#866611",
 	},
 	danger: {
-		backgroundColor: "color-mix(in oklch, var(--color-danger) 14%, transparent)",
-		color: "var(--color-danger)",
-		borderColor: "color-mix(in oklch, var(--color-danger) 42%, transparent)",
+		backgroundColor: "#2C1A1A",
+		color: "#FCA5A5",
+		borderColor: "#762C2F",
 	},
 };
 

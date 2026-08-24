@@ -13,6 +13,7 @@ dist/
 # Build / generated outputs (regenerable)
 storybook-static/
 **/storybook-static/
+**/.storybook-static/
 test-results/
 .tmp/
 
