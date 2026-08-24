@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 import chalk from "chalk";
 import { type Item, type Workflow, loadWorkflow, writeWorkflow } from "./flow-init.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 function now(): string {
 	return new Date().toISOString();
@@ -30,7 +31,7 @@ export function backlogAdd(root: string, description: string, spec?: string): vo
 	}
 
 	if (spec) {
-		const specsDir = join(root, ".letra", "specs", spec);
+		const specsDir = join(getLetraDir(root), "specs", spec);
 		if (!existsSync(specsDir)) {
 			console.log(chalk.red(`Spec "${spec}" not found at .letra/specs/${spec}/`));
 			return;
@@ -67,7 +68,12 @@ export function backlogAdd(root: string, description: string, spec?: string): vo
 
 	workflow.items.push(item);
 	workflow.updatedAt = now();
-	writeWorkflow(root, { workflow, source: "flow-backlog", primaryItemId: item.id, skipSitrep: true });
+	writeWorkflow(root, {
+		workflow,
+		source: "flow-backlog",
+		primaryItemId: item.id,
+		skipSitrep: true,
+	});
 
 	console.log(
 		`  ${chalk.green("✓")} Item ${chalk.cyan(item.id)} added to ${chalk.cyan(workflow.stages[0].name)}`,
@@ -90,11 +96,11 @@ export function backlogList(root: string): void {
 
 	console.log("");
 	console.log(
-			`  ${chalk.bold("ID")}       ${chalk.bold("Description".padEnd(30))} ${chalk.bold("Stage".padEnd(15))} ${chalk.bold("Age")}`,
-		);
-		console.log(`  ${"─".repeat(75)}`);
+		`  ${chalk.bold("ID")}       ${chalk.bold("Description".padEnd(30))} ${chalk.bold("Stage".padEnd(15))} ${chalk.bold("Age")}`,
+	);
+	console.log(`  ${"─".repeat(75)}`);
 
-		for (const item of workflow.items) {
+	for (const item of workflow.items) {
 		const stageName = stageNames.get(item.stage) || item.stage;
 		const created = new Date(item.createdAt);
 		const age = Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24));
@@ -113,7 +119,11 @@ export function backlogList(root: string): void {
 	console.log("");
 }
 
-export function backlogActionAdd(targetPath: string | undefined, description: string, spec?: string): void {
+export function backlogActionAdd(
+	targetPath: string | undefined,
+	description: string,
+	spec?: string,
+): void {
 	const root = resolve(process.cwd(), targetPath || ".");
 	backlogAdd(root, description, spec);
 }

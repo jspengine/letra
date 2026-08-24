@@ -1,110 +1,244 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type CSSProperties, type ReactNode } from "react";
 import type { Workflow } from "@letra/types";
 import Header from "./components/Header/Header";
-import { NavTabs } from "./components/NavTabs/NavTabs";
+import Sidebar from "./components/Sidebar/Sidebar";
+import type { Tab } from "./components/Sidebar/Sidebar";
 import InlineSetupWizard from "./components/SetupWizard/InlineSetupWizard";
 import HomeView from "./components/Home/HomeView";
-import SpecsView from "./components/Specs/SpecsView";
 import FlowView from "./components/Flow/FlowView";
 import ContextView from "./components/Context/ContextView";
-import UndoHistory from "./components/Diagnostics/UndoHistory";
-import { ToastProvider, SkeletonCard, useToast } from "@letra/ui";
+import type { KnowledgeTab } from "./components/Context/ContextView";
+import AuditLogView from "./components/Logs/AuditLogView";
+import WorkspacesView from "./components/Workspaces/WorkspacesView";
+import WorkspaceSettings from "./components/Workspaces/WorkspaceSettings/WorkspaceSettings";
+import type { WorkspaceData } from "./components/Workspaces/WorkspacesView";
+import { AppShell, SidebarProvider, ToastProvider, SkeletonCard, useSidebar } from "@letra/ui";
+import { FlowDefinitionWarnings } from "./components/Flow/FlowDefinitionWarnings";
 import { createEventSourceWithReconnect } from "./lib/withReconnect";
+import { humanGateStageIds, type ActiveFlowDefinition } from "./lib/active-flow";
 
-type Tab = "home" | "specs" | "flow" | "context";
+interface HealthSummary {
+	activeAlerts: number;
+	criticalAlerts: number;
+}
 
-interface Suggestion {
-	id: string;
-	title: string;
-	description: string;
-	type: string;
-	detector: string;
+function LetraAppShell({
+	sidebar,
+	header,
+	children,
+}: {
+	sidebar: ReactNode;
+	header: ReactNode;
+	children: ReactNode;
+}) {
+	const { open } = useSidebar();
+
+	return (
+		<AppShell
+			sidebar={sidebar}
+			header={header}
+			sidebarCollapsed={!open}
+			className="app-surface-base min-h-svh"
+			style={
+				{
+					"--layout-sidebar-width": "var(--sidebar-width)",
+					"--layout-sidebar-width-collapsed": "var(--sidebar-width-icon)",
+				} as CSSProperties
+			}
+		>
+			{children}
+		</AppShell>
+	);
 }
 
 function AppContent() {
-	const { toast } = useToast();
 	const [wf, setWf] = useState<Workflow | null>(null);
+	const [activeFlow, setActiveFlow] = useState<ActiveFlowDefinition | null>(null);
 	const [loading, setLoading] = useState(true);
-	const [tab, setTab] = useState<Tab>("home");
+	const [tab, setTab] = useState<Tab>("supervision");
+	const [knowledgeInitialTab, setKnowledgeInitialTab] = useState<KnowledgeTab>("context.md");
+	const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceData | null>(() => {
+		try {
+			const stored = localStorage.getItem("letra-active-workspace");
+			return stored ? JSON.parse(stored) : null;
+		} catch {
+			return null;
+		}
+	});
+	const [workspaces, setWorkspaces] = useState<WorkspaceData[]>([]);
 	const [theme, setTheme] = useState<"light" | "dark">(() => {
 		if (typeof window === "undefined") return "dark";
 		const stored = localStorage.getItem("letra-theme");
 		if (stored === "light" || stored === "dark") return stored;
-		return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+		return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
 	});
-	const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+	const [health, setHealth] = useState<HealthSummary | null>(null);
 	const [specRefreshKey, setSpecRefreshKey] = useState(0);
-	const [showHistory, setShowHistory] = useState(false);
+	const [liveMessage, setLiveMessage] = useState("");
+	const [activeDirectory, setActiveDirectory] = useState<string | null>(() => {
+		try {
+			return localStorage.getItem("letra-active-directory");
+		} catch {
+			return null;
+		}
+	});
+	const [startWorkspaceCreation, setStartWorkspaceCreation] = useState(false);
 
 	useEffect(() => {
 		document.documentElement.classList.toggle("dark", theme === "dark");
+		document.documentElement.classList.toggle("light", theme === "light");
 		localStorage.setItem("letra-theme", theme);
 	}, [theme]);
 
-	function refreshWorkflow() {
-		fetch("/api/workflow")
-			.then((r) => r.json())
-			.then((data) => {
-				if (data && !data.error) setWf(data);
-			});
+	function handleSelectWorkspace(ws: WorkspaceData) {
+		setStartWorkspaceCreation(false);
+		localStorage.setItem("letra-active-workspace", JSON.stringify(ws));
+		if (activeDirectory) {
+			localStorage.removeItem("letra-active-directory");
+			setActiveDirectory(null);
+		}
+		setActiveWorkspace(ws);
+		setTab("supervision");
+		const request = ws.root
+			? fetch("/api/workspace/switch", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ root: ws.root }),
+				})
+			: Promise.resolve();
+		request.then(() => refreshWorkflow()).catch(() => refreshWorkflow());
 	}
 
-	const refreshDiagnostics = useCallback(() => {
-		fetch("/api/diagnostics")
+	function handleSelectDirectory(directory: string | null) {
+		if (directory) {
+			localStorage.setItem("letra-active-directory", directory);
+		} else {
+			localStorage.removeItem("letra-active-directory");
+		}
+		setActiveDirectory(directory);
+		fetch("/api/workspace/directory/switch", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ directory }),
+		})
+			.then(() => refreshWorkflow())
+			.catch(() => refreshWorkflow());
+	}
+
+	function handleCreateWorkspaceFromSettings() {
+		localStorage.removeItem("letra-active-workspace");
+		localStorage.removeItem("letra-active-directory");
+		setActiveWorkspace(null);
+		setActiveDirectory(null);
+		setStartWorkspaceCreation(true);
+		setTab("supervision");
+	}
+
+	function refreshWorkflow() {
+		Promise.all([
+			fetch("/api/workflow").then((r) => r.json()),
+			fetch("/api/workflow/active-flow")
+				.then((r) => r.json())
+				.catch(() => null),
+		]).then(([data, flow]) => {
+			if (data && !data.error) setWf(data);
+			setActiveFlow(flow);
+		});
+	}
+
+	function handlePrimaryTabChange(nextTab: Tab) {
+		if (nextTab === "knowledge") setKnowledgeInitialTab("context.md");
+		setTab(nextTab);
+	}
+
+	function openKnowledge(initialTab: KnowledgeTab = "context.md") {
+		setKnowledgeInitialTab(initialTab);
+		setTab("knowledge");
+	}
+
+	const refreshHealth = useCallback(() => {
+		fetch("/api/health")
 			.then((r) => r.json())
 			.then((data) => {
-				if (data?.suggestions) setSuggestions(data.suggestions);
+				const active = Array.isArray(data?.active) ? data.active : [];
+				const summary = data?.summary ?? {};
+				setHealth({
+					activeAlerts:
+						typeof summary.activeAlerts === "number"
+							? summary.activeAlerts
+							: active.length,
+					criticalAlerts:
+						typeof summary.criticalAlerts === "number"
+							? summary.criticalAlerts
+							: active.filter((entry: { severity?: string }) =>
+									/crit|alta|high/.test(
+										String(entry?.severity ?? "").toLowerCase(),
+									),
+								).length,
+				});
 			})
-			.catch(() => {});
+			.catch(() => setHealth(null));
 	}, []);
 
 	useEffect(() => {
-		fetch("/api/workflow")
-			.then((r) => r.json())
-			.then((data) => {
+		const init = activeWorkspace?.root
+			? fetch("/api/workspace/switch", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ root: activeWorkspace.root }),
+				}).then(() => {})
+			: Promise.resolve();
+
+		const dirInit = activeDirectory
+			? fetch("/api/workspace/directory/switch", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ directory: activeDirectory }),
+				}).then(() => {})
+			: Promise.resolve();
+
+		Promise.all([init, dirInit])
+			.then(() =>
+				Promise.all([
+					fetch("/api/workflow").then((r) => r.json()),
+					fetch("/api/workflow/active-flow")
+						.then((r) => r.json())
+						.catch(() => null),
+				]),
+			)
+			.then(([data, flow]) => {
 				if (data && !data.error) setWf(data);
+				setActiveFlow(flow);
 				setLoading(false);
 			})
 			.catch(() => setLoading(false));
 
-		refreshDiagnostics();
+		refreshHealth();
+
+		fetch("/api/workspaces")
+			.then((r) => r.json())
+			.then((data) => {
+				if (Array.isArray(data)) setWorkspaces(data);
+			})
+			.catch(() => {});
 
 		const es = createEventSourceWithReconnect("/events");
 		es.addEventListener("workflow-updated", () => {
 			refreshWorkflow();
 			setSpecRefreshKey((k) => k + 1);
+			setLiveMessage("Fluxo atualizado.");
 		});
 		es.addEventListener("diagnostics-updated", () => {
-			refreshDiagnostics();
+			refreshHealth();
 			setSpecRefreshKey((k) => k + 1);
+			setLiveMessage("Diagnosticos atualizados.");
 		});
 		return () => es.close();
-	}, [refreshDiagnostics]);
-
-	async function handleApplySuggestion(suggestion: Suggestion) {
-		try {
-			const res = await fetch("/api/diagnostics/scan", { method: "POST" });
-			const data = await res.json();
-			if (data.fixes?.length > 0) {
-				refreshWorkflow();
-				refreshDiagnostics();
-				if (suggestion.detector === "harness-stale") {
-					toast("Adaptadores regenerados com L1", "success");
-				} else {
-					toast("Item movido automaticamente", "success");
-				}
-			}
-		} catch {
-			toast("Erro ao aplicar sugestão", "error");
-		}
-	}
+	}, [refreshHealth]);
 
 	if (loading) {
 		return (
-			<div
-				className="flex flex-col h-screen p-6 gap-6"
-				style={{ background: "var(--background)", color: "var(--foreground)" }}
-			>
+			<div className="app-surface-base flex h-screen flex-col gap-6 p-6">
 				<div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
 					<SkeletonCard />
 					<SkeletonCard />
@@ -123,43 +257,138 @@ function AppContent() {
 		);
 	}
 
+	const isSetupMode = new URLSearchParams(window.location.search).get("setup") === "true";
+
 	function renderPanel() {
-		if (!wf) {
-			return <InlineSetupWizard onComplete={(data) => setWf(data as Workflow)} />;
+		if (!wf || isSetupMode) {
+			return (
+				<InlineSetupWizard
+					onComplete={(data) => {
+						setWf(data as Workflow);
+						const url = new URL(window.location.href);
+						url.searchParams.delete("setup");
+						window.history.replaceState({}, "", url.toString());
+					}}
+				/>
+			);
+		}
+		if (!activeWorkspace) {
+			return (
+				<WorkspacesView
+					onSelect={handleSelectWorkspace}
+					onWorkspacesLoaded={setWorkspaces}
+					gateMode
+					activeDirectory={activeDirectory}
+					startCreating={startWorkspaceCreation}
+				/>
+			);
 		}
 		switch (tab) {
-			case "home":
-				return <HomeView workflow={wf} onSelectItem={() => {}} onTabChange={setTab} />;
-			case "specs":
-				return <SpecsView />;
-			case "flow":
+			case "supervision":
 				return (
-					<FlowView workflow={wf} specRefreshKey={specRefreshKey} onItemMoved={refreshWorkflow} onTabChange={setTab} />
+					<HomeView
+						workflow={wf}
+						activeFlow={activeFlow}
+						onTabChange={(t) => setTab(t as Tab)}
+					/>
 				);
-			case "context":
-				return <ContextView />;
+			case "work":
+				return (
+					<FlowView
+						workflow={wf}
+						activeFlow={activeFlow}
+						specRefreshKey={specRefreshKey}
+						onItemMoved={refreshWorkflow}
+						onOpenSpec={() => openKnowledge("specs")}
+					/>
+				);
+			case "knowledge":
+				return <ContextView initialTab={knowledgeInitialTab} />;
+			case "activity":
+				return <AuditLogView />;
+			case "settings":
+				return (
+					<WorkspaceSettings
+						workspace={activeWorkspace}
+						onWorkspaceUpdated={(updated) => {
+							setActiveWorkspace(updated);
+							setWorkspaces((prev) =>
+								prev.map((ws) => (ws.id === updated.id ? updated : ws)),
+							);
+						}}
+						onWorkspaceDeleted={() => {
+							setStartWorkspaceCreation(false);
+							setActiveWorkspace(null);
+							setTab("supervision");
+						}}
+						onRefreshWorkflow={refreshWorkflow}
+						onCreateWorkspace={handleCreateWorkspaceFromSettings}
+					/>
+				);
+			default:
+				return (
+					<HomeView
+						workflow={wf}
+						activeFlow={activeFlow}
+						onTabChange={(t) => setTab(t as Tab)}
+					/>
+				);
 		}
 	}
 
+	const gateStages = wf ? humanGateStageIds(wf, activeFlow) : new Set<string>();
+	const gateCount = wf?.items.filter((i) => gateStages.has(i.stage)).length ?? 0;
+
 	return (
-		<div
-			className="flex flex-col h-screen"
-			style={{ background: "var(--background)", color: "var(--foreground)" }}
-		>
-			<Header
-				name={wf?.name || "Letra"}
-				language={wf?.language}
-				theme={theme}
-				onThemeChange={setTheme}
-				suggestions={suggestions}
-				onApplySuggestion={handleApplySuggestion}
-				onOpenHistory={() => setShowHistory(true)}
-				claimedCount={wf?.items.filter((i) => i.claimedBy).length ?? 0}
-			/>
-			<NavTabs activeTab={tab} onTabChange={setTab} />
-			<main className="flex-1 min-h-0 flex flex-col animate-fade-in">{renderPanel()}</main>
-			<UndoHistory visible={showHistory} onClose={() => setShowHistory(false)} />
-		</div>
+		<>
+			<div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+				{liveMessage}
+			</div>
+			<SidebarProvider
+				className="min-h-svh w-full"
+				style={
+					{
+						"--sidebar-width": "308px",
+						"--sidebar-width-icon": "3rem",
+					} as Record<string, string>
+				}
+			>
+				<LetraAppShell
+					sidebar={
+						<Sidebar
+							activeTab={tab}
+							onTabChange={handlePrimaryTabChange}
+							gateCount={gateCount}
+							workspaceActive={!!activeWorkspace}
+							activeWorkspace={activeWorkspace}
+							activeDirectory={activeDirectory}
+							onDirectoryChange={handleSelectDirectory}
+							onOpenWorkspaceSettings={() => setTab("settings")}
+						/>
+					}
+					header={
+						<Header
+							theme={theme}
+							onThemeChange={setTheme}
+							gateCount={gateCount}
+							activeDirectory={activeDirectory}
+							workspaces={workspaces}
+							activeWorkspace={activeWorkspace}
+							onWorkspaceChange={handleSelectWorkspace}
+							onDirectoryChange={handleSelectDirectory}
+							health={health}
+							onOpenHealthCenter={() => setTab("supervision")}
+							onOpenWorkspaceSettings={() => setTab("settings")}
+						/>
+					}
+				>
+					<main className="flex min-h-0 flex-1 flex-col animate-fade-in">
+						<FlowDefinitionWarnings activeFlow={activeFlow} />
+						{renderPanel()}
+					</main>
+				</LetraAppShell>
+			</SidebarProvider>
+		</>
 	);
 }
 

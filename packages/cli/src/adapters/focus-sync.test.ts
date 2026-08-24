@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { clearFocusFile, extractOutcome, readFocusFile, writeFocusFile } from "./focus-sync.js";
 
@@ -44,6 +45,18 @@ describe("focus-sync", () => {
 		expect(rawContent).toContain("**Path**: .letra/specs/auth/");
 		expect(rawContent).toContain("**Item**: ITEM-123");
 		expect(rawContent).toContain("**Outcome**: Allows users to log in securely.");
+		expect(rawContent).toContain(
+			`[Spec: auth](${pathToFileURL(join(tmpDir, ".letra", "specs", "auth", "spec.md")).href})`,
+		);
+		expect(rawContent).toContain(
+			`[ITEM-123](${pathToFileURL(join(tmpDir, ".letra", "workflow.json")).href})`,
+		);
+		expect(rawContent).toContain(
+			`[Constitution](${pathToFileURL(join(tmpDir, ".letra", "constitution.md")).href})`,
+		);
+		expect(rawContent).toContain(
+			`[Constraints](${pathToFileURL(join(tmpDir, ".letra", "constraints.md")).href})`,
+		);
 
 		const parsed = readFocusFile(tmpDir);
 		expect(parsed).not.toBeNull();
@@ -59,5 +72,31 @@ describe("focus-sync", () => {
 
 		clearFocusFile(tmpDir);
 		expect(existsSync(focusFile)).toBe(false);
+	});
+
+	it("writes harness-provided recommended commands without changing focus fields", () => {
+		writeFileSync(
+			join(tmpDir, ".letra", "specs", "auth", "spec.md"),
+			"# Spec: Auth\n\n## Outcome\nAllows users to log in securely.\n",
+		);
+
+		writeFocusFile(tmpDir, "auth", "ITEM-123", [
+			{
+				label: "Concluir AC",
+				description: "Registrar o critério implementado.",
+				command: "letra ac done <AC-ID>",
+			},
+			{
+				label: "Validar",
+				description: "Verificar critérios e regras.",
+				command: "letra validate",
+			},
+		]);
+
+		const content = readFileSync(join(tmpDir, ".letra", "focus.md"), "utf-8");
+		expect(content).toContain("## Ações Recomendadas");
+		expect(content).toContain("`letra ac done <AC-ID>`");
+		expect(content).toContain("`letra validate`");
+		expect(readFocusFile(tmpDir)?.itemId).toBe("ITEM-123");
 	});
 });

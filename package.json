@@ -1,6 +1,6 @@
 {
 	"name": "letra",
-	"version": "0.5.1",
+	"version": "0.5.3",
 	"private": true,
 	"description": "SDD-agnostic memory framework for AI coding agents",
 	"type": "module",
@@ -30,9 +30,11 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
+		"@playwright/test": "^1.61.1",
 		"@types/node": "^22.19.17",
 		"fast-check": "^4.8.0",
 		"pkg": "^5.8.1",
+		"shadcn": "^4.12.0",
 		"tsup": "^8.5.0",
 		"tsx": "^4.20.6",
 		"typescript": "^5.8.3",

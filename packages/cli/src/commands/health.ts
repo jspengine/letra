@@ -17,11 +17,11 @@ import { loadWorkflow, detectExistingTools } from "./flow-init.js";
 import { generateAdapters } from "../adapters/generate.js";
 
 export default function () {
-	const cmd = new Command("health")
-		.description("Manage health record — persistent diagnostic state");
+	const cmd = new Command("health").description(
+		"Manage health record — persistent diagnostic state",
+	);
 
-	cmd
-		.option("--json", "Output in JSON format")
+	cmd.option("--json", "Output in JSON format")
 		.option("--all", "Show all entries including resolved and dismissed")
 		.action((options: { json?: boolean; all?: boolean }) => {
 			const root = resolve(process.cwd());
@@ -35,7 +35,9 @@ export default function () {
 
 			console.log(`\n${chalk.bold("📋 Prontuário de Saúde")}\n`);
 
-			console.log(`  ${chalk.red(`${summary.novo} novo(s)${summary.alta > 0 ? ` (${summary.alta} crítico(s))` : ""}`)}`);
+			console.log(
+				`  ${chalk.red(`${summary.novo} novo(s)${summary.alta > 0 ? ` (${summary.alta} crítico(s))` : ""}`)}`,
+			);
 			console.log(`  ${chalk.yellow(`${summary.ciente} em acompanhamento`)}`);
 			console.log(`  ${chalk.gray(`${summary.resolvido} resolvido(s)`)}`);
 			console.log(`  ${chalk.gray(`${summary.descartado} descartado(s)`)}`);
@@ -48,16 +50,22 @@ export default function () {
 			const entries = options.all ? record.entries : getActiveEntries(record);
 			if (entries.length > 0) {
 				for (const entry of entries) {
-					const color = entry.severity === "alta" ? chalk.red : entry.severity === "media" ? chalk.yellow : chalk.blue;
+					const color =
+						entry.severity === "alta"
+							? chalk.red
+							: entry.severity === "media"
+								? chalk.yellow
+								: chalk.blue;
 					console.log(`  ${color(entry.id)} — ${entry.title}`);
-					console.log(`       ${chalk.gray(`${entry.status} | ${entry.severity} | ${entry.source} | ${new Date(entry.detectedAt).toLocaleString()}`)}`);
+					console.log(
+						`       ${chalk.gray(`${entry.status} | ${entry.severity} | ${entry.source} | ${new Date(entry.detectedAt).toLocaleString()}`)}`,
+					);
 				}
 				console.log();
 			}
 		});
 
-	cmd
-		.command("scan")
+	cmd.command("scan")
 		.description("Run diagnostics and merge into health record")
 		.action(async () => {
 			const root = resolve(process.cwd());
@@ -78,13 +86,20 @@ export default function () {
 			mergeScanResults(record, suggestions);
 			saveHealthRecord(root, record);
 
-			logEntry(root, "health_scan", `Scan de saúde executado — ${output.fixes.length} auto-correção(ões), ${output.suggestions.length} sugestão(ões)`, {
-				details: { fixes: output.fixes.length, suggestions: output.suggestions.length },
-			});
+			logEntry(
+				root,
+				"health_scan",
+				`Scan de saúde executado — ${output.fixes.length} auto-correção(ões), ${output.suggestions.length} sugestão(ões)`,
+				{
+					details: { fixes: output.fixes.length, suggestions: output.suggestions.length },
+				},
+			);
 
 			const wf = loadWorkflow(root);
 			if (wf) {
-				const activeStageId = wf.stages.find((s) => wf.items.some((i) => i.stage === s.id))?.id ?? wf.stages[0]?.id;
+				const activeStageId =
+					wf.stages.find((s) => wf.items.some((i) => i.stage === s.id))?.id ??
+					wf.stages[0]?.id;
 				if (activeStageId) {
 					generateAdapters(root, wf.tools, {
 						source: "flow-move",
@@ -95,11 +110,14 @@ export default function () {
 					});
 				}
 			}
-			console.log(chalk.green(`\n✅ Scan concluído. ${output.fixes.length} auto-correção(ões), ${output.suggestions.length} sugestão(ões) registradas.\n`));
+			console.log(
+				chalk.green(
+					`\n✅ Scan concluído. ${output.fixes.length} auto-correção(ões), ${output.suggestions.length} sugestão(ões) registradas.\n`,
+				),
+			);
 		});
 
-	cmd
-		.command("ack <id>")
+	cmd.command("ack <id>")
 		.description("Acknowledge a health entry")
 		.action((id: string) => {
 			const root = resolve(process.cwd());
@@ -108,7 +126,9 @@ export default function () {
 				saveHealthRecord(root, record);
 				const wf = loadWorkflow(root);
 				if (wf) {
-					const activeStageId = wf.stages.find((s) => wf.items.some((i) => i.stage === s.id))?.id ?? wf.stages[0]?.id;
+					const activeStageId =
+						wf.stages.find((s) => wf.items.some((i) => i.stage === s.id))?.id ??
+						wf.stages[0]?.id;
 					if (activeStageId) {
 						generateAdapters(root, wf.tools, {
 							source: "flow-move",
@@ -127,8 +147,7 @@ export default function () {
 			}
 		});
 
-	cmd
-		.command("dismiss <id>")
+	cmd.command("dismiss <id>")
 		.description("Dismiss a health entry")
 		.option("--reason <reason>", "Dismiss reason")
 		.action((id: string, options: { reason?: string }) => {
@@ -138,7 +157,9 @@ export default function () {
 				saveHealthRecord(root, record);
 				const wf = loadWorkflow(root);
 				if (wf) {
-					const activeStageId = wf.stages.find((s) => wf.items.some((i) => i.stage === s.id))?.id ?? wf.stages[0]?.id;
+					const activeStageId =
+						wf.stages.find((s) => wf.items.some((i) => i.stage === s.id))?.id ??
+						wf.stages[0]?.id;
 					if (activeStageId) {
 						generateAdapters(root, wf.tools, {
 							source: "flow-move",
@@ -149,9 +170,14 @@ export default function () {
 						});
 					}
 				}
-				logEntry(root, "health_dismiss", `Alerta ${id} descartado${options.reason ? `: ${options.reason}` : ""}`, {
-					details: { reason: options.reason },
-				});
+				logEntry(
+					root,
+					"health_dismiss",
+					`Alerta ${id} descartado${options.reason ? `: ${options.reason}` : ""}`,
+					{
+						details: { reason: options.reason },
+					},
+				);
 				console.log(chalk.green(`Entrada ${id} descartada.`));
 			} else {
 				console.log(chalk.red(`Entrada ${id} não encontrada.`));

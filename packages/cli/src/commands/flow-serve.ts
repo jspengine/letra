@@ -1,64 +1,91 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, watch, writeFileSync } from "node:fs";
-
 import { type IncomingMessage, type ServerResponse, createServer } from "node:http";
 
-import { dirname, extname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { loadWorkflow, writeWorkflow, detectProjectName } from "./flow-init.js";
-import type { Item, Workflow } from "./flow-init.js";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { detectProjectName, loadWorkflow, writeWorkflow } from "./flow-init.js";
+import type { Workflow } from "./flow-init.js";
+import {
+	loadHarness,
+	resolveHarnessRoot,
+	ensureSharedHarness,
+	DEFAULT_HARNESS_VERSION,
+} from "../harness/loader";
 import { DiagnosticEngine } from "../diagnostics/engine.js";
-import type { DiagnosticResult } from "../diagnostics/types.js";
-import { validateSpecStructure } from "../validation/structure.js";
+import { resolveWorkspaceRoot } from "../workspace/resolver.js";
+import type { WorkspaceResolution } from "../workspace/resolver.js";
+import { listWorkspaces } from "../workspace/index.js";
 import {
 	loadHealthRecord,
 	saveHealthRecord,
-	mergeScanResults,
 	ackEntry,
 	dismissEntry,
 	getSummary,
 	getActiveEntries,
 } from "../health-record.js";
-import { logEntry, queryLog } from "../session-log.js";
-import { clearFocusFile, writeFocusFile } from "../adapters/focus-sync.js";
+import { logEntry, queryLog, queryLogWithMeta } from "../session-log.js";
+import { clearFocusFile } from "../adapters/focus-sync.js";
+import { writeFocusWithRecommendations } from "../adapters/focus-recommendations.js";
 import { pulse } from "./pulse.js";
 import { sitrep } from "./sitrep.js";
+import { resolveActiveFlowFor } from "../flow-definition/resolve.js";
+import { FlowServerEvents } from "../flow-serve/events.js";
+import { runDiagnosticsAndSyncHealth, type DiagnosticsOutput } from "../flow-serve/diagnostics.js";
+import {
+	clearSpec,
+	loadResolvedSpecs,
+	readAllowedContextFile,
+	validateSpec,
+	writeSpec,
+} from "../flow-serve/specs.js";
+import {
+	buildRequestedActivityContext,
+	contextFileExists,
+	readDecisions,
+	readFocusDocument,
+	readFocusState,
+} from "../flow-serve/context.js";
+import {
+	analyzeWorkspaceSetup,
+	captureWorkspaceSetup,
+	createWorkflowFromTemplate as createWorkflowFromTemplateService,
+	planWorkspaceSetup,
+	registerWorkspaceSetup,
+	rollbackWorkspaceSetup,
+	saveWorkspaceSetupManifest,
+	restoreWorkspaceSetup,
+	writeExternalWorkspaceSetup,
+	writeWorkspaceTargetAdapters,
+} from "../flow-serve/workspace.js";
+import { getRecurringSystemActions, logSystemAction } from "../flow-serve/system-actions.js";
+import { createRequestContext } from "../flow-serve/request-context.js";
+import { FlowServerRouter } from "../flow-serve/router.js";
+import { createItemRoutes } from "../flow-serve/routes/item-routes.js";
+import { createSpecRoutes } from "../flow-serve/routes/spec-routes.js";
+import { createDiagnosticsRoutes } from "../flow-serve/routes/diagnostics-routes.js";
+import { createContextRoutes } from "../flow-serve/routes/context-routes.js";
+import { createWorkflowRoutes } from "../flow-serve/routes/workflow-routes.js";
+import { createWorkspaceRoutes } from "../flow-serve/routes/workspace-routes.js";
+import { createAdapterRoutes } from "../flow-serve/routes/adapter-routes.js";
+import { createHandoffRoutes } from "../flow-serve/routes/handoff-routes.js";
+import { ClientAssets } from "../flow-serve/client-assets.js";
+import { AutomationRuntime, type AutomationBinding } from "../flow-serve/automation-runtime.js";
+import { Orchestrator } from "../orchestrator/orchestrator.js";
 
 const DEFAULT_PORT = 3000;
 
-interface ResolvedSpec {
-	id: string;
-	content: string;
+/**
+ * Resolve the harness directory for `root`, preferring the workspace-local
+ * harness and falling back to the externalized shared harness (bootstrapping
+ * it from the CLI defaults on first use). Used by flow-serve only — keeps
+ * `letra flow init --quick` on its inline 5-stage default when no local
+ * harness exists (see resolveHarnessRoot, which is local-only).
+ */
+function resolveHarnessWithShared(root: string): string {
+	const local = resolveHarnessRoot(root, DEFAULT_HARNESS_VERSION);
+	if (existsSync(local)) return local;
+	return ensureSharedHarness(DEFAULT_HARNESS_VERSION);
 }
 
-function loadSpecs(root: string, workflow: Workflow | null): ResolvedSpec[] {
-	const result: ResolvedSpec[] = [];
-
-	// First: load from specLinks (workflow.json registration)
-	if (workflow?.specLinks) {
-		for (const [id, link] of Object.entries(workflow.specLinks)) {
-			const filePath = join(root, link.path);
-			if (existsSync(filePath)) {
-				result.push({ id, content: readFileSync(filePath, "utf-8") });
-			}
-		}
-	}
-
-	// Fallback: scan .letra/specs/ for unregistered specs
-	const specsDir = join(root, ".letra", "specs");
-	const registered = new Set(result.map((s) => s.id));
-	if (existsSync(specsDir)) {
-		for (const entry of readdirSync(specsDir, { withFileTypes: true })) {
-			if (entry.isDirectory() && !registered.has(entry.name)) {
-				const specPath = join(specsDir, entry.name, "spec.md");
-				if (existsSync(specPath)) {
-					result.push({ id: entry.name, content: readFileSync(specPath, "utf-8") });
-				}
-			}
-		}
-	}
-
-	return result;
-}
 function esc(s: string): string {
 	return s
 		.replace(/&/g, "&amp;")
@@ -67,1013 +94,247 @@ function esc(s: string): string {
 		.replace(/"/g, "&quot;");
 }
 
-interface TemplateStage {
-	id: string;
-	name: string;
-	zone?: "todo" | "doing" | "done";
-}
-
-const TEMPLATES: Record<string, { name: string; stages: TemplateStage[] }> = {
-	padrao: {
-		name: "Padrão",
-		stages: [
-			{ id: "backlog", name: "Backlog", zone: "todo" },
-			{ id: "design", name: "Design", zone: "doing" },
-			{ id: "code", name: "Code", zone: "doing" },
-			{ id: "review", name: "Review", zone: "doing" },
-			{ id: "done", name: "Done", zone: "done" },
-		],
-	},
-	kanban: {
-		name: "Kanban",
-		stages: [
-			{ id: "todo", name: "A Fazer", zone: "todo" },
-			{ id: "doing", name: "Fazendo", zone: "doing" },
-			{ id: "done", name: "Feito", zone: "done" },
-		],
-	},
-	agil: {
-		name: "Ágil",
-		stages: [
-			{ id: "product-backlog", name: "Product Backlog", zone: "todo" },
-			{ id: "sprint-backlog", name: "Sprint Backlog", zone: "todo" },
-			{ id: "in-progress", name: "In Progress", zone: "doing" },
-			{ id: "review", name: "Review", zone: "doing" },
-			{ id: "done", name: "Done", zone: "done" },
-		],
-	},
-};
-
-function createWorkflowFromTemplate(
-	root: string,
-	templateId: string,
-	options?: { name?: string; tools?: string[] },
-): Workflow {
-	const t = TEMPLATES[templateId];
-	if (!t) {
-		throw new Error(
-			`Template "${templateId}" not found. Available: ${Object.keys(TEMPLATES).join(", ")}`,
-		);
-	}
-	const stages = t.stages.map((s, i) => ({
-		id: s.id,
-		name: s.name,
-		order: i,
-		zone: s.zone,
-	}));
-
-	// Merge with existing workflow to preserve items, specLinks, tools
-	const existing = loadWorkflow(root);
-	return {
-		version: "1.0",
-		name: options?.name ?? detectProjectName(root) ?? t.name,
-		language: existing?.language,
-		createdAt: existing?.createdAt ?? new Date().toISOString(),
-		updatedAt: new Date().toISOString(),
-		stages,
-		items: existing?.items ?? [],
-		specLinks: existing?.specLinks ?? undefined,
-		tools: options?.tools ?? existing?.tools ?? [],
-	};
-}
-
 export class FlowServer {
 	private server: ReturnType<typeof createServer> | undefined;
-	private watcher: ReturnType<typeof watch> | undefined;
-	private specsWatcher: ReturnType<typeof watch> | undefined;
-	private diagnosticsTimer: ReturnType<typeof setInterval> | undefined;
-	private clients: Set<ServerResponse> = new Set();
-	private root: string;
+	private events = new FlowServerEvents();
+	private router = new FlowServerRouter();
+	private clientAssets: ClientAssets;
+	private automationRuntime: AutomationRuntime;
+	private orchestrator: Orchestrator;
 	private port: number;
-	private loadWorkflow;
+	private loadWorkflow: (root?: string) => Workflow | null;
 	private engine: DiagnosticEngine;
+	private resolution: WorkspaceResolution;
+	private activeWorkspaceRoot: string;
+	private activeDirectory: string | null = null;
 
 	constructor(root: string, port: number = DEFAULT_PORT) {
-		this.root = root;
+		this.clientAssets = new ClientAssets(root);
 		this.port = port;
-		this.loadWorkflow = () => loadWorkflow(root);
-		this.engine = new DiagnosticEngine(root);
+		this.resolution = resolveWorkspaceRoot(root);
+		this.activeWorkspaceRoot = this.resolution.workspaceRoot;
+		this.loadWorkflow = (overrideRoot?: string) =>
+			loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
+		this.engine = new DiagnosticEngine(this.activeWorkspaceRoot);
+		this.automationRuntime = new AutomationRuntime({
+			runDiagnostics: runDiagnosticsAndSyncHealth,
+			broadcastWorkflow: () => this.broadcast(),
+			broadcastDiagnostics: (output) => this.broadcastDiagnostics(output),
+			logAction: (workspaceRoot, actionId, outcome, options) => {
+				logSystemAction(workspaceRoot, actionId, {
+					outcome,
+					error: options?.error,
+					details: options?.details,
+				});
+				this.events.broadcastSystemActionUpdated({ actionId, outcome });
+			},
+		});
+		this.orchestrator = new Orchestrator({
+			root: this.activeWorkspaceRoot,
+			onHandoffEvent: (payload) => this.events.broadcastHandoff(payload),
+		});
+		this.orchestrator.registerFromManifest();
+		this.router.register((context) => {
+			if (context.path !== "/events") return false;
+			this.events.handleSse(context.req, context.res);
+			return true;
+		});
+		this.router.register(
+			createItemRoutes({
+				writeWorkflow,
+				loadHealthRecord,
+				writeFocusFile: writeFocusWithRecommendations,
+				logEntry,
+				resolveActiveFlow: resolveActiveFlowFor,
+				broadcast: () => this.broadcast(),
+				fireWebhooks: (workspaceRoot, event, payload) =>
+					this.fireWebhooks(workspaceRoot, event, payload),
+			}),
+		);
+		this.router.register(
+			createSpecRoutes({
+				loadResolvedSpecs,
+				writeSpec,
+				clearSpec,
+				validateSpec,
+				writeWorkflow,
+				broadcast: () => this.broadcast(),
+			}),
+		);
+		this.router.register(
+			createDiagnosticsRoutes({
+				engineFor: (workspaceRoot) =>
+					workspaceRoot === this.activeWorkspaceRoot
+						? this.engine
+						: new DiagnosticEngine(workspaceRoot),
+				runDiagnostics: runDiagnosticsAndSyncHealth,
+				loadHealthRecord,
+				saveHealthRecord,
+				ackEntry,
+				dismissEntry,
+				getSummary,
+				getActiveEntries,
+				broadcast: () => this.broadcast(),
+				broadcastDiagnostics: (output) => this.broadcastDiagnostics(output),
+			}),
+		);
+		this.router.register(
+			createContextRoutes({
+				clearFocusFile,
+				writeFocusFile: writeFocusWithRecommendations,
+				logEntry,
+				queryLog,
+				queryLogWithMeta,
+				readFocusState,
+				readFocusDocument,
+				readDecisions,
+				readAllowedContextFile,
+				contextFileExists,
+				getRecurringSystemActions,
+				sitrep,
+				pulse,
+				buildActivityContext: buildRequestedActivityContext,
+				broadcast: () => this.broadcast(),
+			}),
+		);
+		this.router.register(
+			createWorkflowRoutes({
+				writeWorkflow,
+				resolveActiveFlow: resolveActiveFlowFor,
+				detectWorkspaceName: detectProjectName,
+				loadHarness: (workspaceRoot) =>
+					loadHarness(resolveHarnessWithShared(workspaceRoot)),
+				createFromTemplate: createWorkflowFromTemplateService,
+				broadcast: () => this.broadcast(),
+			}),
+		);
+		this.router.register(
+			createWorkspaceRoutes({
+				listWorkspaces,
+				switchWorkspace: (root) => this.switchWorkspace(root),
+				switchDirectory: (directory) => this.switchDirectory(directory),
+				activeWorkspaceRoot: () => this.activeWorkspaceRoot,
+				activeDirectory: () => this.activeDirectory,
+				registerSetup: registerWorkspaceSetup,
+				createFromTemplate: createWorkflowFromTemplateService,
+				writeWorkflow,
+				writeExternalSetup: writeExternalWorkspaceSetup,
+				writeTargetAdapters: writeWorkspaceTargetAdapters,
+				analyzeSetup: analyzeWorkspaceSetup,
+				planSetup: planWorkspaceSetup,
+				captureSetup: captureWorkspaceSetup,
+				restoreSetup: restoreWorkspaceSetup,
+				saveSetupManifest: saveWorkspaceSetupManifest,
+				rollbackSetup: rollbackWorkspaceSetup,
+				loadHarness: (root) => loadHarness(resolveHarnessWithShared(root)),
+			}),
+		);
+		this.router.register(
+			createAdapterRoutes({
+				logEntry,
+				broadcast: () => this.broadcast(),
+			}),
+		);
+		this.router.register(
+			createHandoffRoutes({
+				getPendingHandoffs: (agentId?: string) => {
+					const workflow = this.loadWorkflow();
+					if (!workflow) return [];
+					const now = new Date();
+					return workflow.items
+						.filter((item) => {
+							if (!item.handoff) return false;
+							if (new Date(item.handoff.expiresAt) < now) return false;
+							if (agentId && item.handoff.to !== agentId) return false;
+							return true;
+						})
+						.map((item) => ({
+							itemId: item.id,
+							from: item.handoff?.from ?? "",
+							to: item.handoff?.to ?? "",
+							summary: item.handoff?.summary ?? "",
+							evidence: item.handoff?.evidence || [],
+							executorId: item.handoff?.executorId,
+							timestamp: item.handoff?.timestamp ?? "",
+							expiresAt: item.handoff?.expiresAt ?? "",
+						}));
+				},
+			}),
+		);
+	}
+
+	switchWorkspace(workspaceRoot: string) {
+		this.activeWorkspaceRoot = workspaceRoot;
+		this.activeDirectory = null;
+		this.resolution = resolveWorkspaceRoot(workspaceRoot);
+		this.loadWorkflow = (overrideRoot?: string) =>
+			loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
+		this.engine = new DiagnosticEngine(this.activeWorkspaceRoot);
+		this.automationRuntime.rebind(this.automationBinding());
+		this.orchestrator = new Orchestrator({
+			root: this.activeWorkspaceRoot,
+			onHandoffEvent: (payload) => this.events.broadcastHandoff(payload),
+		});
+		this.orchestrator.registerFromManifest();
+		this.orchestrator.startReclaimTimer();
+		this.broadcast();
+	}
+
+	switchDirectory(directory: string | null) {
+		this.activeDirectory = directory;
+		this.loadWorkflow = (overrideRoot?: string) =>
+			loadWorkflow(overrideRoot ?? this.activeDirectory ?? this.activeWorkspaceRoot);
+		this.broadcast();
+	}
+
+	private workspaceRootFor(url: URL): string {
+		const ws = url.searchParams.get("workspace");
+		if (ws) return resolve(ws);
+		return this.activeDirectory ?? this.activeWorkspaceRoot;
+	}
+
+	private automationBinding(): AutomationBinding {
+		return {
+			workspaceRoot: this.activeWorkspaceRoot,
+			workspaceDir: this.resolution.workspaceDir,
+			engine: this.engine,
+		};
 	}
 
 	private handleRequest = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
 		const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
 		const path = url.pathname;
-
-		if (path === "/events") {
-			res.writeHead(200, {
-				"Content-Type": "text/event-stream",
-				"Cache-Control": "no-cache",
-				Connection: "keep-alive",
-			});
-			res.write("event: connected\ndata: {}\n\n");
-			this.clients.add(res);
-			req.on("close", () => this.clients.delete(res));
-			return;
-		}
-
-		if (path === "/api/workflow") {
-			const wf = this.loadWorkflow();
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify(wf ?? { error: "No workflow found" }));
-			return;
-		}
-
-		if (path === "/api/workflow/template" && req.method === "POST") {
-			let body = "";
-			req.on("data", (chunk: string) => {
-				body += chunk;
-			});
-			req.on("end", () => {
-				try {
-					const data = JSON.parse(body);
-					let wf: Workflow;
-					if (data.stages) {
-						const stages = data.stages.map(
-							(s: { id: string; name: string; zone?: string }, i: number) => ({
-								id: s.id,
-								name: s.name,
-								order: i,
-								zone: s.zone,
-							}),
-						);
-						const existing = loadWorkflow(this.root);
-						wf = {
-							version: "1.0",
-							name: data.name ?? detectProjectName(this.root) ?? "Personalizado",
-							language: existing?.language,
-							createdAt: existing?.createdAt ?? new Date().toISOString(),
-							updatedAt: new Date().toISOString(),
-							stages,
-							items: existing?.items ?? [],
-							specLinks: existing?.specLinks ?? undefined,
-							tools: data.tools ?? existing?.tools ?? [],
-						};
-					} else {
-						const existing = loadWorkflow(this.root);
-						wf = createWorkflowFromTemplate(this.root, data.template, {
-							name: data.name,
-							tools: data.tools,
-						});
-						if (existing?.language && wf) {
-							wf.language = existing.language;
-						}
-					}
-					writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
-					// BROADCAST: workflow created/updated from template
-					this.broadcast();
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify(wf));
-				} catch (e) {
-					res.writeHead(400, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: (e as Error).message }));
-				}
-			});
-			return;
-		}
-
-		if (path === "/api/specs" && req.method === "GET") {
-			try {
-				const wf = this.loadWorkflow();
-				const specs = loadSpecs(this.root, wf);
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify(specs));
-			} catch {
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify([]));
-			}
-			return;
-		}
-
-		if (path === "/api/specs" && req.method === "POST") {
-			let body = "";
-			req.on("data", (chunk: string) => {
-				body += chunk;
-			});
-			req.on("end", () => {
-				try {
-					const { id, content } = JSON.parse(body);
-					if (!id || !content) {
-						res.writeHead(400, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ error: "id and content required" }));
-						return;
-					}
-					const specDir = join(this.root, ".letra", "specs", id);
-					if (!existsSync(specDir)) mkdirSync(specDir, { recursive: true });
-					writeFileSync(join(specDir, "spec.md"), content, "utf-8");
-					const wf = this.loadWorkflow();
-				if (wf) {
-					if (!wf.specLinks) wf.specLinks = {};
-					wf.specLinks[id] = { path: `.letra/specs/${id}/spec.md` };
-					wf.updatedAt = new Date().toISOString();
-					writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
-					// BROADCAST: spec created
-					this.broadcast();
-				}
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ id, content }));
-				} catch (e) {
-					res.writeHead(400, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: (e as Error).message }));
-				}
-			});
-			return;
-		}
-
-		if (path.startsWith("/api/specs/") && req.method === "DELETE") {
-			const specId = path.replace("/api/specs/", "").split("/")[0];
-			if (!specId) {
-				res.writeHead(400);
-				res.end(JSON.stringify({ error: "spec id required" }));
-				return;
-			}
-			const specDir = join(this.root, ".letra", "specs", specId);
-			if (existsSync(specDir)) {
-				writeFileSync(join(specDir, "spec.md"), "", "utf-8");
-			}
-			const wf = this.loadWorkflow();
-			if (wf?.specLinks) {
-				delete wf.specLinks[specId];
-				wf.updatedAt = new Date().toISOString();
-				writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
-				// BROADCAST: spec deleted
-				this.broadcast();
-			}
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ deleted: specId }));
-			return;
-		}
-
-		if (path.startsWith("/api/specs/") && req.method === "PUT") {
-			const specId = path.replace("/api/specs/", "").split("/")[0];
-			if (!specId) {
-				res.writeHead(400);
-				res.end(JSON.stringify({ error: "spec id required" }));
-				return;
-			}
-			let body = "";
-			req.on("data", (chunk: string) => {
-				body += chunk;
-			});
-			req.on("end", () => {
-				try {
-					const { content } = JSON.parse(body);
-					if (content === undefined) {
-						res.writeHead(400);
-						res.end(JSON.stringify({ error: "content required" }));
-						return;
-					}
-					const specDir = join(this.root, ".letra", "specs", specId);
-					if (!existsSync(specDir)) mkdirSync(specDir, { recursive: true });
-					writeFileSync(join(specDir, "spec.md"), content, "utf-8");
-					const wf = this.loadWorkflow();
-				if (wf) {
-					wf.updatedAt = new Date().toISOString();
-					writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
-					// BROADCAST: spec updated
-					this.broadcast();
-				}
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ id: specId, content }));
-				} catch (e) {
-					res.writeHead(400);
-					res.end(JSON.stringify({ error: (e as Error).message }));
-				}
-			});
-			return;
-		}
-
-		if (path.match(/^\/api\/specs\/[^/]+\/validate$/) && req.method === "POST") {
-			const specId = path.replace("/api/specs/", "").split("/")[0];
-			const specDir = join(this.root, ".letra", "specs", specId);
-			const specFile = join(specDir, "spec.md");
-			const issues: Array<{ type: "error" | "warning"; msg: string }> = [];
-
-			if (!existsSync(specFile)) {
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(
-					JSON.stringify({
-						id: specId,
-						issues: [{ type: "error", msg: "spec.md not found" }],
-						valid: false,
-					}),
-				);
-				return;
-			}
-
-			const content = readFileSync(specFile, "utf-8");
-			const { errors: structErrors, warnings: structWarnings } = validateSpecStructure(specFile);
-			for (const e of structErrors) issues.push({ type: "error", msg: e });
-			for (const w of structWarnings) issues.push({ type: "warning", msg: w });
-
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(
-				JSON.stringify({
-					id: specId,
-					issues,
-					valid: issues.filter((i) => i.type === "error").length === 0,
-				}),
-			);
-			return;
-		}
-
-		// ── Item CRUD ──────────────────────────────────────────────
-		if (path === "/api/items" && req.method === "POST") {
-			let body = "";
-			req.on("data", (chunk: string) => {
-				body += chunk;
-			});
-			req.on("end", () => {
-				try {
-					const { id, description, stage } = JSON.parse(body);
-					if (!id || !description || !stage) {
-						res.writeHead(400, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ error: "id, description, and stage required" }));
-						return;
-					}
-					const wf = this.loadWorkflow();
-					if (!wf) {
-						res.writeHead(404, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ error: "No workflow" }));
-						return;
-					}
-					const item: Item = {
-						id,
-						description,
-						stage,
-						createdAt: new Date().toISOString(),
-						tasks: [],
-					};
-					wf.items.push(item);
-				wf.updatedAt = new Date().toISOString();
-				writeWorkflow(this.root, { workflow: wf, source: "web-ui", primaryItemId: item.id, skipSitrep: true, quiet: true });
-				// BROADCAST: item created
-				this.broadcast();
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify(item));
-			} catch (e) {
-					res.writeHead(400, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: (e as Error).message }));
-				}
-			});
-			return;
-		}
-
-		if (path.match(/^\/api\/items\/[^/]+$/) && req.method === "GET") {
-			const itemId = path.replace("/api/items/", "");
-			const wf = this.loadWorkflow();
-			if (!wf) {
-				res.writeHead(404, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "No workflow" }));
-				return;
-			}
-			const item = wf.items.find((i) => i.id === itemId);
-			if (!item) {
-				res.writeHead(404, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "Item not found" }));
-				return;
-			}
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify(item));
-			return;
-		}
-
-		if (path.match(/^\/api\/items\/[^/]+$/) && req.method === "PATCH") {
-			const itemId = path.replace("/api/items/", "");
-			let body = "";
-			req.on("data", (chunk: string) => {
-				body += chunk;
-			});
-			req.on("end", () => {
-				try {
-					const data = JSON.parse(body);
-					const wf = this.loadWorkflow();
-					if (!wf) {
-						res.writeHead(404, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ error: "No workflow" }));
-						return;
-					}
-					const item = wf.items.find((i) => i.id === itemId);
-					if (!item) {
-						res.writeHead(404, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ error: "Item not found" }));
-						return;
-					}
-					const oldStage = item.stage;
-					if (data.stage !== undefined) item.stage = data.stage;
-					if (data.description !== undefined) item.description = data.description;
-					if (data.tasks !== undefined) item.tasks = data.tasks;
-				wf.updatedAt = new Date().toISOString();
-				writeWorkflow(this.root, { workflow: wf, source: "web-ui", primaryItemId: itemId, skipSitrep: true, quiet: true });
-				// BROADCAST: item updated
-				this.broadcast();
-				if (data.stage !== undefined && data.stage !== oldStage) {
-						if (item.spec) {
-							writeFocusFile(this.root, item.spec, item.id);
-							logEntry(this.root, "focus_sync", `Focus synced to ${item.spec} via item move (${item.id})`, { itemId: item.id, spec: item.spec });
-							console.log(`  [focus] Synced to ${item.spec} via drag`);
-						}
-						this.fireWebhooks("item.moved", {
-							itemId: item.id,
-							itemDescription: item.description,
-							sourceStage: oldStage,
-							targetStage: data.stage,
-						});
-					}
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify(item));
-				} catch (e) {
-					res.writeHead(400, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: (e as Error).message }));
-				}
-			});
-			return;
-		}
-
-		if (path.match(/^\/api\/items\/[^/]+$/) && req.method === "DELETE") {
-			const itemId = path.replace("/api/items/", "");
-			const wf = this.loadWorkflow();
-			if (!wf) {
-				res.writeHead(404, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "No workflow" }));
-				return;
-			}
-			const idx = wf.items.findIndex((i) => i.id === itemId);
-			if (idx === -1) {
-				res.writeHead(404, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "Item not found" }));
-				return;
-			}
-			wf.items.splice(idx, 1);
-			wf.updatedAt = new Date().toISOString();
-			writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
-			// BROADCAST: item deleted
-			this.broadcast();
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ deleted: itemId }));
-			return;
-		}
-
-		// ── Item Claim / Release ──────────────────────────────────
-		if (path.match(/^\/api\/items\/[^/]+\/claim$/) && req.method === "POST") {
-			const itemId = path.replace("/api/items/", "").replace("/claim", "");
-			const wf = this.loadWorkflow();
-			if (!wf) {
-				res.writeHead(404, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "No workflow" }));
-				return;
-			}
-			const item = wf.items.find((i: Item) => i.id === itemId);
-			if (!item) {
-				res.writeHead(404, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "Item not found" }));
-				return;
-			}
-			const doneZones = new Set(wf.stages.filter((s) => s.zone === "done").map((s) => s.id));
-			if (doneZones.has(item.stage)) {
-				res.writeHead(400, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "Cannot claim a completed item" }));
-				return;
-			}
-			item.claimedBy = "web-ui";
-			item.claimedAt = new Date().toISOString();
-			wf.updatedAt = new Date().toISOString();
-			writeWorkflow(this.root, { workflow: wf, source: "web-ui", primaryItemId: item.id, skipSitrep: true, quiet: true });
-			// BROADCAST: item claimed
-			this.broadcast();
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify(item));
-			return;
-		}
-
-		if (path.match(/^\/api\/items\/[^/]+\/release$/) && req.method === "POST") {
-			const itemId = path.replace("/api/items/", "").replace("/release", "");
-			const wf = this.loadWorkflow();
-			if (!wf) {
-				res.writeHead(404, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "No workflow" }));
-				return;
-			}
-			const item = wf.items.find((i: Item) => i.id === itemId);
-			if (!item) {
-				res.writeHead(404, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "Item not found" }));
-				return;
-			}
-			delete item.claimedBy;
-			delete item.claimedAt;
-			wf.updatedAt = new Date().toISOString();
-			writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
-			// BROADCAST: item released
-			this.broadcast();
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify(item));
-			return;
-		}
-
-		// ── Item Focus (set/clear via UI) ──────────────────────────
-		if (path.match(/^\/api\/items\/[^/]+\/focus$/) && req.method === "POST") {
-			const itemId = path.replace("/api/items/", "").replace("/focus", "");
-			const wf = this.loadWorkflow();
-			if (!wf) {
-				res.writeHead(404, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "No workflow" }));
-				return;
-			}
-			const item = wf.items.find((i: Item) => i.id === itemId);
-			if (!item) {
-				res.writeHead(404, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "Item not found" }));
-				return;
-			}
-			const specName = item.spec || itemId;
-			writeFocusFile(this.root, specName, item.id);
-			logEntry(this.root, "focus_set", `Focus set via UI: ${specName}`, { itemId });
-			// BROADCAST: item focus set
-			this.broadcast();
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ itemId, spec: specName }));
-			return;
-		}
-
-		// ── Workflow PATCH (update stages, name, etc.) ─────────────
-		if (path === "/api/workflow" && req.method === "PATCH") {
-			let body = "";
-			req.on("data", (chunk: string) => {
-				body += chunk;
-			});
-			req.on("end", () => {
-				try {
-					const data = JSON.parse(body);
-					const wf = this.loadWorkflow();
-					if (!wf) {
-						res.writeHead(404, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ error: "No workflow" }));
-						return;
-					}
-					if (data.stages !== undefined) wf.stages = data.stages;
-					if (data.name !== undefined) wf.name = data.name;
-					if (data.description !== undefined) wf.description = data.description;
-				wf.updatedAt = new Date().toISOString();
-				writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipSitrep: true, quiet: true });
-				// BROADCAST: workflow config updated
-				this.broadcast();
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify(wf));
-				} catch (e) {
-					res.writeHead(400, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: (e as Error).message }));
-				}
-			});
-			return;
-		}
-
-		// ── Legacy /api/move (redirect) ────────────────────────────
-		if (path === "/api/move") {
-			const itemId = url.searchParams.get("item");
-			const stage = url.searchParams.get("stage");
-			if (itemId && stage) {
-				const wf = this.loadWorkflow();
-				if (wf) {
-					const item = wf.items.find((i) => i.id === itemId);
-					if (item) {
-						item.stage = stage;
-						wf.updatedAt = new Date().toISOString();
-						writeWorkflow(this.root, { workflow: wf, source: "web-ui", primaryItemId: itemId, skipSitrep: true, quiet: true });
-						// BROADCAST: item moved via legacy endpoint
-						this.broadcast();
-					}
-				}
-			}
-			res.writeHead(302, { Location: "/" });
-			res.end();
-			return;
-		}
-
-		if (path === "/api/focus") {
-			if (req.method === "DELETE") {
-				clearFocusFile(this.root);
-				logEntry(this.root, "focus_clear", "Focus cleared via UI");
-				// BROADCAST: focus cleared
-				this.broadcast();
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ active: false }));
-				return;
-			}
-			if (req.method === "POST") {
-				let body = "";
-				req.on("data", (chunk: string) => { body += chunk; });
-				req.on("end", () => {
-					try {
-						const data = JSON.parse(body);
-						const specName = data.spec || "unknown";
-						const itemId = data.itemId || "";
-						writeFocusFile(this.root, specName, itemId);
-						logEntry(this.root, "focus_set", `Focus set via UI: ${specName}`, { itemId });
-						// BROADCAST: focus set via POST
-						this.broadcast();
-						res.writeHead(200, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ active: true, spec: specName, itemId }));
-					} catch (e) {
-						res.writeHead(400, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ error: (e as Error).message }));
-					}
-				});
-				return;
-			}
-			// GET
-			const focusFile = join(this.root, ".letra", "focus.md");
-			if (existsSync(focusFile)) {
-				const content = readFileSync(focusFile, "utf-8");
-				res.writeHead(200, { "Content-Type": "application/json" });
-				const lines = content.split("\n").filter((l) => l.trim());
-				const itemMatch = content.match(/\*\*Item\*\*:\s*(.+)/);
-				res.end(
-					JSON.stringify({
-						active: true,
-						spec: lines[0]?.replace(/^#\s*/, "") || "",
-						itemId: itemMatch ? itemMatch[1].trim() : null,
-						content,
-					}),
-				);
-			} else {
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ active: false }));
-			}
-			return;
-		}
-
-		if (path === "/api/context") {
-			const file = url.searchParams.get("file") || "context.md";
-			const letraDir = join(this.root, ".letra");
-			const allowedFiles = ["context.md", "constitution.md", "glossary.md"];
-
-			if (file === "decisions") {
-				const decisionsDir = join(letraDir, "decisions");
-				const files: Array<{ name: string; content: string }> = [];
-				if (existsSync(decisionsDir)) {
-					const names = readdirSync(decisionsDir).filter((f) => f.endsWith(".md"));
-					for (const name of names.sort().reverse()) {
-						const content = readFileSync(join(decisionsDir, name), "utf-8");
-						files.push({ name, content });
-					}
-				}
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify(files));
-				return;
-			}
-
-			if (!allowedFiles.includes(file)) {
-				res.writeHead(400, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: `Invalid file: ${file}` }));
-				return;
-			}
-
-			const filePath = join(letraDir, file);
-			if (!existsSync(filePath)) {
-				res.writeHead(404, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: `File not found: ${file}` }));
-				return;
-			}
-
-			const content = readFileSync(filePath, "utf-8");
-			res.writeHead(200, { "Content-Type": "text/plain" });
-			res.end(content);
-			return;
-		}
-
-		// ── Diagnostics ──────────────────────────────────────────────
-		if (path === "/api/diagnostics" && req.method === "GET") {
-			const output = this.engine.getLastOutput();
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify(output));
-			return;
-		}
-
-		if (path === "/api/diagnostics/snapshots" && req.method === "GET") {
-			let snapshots = this.engine.listSnapshots();
-			const total = snapshots.length;
-			const limitParam = url.searchParams.get("limit");
-			const offsetParam = url.searchParams.get("offset");
-			if (limitParam !== null || offsetParam !== null) {
-				const limit = limitParam ? parseInt(limitParam, 10) : total;
-				const offset = offsetParam ? parseInt(offsetParam, 10) : 0;
-				snapshots = snapshots.slice(offset, offset + limit);
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ snapshots, total, limit, offset }));
-			} else {
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ snapshots }));
-			}
-			return;
-		}
-
-		if (path === "/api/diagnostics/scan" && req.method === "POST") {
-			this.engine
-				.runAll()
-				.then((output) => {
-					this.broadcastDiagnostics(output);
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify(output));
-				})
-				.catch((e) => {
-					res.writeHead(500, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: e.message }));
-				});
-			return;
-		}
-
-		if (path.match(/^\/api\/diagnostics\/undo\/[^/]+$/) && req.method === "POST") {
-			const snapshotId = path.replace("/api/diagnostics/undo/", "");
-			this.engine
-				.undo(snapshotId)
-				.then((result) => {
-					if (!result.ok) {
-						res.writeHead(404, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ error: "Snapshot not found" }));
-						return;
-					}
-					// BROADCAST: diagnostic undo
-					this.broadcast();
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify(result));
-				})
-				.catch((e) => {
-					res.writeHead(500, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: e.message }));
-				});
-			return;
-		}
-
-		if (path.match(/^\/api\/diagnostics\/redo\/[^/]+$/) && req.method === "POST") {
-			const snapshotId = path.replace("/api/diagnostics/redo/", "");
-			this.engine
-				.redo(snapshotId)
-				.then((result) => {
-					if (!result.ok) {
-						res.writeHead(404, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ error: "Snapshot not found" }));
-						return;
-					}
-					// BROADCAST: diagnostic redo
-					this.broadcast();
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify(result));
-				})
-				.catch((e) => {
-					res.writeHead(500, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: e.message }));
-				});
-			return;
-		}
-
-		// ── Health Record API ─────────────────────────────────────────
-		if (path === "/api/health" && req.method === "GET") {
-			const record = loadHealthRecord(this.root);
-			const summary = getSummary(record);
-			const active = getActiveEntries(record);
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ summary, entries: record.entries, active }));
-			return;
-		}
-
-		if (path === "/api/health/alerts" && req.method === "GET") {
-			const record = loadHealthRecord(this.root);
-			const alerts = record.entries.filter((e) => e.status === "novo");
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify(alerts));
-			return;
-		}
-
-		if (path === "/api/health/scan" && req.method === "POST") {
-			this.engine
-				.runAll()
-				.then((output) => {
-					const suggestions: DiagnosticResult[] = output.suggestions.map((s) => ({
-						id: s.id,
-						type: s.type,
-						title: s.title,
-						description: s.description,
-						certainty: 0.8,
-						detector: s.detector,
-					}));
-					const record = loadHealthRecord(this.root);
-					mergeScanResults(record, suggestions);
-					saveHealthRecord(this.root, record);
-					this.broadcastDiagnostics(output);
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ fixes: output.fixes.length, suggestions: output.suggestions.length }));
-				})
-				.catch((e) => {
-					res.writeHead(500, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: e.message }));
-				});
-			return;
-		}
-
-		if (path === "/api/health/ack" && req.method === "POST") {
-			let body = "";
-			req.on("data", (chunk: string) => { body += chunk; });
-			req.on("end", () => {
-				try {
-					const { id } = JSON.parse(body);
-					const record = loadHealthRecord(this.root);
-					if (ackEntry(record, id)) {
-						saveHealthRecord(this.root, record);
-						// BROADCAST: health entry acknowledged
-						this.broadcast();
-						res.writeHead(200, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ acked: id }));
-					} else {
-						res.writeHead(404, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ error: "Entry not found" }));
-					}
-				} catch (e) {
-					res.writeHead(400, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: (e as Error).message }));
-				}
-			});
-			return;
-		}
-
-		if (path === "/api/health/dismiss" && req.method === "POST") {
-			let body = "";
-			req.on("data", (chunk: string) => { body += chunk; });
-			req.on("end", () => {
-				try {
-					const { id, reason } = JSON.parse(body);
-					const record = loadHealthRecord(this.root);
-					if (dismissEntry(record, id, reason)) {
-						saveHealthRecord(this.root, record);
-						// BROADCAST: health entry dismissed
-						this.broadcast();
-						res.writeHead(200, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ dismissed: id }));
-					} else {
-						res.writeHead(404, { "Content-Type": "application/json" });
-						res.end(JSON.stringify({ error: "Entry not found" }));
-					}
-				} catch (e) {
-					res.writeHead(400, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: (e as Error).message }));
-				}
-			});
-			return;
-		}
-
-		// ── Item Alerts API (AC10) ──────────────────────────────────────
-		if (path === "/api/items/alerts" && req.method === "GET") {
-			const record = loadHealthRecord(this.root);
-			const itemAlerts: Record<string, number> = {};
-			for (const entry of record.entries) {
-				if (entry.status !== "novo") continue;
-				const match = entry.id.match(/_([A-Z]+-\d+)_/);
-				if (match) {
-					const itemId = match[1];
-					itemAlerts[itemId] = (itemAlerts[itemId] || 0) + 1;
-				}
-			}
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ itemAlerts }));
-			return;
-		}
-
-		// ── Session Log API ──────────────────────────────────────────
-		if (path === "/api/log" && req.method === "GET") {
-			const itemId = url.searchParams.get("item") ?? undefined;
-			const action = url.searchParams.get("action") ?? undefined;
-			const since = url.searchParams.get("since") ?? undefined;
-			const all = url.searchParams.get("all") === "true";
-			const limitParam = url.searchParams.get("limit");
-			const entries = queryLog(this.root, {
-				all,
-				itemId,
-				action,
-				since,
-				limit: limitParam ? parseInt(limitParam, 10) : 50,
-			});
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ entries }));
-			return;
-		}
-
-		// ── Sitrep API ────────────────────────────────────────────────
-		if (path === "/api/sitrep" && req.method === "POST") {
-			const dryRun = url.searchParams.get("dryRun") === "true";
-			await sitrep(this.root, { dryRun });
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ ok: true }));
-			return;
-		}
-
-		// ── Workspace Pulse API ───────────────────────────────────────
-		if (path === "/api/pulse" && req.method === "GET") {
-			const data = await pulse(this.root, { json: false });
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify(data));
-			return;
-		}
+		const requestRoot = this.workspaceRootFor(url);
+		const requestResolution = resolveWorkspaceRoot(requestRoot);
+		const context = createRequestContext(req, res, url, {
+			workspaceRoot: requestRoot,
+			workspaceDir: requestResolution.workspaceDir,
+			workflow: this.loadWorkflow(requestRoot),
+		});
+		if (await this.router.dispatch(context)) return;
 
 		// Serve SPA (client/dist/) or proxy to Vite dev server
-		this.serveClient(path, req, res);
+		this.clientAssets.serve(path, req, res);
 	};
 
-	private clientDir: string | null = null;
-
-	private serveClient(path: string, req: IncomingMessage, res: ServerResponse): void {
-		if (!this.clientDir) {
-			const cliDir = dirname(fileURLToPath(import.meta.url));
-			// Published package via npm: dist/client/ is built alongside CLI
-			const builtIn = join(cliDir, "client");
-			// Monorepo dev: client/dist/ is in packages/client/
-			const monorepoDev = join(this.root, "packages", "client", "dist");
-			const candidates = [builtIn, monorepoDev];
-			for (const dir of candidates) {
-				const idx = join(dir, "index.html");
-				if (existsSync(idx)) {
-					this.clientDir = dir;
-					break;
-				}
-			}
-		}
-
-		// Dev mode: proxy to Vite dev server
-		if (!this.clientDir) {
-			this.proxyToVite(req, res);
-			return;
-		}
-
-		// Serve static files
-		let filePath = join(this.clientDir, path === "/" ? "index.html" : path);
-		if (!existsSync(filePath)) {
-			filePath = join(this.clientDir, "index.html");
-		}
-		const ext = extname(filePath);
-		const mime: Record<string, string> = {
-			".html": "text/html; charset=utf-8",
-			".js": "application/javascript; charset=utf-8",
-			".css": "text/css; charset=utf-8",
-			".svg": "image/svg+xml",
-			".png": "image/png",
-			".ico": "image/x-icon",
-			".json": "application/json",
-		};
-		const contentType = mime[ext] ?? "application/octet-stream";
-		res.writeHead(200, { "Content-Type": contentType });
-		res.end(readFileSync(filePath));
-	}
-
-	private proxyToVite(req: IncomingMessage, res: ServerResponse): void {
-		const proxyUrl = `http://localhost:5173${req.url}`;
-		fetch(proxyUrl)
-			.then((proxyRes) => {
-				res.writeHead(proxyRes.status, Object.fromEntries(proxyRes.headers));
-				proxyRes.body?.pipeTo(
-					new WritableStream({
-						write(chunk) {
-							res.write(chunk);
-						},
-						close() {
-							res.end();
-						},
-					}),
-				);
-			})
-			.catch(() => {
-				res.writeHead(502, { "Content-Type": "text/plain" });
-				res.end("Vite dev server not running on http://localhost:5173");
-			});
-	}
-
 	private broadcast(): void {
-		if (this.clients.size === 0) return;
-		const data = "event: workflow-updated\ndata: {}\n\n";
-		for (const client of this.clients) {
-			try {
-				client.write(data);
-			} catch {
-				this.clients.delete(client);
-			}
-		}
+		this.events.broadcastWorkflowUpdated();
 	}
 
-	private broadcastDiagnostics(output: {
-		fixes: unknown[];
-		suggestions: unknown[];
-		errors: unknown[];
-	}): void {
-		if (this.clients.size === 0) return;
-		const data = `event: diagnostics-updated\ndata: ${JSON.stringify({ fixes: output.fixes.length, suggestions: output.suggestions.length, errors: output.errors.length })}\n\n`;
-		for (const client of this.clients) {
-			try {
-				client.write(data);
-			} catch {
-				this.clients.delete(client);
-			}
-		}
+	private broadcastDiagnostics(output: DiagnosticsOutput): void {
+		this.events.broadcastDiagnosticsUpdated({
+			fixes: output.fixes.length,
+			suggestions: output.suggestions.length,
+			errors: output.errors.length,
+		});
 	}
 
-	private async fireWebhooks(event: string, payload: Record<string, unknown>): Promise<void> {
-		const wf = this.loadWorkflow();
+	private async fireWebhooks(
+		workspaceRoot: string,
+		event: string,
+		payload: Record<string, unknown>,
+	): Promise<void> {
+		const wf = this.loadWorkflow(workspaceRoot);
 		if (!wf?.webhooks || wf.webhooks.length === 0) return;
 		const matching = wf.webhooks.filter((wh) => wh.events.includes(event));
 		if (matching.length === 0) return;
@@ -1096,72 +357,22 @@ export class FlowServer {
 			}
 			wh.lastSentAt = new Date().toISOString();
 		}
-		writeWorkflow(this.root, { workflow: wf, source: "web-ui", skipAdapters: true, skipSitrep: true, skipLog: true, quiet: true });
+		writeWorkflow(workspaceRoot, {
+			workflow: wf,
+			source: "web-ui",
+			skipAdapters: true,
+			skipSitrep: true,
+			skipLog: true,
+			quiet: true,
+		});
 	}
 
 	start(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			this.server = createServer(this.handleRequest);
 			this.server.listen(this.port, () => {
-				const wfPath = join(this.root, ".letra", "workflow.json");
-				if (existsSync(wfPath)) {
-					try {
-						this.watcher = watch(wfPath, () => this.broadcast());
-					} catch {}
-				}
-
-				const specsDir = join(this.root, ".letra", "specs");
-				if (existsSync(specsDir)) {
-					try {
-						this.specsWatcher = watch(specsDir, { recursive: true }, () => this.broadcast());
-					} catch {}
-				}
-
-				// First diagnostic scan immediately after starting
-				this.engine.ensureDirs();
-				this.engine
-					.runAll()
-					.then((output) => {
-						this.broadcastDiagnostics(output);
-						const suggestions: DiagnosticResult[] = output.suggestions.map((s) => ({
-							id: s.id,
-							type: s.type,
-							title: s.title,
-							description: s.description,
-							certainty: 0.8,
-							detector: s.detector,
-						}));
-						const record = loadHealthRecord(this.root);
-						mergeScanResults(record, suggestions);
-						saveHealthRecord(this.root, record);
-					})
-					.catch(() => {
-						/* silent */
-					});
-
-				// Periodic diagnostic scan every 30s
-				this.diagnosticsTimer = setInterval(() => {
-					this.engine
-						.runAll()
-						.then((output) => {
-							this.broadcastDiagnostics(output);
-							const suggestions: DiagnosticResult[] = output.suggestions.map((s) => ({
-								id: s.id,
-								type: s.type,
-								title: s.title,
-								description: s.description,
-								certainty: 0.8,
-								detector: s.detector,
-							}));
-							const record = loadHealthRecord(this.root);
-							mergeScanResults(record, suggestions);
-							saveHealthRecord(this.root, record);
-						})
-						.catch(() => {
-							/* silent */
-						});
-				}, 30000);
-
+				this.automationRuntime.start(this.automationBinding());
+				this.orchestrator.startReclaimTimer();
 				resolve();
 			});
 			this.server.on("error", reject);
@@ -1169,14 +380,10 @@ export class FlowServer {
 	}
 
 	stop(): void {
-		if (this.watcher) this.watcher.close();
-		if (this.specsWatcher) this.specsWatcher.close();
-		if (this.diagnosticsTimer) clearInterval(this.diagnosticsTimer);
+		this.automationRuntime.stop();
+		this.orchestrator.stopReclaimTimer();
 		if (this.server) this.server.close();
-		for (const client of this.clients) {
-			client.destroy();
-		}
-		this.clients.clear();
+		this.events.close();
 	}
 
 	getPort(): number {

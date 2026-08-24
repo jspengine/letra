@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { type Workflow, loadWorkflow, writeWorkflow } from "./flow-init.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export function flowExport(root: string, options?: { minified?: boolean }): void {
 	const workflow = loadWorkflow(root);
@@ -56,7 +57,7 @@ export function flowImport(root: string, filePath: string): void {
 
 	const existingWorkflow = loadWorkflow(root);
 	if (existingWorkflow) {
-		const backup = join(root, ".letra", `workflow.v${existingWorkflow.version}.json`);
+		const backup = join(getLetraDir(root), `workflow.v${existingWorkflow.version}.json`);
 		if (!existsSync(backup)) {
 			writeFileSync(backup, JSON.stringify(existingWorkflow, null, 2));
 			console.log(

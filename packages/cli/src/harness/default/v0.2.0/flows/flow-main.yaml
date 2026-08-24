@@ -1,0 +1,247 @@
+id: flow-main
+version: "0.2.0"
+name: Main Flow
+description: Standard SDLC flow with agent orchestration and handoff protocol.
+defaultPolicy: sdlc-default
+stages:
+  - id: backlog
+    name: Backlog
+    order: 0
+    zone: todo
+    description: Items waiting to be prioritized.
+    agents: []
+    gate: null
+
+  - id: design
+    name: Design
+    order: 1
+    zone: doing
+    description: Analyst analyzes spec, creates ACs, defines context.
+    agents:
+      - analyst
+    gate: spec-approved
+    preferredExecutor: opencode
+    phases:
+      initialState: analyze
+      states:
+        analyze:
+          id: analyze
+          label: Analyze
+          description: Read and understand the spec
+          actions:
+            - type: command
+              cmd: "letra flow phases <ITEM-ID>"
+          transitions:
+            - target: define
+        define:
+          id: define
+          label: Define ACs
+          description: Create acceptance criteria
+          actions:
+            - type: command
+              cmd: "letra flow ac <ITEM-ID> <AC-NUMBER>"
+          transitions:
+            - target: handoff
+              gate: spec-approved
+        handoff:
+          id: handoff
+          label: Handoff
+          description: Handoff to implementer
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to implementer --summary 'Spec analyzed. ACs defined.'"
+    activity:
+      design:
+        objective: "Analyze the spec and define acceptance criteria."
+        mustRead:
+          - path: constitution.md
+            reason: "Constitutional principles must guide analysis"
+          - path: glossary.md
+            reason: "Domain terms must be consistent"
+        commands:
+          - command: "letra flow handoff --to implementer --summary 'Spec analyzed. ACs defined.'"
+            label: "Handoff to Implementer"
+        mustNotDo:
+          - "Do not implement code"
+          - "Do not skip acceptance criteria definition"
+        nextActions:
+          - label: "Analyze"
+            description: "Read spec, understand requirements, create ACs."
+
+  - id: code
+    name: Code
+    order: 2
+    zone: doing
+    description: Implementer writes code, implements ACs, runs tests.
+    agents:
+      - implementer
+    gate: code-reviewed
+    preferredExecutor: opencode
+    phases:
+      initialState: implement
+      states:
+        implement:
+          id: implement
+          label: Implement
+          description: Implement acceptance criteria
+          actions:
+            - type: command
+              cmd: "letra ac done <AC-ID>"
+          transitions:
+            - target: test
+        test:
+          id: test
+          label: Test
+          description: Run tests and validate
+          actions:
+            - type: command
+              cmd: "letra validate"
+          transitions:
+            - target: handoff
+        handoff:
+          id: handoff
+          label: Handoff
+          description: Handoff to reviewer
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to reviewer --summary 'Implementation complete.'"
+    activity:
+      implement:
+        objective: "Implement acceptance criteria one by one."
+        commands:
+          - command: "letra ac done <AC-ID>"
+            label: "Complete AC"
+          - command: "letra flow handoff --to reviewer --summary 'Implementation complete.'"
+            label: "Handoff to Reviewer"
+        mustNotDo:
+          - "Do not skip tests"
+          - "Do not approve your own work"
+        nextActions:
+          - label: "Implement"
+            description: "Implement ACs with regression tests."
+
+  - id: review
+    name: Review
+    order: 3
+    zone: doing
+    description: Reviewer checks adherence, quality, and regression.
+    agents:
+      - reviewer
+    gate: null
+    preferredExecutor: opencode
+    phases:
+      initialState: review
+      states:
+        review:
+          id: review
+          label: Review
+          description: Review code quality and adherence
+          actions:
+            - type: command
+              cmd: "letra flow phases <ITEM-ID>"
+          transitions:
+            - target: decide
+        decide:
+          id: decide
+          label: Decide
+          description: Approve or reject
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to security --summary 'Review approved.'"
+          transitions:
+            - target: handoff-approve
+            - target: handoff-reject
+        handoff-approve:
+          id: handoff-approve
+          label: Handoff Approve
+          description: Handoff to security
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to security --summary 'Review approved.'"
+        handoff-reject:
+          id: handoff-reject
+          label: Handoff Reject
+          description: Handoff back to implementer
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to implementer --summary 'Review rejected.'"
+    activity:
+      review:
+        objective: "Review code for adherence, quality, and regression."
+        commands:
+          - command: "letra flow handoff --to security --summary 'Review approved.'"
+            label: "Handoff to Security"
+          - command: "letra flow handoff --to implementer --summary 'Review rejected. Issues: [list]'"
+            label: "Handoff back to Implementer"
+        mustNotDo:
+          - "Do not implement corrections"
+        nextActions:
+          - label: "Review"
+            description: "Check code quality, test coverage, regression."
+
+  - id: security
+    name: Security
+    order: 4
+    zone: doing
+    description: Security agent analyzes vulnerabilities and dependencies.
+    agents:
+      - security
+    gate: security-clear
+    preferredExecutor: opencode
+    phases:
+      initialState: scan
+      states:
+        scan:
+          id: scan
+          label: Scan
+          description: Scan for vulnerabilities
+          actions:
+            - type: command
+              cmd: "letra flow phases <ITEM-ID>"
+          transitions:
+            - target: decide
+        decide:
+          id: decide
+          label: Decide
+          description: Approve or reject
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to human --summary 'Security clear.'"
+          transitions:
+            - target: handoff-approve
+            - target: handoff-reject
+        handoff-approve:
+          id: handoff-approve
+          label: Handoff Approve
+          description: Handoff to human
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to human --summary 'Security clear. Awaiting approval.'"
+        handoff-reject:
+          id: handoff-reject
+          label: Handoff Reject
+          description: Handoff back to implementer
+          actions:
+            - type: command
+              cmd: "letra flow handoff --to implementer --summary 'Vulnerability found.'"
+    activity:
+      implement:
+        objective: "Analyze security, vulnerabilities, and dependencies."
+        commands:
+          - command: "letra flow handoff --to human --summary 'Security clear. Awaiting approval.'"
+            label: "Handoff to Human"
+          - command: "letra flow handoff --to implementer --summary 'Vulnerability found: [desc]'"
+            label: "Handoff back to Implementer"
+        mustNotDo:
+          - "Do not implement corrections"
+        nextActions:
+          - label: "Scan"
+            description: "Check for vulnerabilities, secrets, dependency issues."
+
+  - id: done
+    name: Done
+    order: 5
+    zone: done
+    description: Item is complete.
+    agents: []
+    gate: null

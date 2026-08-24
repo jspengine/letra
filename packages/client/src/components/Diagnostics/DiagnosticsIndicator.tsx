@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from "react";
-import { Icon } from "@letra/ui";
+import { Button, Icon, Popover, PopoverContent, PopoverTrigger } from "@letra/ui";
 
 interface Suggestion {
 	id: string;
@@ -9,107 +8,112 @@ interface Suggestion {
 	detector: string;
 }
 
-interface Fix {
-	id: string;
-	title: string;
-	description: string;
-	snapshotId: string;
-}
-
 interface Props {
 	suggestions: Suggestion[];
 	onApplyFix: (suggestion: Suggestion) => void;
-	onOpenHistory: () => void;
+	onOpenHistory?: () => void;
 }
 
 export default function DiagnosticsIndicator({ suggestions, onApplyFix, onOpenHistory }: Props) {
-	const [open, setOpen] = useState(false);
-	const ref = useRef<HTMLDivElement>(null);
-
-	useEffect(() => {
-		function handleClickOutside(e: MouseEvent) {
-			if (ref.current && !ref.current.contains(e.target as Node)) {
-				setOpen(false);
-			}
-		}
-		if (open) document.addEventListener("mousedown", handleClickOutside);
-		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, [open]);
-
 	if (suggestions.length === 0) return null;
 
 	return (
-		<div ref={ref} className="relative">
-			<button
-				type="button"
-				onClick={() => setOpen(!open)}
-				className="relative flex items-center justify-center w-5 h-5 rounded-full hover:opacity-80 transition-opacity"
-				style={{ background: "var(--warning)" }}
-				aria-label={`${suggestions.length} sugestão(ões)`}
-			/>
-
-			{open && (
-				<div
-					className="absolute right-0 top-8 w-80 rounded-lg shadow-xl border z-50 overflow-hidden"
-					style={{
-						background: "var(--card)",
-						borderColor: "var(--border)",
-						color: "var(--foreground)",
-					}}
-				>
-					<div
-						className="px-3 py-2 text-xs font-semibold border-b"
-						style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
-					>
-						Sugestões ({suggestions.length})
-					</div>
-					<div className="max-h-80 overflow-y-auto">
-						{suggestions.map((s) => (
+		<Popover>
+			{({ open, setOpen }: { open: boolean; setOpen: (value: boolean) => void }) => (
+				<>
+					<PopoverTrigger asChild>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							className="app-status-pill app-status-pill--action px-[var(--space-3)]"
+							aria-label={`Revisar ${suggestions.length} ${suggestions.length === 1 ? "correcao sugerida pelo diagnostico" : "correcoes sugeridas pelo diagnostico"}`}
+							title="Correcoes sugeridas pelo diagnostico"
+						>
+							<Icon name="sparkles" size={16} />
+							<span>
+								{suggestions.length}{" "}
+								{suggestions.length === 1 ? "correcao" : "correcoes"}
+							</span>
+						</Button>
+					</PopoverTrigger>
+					{open ? (
+						<PopoverContent align="end" className="w-80 p-0">
 							<div
-								key={s.id}
-								className="px-3 py-2 border-b text-sm flex items-start gap-2"
-								style={{ borderColor: "var(--border)" }}
+								className="grid gap-1 border-b px-3 py-2 text-xs"
+								style={{
+									borderColor: "var(--color-border)",
+									color: "var(--color-text-secondary)",
+								}}
 							>
-								<span className="mt-0.5 shrink-0">💡</span>
-								<div className="flex-1 min-w-0">
-									<div className="font-medium truncate">{s.title}</div>
+								<strong className="text-sm text-[var(--color-text-primary)]">
+									Correcoes sugeridas pelo diagnostico
+								</strong>
+								<span>
+									Use quando quiser aplicar ajustes automaticos detectados pelo
+									Letra.
+								</span>
+							</div>
+							<div className="max-h-80 overflow-y-auto">
+								{suggestions.map((suggestion) => (
 									<div
-										className="text-xs mt-0.5"
-										style={{ color: "var(--muted-foreground)" }}
+										key={suggestion.id}
+										className="flex items-start gap-2 border-b px-3 py-2 text-sm"
+										style={{ borderColor: "var(--color-border)" }}
 									>
-										{s.description}
+										<Icon
+											name="sparkles"
+											size={14}
+											className="mt-0.5 shrink-0 text-[var(--color-primary)]"
+										/>
+										<div className="min-w-0 flex-1">
+											<div className="truncate font-medium">
+												{suggestion.title}
+											</div>
+											<div
+												className="mt-0.5 text-xs"
+												style={{ color: "var(--color-text-secondary)" }}
+											>
+												{suggestion.description}
+											</div>
+										</div>
+										<Button
+											type="button"
+											onClick={() => {
+												onApplyFix(suggestion);
+												setOpen(false);
+											}}
+											className="shrink-0 rounded px-2 py-1 text-xs font-medium transition-colors"
+											style={{
+												background: "var(--color-primary)",
+												color: "var(--color-on-accent)",
+											}}
+										>
+											Ok
+										</Button>
 									</div>
-								</div>
-								<button
+								))}
+							</div>
+							{onOpenHistory ? (
+								<Button
 									type="button"
 									onClick={() => {
-										onApplyFix(s);
+										onOpenHistory();
 										setOpen(false);
 									}}
-									className="shrink-0 text-xs px-2 py-1 rounded font-medium transition-colors"
+									className="w-full border-t px-3 py-2 text-left text-xs font-medium transition-colors hover:opacity-80"
 									style={{
-										background: "var(--primary)",
-										color: "var(--primary-foreground)",
+										borderColor: "var(--color-border)",
+										color: "var(--color-text-secondary)",
 									}}
 								>
-									Ok
-								</button>
-							</div>
-						))}
-					</div>
-					<button
-						type="button"
-						onClick={() => {
-							onOpenHistory();
-							setOpen(false);
-						}}
-						className="w-full px-3 py-2 text-xs font-medium text-left border-t transition-colors hover:opacity-80"
-						style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
-					>
-						Ver histórico de correções →
-					</button>
-				</div>
+									Abrir log de correcoes aplicadas
+								</Button>
+							) : null}
+						</PopoverContent>
+					) : null}
+				</>
 			)}
-		</div>
+		</Popover>
 	);
 }

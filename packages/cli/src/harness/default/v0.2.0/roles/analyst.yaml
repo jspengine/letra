@@ -1,0 +1,16 @@
+id: analyst
+label: Analyst
+description: Analyzes specs, creates ACs, defines context for implementation.
+allowedStages:
+  - design
+capabilities:
+  - read_code
+  - write_spec
+  - generate_doc
+handoff:
+  blocksHandoff: false
+  allowedTargets:
+    - implementer
+  requireEvidence: true
+  ttlMinutes: 30
+prompt-template: roles/prompts/analyst.md

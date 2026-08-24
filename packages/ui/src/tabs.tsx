@@ -13,9 +13,17 @@ interface TabsProps {
 	onChange?: (id: string) => void;
 	children?: (activeId: string) => ReactNode;
 	className?: string;
+	ariaLabel?: string;
 }
 
-export function Tabs({ tabs, activeTab: controlledTab, onChange, children, className }: TabsProps) {
+export function Tabs({
+	tabs,
+	activeTab: controlledTab,
+	onChange,
+	children,
+	className,
+	ariaLabel,
+}: TabsProps) {
 	const [internalTab, setInternalTab] = useState(tabs[0]?.id || "");
 	const active = controlledTab ?? internalTab;
 
@@ -28,8 +36,9 @@ export function Tabs({ tabs, activeTab: controlledTab, onChange, children, class
 		<div className={cn("flex flex-col h-full", className)}>
 			<div
 				className="flex border-b shrink-0"
-				style={{ borderColor: "var(--border)" }}
+				style={{ borderColor: "var(--color-border)" }}
 				role="tablist"
+				aria-label={ariaLabel}
 			>
 				{tabs.map((tab) => (
 					<button
@@ -39,14 +48,16 @@ export function Tabs({ tabs, activeTab: controlledTab, onChange, children, class
 						aria-selected={active === tab.id}
 						onClick={() => handleSelect(tab.id)}
 						className={cn(
-							"flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px cursor-pointer",
+							"flex items-center gap-[var(--space-1)] px-[var(--space-3)] py-[var(--space-2)] text-body font-medium transition-colors border-b-2 -mb-px cursor-pointer",
 							active === tab.id
-								? "border-primary text-primary"
-								: "border-transparent text-muted-foreground hover:text-foreground",
+								? "border-[var(--color-primary)]"
+								: "border-transparent",
 						)}
 						style={{
-							color: active === tab.id ? "var(--primary)" : "var(--muted-foreground)",
-							borderColor: active === tab.id ? "var(--primary)" : "transparent",
+							color:
+								active === tab.id
+									? "var(--color-primary)"
+									: "var(--color-text-secondary)",
 						}}
 					>
 						{tab.icon}

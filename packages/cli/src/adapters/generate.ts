@@ -1,8 +1,20 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
+import { createWorkspaceBoundary } from "../security/workspace-boundary.js";
 import { buildHarnessSnapshot } from "./builder.js";
 import { formatAdapterContent } from "./formatters.js";
+import {
+	appendCodexLiveContextInstructions,
+	mergeCodexProjectConfig,
+	renderLetraHarnessSkill,
+} from "./codex-bootstrap.js";
+import {
+	ADAPTER_ARTIFACTS,
+	adapterInstructionTargets,
+	instructionArtifactsForAdapters,
+	supportedAdapterTools,
+} from "./registry.js";
 import type { AdapterSource, GenerateOptions } from "./types.js";
 
 const ADAPTER_HEADER: Record<AdapterSource, string> = {
@@ -12,22 +24,70 @@ const ADAPTER_HEADER: Record<AdapterSource, string> = {
 	"flow-ac": "# Gerado por letra ac. Nao edite manualmente.\n",
 };
 
-const TOOL_TARGETS: Record<string, { paths: string[]; format: "at" | "text"; displayName: string }> = {
-	cursor: { paths: [".cursorrules"], format: "at", displayName: "Cursor" },
-	"claude-code": { paths: ["CLAUDE.md"], format: "text", displayName: "Claude Code" },
-	windsurf: { paths: [".windsurfrules"], format: "at", displayName: "Windsurf" },
-	vscode: {
-		paths: [".github/copilot-instructions.md"],
-		format: "text",
-		displayName: "VSCode Copilot",
-	},
-	opencode: { paths: [".opencode/instructions.md", "AGENTS.md"], format: "text", displayName: "OpenCode" },
-	hermes: { paths: [".hermes/instructions.md"], format: "text", displayName: "Hermes Agent" },
-};
+export const TOOL_TARGETS = adapterInstructionTargets();
+export { supportedAdapterTools };
 
 export interface GenerateAdaptersOptions extends GenerateOptions {
 	quiet?: boolean;
 	verb?: "Created" | "Updated";
+	confineWrites?: boolean;
+}
+
+export interface RenderedAdapterFile {
+	tool: string;
+	artifactId: string;
+	path: string;
+	content: string;
+}
+
+export function renderAdapterFiles(
+	root: string,
+	tools: string[],
+	options: GenerateAdaptersOptions,
+): RenderedAdapterFile[] {
+	const snapshot = buildHarnessSnapshot(root, options);
+	let header = ADAPTER_HEADER[options.source];
+
+	if (options.graveIssueCount && options.graveIssueCount > 0) {
+		const warn = `\n### ⚠ ATENÇÃO: ${options.graveIssueCount} problema(s) grave(s) detectado(s) pelo diagnóstico automático\nExecute \`letra health\` para detalhes e \`letra health ack <id>\` para reconhecer.\n`;
+		header += warn;
+	}
+
+	const files: RenderedAdapterFile[] = [];
+	for (const artifact of instructionArtifactsForAdapters(tools)) {
+		let content = formatAdapterContent(snapshot, artifact.format, {
+			source: options.source,
+			displayName: artifact.displayName,
+		});
+		if (artifact.id === "agents-md-shared" && tools.includes("codex")) {
+			content = appendCodexLiveContextInstructions(content);
+		}
+		files.push({
+			tool: artifact.tool,
+			artifactId: artifact.id,
+			path: artifact.path,
+			content: header + content,
+		});
+	}
+	if (tools.includes("codex")) {
+		const configArtifact = ADAPTER_ARTIFACTS["codex-project-config"];
+		const configPath = join(root, configArtifact.path);
+		const existingConfig = existsSync(configPath) ? readFileSync(configPath, "utf-8") : "";
+		files.push({
+			tool: "codex",
+			artifactId: configArtifact.id,
+			path: configArtifact.path,
+			content: mergeCodexProjectConfig(existingConfig),
+		});
+		const skillArtifact = ADAPTER_ARTIFACTS["letra-harness-skill"];
+		files.push({
+			tool: "codex",
+			artifactId: skillArtifact.id,
+			path: skillArtifact.path,
+			content: renderLetraHarnessSkill(),
+		});
+	}
+	return files;
 }
 
 export function generateAdapters(
@@ -35,35 +95,17 @@ export function generateAdapters(
 	tools: string[],
 	options: GenerateAdaptersOptions,
 ): void {
-	const snapshot = buildHarnessSnapshot(root, options);
-	let header = ADAPTER_HEADER[options.source];
+	const boundary = options.confineWrites ? createWorkspaceBoundary(root) : null;
 	const verb = options.verb ?? (options.source === "init" ? "Created" : "Updated");
+	for (const file of renderAdapterFiles(root, tools, options)) {
+		const requestedPath = join(root, file.path);
+		const filePath = boundary?.assertPath(requestedPath) ?? requestedPath;
+		const dir = join(filePath, "..");
+		if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+		writeFileSync(filePath, file.content);
 
-	if (options.graveIssueCount && options.graveIssueCount > 0) {
-		const warn = `\n### ⚠ ATENÇÃO: ${options.graveIssueCount} problema(s) grave(s) detectado(s) pelo diagnóstico automático\nExecute \`letra health\` para detalhes e \`letra health ack <id>\` para reconhecer.\n`;
-		header += warn;
-	}
-
-	for (const tool of tools) {
-		const target = TOOL_TARGETS[tool];
-		if (!target) continue;
-
-		const content = formatAdapterContent(snapshot, target.format, {
-			source: options.source,
-			displayName: target.displayName,
-		});
-
-		for (const path of target.paths) {
-			const filePath = join(root, path);
-			const dir = join(filePath, "..");
-			if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-			writeFileSync(filePath, header + content);
-
-			if (!options.quiet) {
-				console.log(
-					`  ${chalk.gray(verb)} ${path}`,
-				);
-			}
+		if (!options.quiet) {
+			console.log(`  ${chalk.gray(verb)} ${file.path}`);
 		}
 	}
 }

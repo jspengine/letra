@@ -1,13 +1,38 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { readFocusFile } from "./focus-sync.js";
 import { loadHealthRecord } from "../health-record.js";
-import type { GenerateOptions, HarnessItem, HarnessSnapshot } from "./types.js";
+import type {
+	GenerateOptions,
+	HarnessItem,
+	HarnessSnapshot,
+	HandoffStep,
+	HarnessDirectionData,
+	HarnessDirectionActivity,
+} from "./types.js";
+import type {
+	StagePhases,
+	StageDef,
+	ActivityCommandHint,
+	ActivityActionHint,
+} from "../harness/types.js";
+import { loadHarness, resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "../harness/loader.js";
+import { loadWorkflow } from "../commands/flow-init.js";
+import { getLetraDir } from "./../workspace/resolver.js";
+import { queryLog } from "../session-log.js";
 
-function countACs(root: string, specName: string | null): { pending: number; total: number } {
-	if (!specName) return { pending: 0, total: 0 };
-	const specDir = join(root, ".letra", "specs", specName);
-	if (!existsSync(specDir)) return { pending: 0, total: 0 };
+function countACs(
+	stateDir: string,
+	specName: string | null,
+): { pending: number; total: number; pendingIds: string[] } {
+	if (!specName) return { pending: 0, total: 0, pendingIds: [] };
+	let specDir = join(stateDir, "specs", specName);
+	if (!existsSync(specDir)) {
+		const legacyDir = join(getLetraDir(stateDir), "specs", specName);
+		if (!existsSync(legacyDir)) return { pending: 0, total: 0, pendingIds: [] };
+		specDir = legacyDir;
+	}
 
 	let content = "";
 	const acceptancePath = join(specDir, "acceptance.md");
@@ -18,27 +43,35 @@ function countACs(root: string, specName: string | null): { pending: number; tot
 		content = readFileSync(specPath, "utf-8");
 		const acMatch = content.match(/## Acceptance Criteria\s+([\s\S]*?)(?=\n## |\n*$)/);
 		if (acMatch) content = acMatch[1];
-		else return { pending: 0, total: 0 };
+		else return { pending: 0, total: 0, pendingIds: [] };
 	} else {
-		return { pending: 0, total: 0 };
+		return { pending: 0, total: 0, pendingIds: [] };
 	}
 
 	const total = (content.match(/- \[.?] \*\*AC/g) || []).length;
 	const pending = (content.match(/- \[ ] \*\*AC/g) || []).length;
-	return { pending, total };
+	const pendingIds = [...content.matchAll(/-\s\[ \]\s\*\*([^*]+)\*\*/g)].map((m) => m[1]);
+	return { pending, total, pendingIds };
 }
 
-function loadLastSession(root: string): { lastDate: string; actionsSummary: string } | null {
-	const logPath = join(root, ".letra", "session-log.json");
-	if (!existsSync(logPath)) return null;
+function loadLastSession(stateDir: string): { lastDate: string; actionsSummary: string } | null {
+	let logPath = join(stateDir, "session-log.json");
+	if (!existsSync(logPath)) {
+		const legacy = join(getLetraDir(stateDir), "session-log.json");
+		if (!existsSync(legacy)) return null;
+		logPath = legacy;
+	}
 	try {
 		const log = JSON.parse(readFileSync(logPath, "utf-8"));
 		const entries = log.entries || [];
 		if (entries.length === 0) return null;
 		const lastEntry = entries[0];
-		const actions = entries.slice(0, 5).map((e: { action: string; description: string }) =>
-			`${e.action}: ${e.description?.slice(0, 50)}`,
-		);
+		const actions = entries
+			.slice(0, 5)
+			.map(
+				(e: { action: string; description: string }) =>
+					`${e.action}: ${e.description?.slice(0, 50)}`,
+			);
 		return {
 			lastDate: new Date(lastEntry.timestamp).toLocaleString("pt-BR"),
 			actionsSummary: actions.join("\n  • "),
@@ -48,8 +81,64 @@ function loadLastSession(root: string): { lastDate: string; actionsSummary: stri
 	}
 }
 
+function loadHarnessDirection(root: string, activeStageId: string): HarnessDirectionData | null {
+	const workflow = loadWorkflow(root);
+	if (!workflow) return null;
+	const version = workflow.harnessVersion ?? DEFAULT_HARNESS_VERSION;
+	const harnessRoot = resolveHarnessRoot(root, version);
+	const harness = loadHarness(harnessRoot);
+	if (!harness) return null;
+	const templateId = workflow.template ?? "flow-main";
+	const flow = harness.flows?.[templateId];
+	if (!flow) return null;
+	const stageDef = flow.stages?.find((s: StageDef) => s.id === activeStageId);
+	if (!stageDef) return null;
+
+	const activities: HarnessDirectionActivity[] = [];
+	const activityConfig = stageDef.activity;
+	if (activityConfig) {
+		const kinds = ["design", "implement", "review", "diagnose", "gate"] as const;
+		for (const kind of kinds) {
+			const hint = activityConfig[kind];
+			if (!hint) continue;
+			activities.push({
+				kind,
+				objective: hint.objective,
+				mustNotDo: hint.mustNotDo,
+				commands: hint.commands?.map((c: ActivityCommandHint) => ({
+					command: c.command ?? "",
+					label: c.label ?? "",
+					description: c.description,
+				})),
+				nextActions: hint.nextActions?.map((a: ActivityActionHint) => ({
+					label: a.label ?? "",
+					description: a.description ?? "",
+				})),
+			});
+		}
+	}
+
+	return {
+		harnessVersion: version,
+		roleIds: stageDef.agents ?? [],
+		activities,
+	};
+}
+
 export function buildHarnessSnapshot(root: string, options: GenerateOptions): HarnessSnapshot {
-	const hasFocus = existsSync(join(root, ".letra", "focus.md"));
+	const isWorkspace = options.workspaceDir !== undefined;
+	const stateDir = isWorkspace ? (options.workspaceDir ?? root) : root;
+	const dotLetra = isWorkspace ? stateDir : getLetraDir(stateDir);
+	const hasFocus = existsSync(join(dotLetra, "focus.md"));
+	const buildReferenceLinks = (specName: string | null): HarnessSnapshot["referenceLinks"] => ({
+		context: pathToFileURL(join(dotLetra, "context.md")).href,
+		constitution: pathToFileURL(join(dotLetra, "constitution.md")).href,
+		glossary: pathToFileURL(join(dotLetra, "glossary.md")).href,
+		constraints: pathToFileURL(join(dotLetra, "constraints.md")).href,
+		focus: hasFocus ? pathToFileURL(join(dotLetra, "focus.md")).href : null,
+		spec: specName ? pathToFileURL(join(dotLetra, "specs", specName, "spec.md")).href : null,
+		workflow: pathToFileURL(join(dotLetra, "workflow.json")).href,
+	});
 
 	if (!options.workflow || !options.activeStageId) {
 		return {
@@ -60,6 +149,7 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 			primaryItemId: null,
 			focusSpec: null,
 			focusPath: null,
+			referenceLinks: buildReferenceLinks(null),
 			pendingACs: 0,
 			totalACs: 0,
 		};
@@ -103,17 +193,17 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 	const parsedFocus = readFocusFile(root);
 	if (parsedFocus) {
 		focusSpec = parsedFocus.specName;
-		focusPath = `.letra/specs/${parsedFocus.specName}/`;
+		focusPath = `${isWorkspace ? "specs/" : ".letra/specs/"}${parsedFocus.specName}/`;
 	} else {
 		const primaryItem = items.find((i) => i.id === primaryItemId);
 		if (primaryItem?.spec) {
 			focusSpec = primaryItem.spec;
-			focusPath = `.letra/specs/${primaryItem.spec}/`;
+			focusPath = `${isWorkspace ? "specs/" : ".letra/specs/"}${primaryItem.spec}/`;
 		}
 	}
 
-	const acCounts = countACs(root, focusSpec);
-	const lastSession = loadLastSession(root);
+	const acCounts = countACs(dotLetra, focusSpec);
+	const lastSession = loadLastSession(dotLetra);
 
 	const healthRecord = loadHealthRecord(root);
 	const novoAlerts = healthRecord.entries
@@ -129,6 +219,96 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 
 	const totalNovo = healthRecord.entries.filter((e) => e.status === "novo").length;
 
+	// Look up current phase for primary item from stage phases definition
+	let currentPhase: HarnessSnapshot["currentPhase"];
+	if (primaryItemId && stage) {
+		const primaryItemData = workflow.items.find((i) => i.id === primaryItemId);
+		const phaseId = primaryItemData?.currentPhase;
+		if (phaseId) {
+			const stagePhases = (stage as { phases?: StagePhases }).phases ?? null;
+			if (stagePhases?.states?.[phaseId]) {
+				const phaseDef = stagePhases.states[phaseId];
+				currentPhase = {
+					id: phaseDef.id,
+					label: phaseDef.label,
+					description: phaseDef.description,
+					harness: phaseDef.harness,
+				};
+			}
+		}
+	}
+
+	// Build handoff data
+	let handoff: HarnessSnapshot["handoff"];
+	if (primaryItemId) {
+		const rawHandoff = (workflow as Record<string, unknown>).handoff as
+			| Record<string, unknown>
+			| boolean
+			| undefined;
+		const handoffEnabled =
+			rawHandoff === false
+				? false
+				: (rawHandoff as Record<string, unknown>)?.enabled !== false;
+		if (handoffEnabled) {
+			const defaultSteps: HandoffStep[] = [
+				{
+					command: "letra validate",
+					label: "validate",
+					recovery: "letra diagnose — encontrar e corrigir problemas",
+				},
+				{
+					command: "letra pulse",
+					label: "pulse",
+					recovery: "letra health — checar alertas ativos",
+				},
+				{
+					command: "letra sitrep",
+					label: "sitrep",
+					recovery: "corrija o erro e tente novamente",
+				},
+				{
+					command: `letra flow move ${primaryItemId} --to ${nextStage?.id || "proximo_estagio"}`,
+					label: "flow move",
+					recovery: "letra validate — verificar ACs pendentes",
+				},
+				{
+					command: "npm run build",
+					label: "build",
+					recovery: "corrija erros de compilação",
+				},
+			];
+
+			const skipSteps: string[] = Array.isArray(
+				(rawHandoff as Record<string, unknown>)?.skipSteps,
+			)
+				? ((rawHandoff as Record<string, unknown>).skipSteps as string[])
+				: [];
+			const customSteps: HandoffStep[] = Array.isArray(
+				(rawHandoff as Record<string, unknown>)?.customSteps,
+			)
+				? ((rawHandoff as Record<string, unknown>).customSteps as HandoffStep[])
+				: [];
+
+			const filtered = defaultSteps.filter((s) => !skipSteps.includes(s.label));
+			const steps = [...filtered, ...customSteps];
+
+			handoff = {
+				steps,
+				primaryItemId,
+				nextStageName: nextStage?.name,
+			};
+		}
+	}
+
+	const pendingACIds = acCounts.pendingIds;
+	const harnessDirection = loadHarnessDirection(root, activeStageId) ?? undefined;
+	if (harnessDirection && pendingACIds.length > 0) {
+		harnessDirection.pendingACIds = pendingACIds;
+	}
+	if (harnessDirection && primaryItemId) {
+		harnessDirection.primaryItemId = primaryItemId;
+	}
+
 	return {
 		workflowName: workflow.name,
 		hasWorkflow: true,
@@ -141,11 +321,29 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 		primaryItemId,
 		focusSpec,
 		focusPath,
+		referenceLinks: buildReferenceLinks(focusSpec),
 		pendingACs: acCounts.pending,
 		totalACs: acCounts.total,
 		lastSession,
-		alerts: novoAlerts.length > 0
-			? [...novoAlerts, ...(totalNovo > 5 ? [{ id: "...", severity: "", title: `e mais ${totalNovo - 5} alertas`, source: "", detectedAt: "" }] : [])]
-			: undefined,
+		alerts:
+			novoAlerts.length > 0
+				? [
+						...novoAlerts,
+						...(totalNovo > 5
+							? [
+									{
+										id: "...",
+										severity: "",
+										title: `e mais ${totalNovo - 5} alertas`,
+										source: "",
+										detectedAt: "",
+									},
+								]
+							: []),
+					]
+				: undefined,
+		currentPhase,
+		handoff,
+		harnessDirection,
 	};
 }

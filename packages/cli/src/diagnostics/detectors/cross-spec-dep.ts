@@ -1,6 +1,7 @@
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Detector, DiagnosticResult } from "../types.js";
+import { getLetraDir } from "./../../workspace/resolver.js";
 
 const ITEM_REF_PATTERN = /\bITEM-\d+\b/g;
 const API_REF_PATTERN = /\/api\/[a-z][a-z-\/]*(?=["\s)])/gi;
@@ -10,11 +11,11 @@ export const crossSpecDepDetector: Detector = {
 	name: "cross-spec-dep",
 	async run(rootDir: string): Promise<DiagnosticResult[]> {
 		const results: DiagnosticResult[] = [];
-		const specsDir = join(rootDir, ".letra", "specs");
+		const specsDir = join(getLetraDir(rootDir), "specs");
 		if (!existsSync(specsDir)) return results;
 
 		const specs = new Map<string, { content: string; updatedAt: string }>();
-		const itemToSpec = loadItemToSpec(join(rootDir, ".letra", "workflow.json"));
+		const itemToSpec = loadItemToSpec(join(getLetraDir(rootDir), "workflow.json"));
 
 		const dirs = readdirSync(specsDir, { withFileTypes: true }).filter(
 			(d) => d.isDirectory() && !d.name.startsWith("_"),

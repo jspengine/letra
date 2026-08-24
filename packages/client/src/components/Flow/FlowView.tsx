@@ -1,48 +1,93 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ResolvedSpec, Workflow } from "@letra/types";
-import KanbanView from "../Kanban/KanbanView";
+import type { ActiveFlowDefinition } from "../../lib/active-flow";
+import KanbanBoard from "./KanbanBoard";
+import ActivityTimeline from "./ActivityTimeline";
 import ItemDetailModal from "./ItemDetailModal";
+import { cn } from "../../lib/utils";
 import {
 	Button,
+	ButtonGroup,
+	ButtonGroupItem,
 	Checkbox,
 	Icon,
+	Input,
 	ConfirmDialog,
 	PromptDialog,
 	Dialog,
+	Badge,
+	Progress,
+	Tooltip,
+	Card,
+	CardContent,
+	NavHeader,
+	ActionPanel,
+	DropdownMenu,
+	DropdownMenuTrigger,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	Tag,
+	useToast,
 } from "@letra/ui";
+import {
+	doneStageIds,
+	humanGateStageIds,
+	itemOperationalState,
+	nextStageId,
+	orderedStages,
+	pipelineProjection,
+	stageActionLabel,
+} from "../../lib/active-flow";
 
 interface Props {
 	workflow: Workflow;
+	activeFlow: ActiveFlowDefinition | null;
 	specRefreshKey?: number;
 	onItemMoved: () => void;
-	onTabChange?: (tab: "specs") => void;
+	onOpenSpec?: () => void;
 }
 
-function daysSince(dateStr: string): number {
-	return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
-}
+type WorkFilter = "all" | "attention" | "running" | "queued" | "done";
 
-function nextStage(itemStage: string, stages: Workflow["stages"]): string | null {
-	const idx = stages.findIndex((s) => s.id === itemStage);
-	if (idx < 0 || idx >= stages.length - 1) return null;
-	return stages[idx + 1].id;
-}
-
-export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabChange }: Props) {
+export default function FlowView({
+	workflow,
+	activeFlow,
+	specRefreshKey,
+	onItemMoved,
+	onOpenSpec,
+}: Props) {
 	const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 	const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
 	const [showAddDialog, setShowAddDialog] = useState(false);
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-	const [stagesEditMode, setStagesEditMode] = useState(false);
-	const [editingStages, setEditingStages] = useState(workflow.stages);
-	const [webhooksEditMode, setWebhooksEditMode] = useState(false);
+	const [adminMode, setAdminMode] = useState<"webhooks" | null>(null);
 	const [editingWebhooks, setEditingWebhooks] = useState(workflow.webhooks ?? []);
 	const [validateDialogItem, setValidateDialogItem] = useState<{
 		itemId: string;
 		targetStage: string;
 		pendingChecks: boolean[];
 	} | null>(null);
-	const [dragStageIdx, setDragStageIdx] = useState<number | null>(null);
+	const [activeFilter, setActiveFilter] = useState<WorkFilter>("all");
+	const [observationPanelOpen, setObservationPanelOpen] = useState(() => {
+		try {
+			return localStorage.getItem("letra-observation-panel") !== "false";
+		} catch {
+			return true;
+		}
+	});
+	const humanGateStages = humanGateStageIds(workflow, activeFlow);
+	const doneStages = doneStageIds(workflow, activeFlow);
+	const resolvedStages = orderedStages(workflow, activeFlow);
+
+	const toggleObservationPanel = () => {
+		const next = !observationPanelOpen;
+		setObservationPanelOpen(next);
+		try {
+			localStorage.setItem("letra-observation-panel", String(next));
+		} catch {}
+	};
 
 	const loadSpecs = useCallback(() => {
 		fetch("/api/specs")
@@ -57,31 +102,42 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 		loadSpecs();
 	}, [loadSpecs, specRefreshKey]);
 	useEffect(() => {
-		setEditingStages(workflow.stages);
-	}, [workflow.stages]);
+		function handleOpenItem(event: Event) {
+			const detail = (event as CustomEvent<string>).detail;
+			if (!detail) return;
+			const itemExists = workflow.items.some((item) => item.id === detail);
+			if (itemExists) setSelectedItemId(detail);
+		}
+
+		window.addEventListener("letra-open-item", handleOpenItem);
+		return () => window.removeEventListener("letra-open-item", handleOpenItem);
+	}, [workflow.items]);
 	useEffect(() => {
 		setEditingWebhooks(workflow.webhooks ?? []);
 	}, [workflow.webhooks]);
-
 	const selectedItem = selectedItemId
 		? workflow.items.find((it) => it.id === selectedItemId)
 		: null;
 
 	const selectedStage = selectedItem
-		? workflow.stages.find((s) => s.id === selectedItem.stage)
+		? resolvedStages.find((stage) => stage.id === selectedItem.stage)
 		: null;
 
 	const linkedSpec = selectedItem?.spec ? specs.find((s) => s.id === selectedItem.spec) : null;
 
-	const nextStageId = selectedItem ? nextStage(selectedItem.stage, workflow.stages) : null;
-	const nextStageName = nextStageId
-		? workflow.stages.find((s) => s.id === nextStageId)?.name
+	const upcomingStageId = selectedItem
+		? nextStageId(selectedItem.stage, workflow, activeFlow)
+		: null;
+	const nextStageName = upcomingStageId
+		? resolvedStages.find((stage) => stage.id === upcomingStageId)?.name
 		: null;
 
 	function allowMoveToStage(item: Workflow["items"][0], targetStageId: string): boolean {
 		const srcStage = workflow.stages.find((s) => s.id === item.stage);
 		if (!srcStage || !srcStage.allow || srcStage.allow.length === 0) return true;
-		return srcStage.allow.includes(targetStageId);
+		if (!srcStage.allow.includes(targetStageId)) return false;
+		if (humanGateStages.has(targetStageId)) return false;
+		return true;
 	}
 
 	function getValidateChecks(item: Workflow["items"][0]): string[] {
@@ -89,15 +145,39 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 		return srcStage?.validate ?? [];
 	}
 
+	const { toast } = useToast();
+
 	function doMoveItem(itemId: string, targetStage: string) {
+		if (humanGateStages.has(targetStage)) {
+			fetch(`/api/items/${itemId}/gate-decisions`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ decision: "approve" }),
+			})
+				.then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+				.then(({ ok, data }) => {
+					if (!ok) {
+						toast(data.error || "Não foi possível registrar a decisão.", "error");
+						return;
+					}
+					toast("Decisão aprovada e registrada.", "success");
+					onItemMoved();
+					if (selectedItemId === itemId) setSelectedItemId(null);
+				})
+				.catch(() => toast("Erro ao registrar decisão.", "error"));
+			return;
+		}
 		fetch(`/api/items/${itemId}`, {
 			method: "PATCH",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ stage: targetStage }),
-		}).then(() => {
-			onItemMoved();
-			if (selectedItemId === itemId) setSelectedItemId(null);
-		});
+		})
+			.then((r) => {
+				if (!r.ok) throw new Error("Falha ao mover item");
+				onItemMoved();
+				if (selectedItemId === itemId) setSelectedItemId(null);
+			})
+			.catch(() => toast("Erro ao mover item.", "error"));
 	}
 
 	function handleDropItem(itemId: string, targetStage: string) {
@@ -117,18 +197,18 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 	}
 
 	function handleMoveNext() {
-		if (!selectedItem || !nextStageId) return;
-		if (!allowMoveToStage(selectedItem, nextStageId)) return;
+		if (!selectedItem || !upcomingStageId) return;
+		if (!allowMoveToStage(selectedItem, upcomingStageId)) return;
 		const validateChecks = getValidateChecks(selectedItem);
 		if (validateChecks.length > 0) {
 			setValidateDialogItem({
 				itemId: selectedItem.id,
-				targetStage: nextStageId,
+				targetStage: upcomingStageId,
 				pendingChecks: validateChecks.map(() => false),
 			});
 			return;
 		}
-		doMoveItem(selectedItem.id, nextStageId);
+		doMoveItem(selectedItem.id, upcomingStageId);
 	}
 
 	function handleValidateConfirm() {
@@ -145,11 +225,6 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 		});
 	}
 
-	function handleOpenSpec() {
-		if (!selectedItem?.spec || !onTabChange) return;
-		onTabChange("specs");
-	}
-
 	function handleTaskToggle(taskId: string, done: boolean) {
 		if (!selectedItem) return;
 		fetch(`/api/items/${selectedItem.id}`, {
@@ -162,7 +237,7 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 	}
 
 	function handleAddItem(name: string) {
-		const firstStage = workflow.stages[0]?.id;
+		const firstStage = resolvedStages[0]?.id;
 		if (!firstStage) return;
 		fetch("/api/items", {
 			method: "POST",
@@ -183,27 +258,6 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 			});
 	}
 
-	function handleSaveStages() {
-		fetch("/api/workflow", {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ stages: editingStages }),
-		})
-			.then((r) => r.json())
-			.then(() => {
-				setStagesEditMode(false);
-				onItemMoved();
-			});
-	}
-
-	function handleUpdateStage(index: number, field: string, value: unknown) {
-		setEditingStages((prev) => {
-			const next = [...prev];
-			next[index] = { ...next[index], [field]: value };
-			return next;
-		});
-	}
-
 	function handleSaveWebhooks() {
 		fetch("/api/workflow", {
 			method: "PATCH",
@@ -212,7 +266,7 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 		})
 			.then((r) => r.json())
 			.then(() => {
-				setWebhooksEditMode(false);
+				setAdminMode(null);
 				onItemMoved();
 			});
 	}
@@ -257,375 +311,197 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 			});
 	}
 
-	function handleAddStage() {
-		const id = `stage-${editingStages.length + 1}`;
-		setEditingStages((prev) => [
-			...prev,
-			{
-				id,
-				name: `Stage ${editingStages.length + 1}`,
-				order: prev.length,
-				zone: "doing" as const,
-			},
-		]);
-	}
-
-	function handleRemoveStage(index: number) {
-		setEditingStages((prev) => prev.filter((_, i) => i !== index));
-	}
-
-	function handleStageDragStart(index: number) {
-		setDragStageIdx(index);
-	}
-
-	function handleStageDragOver(e: React.DragEvent, index: number) {
-		e.preventDefault();
-		if (dragStageIdx === null || dragStageIdx === index) return;
-		setEditingStages((prev) => {
-			const next = [...prev];
-			const [moved] = next.splice(dragStageIdx, 1);
-			next.splice(index, 0, moved);
-			return next.map((s, i) => ({ ...s, order: i }));
-		});
-		setDragStageIdx(index);
-	}
-
-	function handleStageDragEnd() {
-		setDragStageIdx(null);
-	}
-
 	const validMoveIcon = (itemId: string, stageId: string) => {
 		const item = workflow.items.find((it) => it.id === itemId);
 		if (!item) return null;
 		if (!allowMoveToStage(item, stageId))
 			return (
-				<span className="text-xs" title="Transição não permitida">
-					🚫
+				<span title="Transição não permitida">
+					<Icon name="shield" size={12} />
 				</span>
 			);
 		return null;
 	};
 
+	const totalItems = workflow.items.length;
+	const itemStates = workflow.items.map((item) => ({
+		item,
+		state: itemOperationalState(item, workflow, activeFlow),
+	}));
+	const doneItems = itemStates.filter(({ state }) => state === "done").length;
+	const pctComplete = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
+	const activeAgents = workflow.items.filter(
+		(it) => it.claimedBy && !doneStages.has(it.stage),
+	).length;
+	const waitingHuman = itemStates.filter(({ state }) => state === "waiting").length;
+	const blockedItems = itemStates.filter(({ state }) => state === "blocked").length;
+	const attentionItems = waitingHuman + blockedItems;
+	const runningItems = itemStates.filter(({ state }) => state === "running").length;
+	const queuedItems = itemStates.filter(({ state }) => state === "idle").length;
+
+	const pipelineStages = pipelineProjection(workflow, activeFlow).map((stage) => ({
+		...stage,
+		pct: stage.status === "done" ? 100 : 0,
+		isRunning: stage.status === "running",
+		isHumanGate: stage.presentation.isHumanGate,
+	}));
+
+	const currentStageIdx = pipelineStages.findIndex(
+		(s) => s.itemCount > 0 && !doneStages.has(s.id) && s.zone !== "todo",
+	);
+
+	const agentItems = workflow.items
+		.filter((it) => it.claimedBy)
+		.reduce<Record<string, typeof workflow.items>>((acc, it) => {
+			(acc[it.claimedBy!] = acc[it.claimedBy!] || []).push(it);
+			return acc;
+		}, {});
+
+	const AGENT_COLORS = [
+		"var(--color-primary)",
+		"var(--color-warning)",
+		"var(--color-primary)",
+		"var(--color-success)",
+		"var(--color-danger)",
+	];
+
+	const filterCounts = {
+		all: totalItems,
+		attention: attentionItems,
+		running: runningItems,
+		queued: queuedItems,
+		done: doneItems,
+	};
+	const filterOptions: Array<{ key: WorkFilter; label: string }> = [
+		{ key: "all", label: "Todos" },
+		{ key: "attention", label: "Precisa de atenção" },
+		{ key: "running", label: "Em andamento" },
+		{ key: "queued", label: "Na fila" },
+		{ key: "done", label: "Concluídos" },
+	];
+	const inAdminMode = adminMode !== null;
+	const webhooksEditMode = adminMode === "webhooks";
+	const primaryItem =
+		workflow.items.find((item) => humanGateStages.has(item.stage)) ??
+		workflow.items.find(
+			(item) => itemOperationalState(item, workflow, activeFlow) === "blocked",
+		) ??
+		workflow.items.find((item) => item.claimedBy && !doneStages.has(item.stage)) ??
+		workflow.items.find((item) => !doneStages.has(item.stage)) ??
+		workflow.items[0] ??
+		null;
+	const primaryStage = primaryItem
+		? resolvedStages.find((stage) => stage.id === primaryItem.stage)
+		: null;
+	const primaryState = primaryItem
+		? itemOperationalState(primaryItem, workflow, activeFlow)
+		: null;
+	const primaryTone =
+		primaryState === "blocked"
+			? "danger"
+			: primaryState === "waiting"
+				? "warning"
+				: primaryState === "done"
+					? "success"
+					: "info";
+	const primaryActionLabel =
+		primaryState === "blocked"
+			? "Examinar bloqueio"
+			: primaryState === "waiting"
+				? "Revisar decisão"
+				: primaryItem
+					? "Abrir trabalho em foco"
+					: "Criar item";
+	const primaryDescription = primaryItem
+		? `${primaryItem.description || primaryItem.id} está em ${primaryStage?.name ?? primaryItem.stage}. ${primaryItem.claimedBy ? `${primaryItem.claimedBy} está responsável por este trabalho.` : "Nenhum responsável declarado."}`
+		: "Nenhum item foi criado neste fluxo. Crie o primeiro item quando houver trabalho supervisionável.";
+
 	return (
-		<div className="flex flex-col flex-1 min-h-0">
-			<div
-				className="flex items-center gap-2.5 px-4 py-3 border-b shrink-0"
-				style={{ borderColor: "var(--border)" }}
-			>
-				<Icon name="flow" size={20} className="text-primary" />
-				<div className="flex-1 min-w-0">
-					<h2 className="text-sm font-semibold">Flow</h2>
-					<p className="text-xs truncate" style={{ color: "var(--muted-foreground)" }}>
-						Pipeline de desenvolvimento — estágios, itens e specs associadas
-					</p>
-				</div>
-				<Button
-					size="sm"
-					variant={stagesEditMode ? "default" : "outline"}
-					onClick={() => {
-						setStagesEditMode(!stagesEditMode);
-						setWebhooksEditMode(false);
-					}}
-					style={{ display: "none" }}
-				>
-					Manage Stages
-				</Button>
-				<Button
-					size="sm"
-					variant={webhooksEditMode ? "default" : "outline"}
-					onClick={() => {
-						setWebhooksEditMode(!webhooksEditMode);
-						setStagesEditMode(false);
-					}}
-					style={{ display: "none" }}
-				>
-					Webhooks
-				</Button>
-				{!stagesEditMode && !webhooksEditMode && (
-					<Button size="sm" onClick={() => setShowAddDialog(true)}>
-						+ Add Item
-					</Button>
-				)}
-			</div>
-			<div className="flex-1 flex overflow-hidden">
-				{stagesEditMode ? (
-					<div className="flex-1 overflow-y-auto p-4">
+		<div className="app-section-shell min-w-0">
+			{/* ─── 1. Mission Control Header ─── */}
+			<NavHeader
+				title="Trabalho"
+				description={`${totalItems} itens · ${attentionItems} atenção`}
+				left={<Icon name="grid" size={20} />}
+				right={
+					<>
+						<Badge icon="cpu" variant={activeAgents > 0 ? "agent" : "info"} tone="soft">
+							{activeAgents} em andamento
+						</Badge>
+						<Badge
+							icon="shield"
+							variant={
+								attentionItems > 0 ? (blockedItems > 0 ? "error" : "amber") : "info"
+							}
+							tone="soft"
+						>
+							{attentionItems} atenção
+						</Badge>
+						<Button
+							variant={observationPanelOpen ? "secondary" : "ghost"}
+							size="sm"
+							onClick={toggleObservationPanel}
+							className="h-8 px-2 text-caption"
+						>
+							<Icon name="list-three" size={12} />
+							Observar
+						</Button>
+						<DropdownMenu>
+							{({ open, setOpen }) => (
+								<>
+									<DropdownMenuTrigger
+										className="h-8 px-2 text-caption"
+										onClick={() => setOpen(!open)}
+									>
+										<Icon name="settings" size={12} />
+										Administração
+									</DropdownMenuTrigger>
+									{open ? (
+										<DropdownMenuContent align="end" className="min-w-48">
+											<DropdownMenuLabel>
+												Operações do fluxo
+											</DropdownMenuLabel>
+											<DropdownMenuItem
+												onClick={() => {
+													setShowAddDialog(true);
+													setOpen(false);
+												}}
+											>
+												<Icon name="plus" size={12} />
+												Novo item
+											</DropdownMenuItem>
+											<DropdownMenuSeparator />
+											<DropdownMenuItem
+												onClick={() => {
+													setAdminMode("webhooks");
+													setOpen(false);
+												}}
+											>
+												<Icon name="activity" size={12} />
+												Configurar webhooks
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									) : null}
+								</>
+							)}
+						</DropdownMenu>
+					</>
+				}
+			/>
+
+			<div className="flex min-w-0 flex-1 overflow-hidden">
+				{webhooksEditMode ? (
+					<div className="flex-1 overflow-y-auto p-5">
 						<div className="flex flex-col gap-3 max-w-2xl">
-							<p
-								className="text-xs font-medium"
-								style={{ color: "var(--muted-foreground)" }}
-							>
-								Arraste os stages para reordenar. Configure permissões de transição
-								e validação.
-							</p>
-							{editingStages.map((stage, idx) => (
-								<div
-									key={stage.id}
-									draggable
-									onDragStart={() => handleStageDragStart(idx)}
-									onDragOver={(e) => handleStageDragOver(e, idx)}
-									onDragEnd={handleStageDragEnd}
-									className={cn(
-										"rounded-xl border p-3 transition-all",
-										dragStageIdx === idx && "opacity-40",
-									)}
-									style={{
-										borderColor: "var(--border)",
-										background: "var(--card)",
-									}}
-								>
-									<div className="flex items-start gap-3">
-										<div className="flex-1 flex flex-col gap-2">
-											<div className="flex items-center gap-2">
-												<Icon
-													name="list-three"
-													size={16}
-													className="cursor-grab"
-													style={{ color: "var(--muted-foreground)" }}
-												/>
-												<input
-													value={stage.name}
-													onChange={(e) =>
-														handleUpdateStage(
-															idx,
-															"name",
-															e.target.value,
-														)
-													}
-													className="flex-1 text-sm font-medium px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-													style={{
-														background: "var(--muted)",
-														color: "var(--foreground)",
-													}}
-												/>
-												<span
-													className="text-xs px-2 py-0.5 rounded-full"
-													style={{
-														background: "var(--muted)",
-														color: "var(--muted-foreground)",
-													}}
-												>
-													{stage.id}
-												</span>
-												<button
-													onClick={() => handleRemoveStage(idx)}
-													className="text-xs px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-													style={{ color: "var(--error)" }}
-													aria-label={`Remover ${stage.name}`}
-												>
-													✕
-												</button>
-											</div>
-											<div className="flex items-center gap-3 text-xs flex-wrap">
-												<label className="flex items-center gap-1.5">
-													<span
-														style={{ color: "var(--muted-foreground)" }}
-													>
-														Zona:
-													</span>
-													<select
-														value={stage.zone ?? "doing"}
-														onChange={(e) =>
-															handleUpdateStage(
-																idx,
-																"zone",
-																e.target.value,
-															)
-														}
-														className="px-2 py-1 rounded border text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
-														style={{
-															borderColor: "var(--border)",
-															background: "var(--background)",
-															color: "var(--foreground)",
-														}}
-													>
-														<option value="todo">Todo</option>
-														<option value="doing">Doing</option>
-														<option value="done">Done</option>
-													</select>
-												</label>
-												<label className="flex items-center gap-1.5">
-													<span
-														style={{ color: "var(--muted-foreground)" }}
-													>
-														Cor:
-													</span>
-													<input
-														type="color"
-														value={stage.color ?? "#6b7280"}
-														onChange={(e) =>
-															handleUpdateStage(
-																idx,
-																"color",
-																e.target.value === "#6b7280"
-																	? undefined
-																	: e.target.value,
-															)
-														}
-														className="w-7 h-7 p-0.5 rounded border cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30"
-														style={{
-															borderColor: "var(--border)",
-															background: "var(--background)",
-														}}
-													/>
-												</label>
-												<label className="flex items-center gap-1.5">
-													<span
-														style={{ color: "var(--muted-foreground)" }}
-													>
-														Permite mover para:
-													</span>
-													<select
-														multiple
-														value={stage.allow ?? []}
-														onChange={(e) => {
-															const opts = Array.from(
-																e.target.selectedOptions,
-																(o) => o.value,
-															);
-															handleUpdateStage(
-																idx,
-																"allow",
-																opts.length > 0 ? opts : undefined,
-															);
-														}}
-														className="px-2 py-1 rounded border text-xs min-w-[120px] focus:outline-none focus:ring-2 focus:ring-primary/30"
-														style={{
-															borderColor: "var(--border)",
-															background: "var(--background)",
-															color: "var(--foreground)",
-														}}
-													>
-														{editingStages
-															.filter((s) => s.id !== stage.id)
-															.map((s) => (
-																<option key={s.id} value={s.id}>
-																	{s.name}
-																</option>
-															))}
-													</select>
-												</label>
-											</div>
-											<div className="flex flex-col gap-1">
-												<span
-													className="text-xs"
-													style={{ color: "var(--muted-foreground)" }}
-												>
-													Validação ao sair:
-												</span>
-												{(stage.validate ?? []).map((v, vi) => (
-													<div
-														key={vi}
-														className="flex items-center gap-1"
-													>
-														<input
-															value={v}
-															onChange={(e) => {
-																const newValidate = [
-																	...(editingStages[idx]
-																		.validate ?? []),
-																];
-																newValidate[vi] = e.target.value;
-																handleUpdateStage(
-																	idx,
-																	"validate",
-																	newValidate,
-																);
-															}}
-															className="flex-1 text-xs px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-															style={{
-																background: "var(--muted)",
-																color: "var(--foreground)",
-															}}
-															placeholder="Ex: Código revisado"
-														/>
-														<button
-															onClick={() => {
-																const newValidate = editingStages[
-																	idx
-																].validate?.filter(
-																	(_, i) => i !== vi,
-																);
-																handleUpdateStage(
-																	idx,
-																	"validate",
-																	newValidate &&
-																		newValidate.length > 0
-																		? newValidate
-																		: undefined,
-																);
-															}}
-															className="text-xs px-1.5 py-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30"
-															style={{ color: "var(--error)" }}
-														>
-															✕
-														</button>
-													</div>
-												))}
-												<button
-													onClick={() => {
-														const newValidate = [
-															...(editingStages[idx].validate ?? []),
-															"",
-														];
-														handleUpdateStage(
-															idx,
-															"validate",
-															newValidate,
-														);
-													}}
-													className="text-xs self-start px-2 py-1 rounded hover:bg-muted/50 transition-colors"
-													style={{ color: "var(--muted-foreground)" }}
-												>
-													+ Add check
-												</button>
-											</div>
-										</div>
-									</div>
-								</div>
-							))}
-							<div className="flex gap-2">
-								<Button size="sm" variant="outline" onClick={handleAddStage}>
-									+ Add Stage
-								</Button>
-								<Button size="sm" onClick={handleSaveStages}>
-									Salvar
-								</Button>
-								<Button
-									size="sm"
-									variant="outline"
-									onClick={() => {
-										setStagesEditMode(false);
-										setEditingStages(workflow.stages);
-									}}
-								>
-									Cancelar
-								</Button>
-							</div>
-						</div>
-					</div>
-				) : webhooksEditMode ? (
-					<div className="flex-1 overflow-y-auto p-4">
-						<div className="flex flex-col gap-3 max-w-2xl">
-							<p
-								className="text-xs font-medium"
-								style={{ color: "var(--muted-foreground)" }}
-							>
+							<p className="app-section-muted text-xs font-medium">
 								Configure webhooks para receber notificações quando itens forem
 								movidos entre estágios.
 							</p>
 							{editingWebhooks.map((wh, idx) => (
-								<div
-									key={wh.id}
-									className="rounded-xl border p-3"
-									style={{
-										borderColor: "var(--border)",
-										background: "var(--card)",
-									}}
-								>
+								<div key={wh.id} className="app-section-card p-3">
 									<div className="flex flex-col gap-2">
 										<div className="flex items-center gap-2">
-											<input
+											<Input
 												value={wh.label ?? ""}
 												onChange={(e) =>
 													handleUpdateWebhook(
@@ -634,133 +510,358 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 														e.target.value || undefined,
 													)
 												}
-												placeholder="Label (ex: Slack #geral)"
-												className="flex-1 text-sm px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-												style={{
-													background: "var(--muted)",
-													color: "var(--foreground)",
-												}}
-											/>
-											{wh.lastStatus && (
-												<span
-													className="text-xs"
-													style={{
-														color:
-															wh.lastStatus === "ok"
-																? "var(--success)"
-																: "var(--error)",
-													}}
-												>
-													{wh.lastStatus === "ok" ? "✅" : "❌"}
-												</span>
-											)}
-											{wh.lastSentAt && (
-												<span
-													className="text-xs"
-													style={{ color: "var(--muted-foreground)" }}
-												>
-													{new Date(wh.lastSentAt).toLocaleTimeString()}
-												</span>
-											)}
-											<button
-												onClick={() => handleRemoveWebhook(idx)}
-												className="text-xs px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-												style={{ color: "var(--error)" }}
-												aria-label="Remover webhook"
-											>
-												✕
-											</button>
-										</div>
-										<div className="flex items-center gap-2 text-xs">
-											<input
-												value={wh.url}
-												onChange={(e) =>
-													handleUpdateWebhook(idx, "url", e.target.value)
-												}
-												placeholder="https://hooks.slack.com/services/..."
-												className="flex-1 px-2 py-1 rounded border focus:outline-none focus:ring-2 focus:ring-primary/30"
-												style={{
-													borderColor: "var(--border)",
-													background: "var(--background)",
-													color: "var(--foreground)",
-												}}
+												placeholder="Label"
+												className="app-input-surface flex-1 text-sm px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-primary/30"
 											/>
 											<Button
-												size="sm"
-												variant="outline"
-												onClick={() => handleTestWebhook(idx)}
+												onClick={() => handleRemoveWebhook(idx)}
+												className="app-danger-button text-xs px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30"
+												aria-label="Remover webhook"
 											>
-												Test
+												<Icon name="x" size={12} />
 											</Button>
-										</div>
-										<div className="flex items-center gap-2 text-xs">
-											<span style={{ color: "var(--muted-foreground)" }}>
-												Eventos:
-											</span>
-											<label className="flex items-center gap-1">
-												<input
-													type="checkbox"
-													checked={wh.events.includes("item.moved")}
-													onChange={(e) => {
-														const evts = e.target.checked
-															? [
-																	...new Set([
-																		...wh.events,
-																		"item.moved",
-																	]),
-																]
-															: wh.events.filter(
-																	(ev) => ev !== "item.moved",
-																);
-														handleUpdateWebhook(idx, "events", evts);
-													}}
-												/>
-												item.moved
-											</label>
 										</div>
 									</div>
 								</div>
 							))}
 							<div className="flex gap-2">
-								<Button size="sm" variant="outline" onClick={handleAddWebhook}>
-									+ Add Webhook
+								<Button size="sm" variant="secondary" onClick={handleAddWebhook}>
+									Adicionar webhook
 								</Button>
 								<Button size="sm" onClick={handleSaveWebhooks}>
 									Salvar
 								</Button>
 								<Button
 									size="sm"
-									variant="outline"
+									variant="secondary"
 									onClick={() => {
-										setWebhooksEditMode(false);
+										setAdminMode(null);
 										setEditingWebhooks(workflow.webhooks ?? []);
 									}}
 								>
-									Cancelar
+									Voltar
 								</Button>
 							</div>
 						</div>
 					</div>
 				) : (
-					<div className="flex-1 overflow-auto">
-						<KanbanView
-							workflow={workflow}
-							onSelectItem={setSelectedItemId}
-							onItemMoved={onItemMoved}
-							onDropItem={handleDropItem}
-							allowMoveToStage={allowMoveToStage}
-							specRefreshKey={specRefreshKey}
-						/>
+					<div className="flex min-w-0 flex-1 overflow-y-hidden">
+						{/* ─── Left Column: Kanban ─── */}
+						<div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4 gap-3">
+							<ActionPanel
+								className="min-w-0"
+								tone={primaryTone}
+								icon={
+									<Icon
+										name={
+											primaryState === "blocked"
+												? "shield"
+												: primaryState === "waiting"
+													? "clock"
+													: "grid"
+										}
+										size={20}
+									/>
+								}
+								title={
+									primaryItem
+										? `Próximo trabalho seguro: ${primaryItem.id}`
+										: "Nenhum trabalho em foco"
+								}
+								description={primaryDescription}
+								meta={
+									<>
+										{primaryItem ? (
+											<Badge variant="info" tone="soft">
+												{primaryStage?.name ?? primaryItem.stage}
+											</Badge>
+										) : null}
+										{primaryItem?.claimedBy ? (
+											<Tag>{primaryItem.claimedBy}</Tag>
+										) : null}
+									</>
+								}
+								action={
+									<Button
+										size="sm"
+										onClick={() => {
+											if (primaryItem) setSelectedItemId(primaryItem.id);
+											else setShowAddDialog(true);
+										}}
+									>
+										{primaryActionLabel}
+									</Button>
+								}
+								secondaryAction={
+									primaryItem ? (
+										<Button
+											size="sm"
+											variant="secondary"
+											onClick={() => setShowAddDialog(true)}
+										>
+											Novo item
+										</Button>
+									) : null
+								}
+							/>
+
+							<div className="grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+								{[
+									{
+										label: "Atenção",
+										value: attentionItems,
+										sub:
+											blockedItems > 0
+												? `${blockedItems} bloqueado${blockedItems === 1 ? "" : "s"}`
+												: "decisão humana",
+										color:
+											attentionItems > 0
+												? "var(--color-warning)"
+												: "var(--color-text-secondary)",
+										icon: "shield",
+										urgent: attentionItems > 0,
+									},
+									{
+										label: "Em andamento",
+										value: runningItems,
+										sub: `${activeAgents} ator${activeAgents === 1 ? "" : "es"} ativo${activeAgents === 1 ? "" : "s"}`,
+										color: "var(--color-primary)",
+										icon: "cpu",
+										pulse: runningItems > 0,
+									},
+									{
+										label: "Na fila",
+										value: queuedItems,
+										sub: "sem responsável",
+										color: "var(--color-text-secondary)",
+										icon: "circle",
+									},
+									{
+										label: "Progresso",
+										value: `${pctComplete}%`,
+										sub: `${doneItems}/${totalItems} concluídos`,
+										color: "var(--color-primary)",
+										icon: "bar-chart",
+									},
+								].map((stat) => (
+									<Card
+										key={stat.label}
+										className="app-summary-card hover:shadow-sm"
+										data-urgent={stat.urgent ? "true" : "false"}
+									>
+										<CardContent className="grid gap-0.5 p-2.5">
+											<div className="flex items-center justify-between">
+												<span className="app-section-muted text-caption font-medium uppercase tracking-wider">
+													{stat.label}
+												</span>
+												{stat.icon && (
+													<Icon
+														name={stat.icon as any}
+														size={10}
+														style={{ color: stat.color }}
+													/>
+												)}
+											</div>
+											<div className="flex items-baseline gap-1">
+												<span
+													className={cn(
+														"text-lg font-bold tabular-nums",
+														stat.pulse && "animate-pulse",
+													)}
+													style={{ color: stat.color }}
+												>
+													{stat.value}
+												</span>
+												{stat.pulse && (
+													<span className="w-1 h-1 rounded-full bg-[var(--color-primary)] animate-pulse" />
+												)}
+											</div>
+											<span className="app-section-muted text-caption">
+												{stat.sub}
+											</span>
+										</CardContent>
+									</Card>
+								))}
+							</div>
+
+							{/* ─── 3. Agent Control Center ─── */}
+							{Object.keys(agentItems).length > 0 && (
+								<div className="min-w-0 shrink-0">
+									<div className="flex items-center gap-2 mb-2">
+										<span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
+											Atores em andamento
+										</span>
+										<div className="app-section-muted flex items-center gap-1 text-caption">
+											<div className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)] animate-pulse" />
+											<span>
+												{activeAgents} ativo{activeAgents !== 1 ? "s" : ""}
+											</span>
+										</div>
+									</div>
+									<div className="flex min-w-0 gap-2 overflow-x-auto pb-1 scrollbar-none">
+										{Object.entries(agentItems).map(([name, items], ai) => {
+											const latestItem = items[0];
+											const resolvedStage = orderedStages(
+												workflow,
+												activeFlow,
+											).find((entry) => entry.id === latestItem.stage);
+											const action = resolvedStage
+												? stageActionLabel(resolvedStage)
+												: "Processando";
+											const totalACs = items.reduce((sum, it) => {
+												if (it.tasks)
+													return (
+														sum + it.tasks.filter((t) => t.done).length
+													);
+												return sum;
+											}, 0);
+											const totalTasks = items.reduce(
+												(sum, it) => sum + (it.tasks?.length || 0),
+												0,
+											);
+											const pct =
+												totalTasks > 0
+													? Math.round((totalACs / totalTasks) * 100)
+													: null;
+											const isRunning =
+												!humanGateStages.has(latestItem.stage) &&
+												!doneStages.has(latestItem.stage);
+											return (
+												<div
+													key={name}
+													className={cn(
+														"app-agent-card p-3 min-w-[160px] flex flex-col gap-1.5 shrink-0 transition-all hover:shadow-sm",
+														isRunning && "animate-agent-breathe",
+													)}
+													data-running={isRunning ? "true" : "false"}
+												>
+													<div className="flex items-center gap-2">
+														<div
+															className="w-5 h-5 rounded-full flex items-center justify-center text-caption font-bold"
+															style={{
+																background: `color-mix(in oklch, ${AGENT_COLORS[ai % AGENT_COLORS.length]} 20%, transparent)`,
+																color: AGENT_COLORS[
+																	ai % AGENT_COLORS.length
+																],
+															}}
+														>
+															{name.charAt(0).toUpperCase()}
+														</div>
+														<div className="flex-1 min-w-0">
+															<div className="flex items-center gap-1">
+																<span className="text-xs font-semibold truncate">
+																	{name}
+																</span>
+																{isRunning && (
+																	<span className="w-1 h-1 rounded-full bg-[var(--color-primary)] animate-pulse" />
+																)}
+															</div>
+															<span className="app-section-muted text-caption">
+																{action}
+															</span>
+														</div>
+													</div>
+													<div className="flex flex-col gap-0.5">
+														{pct === null ? (
+															<span className="app-section-muted text-caption">
+																Sem progresso declarado
+															</span>
+														) : (
+															<div className="flex items-center gap-1">
+																<Progress
+																	value={pct}
+																	max={100}
+																	size="xs"
+																	className="flex-1"
+																/>
+																<span className="text-caption tabular-nums font-medium text-[var(--color-text-primary)]">
+																	{pct}%
+																</span>
+															</div>
+														)}
+														<span className="app-section-muted text-caption">
+															{items.length}{" "}
+															{items.length === 1 ? "item" : "itens"}
+														</span>
+													</div>
+													<div
+														className={cn(
+															"text-caption font-medium px-1.5 py-0.5 rounded-full self-start",
+															isRunning
+																? ""
+																: "bg-muted text-muted-foreground",
+														)}
+														style={isRunning ? { backgroundColor: "#282414", color: "#FFB800" } : undefined}
+													>
+														{isRunning ? "Em andamento" : "Na fila"}
+													</div>
+												</div>
+											);
+										})}
+									</div>
+								</div>
+							)}
+
+							{/* ─── 5. Filter Group ─── */}
+							<div className="flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]">
+								<ButtonGroup
+									ariaLabel="Filtrar trabalho"
+									className="w-max max-w-none flex-nowrap sm:w-auto sm:max-w-full sm:flex-wrap"
+								>
+									{filterOptions.map(({ key, label }) => (
+										<ButtonGroupItem
+											key={key}
+											selected={activeFilter === key}
+											count={filterCounts[key]}
+											onClick={() => setActiveFilter(key)}
+										>
+											{label}
+										</ButtonGroupItem>
+									))}
+								</ButtonGroup>
+							</div>
+
+							{/* ─── 6. Kanban Board ─── */}
+							<div className="app-section-card flex min-w-0 flex-1 flex-col overflow-hidden">
+								<KanbanBoard
+									workflow={workflow}
+									activeFlow={activeFlow}
+									onSelectItem={setSelectedItemId}
+									onDropItem={handleDropItem}
+									allowDrop={allowMoveToStage}
+									specRefreshKey={specRefreshKey}
+									filter={activeFilter}
+									onItemDecided={onItemMoved}
+								/>
+							</div>
+						</div>
+
+						{/* ─── Right Column: Observation Panel ─── */}
+						<div
+							className={cn(
+								"app-section-card shrink-0 overflow-y-auto transition-all duration-300 ease-in-out",
+								observationPanelOpen
+									? "w-80 border-l opacity-100"
+									: "w-0 border-l-0 opacity-0 overflow-hidden",
+							)}
+						>
+							<ActivityTimeline
+								workflow={workflow}
+								activeFlow={activeFlow}
+								onSelectItem={setSelectedItemId}
+							/>
+						</div>
 					</div>
 				)}
 				{selectedItem && (
 					<ItemDetailModal
 						item={selectedItem}
 						workflow={workflow}
+						activeFlow={activeFlow}
 						specs={specs}
 						onClose={() => setSelectedItemId(null)}
 						onItemMoved={onItemMoved}
-						onTabChange={onTabChange}
+						onOpenSpec={onOpenSpec}
 					/>
 				)}
 			</div>
@@ -792,28 +893,24 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 				title="Validação necessária"
 				actions={
 					<>
-						<button
+						<Button
 							onClick={() => setValidateDialogItem(null)}
-							className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-border bg-transparent hover:bg-muted text-foreground cursor-pointer"
+							className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-[var(--radius-sm)] border border-border bg-transparent hover:bg-muted text-foreground cursor-pointer"
 						>
 							Cancelar
-						</button>
-						<button
+						</Button>
+						<Button
 							onClick={handleValidateConfirm}
 							disabled={!validateDialogItem?.pendingChecks.every(Boolean)}
-							className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-transparent cursor-pointer disabled:opacity-50"
-							style={{
-								background: "var(--primary)",
-								color: "var(--primary-foreground)",
-							}}
+							className="app-primary-button inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-[var(--radius-sm)] border border-transparent cursor-pointer disabled:opacity-50"
 						>
 							Mover
-						</button>
+						</Button>
 					</>
 				}
 			>
 				<div className="flex flex-col gap-2">
-					<p className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>
+					<p className="app-section-muted text-xs mb-1">
 						Antes de mover, confirme os itens abaixo:
 					</p>
 					{validateDialogItem?.pendingChecks.map((checked, i) => {
@@ -841,8 +938,4 @@ export default function FlowView({ workflow, specRefreshKey, onItemMoved, onTabC
 			</Dialog>
 		</div>
 	);
-}
-
-function cn(...classes: (string | boolean | null | undefined)[]): string {
-	return classes.filter(Boolean).join(" ");
 }

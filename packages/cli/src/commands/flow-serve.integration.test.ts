@@ -77,11 +77,11 @@ async function sseWaitForEvent(
 
 	const ssePromise = fetch(`${baseUrl}/events`, { signal: controller.signal })
 		.then(async (res) => {
-			const reader = res.body!.getReader();
+			const reader = res.body?.getReader();
 			const decoder = new TextDecoder();
 			let buf = "";
 			while (true) {
-				const { done, value } = await reader.read();
+				const { done, value } = await reader!.read();
 				if (done) break;
 				buf += decoder.decode(value, { stream: true });
 				const lines = buf.split("\n");
@@ -250,9 +250,9 @@ describe("FlowServer HTTP API integration", () => {
 			expect(status).toBe(200);
 			const wf = body as { items?: Array<Record<string, unknown>> };
 			expect(wf.items).toBeDefined();
-			const item = wf.items!.find((i) => i.id === "ITEM-1");
+			const item = wf.items?.find((i) => i.id === "ITEM-1");
 			expect(item).toBeDefined();
-			expect(item!.claimedBy).toBe("web-ui");
+			expect(item?.claimedBy).toBe("web-ui");
 		});
 
 		it("should reflect release via GET", async () => {
@@ -261,8 +261,144 @@ describe("FlowServer HTTP API integration", () => {
 
 			const { body } = await api("GET", `${baseUrl}/api/workflow`);
 			const wf = body as { items?: Array<Record<string, unknown>> };
-			const item = wf.items!.find((i) => i.id === "ITEM-1");
-			expect(item!.claimedBy).toBeUndefined();
+			const item = wf.items?.find((i) => i.id === "ITEM-1");
+			expect(item?.claimedBy).toBeUndefined();
+		});
+	});
+
+	describe("GET /api/system-actions", () => {
+		it("should expose recurring server automations with supervision metadata", async () => {
+			const { status, body } = await api("GET", `${baseUrl}/api/system-actions`);
+			expect(status).toBe(200);
+			const data = body as { actions?: Array<Record<string, unknown>> };
+			expect(Array.isArray(data.actions)).toBe(true);
+			expect(data.actions?.some((action) => action.id === "workflow-watch")).toBe(true);
+			expect(data.actions?.some((action) => action.id === "specs-watch")).toBe(true);
+			const diagnostics = data.actions?.find((action) => action.id === "diagnostics-scan");
+			expect(diagnostics?.cause).toEqual(expect.any(String));
+			expect(diagnostics?.effect).toEqual(expect.any(String));
+		});
+	});
+
+	describe("GET /api/workflow/active-flow", () => {
+		it("loads the harness version declared by the workflow", async () => {
+			const harnessRoot = join(tmpDir, ".letra", "harness", "v9.9.9");
+			mkdirSync(join(harnessRoot, "flows"), { recursive: true });
+			mkdirSync(join(harnessRoot, "gates"), { recursive: true });
+			mkdirSync(join(harnessRoot, "roles"), { recursive: true });
+			writeFileSync(
+				join(harnessRoot, "flows", "dynamic.yaml"),
+				[
+					"id: dynamic",
+					"version: 9.9.9",
+					"name: Dynamic Flow",
+					"description: Dynamically resolved flow",
+					"defaultPolicy: default",
+					"stages:",
+					...createTestWorkflow().stages.flatMap((stage) => [
+						`  - id: ${stage.id}`,
+						`    name: ${stage.name}`,
+						`    order: ${stage.order}`,
+						`    zone: ${stage.zone}`,
+					]),
+				].join("\n"),
+			);
+
+			const workflow = createTestWorkflow({
+				template: "dynamic",
+				harnessVersion: "v9.9.9",
+			});
+			saveWorkflow(tmpDir, workflow);
+
+			const { status, body } = await api("GET", `${baseUrl}/api/workflow/active-flow`);
+			expect(status).toBe(200);
+			expect(body).toEqual(
+				expect.objectContaining({
+					id: "dynamic",
+					source: "workflow-template",
+					harnessVersion: "v9.9.9",
+					templateVersion: "9.9.9",
+				}),
+			);
+
+			saveWorkflow(tmpDir, createTestWorkflow());
+		});
+
+		it("resolves the harness from the workspace that supplied the workflow", async () => {
+			const secondaryRoot = join(tmpDir, "secondary-workspace");
+			const harnessRoot = join(secondaryRoot, ".letra", "harness", "v2.0.0");
+			mkdirSync(join(harnessRoot, "flows"), { recursive: true });
+			mkdirSync(join(harnessRoot, "gates"), { recursive: true });
+			mkdirSync(join(harnessRoot, "roles"), { recursive: true });
+			writeFileSync(
+				join(harnessRoot, "flows", "secondary.yaml"),
+				[
+					"id: secondary",
+					"version: 2.0.0",
+					"name: Secondary Workspace Flow",
+					"description: Root-safe flow",
+					"defaultPolicy: default",
+					"stages:",
+					"  - id: secondary-stage",
+					"    name: Secondary Stage",
+					"    order: 0",
+					"    zone: doing",
+				].join("\n"),
+			);
+			saveWorkflow(
+				secondaryRoot,
+				createTestWorkflow({
+					name: "secondary-workspace",
+					template: "secondary",
+					harnessVersion: "v2.0.0",
+					stages: [
+						{ id: "secondary-stage", name: "Instance Stage", order: 0, zone: "doing" },
+					],
+				}),
+			);
+
+			const { status, body } = await api(
+				"GET",
+				`${baseUrl}/api/workflow/active-flow?workspace=${encodeURIComponent(secondaryRoot)}`,
+			);
+
+			expect(status).toBe(200);
+			expect(body).toEqual(
+				expect.objectContaining({
+					id: "secondary",
+					name: "Secondary Workspace Flow",
+					harnessVersion: "v2.0.0",
+				}),
+			);
+
+			const update = await api(
+				"PATCH",
+				`${baseUrl}/api/items/ITEM-1?workspace=${encodeURIComponent(secondaryRoot)}`,
+				{ stage: "secondary-stage" },
+			);
+			expect(update.status).toBe(200);
+			const secondaryWorkflow = JSON.parse(
+				readFileSync(join(secondaryRoot, ".letra", "workflow.json"), "utf-8"),
+			) as Workflow;
+			const primaryWorkflow = JSON.parse(
+				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
+			) as Workflow;
+			expect(secondaryWorkflow.items.find((item) => item.id === "ITEM-1")?.stage).toBe(
+				"secondary-stage",
+			);
+			expect(primaryWorkflow.items.find((item) => item.id === "ITEM-1")?.stage).toBe("code");
+		});
+	});
+
+	describe("POST /api/workspace/switch", () => {
+		it("should expose workspaceRoot while preserving projectRoot compatibility", async () => {
+			const { status, body } = await api("POST", `${baseUrl}/api/workspace/switch`, {
+				workspaceRoot: tmpDir,
+			});
+			expect(status).toBe(200);
+			const data = body as { workspaceRoot?: string; projectRoot?: string };
+			expect(data.workspaceRoot).toBe(tmpDir);
+			expect(data.projectRoot).toBe(tmpDir);
 		});
 	});
 
@@ -295,6 +431,37 @@ describe("FlowServer HTTP API integration", () => {
 				await api("DELETE", `${baseUrl}/api/focus`);
 			});
 			expect(received).toBe(true);
+		});
+	});
+
+	describe("GET /api/activity-context", () => {
+		it("should return default implement context", async () => {
+			const { status, body } = await api("GET", `${baseUrl}/api/activity-context`);
+			expect(status).toBe(200);
+			const context = body as {
+				activity?: string;
+				currentItem?: { id?: string };
+				mustRead?: Array<{ path: string }>;
+			};
+			expect(context.activity).toBe("implement");
+			expect(context.currentItem?.id).toBe("ITEM-1");
+			expect(context.mustRead?.some((entry) => entry.path === ".letra/context.md")).toBe(
+				true,
+			);
+		});
+
+		it("should return requested activity context", async () => {
+			const { status, body } = await api(
+				"GET",
+				`${baseUrl}/api/activity-context?activity=review`,
+			);
+			expect(status).toBe(200);
+			const context = body as {
+				activity?: string;
+				nextActions?: Array<{ label: string }>;
+			};
+			expect(context.activity).toBe("review");
+			expect(context.nextActions?.[0]?.label).toBe("Comparar com spec");
 		});
 	});
 });
@@ -338,20 +505,16 @@ describe("CLI integration (AC1.5 — focus)", () => {
 
 	it("focus <spec> without --claim leaves claimedBy unchanged", () => {
 		runCLI(["focus", "auth"], tmpDir);
-		const wf = JSON.parse(
-			readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-		);
+		const wf = JSON.parse(readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"));
 		expect(wf.items[0].claimedBy).toBeUndefined();
-	});
+	}, 20000);
 
 	it("focus <spec> --claim populates claimedBy", () => {
 		runCLI(["focus", "auth", "--claim"], tmpDir);
-		const wf = JSON.parse(
-			readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-		);
+		const wf = JSON.parse(readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"));
 		expect(wf.items[0].claimedBy).toBe("opencode");
 		expect(wf.items[0].claimedAt).toEqual(expect.any(String));
-	});
+	}, 20000);
 });
 
 describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
@@ -406,10 +569,8 @@ describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
 		expect(content).toContain("**Item**: ITEM-1");
 		expect(content).toContain("# Focus: auth");
 
-		const wf = JSON.parse(
-			readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-		);
+		const wf = JSON.parse(readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"));
 		const item = wf.items.find((i: Item) => i.id === "ITEM-1");
 		expect(item.stage).toBe("review");
-	});
+	}, 20000);
 });

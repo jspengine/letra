@@ -1,4 +1,5 @@
-import { type ReactNode, useState } from "react";
+import { type CSSProperties, type ReactNode, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "./utils";
 
 interface TooltipProps {
@@ -10,38 +11,73 @@ interface TooltipProps {
 
 export function Tooltip({ content, children, position = "top", className }: TooltipProps) {
 	const [visible, setVisible] = useState(false);
+	const [anchor, setAnchor] = useState<DOMRect | null>(null);
+	const wrapperRef = useRef<HTMLDivElement | null>(null);
 
-	const posClasses: Record<string, string> = {
-		top: "bottom-full left-1/2 -translate-x-1/2 mb-2",
-		bottom: "top-full left-1/2 -translate-x-1/2 mt-2",
-		left: "right-full top-1/2 -translate-y-1/2 mr-2",
-		right: "left-full top-1/2 -translate-y-1/2 ml-2",
-	};
+	function show() {
+		setAnchor(wrapperRef.current?.getBoundingClientRect() ?? null);
+		setVisible(true);
+	}
+
+	function tooltipStyle(): CSSProperties {
+		if (!anchor) return {};
+		const gap = 8;
+		if (position === "right") {
+			return {
+				left: anchor.right + gap,
+				top: anchor.top + anchor.height / 2,
+				transform: "translateY(-50%)",
+			};
+		}
+		if (position === "left") {
+			return {
+				left: anchor.left - gap,
+				top: anchor.top + anchor.height / 2,
+				transform: "translate(-100%, -50%)",
+			};
+		}
+		if (position === "bottom") {
+			return {
+				left: anchor.left + anchor.width / 2,
+				top: anchor.bottom + gap,
+				transform: "translateX(-50%)",
+			};
+		}
+		return {
+			left: anchor.left + anchor.width / 2,
+			top: anchor.top - gap,
+			transform: "translate(-50%, -100%)",
+		};
+	}
 
 	return (
 		<div
+			ref={wrapperRef}
 			className={cn("relative inline-flex", className)}
-			onMouseEnter={() => setVisible(true)}
+			onMouseEnter={show}
 			onMouseLeave={() => setVisible(false)}
-			onFocus={() => setVisible(true)}
+			onFocus={show}
 			onBlur={() => setVisible(false)}
 		>
 			{children}
-			{visible && (
-				<div
-					className={cn(
-						"absolute z-50 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap pointer-events-none",
-						posClasses[position],
-					)}
-					style={{
-						background: "var(--foreground)",
-						color: "var(--background)",
-					}}
-					role="tooltip"
-				>
-					{content}
-				</div>
-			)}
+			{visible && typeof document !== "undefined"
+				? createPortal(
+						<div
+							className={cn(
+								"fixed z-[var(--z-tooltip)] px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs whitespace-nowrap pointer-events-none",
+							)}
+							style={{
+								...tooltipStyle(),
+								background: "var(--foreground)",
+								color: "var(--background)",
+							}}
+							role="tooltip"
+						>
+							{content}
+						</div>,
+						document.body,
+					)
+				: null}
 		</div>
 	);
 }

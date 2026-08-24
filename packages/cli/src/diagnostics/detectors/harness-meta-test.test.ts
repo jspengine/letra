@@ -4,13 +4,22 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { harnessMetaTestDetector } from "./harness-meta-test.js";
 
-const REQUIRED = ["ac-stale", "ac-false-pos", "harness-stale", "missing-dir", "stage-drift", "missing-spec-link"];
+const REQUIRED = [
+	"ac-stale",
+	"ac-false-pos",
+	"harness-stale",
+	"missing-dir",
+	"stage-drift",
+	"missing-spec-link",
+];
 
 function engineContent(detectorNames: string[]): string {
-	const importLines = detectorNames.map((n) => {
-		const camel = n.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-		return `import { ${camel}Detector } from "./detectors/${n}.js";`;
-	}).join("\n");
+	const importLines = detectorNames
+		.map((n) => {
+			const camel = n.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+			return `import { ${camel}Detector } from "./detectors/${n}.js";`;
+		})
+		.join("\n");
 	const vars = detectorNames.map((n) => {
 		const camel = n.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 		return `\t\t${camel}Detector`;
@@ -100,23 +109,20 @@ export const ${name.replace(/-([a-z])/g, (_, c) => c.toUpperCase())}Detector: De
 		const results = await harnessMetaTestDetector.run(tmpDir);
 		const missingResult = results.find((r) => r.id.includes("missing-detectors"));
 		expect(missingResult).toBeDefined();
-		expect(missingResult!.description).toContain("missing-dir");
+		expect(missingResult?.description).toContain("missing-dir");
 	});
 
 	it("should report missing engine.ts as error", async () => {
 		const results = await harnessMetaTestDetector.run(tmpDir);
 		const engineResult = results.find((r) => r.id === "harness-meta-test_engine-not-found");
 		expect(engineResult).toBeDefined();
-		expect(engineResult!.type).toBe("error");
+		expect(engineResult?.type).toBe("error");
 	});
 
 	it("should detect TTL_MS mismatch", async () => {
 		const dir = join(tmpDir, "packages", "cli", "src", "diagnostics");
 		mkdirSync(dir, { recursive: true });
-		writeFileSync(
-			join(dir, "snapshot.ts"),
-			`const TTL_MS = 7 * 24 * 60 * 60 * 1000;`,
-		);
+		writeFileSync(join(dir, "snapshot.ts"), "const TTL_MS = 7 * 24 * 60 * 60 * 1000;");
 		writeEngine(REQUIRED);
 		const results = await harnessMetaTestDetector.run(tmpDir);
 		const ttlResult = results.find((r) => r.id === "harness-meta-test_ttl-wrong");
@@ -154,7 +160,10 @@ export const ${name.replace(/-([a-z])/g, (_, c) => c.toUpperCase())}Detector: De
 	it("should detect MAX_SNAPSHOTS < 20", async () => {
 		const dir = join(tmpDir, "packages", "cli", "src", "diagnostics");
 		mkdirSync(dir, { recursive: true });
-		writeFileSync(join(dir, "snapshot.ts"), `const MAX_SNAPSHOTS = 5;\nconst TTL_MS = 30 * 24 * 60 * 60 * 1000;`);
+		writeFileSync(
+			join(dir, "snapshot.ts"),
+			"const MAX_SNAPSHOTS = 5;\nconst TTL_MS = 30 * 24 * 60 * 60 * 1000;",
+		);
 		writeEngine(REQUIRED);
 		const results = await harnessMetaTestDetector.run(tmpDir);
 		const snapResult = results.find((r) => r.id === "harness-meta-test_max-snapshots-low");
@@ -173,10 +182,10 @@ export const ${name.replace(/-([a-z])/g, (_, c) => c.toUpperCase())}Detector: De
 		const results = await harnessMetaTestDetector.run(tmpDir);
 		const fix = results.find((r) => r.autoFix);
 		expect(fix).toBeDefined();
-		expect(fix!.autoFix).toBeDefined();
-		const fixResult = await fix!.autoFix!();
-		expect(fixResult.files).toHaveLength(1);
-		expect(fixResult.files[0].after).toContain("TODO");
+		expect(fix?.autoFix).toBeDefined();
+		const fixResult = await fix?.autoFix?.();
+		expect(fixResult!.files).toHaveLength(1);
+		expect(fixResult!.files[0].after).toContain("TODO");
 	});
 
 	it("should be dev-only", async () => {

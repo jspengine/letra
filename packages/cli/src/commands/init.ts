@@ -1,14 +1,17 @@
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import ora from "ora";
 import { flowServeAction } from "./flow-serve.js";
 import { generateAdapters } from "../adapters/generate.js";
+import { supportedAdapterTools } from "../adapters/registry.js";
 import { detectLanguage } from "../adapters/language-registry.js";
 import { writeWorkflow } from "./flow-init.js";
 import type { Workflow } from "./flow-init.js";
+import { initWorkspace, ensureDefaultHarness } from "../workspace/index.js";
+import { LINK_FILE, clearWorkspaceCache, getLetraDir } from "./../workspace/resolver.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -65,18 +68,116 @@ function adaptConfig(projectType: string): string {
 	return JSON.stringify({ heuristics: config }, null, 2);
 }
 
-const TOOL_MAP: Record<string, string[]> = {
-	opencode: ["opencode"],
-	cursor: ["cursor"],
-	windsurf: ["windsurf"],
-	"claude code": ["claude-code"],
-	"vscode copilot": ["vscode"],
-	todos: ["cursor", "claude-code", "windsurf", "vscode", "opencode", "hermes"],
-};
+const adapterTools = supportedAdapterTools();
+const TOOL_MAP: Record<string, string[]> = Object.fromEntries([
+	...adapterTools.flatMap(
+		(adapter) =>
+			[
+				[adapter.id, [adapter.id]],
+				[adapter.label.toLowerCase(), [adapter.id]],
+			] as Array<[string, string[]]>,
+	),
+	["todos", adapterTools.map((adapter) => adapter.id)],
+]);
 
-export async function init(targetPath?: string, options?: { yes?: boolean; serve?: boolean }) {
+function normalizedPath(path: string): string {
+	return path.replace(/\\/g, "/");
+}
+
+function stableLocationId(path: string): string {
+	const normalized = normalizedPath(path).toLowerCase();
+	let hash = 2166136261;
+	for (const char of normalized) {
+		hash ^= char.charCodeAt(0);
+		hash = Math.imul(hash, 16777619);
+	}
+	const name =
+		normalized
+			.split("/")
+			.filter(Boolean)
+			.pop()
+			?.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "")
+			.slice(0, 32) || "project";
+	return `loc-${name}-${(hash >>> 0).toString(36)}`;
+}
+
+function externalWorkspaceWorkflow(
+	workspaceName: string,
+	projectRoot: string,
+	harnessVersion: string,
+): Workflow {
+	const now = new Date().toISOString();
+	const locationPath = normalizedPath(projectRoot);
+	return {
+		version: "1.0",
+		name: workspaceName,
+		createdAt: now,
+		updatedAt: now,
+		stages: [
+			{ id: "backlog", name: "Backlog", order: 0, zone: "todo" },
+			{ id: "design", name: "Design", order: 1, zone: "doing" },
+			{ id: "code", name: "Code", order: 2, zone: "doing" },
+			{ id: "review", name: "Review", order: 3, zone: "doing" },
+			{ id: "done", name: "Done", order: 4, zone: "done" },
+		],
+		items: [],
+		tools: [],
+		template: "flow-main",
+		harnessVersion,
+		locations: [
+			{
+				id: stableLocationId(locationPath),
+				path: locationPath,
+				label: basename(projectRoot) || workspaceName,
+				adapters: [],
+			},
+		],
+	};
+}
+
+export async function init(
+	targetPath?: string,
+	options?: { yes?: boolean; serve?: boolean; workspace?: string; noTui?: boolean },
+) {
 	const root = resolve(process.cwd(), targetPath || ".");
-	const letraDir = join(root, ".letra");
+
+	if (options?.workspace) {
+		const spinner = ora("Creating workspace...").start();
+		try {
+			mkdirSync(root, { recursive: true });
+			const { workspaceDir, info } = initWorkspace(options.workspace);
+			ensureDefaultHarness(info.harnessVersion);
+			const workflow = externalWorkspaceWorkflow(
+				options.workspace,
+				root,
+				info.harnessVersion,
+			);
+			writeFileSync(
+				join(workspaceDir, "workflow.json"),
+				JSON.stringify(workflow, null, 2),
+				"utf-8",
+			);
+			writeFileSync(join(root, LINK_FILE), `${workspaceDir}\n`, "utf-8");
+			clearWorkspaceCache();
+			spinner.succeed(chalk.green(`Workspace "${options.workspace}" created`));
+			console.log(`  ${chalk.gray("Data dir:")}  ${workspaceDir}`);
+			console.log(`  ${chalk.gray("Project:")}   ${root}`);
+			console.log(`  ${chalk.gray("Link:")}      ${join(root, LINK_FILE)}`);
+			console.log(`  ${chalk.gray("Harness:")}   ${info.harnessVersion}`);
+			console.log("");
+			console.log("  Next steps:");
+			console.log(`    ${chalk.cyan("letra status")}               View workspace info`);
+			console.log(`    ${chalk.cyan("letra flow backlog")}         Manage backlog items`);
+			return;
+		} catch (error) {
+			spinner.fail(chalk.red("Failed to create workspace"));
+			if (error instanceof Error) console.error(chalk.red(`  ${error.message}`));
+			process.exit(1);
+		}
+	}
+
+	const letraDir = getLetraDir(root);
 
 	if (existsSync(letraDir)) {
 		if (options?.serve) {
@@ -92,23 +193,27 @@ export async function init(targetPath?: string, options?: { yes?: boolean; serve
 
 	try {
 		let projectType = "web-app";
-		let tool = "cursor";
+		let tool = "todos";
 
 		if (options?.yes || !process.stdin.isTTY) {
-			projectType = "web-app";
-			tool = "todos";
+			// use defaults
+		} else if (options?.noTui !== false) {
+			spinner.stop();
+			try {
+				const { runInitWizard } = await import("../tui/init-wizard.js");
+				const result = await runInitWizard();
+				projectType = result.projectType;
+				tool = result.tool;
+			} catch {
+				projectType = "web-app";
+				tool = "todos";
+			}
+			spinner.start();
 		} else {
 			spinner.stop();
 
 			projectType = await ask("Project type?", ["web-app", "cli", "library", "mobile"]);
-			const toolNames = [
-				"Cursor",
-				"Windsurf",
-				"Claude Code",
-				"VSCode Copilot",
-				"OpenCode",
-				"Todos",
-			];
+			const toolNames = [...adapterTools.map((adapter) => adapter.label), "Todos"];
 			const answer = await ask("AI coding agent?", toolNames);
 			tool = answer.toLowerCase();
 
@@ -126,9 +231,10 @@ export async function init(targetPath?: string, options?: { yes?: boolean; serve
 			? `- **Stack**: ${lang}`
 			: "- Sem stack específica (projeto general)";
 
-		const codeRules = lang === "Node.js"
-			? "- TypeScript estrito (strict: true)\n- Zero dependencies desnecessárias"
-			: "- Código limpo e documentado\n- Seguir convenções do ecossistema";
+		const codeRules =
+			lang === "Node.js"
+				? "- TypeScript estrito (strict: true)\n- Zero dependencies desnecessárias"
+				: "- Código limpo e documentado\n- Seguir convenções do ecossistema";
 
 		const templateFiles: Record<string, string> = {
 			"context.md": `# Context
@@ -271,7 +377,7 @@ Por que estamos construindo isso.
 					{ id: "done", name: "Done", order: 4, zone: "done" },
 				],
 				items: [],
-				tools: ["cursor", "opencode"],
+				tools,
 			};
 			writeWorkflow(root, { workflow, source: "init", skipSitrep: true, quiet: true });
 		}

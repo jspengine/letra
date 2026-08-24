@@ -1,4 +1,8 @@
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, type Ref, useEffect, useRef } from "react";
+import { Button } from "./button";
+import { Icon } from "./icon";
+import { Input } from "./input";
+import { Label } from "./label";
 import { cn } from "./utils";
 
 interface DialogProps {
@@ -7,15 +11,31 @@ interface DialogProps {
 	title: string;
 	children: ReactNode;
 	actions?: ReactNode;
+	variant?: "default" | "fullscreen";
+	hideHeader?: boolean;
+	className?: string;
+	bodyClassName?: string;
+	contentRef?: Ref<HTMLDialogElement>;
 }
 
-export function Dialog({ open, onClose, title, children, actions }: DialogProps) {
+export function Dialog({
+	open,
+	onClose,
+	title,
+	children,
+	actions,
+	variant = "default",
+	hideHeader = false,
+	className,
+	bodyClassName,
+	contentRef,
+}: DialogProps) {
 	const overlayRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		if (!open) return;
-		const handler = (e: KeyboardEvent) => {
-			if (e.key === "Escape") onClose();
+		const handler = (event: KeyboardEvent) => {
+			if (event.key === "Escape") onClose();
 		};
 		window.addEventListener("keydown", handler);
 		return () => window.removeEventListener("keydown", handler);
@@ -26,41 +46,65 @@ export function Dialog({ open, onClose, title, children, actions }: DialogProps)
 	return (
 		<div
 			ref={overlayRef}
-			className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
+			className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center animate-fade-in backdrop-blur-sm"
 			style={{ background: "var(--overlay)" }}
-			onClick={(e) => {
-				if (e.target === overlayRef.current) onClose();
+			onClick={(event) => {
+				if (event.target === overlayRef.current) onClose();
 			}}
-			onKeyDown={(e) => {
-				if (e.key === "Escape") onClose();
+			onKeyDown={(event) => {
+				if (event.key === "Escape") onClose();
 			}}
 		>
 			<dialog
+				ref={contentRef}
 				open
-				className="w-full max-w-md mx-4 rounded-xl border shadow-lg"
-				style={{ background: "var(--card)", borderColor: "var(--border)" }}
+				className={cn(
+					"border-[length:var(--border-thin)] shadow-xl animate-slide-up",
+					variant === "fullscreen"
+						? "m-0 flex h-screen max-h-none w-screen max-w-none flex-col overflow-hidden rounded-none"
+						: "mx-4 w-full max-w-md rounded-[var(--radius-lg)]",
+					className,
+				)}
+				style={{
+					background: "var(--color-bg-surface)",
+					borderColor: "var(--color-border)",
+					color: "var(--color-text-primary)",
+				}}
 				aria-label={title}
 			>
-				<div
-					className="flex items-center justify-between px-4 py-3 border-b"
-					style={{ borderColor: "var(--border)" }}
-				>
-					<h2 className="text-sm font-semibold">{title}</h2>
-					<button
-						type="button"
-						onClick={onClose}
-						className="text-sm px-2 py-1 rounded hover:bg-muted/50 transition-colors"
-						style={{ color: "var(--muted-foreground)" }}
-						aria-label="Fechar"
+				{!hideHeader && (
+					<div
+						className="flex items-center justify-between border-b px-[var(--space-4)] py-[var(--space-3)]"
+						style={{ borderColor: "var(--color-border)" }}
 					>
-						✕
-					</button>
+						<h2 className="text-h2" style={{ color: "var(--color-text-primary)" }}>
+							{title}
+						</h2>
+						<button
+							type="button"
+							onClick={onClose}
+							className="inline-flex size-8 items-center justify-center rounded-[var(--radius-sm)] transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:bg-[var(--color-bg-sunken)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)]"
+							style={{ color: "var(--color-text-secondary)" }}
+							aria-label="Close dialog"
+						>
+							<Icon name="x" size={16} />
+						</button>
+					</div>
+				)}
+				<div
+					className={cn(
+						variant === "fullscreen"
+							? "flex min-h-0 flex-1 flex-col"
+							: "px-[var(--space-4)] py-[var(--space-3)]",
+						bodyClassName,
+					)}
+				>
+					{children}
 				</div>
-				<div className="px-4 py-3">{children}</div>
 				{actions && (
 					<div
-						className="flex justify-end gap-2 px-4 py-3 border-t"
-						style={{ borderColor: "var(--border)" }}
+						className="flex justify-end gap-[var(--space-3)] border-t px-[var(--space-4)] py-[var(--space-3)]"
+						style={{ borderColor: "var(--color-border)" }}
 					>
 						{actions}
 					</div>
@@ -98,33 +142,23 @@ export function ConfirmDialog({
 			title={title}
 			actions={
 				<>
-					<button
-						type="button"
-						onClick={onClose}
-						className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-border bg-transparent hover:bg-muted text-foreground cursor-pointer"
-					>
+					<Button type="button" variant="secondary" onClick={onClose}>
 						{cancelLabel}
-					</button>
-					<button
+					</Button>
+					<Button
 						type="button"
+						variant={variant === "danger" ? "danger" : "primary"}
 						onClick={() => {
 							onConfirm();
 							onClose();
 						}}
-						className={cn(
-							"inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-transparent cursor-pointer",
-						)}
-						style={{
-							background: variant === "danger" ? "var(--error)" : "var(--primary)",
-							color: "var(--primary-foreground)",
-						}}
 					>
 						{confirmLabel}
-					</button>
+					</Button>
 				</>
 			}
 		>
-			<p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+			<p className="text-body" style={{ color: "var(--color-text-secondary)" }}>
 				{message}
 			</p>
 		</Dialog>
@@ -158,6 +192,13 @@ export function PromptDialog({
 		if (open && inputRef.current) inputRef.current.focus();
 	}, [open]);
 
+	const submit = () => {
+		const value = inputRef.current?.value.trim();
+		if (!value) return;
+		onSubmit(value);
+		onClose();
+	};
+
 	return (
 		<Dialog
 			open={open}
@@ -165,58 +206,31 @@ export function PromptDialog({
 			title={title}
 			actions={
 				<>
-					<button
-						type="button"
-						onClick={onClose}
-						className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-border bg-transparent hover:bg-muted text-foreground cursor-pointer"
-					>
+					<Button type="button" variant="secondary" onClick={onClose}>
 						{cancelLabel}
-					</button>
-					<button
-						type="button"
-						onClick={() => {
-							const val = inputRef.current?.value.trim();
-							if (val) {
-								onSubmit(val);
-								onClose();
-							}
-						}}
-						className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm px-4 py-2 rounded-lg border border-transparent cursor-pointer"
-						style={{
-							background: "var(--primary)",
-							color: "var(--primary-foreground)",
-						}}
-					>
+					</Button>
+					<Button type="button" onClick={submit}>
 						{submitLabel}
-					</button>
+					</Button>
 				</>
 			}
 		>
-			<label className="flex flex-col gap-1.5">
-				<span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
+			<Label className="flex flex-col items-start gap-[var(--space-2)]">
+				<span
+					className="text-caption font-medium"
+					style={{ color: "var(--color-text-secondary)" }}
+				>
 					{label}
 				</span>
-				<input
+				<Input
 					ref={inputRef}
 					type="text"
 					placeholder={placeholder}
-					className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
-					style={{
-						borderColor: "var(--border)",
-						background: "var(--background)",
-						color: "var(--foreground)",
-					}}
-					onKeyDown={(e) => {
-						if (e.key === "Enter") {
-							const val = inputRef.current?.value.trim();
-							if (val) {
-								onSubmit(val);
-								onClose();
-							}
-						}
+					onKeyDown={(event) => {
+						if (event.key === "Enter") submit();
 					}}
 				/>
-			</label>
+			</Label>
 		</Dialog>
 	);
 }

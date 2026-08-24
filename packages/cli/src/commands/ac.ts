@@ -6,11 +6,15 @@ import { loadWorkflow } from "./flow-init.js";
 import { logEntry } from "../session-log.js";
 import { validate } from "./validate.js";
 import { generateAdapters } from "../adapters/generate.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export function findAcByPattern(lines: string[], acId: string): number | null {
-	const pattern = new RegExp(`^- \\[ \\] \\*\\*${escapeRegex(acId)}\\*\\*`);
+	const normalized = acId.trim();
 	for (let i = 0; i < lines.length; i++) {
-		if (pattern.test(lines[i].trim())) return i;
+		const line = lines[i].trim();
+		if (!/^- \[ \]/.test(line)) continue;
+		const text = line.replace(/^- \[ \]/, "").trim();
+		if (text.toLowerCase().includes(normalized.toLowerCase())) return i;
 	}
 	return null;
 }
@@ -21,10 +25,21 @@ function escapeRegex(s: string): string {
 
 export function listPendingACs(lines: string[]): { lineIdx: number; id: string; text: string }[] {
 	const result: { lineIdx: number; id: string; text: string }[] = [];
-	const pattern = /^- \[ \] \*\*(AC[\d.]+)\*\*: (.+)$/;
+	const explicit = /^- \[ \] \*\*(AC[\d.]+)\*\*: (.+)$/;
+	const plain = /^- \[ \] (.+)$/;
 	for (let i = 0; i < lines.length; i++) {
-		const match = lines[i].trim().match(pattern);
-		if (match) result.push({ lineIdx: i, id: match[1], text: match[2] });
+		const line = lines[i].trim();
+		let match = line.match(explicit);
+		if (match) {
+			result.push({ lineIdx: i, id: match[1], text: match[2] });
+			continue;
+		}
+		match = line.match(plain);
+		if (match) {
+			const text = match[1];
+			const id = `AC-${i + 1}`;
+			result.push({ lineIdx: i, id, text });
+		}
 	}
 	return result;
 }
@@ -39,10 +54,12 @@ export function markAcById(root: string, acId: string, specName?: string): void 
 	}
 
 	if (!spec) {
-		throw new Error("Spec name required. Use --spec <name> or ensure an active item has a linked spec.");
+		throw new Error(
+			"Spec name required. Use --spec <name> or ensure an active item has a linked spec.",
+		);
 	}
 
-	const specFile = join(root, ".letra", "specs", spec, "spec.md");
+	const specFile = join(getLetraDir(root), "specs", spec, "spec.md");
 	if (!existsSync(specFile)) {
 		throw new Error(`Spec file not found: ${specFile}`);
 	}
@@ -71,7 +88,9 @@ export function markAcById(root: string, acId: string, specName?: string): void 
 		details: { spec },
 	});
 
-	console.log(`  ${chalk.green("✓")} AC ${chalk.cyan(acId)} marcado como concluído em ${chalk.cyan(spec)}`);
+	console.log(
+		`  ${chalk.green("✓")} AC ${chalk.cyan(acId)} marcado como concluído em ${chalk.cyan(spec)}`,
+	);
 
 	try {
 		validate(root, { format: "text" });
@@ -93,11 +112,15 @@ function listPendingAction(root: string, specName?: string): void {
 	}
 
 	if (!spec) {
-		console.log(chalk.yellow("Nenhum spec ativo. Use --spec <name> ou tenha um item ativo com spec vinculada."));
+		console.log(
+			chalk.yellow(
+				"Nenhum spec ativo. Use --spec <name> ou tenha um item ativo com spec vinculada.",
+			),
+		);
 		return;
 	}
 
-	const specFile = join(root, ".letra", "specs", spec, "spec.md");
+	const specFile = join(getLetraDir(root), "specs", spec, "spec.md");
 	if (!existsSync(specFile)) {
 		console.log(chalk.red(`Spec file not found: ${specFile}`));
 		return;
@@ -114,16 +137,16 @@ function listPendingAction(root: string, specName?: string): void {
 		for (const ac of pendings) {
 			console.log(`  ${chalk.red("✗")} ${chalk.cyan(ac.id)}: ${ac.text}`);
 		}
-		console.log(chalk.dim(`\nPara marcar um AC: letra ac done <AC-ID>`));
+		console.log(chalk.dim("\nPara marcar um AC: letra ac done <AC-ID>"));
 	}
 }
 
 export default function acCommand() {
-	const cmd = new Command("ac")
-		.description("Gerenciar Acceptance Criteria — marcar como concluído e listar pendentes");
+	const cmd = new Command("ac").description(
+		"Gerenciar Acceptance Criteria — marcar como concluído e listar pendentes",
+	);
 
-	cmd
-		.command("done <ac-id>")
+	cmd.command("done <ac-id>")
 		.option("--spec <name>", "Nome do spec (padrão: spec do item ativo)")
 		.description("Marcar um AC como concluído no spec.md")
 		.action((acId: string, options: { spec?: string }) => {
@@ -131,8 +154,7 @@ export default function acCommand() {
 			markAcById(root, acId, options.spec);
 		});
 
-	cmd
-		.command("list")
+	cmd.command("list")
 		.option("--spec <name>", "Nome do spec (padrão: spec do item ativo)")
 		.description("Listar ACs pendentes de um spec")
 		.action((options: { spec?: string }) => {

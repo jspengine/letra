@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Letra — Setup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #08090a;
+    --surface: #0e0f11;
+    --border: #1d1e22;
+    --text: #e6e8eb;
+    --muted: #7a8194;
+    --accent: #5e6ad2;
+    --accent2: #7b88f0;
+    --success: #22c55e;
+    --radius: 10px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+  }
+  .sidebar {
+    width: 280px;
+    border-right: 1px solid var(--border);
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+  }
+  .main {
+    flex: 1;
+    padding: 48px;
+    max-width: 720px;
+  }
+  .logo {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    white-space: pre;
+    line-height: 1.25;
+    color: #ededed;
+  }
+  .nav {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .nav-item {
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    color: var(--muted);
+  }
+  .nav-item.active {
+    background: #11141a;
+    color: var(--text);
+    font-weight: 500;
+  }
+  h1 { font-size: 26px; font-weight: 600; margin-bottom: 6px; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+  .field {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  input, select {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 2px;
+    font-size: 15px;
+    font-family: var(--font);
+    outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  .hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  button:hover { background: var(--accent2); }
+  button.ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  button.ghost:hover { color: var(--text); }
+  .hidden { display: none; }
+  .review-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .k { color: var(--muted); }
+  .v { font-family: var(--mono); font-size: 12px; }
+  .done-banner {
+    background: linear-gradient(180deg, #0a1420 0%, #08090a 100%);
+    border: 1px solid #14303d;
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 18px;
+  }
+  .done-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 10px 0 6px;
+  }
+  .done-sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  code.inline {
+    background: #000;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 13px;
+    border: 1px solid var(--border);
+  }
+  .check {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: #22c55e22;
+    color: var(--success);
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  .dir-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #0e1117;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-family: var(--mono);
+    margin: 4px 6px 4px 0;
+  }
+  .dir-tag .x { color: var(--muted); cursor: pointer; }
+</style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="logo">LETRA</div>
+    <nav class="nav">
+      <div class="nav-item active" id="nav-1">Projeto</div>
+      <div class="nav-item" id="nav-2">Diretórios</div>
+      <div class="nav-item" id="nav-3">Fluxo</div>
+      <div class="nav-item" id="nav-4">Revisão</div>
+      <div class="nav-item" id="nav-5">Concluir</div>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <!-- STEP 1: Nome -->
+    <div id="step1" class="step-panel">
+      <h1>Nome do projeto</h1>
+      <p class="subtitle">Identificador único no workspace do letra.</p>
+      <div class="field">
+        <label for="projectName">Nome</label>
+        <input id="projectName" placeholder="plataforma-pagamentos" autofocus>
+        <p class="hint">Minúsculas, números e hífens. Ex: meu-app, backend-api</p>
+      </div>
+      <div class="actions">
+        <div></div>
+        <button onclick="go(2)">Continuar →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: Diretórios -->
+    <div id="step2" class="step-panel hidden">
+      <h1>Quais diretórios escanear?</h1>
+      <p class="subtitle">O letra vai procurar repositórios git automaticamente.</p>
+      <div class="field">
+        <label for="dirInput">Adicionar diretório</label>
+        <input id="dirInput" placeholder="C:\projetos\meu-app ou https://github.com/org/repo">
+        <button class="ghost" style="margin-top:12px" onclick="addDir()">+ Adicionar</button>
+        <div id="dirList" style="margin-top:14px"></div>
+        <p class="hint" style="margin-top:10px">Enter adiciona. O tipo (mono/multi/isolado) é detectado automaticamente.</p>
+      </div>
+      <div class="actions">
+        <button class="ghost" onclick="go(1)">← Voltar</button>
+        <button onclick="go(3)">Continuar →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Template + Gates -->
+    <div id="step3" class="step-panel hidden">
+      <h1>Fluxo e regras</h1>
+      <p class="subtitle">Template define os estágios. Gates são bloqueios obrigatórios.</p>
+      <div class="field">
+        <label for="templateSelect">Template</label>
+        <select id="templateSelect" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;color:var(--text);">
+          <option value="sdlc">SDLC — padrão</option>
+          <option value="support">Suporte</option>
+          <option value="infra">Infra</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Gates ativos</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;" id="gatePills">
+          <div class="pill selected" data-v="human-approved-spec" onclick="toggleGate(this)">human-approved-spec</div>
+          <div class="pill selected" data-v="human-approved-code" onclick="toggleGate(this)">human-approved-code</div>
+          <div class="pill" data-v="security-clear" onclick="toggleGate(this)">security-clear</div>
+          <div class="pill" data-v="all-acs-passing" onclick="toggleGate(this)">all-acs-passing</div>
+        </div>
+        <p class="hint" style="margin-top:10px">Clique para ativar/desativar.</p>
+      </div>
+      <div class="actions">
+        <button class="ghost" onclick="go(2)">← Voltar</button>
+        <button onclick="go(4)">Revisar →</button>
+      </div>
+    </div>
+
+    <!-- REVIEW -->
+    <div id="step4" class="step-panel hidden">
+      <h1>Revise antes de criar</h1>
+      <p class="subtitle">O workspace será criado em <code class="inline">~/.letra/workspace/&lt;id&gt;/</code></p>
+      <div class="field">
+        <div id="reviewContent"></div>
+      </div>
+      <div class="actions">
+        <button class="ghost" onclick="go(3)">← Voltar</button>
+        <button onclick="finish()">Criar workspace →</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="step-panel hidden">
+      <div class="done-banner">
+        <div class="check">✓</div>
+        <div class="done-title">Projeto criado com sucesso</div>
+        <div class="done-sub">Agora execute no terminal para começar:</div>
+        <code class="inline">letra flow start --template sdlc</code>
+      </div>
+      <div class="review-row" style="border-top:1px solid var(--border); padding-top:14px; margin-top:4px;">
+        <span class="k">Workspace</span>
+        <span class="v" id="dashWorkspace"></span>
+      </div>
+      <button class="ghost" style="margin-top:24px" onclick="reset()">Criar outro projeto</button>
+    </div>
+  </main>
+
+<style>
+  .pill {
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+    color: var(--muted);
+  }
+  .pill.selected {
+    background: linear-gradient(180deg, #1e2040 0%, #181a2e 100%);
+    border-color: var(--accent);
+    color: var(--text);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+</style>
+<script>
+  let dirs = [];
+  let gates = new Set(['human-approved-spec','human-approved-code']);
+  function $(id){ return document.getElementById(id); }
+  function hideAll(){ document.querySelectorAll('.step-panel').forEach(el=>el.classList.add('hidden')); }
+  function go(n){
+    hideAll();
+    $('step'+n).classList.remove('hidden');
+    ['nav-1','nav-2','nav-3','nav-4','nav-5'].forEach((id,i)=>{
+      const el=$('nav-'+(i+1));
+      el.classList.toggle('active', i+1 <= n);
+    });
+    if(n===4) buildReview();
+  }
+  function addDir(){
+    const v = $('dirInput').value.trim();
+    if(!v) return;
+    dirs.push(v);
+    $('dirInput').value='';
+    renderDirs();
+  }
+  function renderDirs(){
+    $('dirList').innerHTML = dirs.map((t,i)=>
+      `<div class="dir-tag">${t} <span class="x" onclick="removeDir(${i})">×</span></div>`
+    ).join('');
+  }
+  function removeDir(i){ dirs.splice(i,1); renderDirs(); }
+  function toggleGate(el){
+    const v = el.dataset.v;
+    if(gates.has(v)){ gates.delete(v); el.classList.remove('selected'); }
+    else { gates.add(v); el.classList.add('selected'); }
+  }
+  function buildReview(){
+    const t = $('templateSelect');
+    $('reviewContent').innerHTML = [
+      r('Projeto', $('projectName').value),
+      r('Diretórios', dirs.length + (dirs.length===1?' alvo':' alvos')),
+      r('Template', t.options[t.selectedIndex].text),
+      r('Gates', gates.size ? [...gates].join(', ') : 'nenhum'),
+    ].join('');
+  }
+  function r(k,v){ return `<div class="review-row"><span class="k">${k}</span><span class="v">${v}</span></div>`; }
+  function finish(){
+    hideAll();
+    $('dashboard').classList.remove('hidden');
+    $('dashWorkspace').textContent = '~/.letra/workspace/' + ($('projectName').value||'novo') + '/';
+  }
+  function reset(){ dirs=[]; $('projectName').value=''; renderDirs(); go(1); }
+  $('dirInput').addEventListener('keydown', e=>{ if(e.key==='Enter') addDir(); });
+</script>
+</body>
+</html>

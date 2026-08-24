@@ -1,7 +1,9 @@
 import { type ReactNode, createContext, useCallback, useContext, useRef, useState } from "react";
-import { cn } from "./utils";
+import { Button } from "./button";
+import { Icon } from "./icon";
+import type { IconName } from "./icon";
 
-type ToastType = "success" | "error" | "info";
+type ToastType = "success" | "error" | "info" | "agent";
 
 interface ToastAction {
 	label: string;
@@ -26,6 +28,20 @@ interface ToastContextValue {
 	toastWithOptions: (message: string, options?: ToastOptions) => void;
 }
 
+const toastTokenMap: Record<ToastType, string> = {
+	success: "color-success",
+	error: "color-danger",
+	info: "color-info",
+	agent: "color-agent",
+};
+
+const toastIconMap: Record<ToastType, IconName> = {
+	success: "circle-check",
+	error: "circle-x",
+	info: "info",
+	agent: "sparkles",
+};
+
 const ToastContext = createContext<ToastContextValue>({
 	toast: () => {},
 	toastWithOptions: () => {},
@@ -42,7 +58,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 	const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
 	const removeToast = useCallback((id: number) => {
-		setToasts((prev) => prev.filter((t) => t.id !== id));
+		setToasts((prev) => prev.filter((toast) => toast.id !== id));
 		const timer = timersRef.current.get(id);
 		if (timer) {
 			clearTimeout(timer);
@@ -53,8 +69,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 	const addToast = useCallback(
 		(message: string, type: ToastType = "info") => {
 			const id = ++toastId;
-			const toastItem: Toast = { id, message, type };
-			setToasts((prev) => [...prev, toastItem]);
+			setToasts((prev) => [...prev, { id, message, type }]);
 			const timer = setTimeout(() => removeToast(id), 3000);
 			timersRef.current.set(id, timer);
 		},
@@ -64,13 +79,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 	const addToastWithOptions = useCallback(
 		(message: string, options?: ToastOptions) => {
 			const id = ++toastId;
-			const toastItem: Toast = {
-				id,
-				message,
-				type: options?.type ?? "info",
-				action: options?.action,
-			};
-			setToasts((prev) => [...prev, toastItem]);
+			setToasts((prev) => [
+				...prev,
+				{
+					id,
+					message,
+					type: options?.type ?? "info",
+					action: options?.action,
+				},
+			]);
 			const timer = setTimeout(() => removeToast(id), options?.duration ?? 3000);
 			timersRef.current.set(id, timer);
 		},
@@ -80,43 +97,36 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 	return (
 		<ToastContext.Provider value={{ toast: addToast, toastWithOptions: addToastWithOptions }}>
 			{children}
-			<div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-				{toasts.map((t) => (
+			<div className="fixed bottom-4 right-4 z-50 flex flex-col gap-[var(--space-2)]">
+				{toasts.map((toast) => (
 					<div
-						key={t.id}
-						className={cn(
-							"flex items-center gap-3 px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-slide-in-right border max-w-sm",
-						)}
+						key={toast.id}
+						className="flex max-w-sm items-start gap-[var(--space-3)] rounded-[var(--radius-md)] border-[length:var(--border-thin)] px-[var(--space-4)] py-[var(--space-3)] text-body font-medium shadow-lg animate-slide-in-right"
 						style={{
-							background:
-								t.type === "success"
-									? "var(--success)"
-									: t.type === "error"
-										? "var(--error)"
-										: "var(--card)",
-							color:
-								t.type === "info"
-									? "var(--card-foreground)"
-									: "white",
-							borderColor: "var(--border)",
+							background: "var(--color-bg-surface)",
+							color: "var(--color-text-primary)",
+							borderColor: `color-mix(in srgb, var(--${toastTokenMap[toast.type]}) 35%, var(--color-border))`,
 						}}
 					>
-						<span className="flex-1">{t.message}</span>
-						{t.action && (
-							<button
+						<Icon
+							name={toastIconMap[toast.type]}
+							size={18}
+							style={{ color: `var(--${toastTokenMap[toast.type]})` }}
+						/>
+						<span className="flex-1">{toast.message}</span>
+						{toast.action && (
+							<Button
 								type="button"
+								size="sm"
+								variant={toast.type === "error" ? "danger" : "secondary"}
+								className="shrink-0"
 								onClick={() => {
-									t.action!.onClick();
-									removeToast(t.id);
-								}}
-								className="shrink-0 text-xs font-bold px-2 py-1 rounded transition-colors hover:opacity-80"
-								style={{
-									background: t.type === "info" ? "var(--primary)" : "rgba(255,255,255,0.25)",
-									color: t.type === "info" ? "var(--primary-foreground)" : "white",
+									toast.action?.onClick();
+									removeToast(toast.id);
 								}}
 							>
-								{t.action.label}
-							</button>
+								{toast.action.label}
+							</Button>
 						)}
 					</div>
 				))}

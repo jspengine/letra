@@ -1,6 +1,6 @@
 {
 	"name": "@letra-ai/cli",
-	"version": "0.5.3",
+	"version": "0.6.0",
 	"type": "module",
 	"bin": {
 		"letra": "dist/index.js"
@@ -15,10 +15,15 @@
 		"test:watch": "vitest"
 	},
 	"dependencies": {
+		"@letra/types": "*",
+		"@modelcontextprotocol/sdk": "^1.29.0",
 		"chalk": "^5.4.1",
 		"commander": "^12.1.0",
 		"glob": "^11.0.0",
-		"ora": "^9.3.0"
+		"ink": "^7.1.0",
+		"ora": "^9.3.0",
+		"react": "^19.2.7",
+		"zod": "^3.25.76"
 	},
 	"devDependencies": {
 		"tsup": "^8.5.0",

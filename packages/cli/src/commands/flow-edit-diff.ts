@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { type Workflow, loadWorkflow, writeWorkflow } from "./flow-init.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 function now(): string {
 	return new Date().toISOString();
@@ -21,7 +22,7 @@ function incrementVersion(v: string): string {
 }
 
 function loadBackup(root: string, version: string): Workflow | null {
-	const path = join(root, ".letra", `workflow.v${version}.json`);
+	const path = join(getLetraDir(root), `workflow.v${version}.json`);
 	if (!existsSync(path)) return null;
 	try {
 		return JSON.parse(readFileSync(path, "utf-8")) as Workflow;
@@ -39,7 +40,7 @@ function loadVersion(root: string, version: string): Workflow | null {
 }
 
 function getLatestBackupVersion(root: string): string | null {
-	const dir = join(root, ".letra");
+	const dir = getLetraDir(root);
 	if (!existsSync(dir)) return null;
 	const files = readdirSync(dir).filter((f) => f.startsWith("workflow.v") && f.endsWith(".json"));
 	if (files.length === 0) return null;
@@ -56,7 +57,7 @@ function getLatestBackupVersion(root: string): string | null {
 }
 
 function backupFilePath(root: string, version: string): string {
-	return join(root, ".letra", `workflow.v${version}.json`);
+	return join(getLetraDir(root), `workflow.v${version}.json`);
 }
 
 export function flowEdit(root: string, options: { name?: string; desc?: string }): void {

@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@import "../src/index.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+html,
+body,
+#storybook-root {
+  margin: 0;
+  min-height: 100vh;
+}
+
+html,
+body {
+  color: var(--color-text-primary, #ecefef);
+  background: var(--color-bg-base, #0f1115);
+}
+
+#storybook-root {
+  color: var(--color-text-primary, #ecefef);
+  background: var(--color-bg-base, #0f1115);
+}

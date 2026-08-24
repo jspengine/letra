@@ -13,18 +13,16 @@ export function EmptyState({ icon, title, description, action, className }: Empt
 	return (
 		<div
 			className={cn(
-				"flex flex-col items-center justify-center text-center py-12 px-6",
+				"flex flex-col items-center justify-center gap-[var(--layout-inline-gap)] px-[var(--empty-state-padding-inline)] py-[var(--empty-state-padding-block)] text-center",
 				className,
 			)}
 		>
-			{icon && (
-				<div className="mb-4" style={{ color: "var(--muted-foreground)" }}>
-					{icon}
-				</div>
-			)}
-			<h3 className="text-sm font-semibold mb-1">{title}</h3>
+			{icon && <div style={{ color: "var(--color-text-secondary)" }}>{icon}</div>}
+			<h3 className="text-h2" style={{ color: "var(--color-text-primary)" }}>
+				{title}
+			</h3>
 			{description && (
-				<p className="text-sm max-w-sm mb-4" style={{ color: "var(--muted-foreground)" }}>
+				<p className="max-w-sm text-body" style={{ color: "var(--color-text-secondary)" }}>
 					{description}
 				</p>
 			)}

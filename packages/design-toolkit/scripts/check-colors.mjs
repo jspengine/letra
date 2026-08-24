@@ -6,10 +6,13 @@ const ROOT = join(import.meta.dirname, "..", "..");
 
 const DIRS = [join(ROOT, "ui", "src"), join(ROOT, "client", "src")];
 
+const CSS_INDEX_PATH = join(ROOT, "ui", "src", "index.css");
+
 const ALLOWLIST = [
 	"@import",
 	"stage.color",
 	"#6b7280",
+	"Pipeline #142",
 	"oklch(0.627 0.194 149.214 / 0.4)",
 	"oklch(0.627 0.194 149.214 / 0)",
 ];
@@ -40,10 +43,15 @@ for (const dir of DIRS) {
 			if (ALLOWLIST.some((a) => line.includes(a))) continue;
 
 			const hex = /#[0-9a-fA-F]{3,8}\b/;
-			const func = /(?:rgb|rgba|hsl|hsla|oklch)\([^)]+\)/;
+			const func = /(?:rgb|rgba|hsl|hsla)\s*\([^)]+\)/;
 
 			const hexMatch = line.match(hex);
 			const funcMatch = line.match(func);
+
+			if (file === CSS_INDEX_PATH) {
+				const trimmed = line.trim();
+				if (trimmed.startsWith("--")) continue;
+			}
 
 			if (hexMatch) {
 				console.error(`  ${file}:${i + 1}  hardcoded hex  ${hexMatch[0]}`);

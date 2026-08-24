@@ -5,19 +5,13 @@ export function createEventSourceWithReconnect(url: string): EventSource {
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
 
-	function addEventListener(
-		type: string,
-		listener: EventListenerOrEventListenerObject,
-	): void {
+	function addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
 		if (!listeners.has(type)) listeners.set(type, new Set());
-		listeners.get(type)!.add(listener);
+		listeners.get(type)?.add(listener);
 		es.addEventListener(type, listener);
 	}
 
-	function removeEventListener(
-		type: string,
-		listener: EventListenerOrEventListenerObject,
-	): void {
+	function removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
 		listeners.get(type)?.delete(listener);
 		es.removeEventListener(type, listener);
 	}

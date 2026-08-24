@@ -197,4 +197,3 @@ Stack content
 		expect(content).toContain("0 alertas");
 	});
 });
-

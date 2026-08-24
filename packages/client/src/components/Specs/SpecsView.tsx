@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ResolvedSpec } from "@letra/types";
-import { Badge, Button, Input, Textarea, Checkbox, Icon } from "@letra/ui";
-import type { IconName } from "@letra/ui";
+import {
+	Badge,
+	Button,
+	ButtonGroup,
+	ButtonGroupItem,
+	Checkbox,
+	DocumentEditor,
+	Icon,
+	Input,
+	useToast,
+} from "@letra/ui";
 import { cn } from "../../lib/utils";
-import { useToast } from "../Toast/Toast";
-import { Markdown } from "../ui/markdown";
-import { MarkdownView, extractMarkdownSections } from "../ui/MarkdownView";
+import { translateTerm } from "../../lib/term-translations";
 
 type Filter = "all" | "errors" | "warnings" | "valid";
 
@@ -82,11 +89,14 @@ function validateSpecLocally(content: string): SpecValidation {
 	if (acMatch) {
 		const items = [...acMatch[1].matchAll(/-\s+\[(\s|x)\]\s+/g)];
 		if (items.length === 0) {
-			issues.push({ type: "warning", msg: "Acceptance Criteria sem itens de checklist" });
+			issues.push({ type: "warning", msg: "Critérios de aceite sem itens de checklist" });
 		}
 	}
 	if (content.length > 3000) {
-		issues.push({ type: "warning", msg: "Spec excede 3000 chars (deveria ser thin)" });
+		issues.push({
+			type: "warning",
+			msg: "Especificação excede 3000 caracteres; considere manter enxuta",
+		});
 	}
 	return { id: "", issues, valid: issues.filter((i) => i.type === "error").length === 0 };
 }
@@ -106,19 +116,120 @@ function updateSpecName(content: string, name: string): string {
 	return content.replace(/(# Spec:?)\s*.*/, `$1 ${name}`).replace(/\{\{date\}\}/g, today);
 }
 
+function specDate(content: string): string {
+	const m = content.match(/> Updated:\s*(\d{4}-\d{2}-\d{2})/);
+	return m ? m[1] : "";
+}
+
+function formatSpecDate(dateStr: string): string {
+	if (!dateStr) return "";
+	const [y, mo, d] = dateStr.split("-");
+	return `${d}/${mo}/${y}`;
+}
+
+function validationTone(validation?: SpecValidation): "danger" | "warning" | "success" | "neutral" {
+	if (!validation) return "neutral";
+	if (!validation.valid) return "danger";
+	if (validation.issues.some((issue) => issue.type === "warning")) return "warning";
+	return "success";
+}
+
+function SpecStatusIcon({ tone }: { tone: ReturnType<typeof validationTone> }) {
+	if (tone === "danger")
+		return <Icon name="x" size={14} className="text-[var(--color-danger)]" />;
+	if (tone === "warning")
+		return <Icon name="alert-triangle" size={14} className="text-[var(--color-warning)]" />;
+	if (tone === "success")
+		return <Icon name="check" size={14} className="text-[var(--color-success)]" />;
+	return <Icon name="circle" size={14} className="text-[var(--color-text-secondary)]" />;
+}
+
+function SpecListItem({
+	spec,
+	selected,
+	validation,
+	onSelect,
+	onValidate,
+}: {
+	spec: ResolvedSpec;
+	selected: boolean;
+	validation?: SpecValidation;
+	onSelect: () => void;
+	onValidate: () => void;
+}) {
+	const tone = validationTone(validation);
+	const outcome = extractOutcome(spec.content);
+	const date = formatSpecDate(specDate(spec.content));
+	const errorCount = validation?.issues.filter((issue) => issue.type === "error").length ?? 0;
+	const warningCount = validation?.issues.filter((issue) => issue.type === "warning").length ?? 0;
+
+	return (
+		<Button
+			type="button"
+			variant="ghost"
+			onClick={onSelect}
+			onContextMenu={(event) => {
+				event.preventDefault();
+				onValidate();
+			}}
+			aria-pressed={selected}
+			className={cn(
+				"h-auto w-full justify-start rounded-[var(--radius-sm)] border border-transparent px-3 py-3 text-left",
+				"hover:border-[var(--color-border)] hover:bg-[var(--surface-hover)]",
+				selected && "border-[var(--color-border)] bg-[var(--surface-selected)] shadow-sm",
+			)}
+		>
+			<span className="grid min-w-0 flex-1 gap-2">
+				<span className="flex min-w-0 items-start gap-2">
+					<span className="mt-0.5 shrink-0">
+						<SpecStatusIcon tone={tone} />
+					</span>
+					<span className="min-w-0 flex-1">
+						<span className="block truncate text-sm font-semibold text-[var(--color-text-primary)]">
+							{spec.id}
+						</span>
+						{outcome ? (
+							<span className="mt-1 line-clamp-2 block text-xs font-normal leading-snug text-[var(--color-text-secondary)]">
+								{outcome}
+							</span>
+						) : null}
+					</span>
+				</span>
+
+				<span className="flex flex-wrap items-center gap-1.5 pl-6">
+					{validation && validation.issues.length > 0 ? (
+						<Badge variant={validation.valid ? "amber" : "error"} tone="soft">
+							{errorCount} erros · {warningCount} avisos
+						</Badge>
+					) : validation ? (
+						<Badge variant="success">Válida</Badge>
+					) : (
+						<Badge variant="info" tone="outline">
+							Não validada
+						</Badge>
+					)}
+					{date ? (
+						<span className="text-caption tabular-nums text-[var(--color-text-secondary)]">
+							{date}
+						</span>
+					) : null}
+				</span>
+			</span>
+		</Button>
+	);
+}
+
 export default function SpecsView() {
 	const { toast } = useToast();
 	const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
 	const [selected, setSelected] = useState<string | null>(null);
 	const [search, setSearch] = useState("");
 	const [filter, setFilter] = useState<Filter>("all");
-	const [editing, setEditing] = useState(false);
-	const [editContent, setEditContent] = useState("");
-	const [editName, setEditName] = useState("");
 	const [creating, setCreating] = useState(false);
 	const [newName, setNewName] = useState("");
 	const [validations, setValidations] = useState<Map<string, SpecValidation>>(new Map());
 	const validatedRef = useRef<Set<string>>(new Set());
+
 	const load = useCallback(() => {
 		fetch("/api/specs")
 			.then((r) => r.json())
@@ -133,47 +244,30 @@ export default function SpecsView() {
 	}, [load]);
 
 	useEffect(() => {
-		if (specs.length > 0) {
-			const newValidations = new Map(validations);
-			let changed = false;
-			for (const s of specs) {
-				if (!validatedRef.current.has(s.id)) {
-					const validation = validateSpecLocally(s.content);
-					validation.id = s.id;
-					newValidations.set(s.id, validation);
-					validatedRef.current.add(s.id);
-					changed = true;
-				}
-			}
-			if (changed) setValidations(newValidations);
-			if (!selected && !creating) {
-				setSelected(specs[0].id);
+		if (specs.length === 0) return;
+		const newValidations = new Map(validations);
+		let changed = false;
+		for (const s of specs) {
+			if (!validatedRef.current.has(s.id)) {
+				const validation = validateSpecLocally(s.content);
+				validation.id = s.id;
+				newValidations.set(s.id, validation);
+				validatedRef.current.add(s.id);
+				changed = true;
 			}
 		}
-	}, [specs, selected, creating]);
+		if (changed) setValidations(newValidations);
+		if (!selected && !creating) {
+			setSelected(specs[0].id);
+		}
+	}, [specs, selected, creating, validations]);
 
 	const selectedSpec = specs.find((s) => s.id === selected);
-	const specSections = useMemo(
-		() => (selectedSpec ? extractMarkdownSections(selectedSpec.content) : []),
+	const selectedAcs = useMemo(
+		() => (selectedSpec ? parseACs(selectedSpec.content) : []),
 		[selectedSpec],
 	);
-
-	function specDate(content: string): string {
-		const m = content.match(/> Updated:\s*(\d{4}-\d{2}-\d{2})/);
-		return m ? m[1] : "";
-	}
-
-	function formatSpecDate(dateStr: string): string {
-		if (!dateStr) return "";
-		const [y, mo, d] = dateStr.split("-");
-		return `${d}/${mo}/${y}`;
-	}
-
-	function formatSpecDateTime(dateStr: string): string {
-		if (!dateStr) return "";
-		const [y, mo, d] = dateStr.split("-");
-		return `${d}/${mo}/${y} 00:00:00`;
-	}
+	const completedAcs = selectedAcs.filter((ac) => ac.checked).length;
 
 	const sorted = [...specs].sort((a, b) => {
 		const da = specDate(a.content);
@@ -205,41 +299,7 @@ export default function SpecsView() {
 
 	function handleSelect(id: string) {
 		setSelected(id);
-		setEditing(false);
 		setCreating(false);
-	}
-
-	function handleEdit(spec: ResolvedSpec) {
-		setEditContent(spec.content);
-		setEditName(spec.id);
-		setEditing(true);
-		setCreating(false);
-	}
-
-	function handleSave() {
-		if (!selected) return;
-		const content = updateSpecName(editContent, editName);
-		fetch(`/api/specs/${selected}`, {
-			method: "PUT",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ content }),
-		}).then(() => {
-			setEditing(false);
-			load();
-			toast("Spec salva", "success");
-		});
-	}
-
-	function handleDelete(id: string) {
-		if (!window.confirm("Tem certeza que deseja excluir esta spec?")) return;
-		fetch(`/api/specs/${id}`, { method: "DELETE" }).then(() => {
-			if (selected === id) {
-				setSelected(null);
-				setEditing(false);
-			}
-			load();
-			toast("Spec excluída", "success");
-		});
 	}
 
 	function handleValidate(id: string) {
@@ -247,9 +307,11 @@ export default function SpecsView() {
 			.then((r) => r.json())
 			.then((data) => {
 				setValidations((prev) => new Map(prev).set(id, data));
-				const errorCount = data.issues.filter((i: any) => i.type === "error").length;
+				const errorCount = data.issues.filter(
+					(i: { type: string }) => i.type === "error",
+				).length;
 				if (errorCount === 0) {
-					toast("Spec válida!", "success");
+					toast("Spec válida", "success");
 				} else {
 					toast(`${errorCount} erro(s) encontrado(s)`, "error");
 				}
@@ -271,18 +333,9 @@ export default function SpecsView() {
 					setCreating(false);
 					setNewName("");
 					setSelected(name);
-					setEditing(true);
-					setEditContent(content);
-					setEditName(name);
 					load();
 				}
 			});
-	}
-
-	function handleACChange(checked: boolean, line: number) {
-		if (!selected) return;
-		const newContent = toggleAC(editContent, line, checked);
-		setEditContent(newContent);
 	}
 
 	function filterCount(f: Filter): number {
@@ -303,124 +356,83 @@ export default function SpecsView() {
 	}
 
 	return (
-		<div className="flex flex-1 min-h-0 overflow-hidden">
-			<div
-				className="w-[30%] border-r overflow-y-auto flex flex-col shrink-0"
-				style={{ borderColor: "var(--border)" }}
-			>
-				<div
-					className="p-3 flex flex-col gap-2 border-b"
-					style={{ borderColor: "var(--border)" }}
-				>
+		<div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+			<aside className="app-surface-panel flex max-h-[46svh] w-full shrink-0 flex-col overflow-hidden border-b border-l-0 border-r-0 border-t-0 lg:max-h-none lg:w-[24rem] lg:border-b-0 lg:border-r">
+				<div className="grid shrink-0 gap-3 border-b border-border p-4">
 					<div className="flex items-center gap-2">
-						<h2 className="text-sm font-semibold flex-1">Specs</h2>
+						<div className="min-w-0 flex-1">
+							<h2 className="text-sm font-semibold">Especificações</h2>
+							<p className="text-xs text-[var(--color-text-secondary)]">
+								Outcomes, constraints e critérios aprovados.
+							</p>
+						</div>
 						<Button
 							size="sm"
-							variant="default"
+							variant="secondary"
 							onClick={() => {
 								setCreating(true);
-								setEditing(false);
 								setSelected(null);
 							}}
 						>
-							+ Nova
+							<Icon name="plus" size={14} />
+							Nova
 						</Button>
 					</div>
+
 					<Input
-						placeholder="Buscar specs..."
+						placeholder="Buscar especificações..."
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
-						aria-label="Buscar specs"
+						aria-label="Buscar especificações"
 					/>
-					<div
-						className="flex rounded-lg border overflow-hidden"
-						style={{ borderColor: "var(--border)" }}
-					>
-						{(
-							[
-								{
-									id: "all" as Filter,
-									label: "Todas",
-									icon: null as IconName | null,
-								},
-								{ id: "errors" as Filter, label: "Erros", icon: "x" as IconName },
-								{
-									id: "warnings" as Filter,
-									label: "Avisos",
-									icon: "alert-triangle" as IconName,
-								},
-								{
-									id: "valid" as Filter,
-									label: "Válidas",
-									icon: "check" as IconName,
-								},
-							] as const
-						).map((f, i) => {
-							const active = filter === f.id;
-							return (
-								<button
+
+					<div className="overflow-x-auto" tabIndex={0}>
+						<ButtonGroup
+							ariaLabel="Filtrar especificações"
+							className="w-max flex-nowrap lg:w-full"
+						>
+							{(
+								[
+									{ id: "all" as Filter, label: "Todas" },
+									{ id: "errors" as Filter, label: "Erros" },
+									{ id: "warnings" as Filter, label: "Avisos" },
+									{ id: "valid" as Filter, label: "Válidas" },
+								] as const
+							).map((f) => (
+								<ButtonGroupItem
 									key={f.id}
+									selected={filter === f.id}
+									count={filterCount(f.id)}
 									onClick={() => setFilter(f.id)}
-									className={cn(
-										"flex items-center justify-center gap-1 text-xs px-2.5 py-1.5 transition-colors flex-1",
-										i > 0 && "border-l",
-										active ? "font-medium" : "hover:bg-muted/50",
-									)}
-									style={{
-										background: active ? "var(--primary)" : "transparent",
-										color: active
-											? "var(--primary-foreground)"
-											: "var(--muted-foreground)",
-										borderColor: "var(--border)",
-									}}
+									className="justify-center lg:flex-1"
 									title={
 										f.id === "errors"
-											? "Specs com erro de validação"
+											? "Especificações com erro de validação"
 											: f.id === "warnings"
-												? "Specs com avisos"
+												? "Especificações com avisos"
 												: f.id === "valid"
-													? "Specs válidas"
-													: "Todas as specs"
+													? "Especificações válidas"
+													: "Todas as especificações"
 									}
 								>
-									{f.icon && (
-										<Icon
-											name={f.icon}
-											size={14}
-											style={{
-												color: active
-													? "var(--primary-foreground)"
-													: f.id === "errors"
-														? "var(--error)"
-														: f.id === "warnings"
-															? "var(--warning)"
-															: f.id === "valid"
-																? "var(--success)"
-																: undefined,
-											}}
-										/>
-									)}
-									<span className="truncate">{f.label}</span>
-									<span className="opacity-70">{filterCount(f.id)}</span>
-								</button>
-							);
-						})}
+									{f.label}
+								</ButtonGroupItem>
+							))}
+						</ButtonGroup>
 					</div>
 				</div>
-				<div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1">
-					{creating && (
-						<div
-							className="p-3 rounded-lg border"
-							style={{ borderColor: "var(--border)", background: "var(--card)" }}
-						>
+
+				<div className="flex-1 overflow-y-auto p-2" tabIndex={0}>
+					{creating ? (
+						<div className="mb-2 grid gap-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] p-3">
 							<Input
-								placeholder="Nome da spec (ex: auth-flow)"
+								placeholder="Nome da especificação (ex: fluxo-de-autenticacao)"
 								value={newName}
 								onChange={(e) => setNewName(e.target.value)}
-								aria-label="Nome da nova spec"
+								aria-label="Nome da nova especificação"
 								autoFocus
 							/>
-							<div className="flex gap-2 mt-2">
+							<div className="flex gap-2">
 								<Button size="sm" onClick={handleCreate}>
 									Criar
 								</Button>
@@ -433,260 +445,127 @@ export default function SpecsView() {
 								</Button>
 							</div>
 						</div>
-					)}
-					{filtered.map((spec) => {
-						const v = validations.get(spec.id);
-						const hasErrors = v && !v.valid;
-						const hasWarnings = v?.issues.some((i) => i.type === "warning");
-						const isValid = v?.valid && v.issues.length === 0;
-						const date = formatSpecDateTime(specDate(spec.content));
-						const outcome = extractOutcome(spec.content);
-						const truncatedOutcome =
-							outcome.length > 60 ? outcome.slice(0, 60) + "…" : outcome;
-						return (
-							<button
-								key={spec.id}
-								onClick={() => handleSelect(spec.id)}
-								onContextMenu={(e) => {
-									e.preventDefault();
-									handleValidate(spec.id);
-								}}
-								className="text-left px-3 py-2 rounded-lg hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 transition-colors flex flex-col gap-1 group relative"
-								style={{
-									background: selected === spec.id ? "var(--muted)" : undefined,
-								}}
-							>
-								<div className="flex items-center gap-2">
-									{hasErrors ? (
-										<Icon
-											name="x"
-											size={14}
-											style={{ color: "var(--error)" }}
-										/>
-									) : hasWarnings ? (
-										<Icon
-											name="alert-triangle"
-											size={14}
-											style={{ color: "var(--warning)" }}
-										/>
-									) : isValid ? (
-										<Icon
-											name="check"
-											size={14}
-											style={{ color: "var(--success)" }}
-										/>
-									) : (
-										<span
-											className="w-3.5 inline-flex items-center justify-center text-xs"
-											style={{ color: "var(--muted-foreground)" }}
-										>
-											○
-										</span>
-									)}
-									<span className="text-sm font-medium truncate flex-1">
-										{spec.id}
-									</span>
-									{v && v.issues.length > 0 && (
-										<Badge
-											variant={v.valid ? "success" : "warning"}
-											className="shrink-0 text-[10px]"
-										>
-											{v.issues.filter((i) => i.type === "error").length}E{" "}
-											{v.issues.filter((i) => i.type === "warning").length}W
-										</Badge>
-									)}
-									<span
-										className="text-[10px] shrink-0 tabular-nums"
-										style={{ color: "var(--muted-foreground)" }}
-									>
-										{date}
-									</span>
-								</div>
-								{truncatedOutcome && (
-									<div className="flex items-center gap-1 pl-5">
-										<span
-											className="text-[11px] truncate"
-											style={{ color: "var(--muted-foreground)" }}
-										>
-											{truncatedOutcome}
-										</span>
-									</div>
-								)}
-								{outcome && outcome.length > 60 && (
-									<div
-										className="absolute left-full top-0 ml-2 z-50 w-72 px-3 py-2 text-xs rounded-lg shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
-										style={{
-											background: "var(--card)",
-											color: "var(--card-foreground)",
-											border: "1px solid var(--border)",
-										}}
-									>
-										<div
-											className="font-medium mb-1"
-											style={{ color: "var(--muted-foreground)" }}
-										>
-											Outcome
-										</div>
-										{outcome}
-									</div>
-								)}
-							</button>
-						);
-					})}
-					{filtered.length === 0 && !creating && (
-						<p
-							className="text-sm px-3 py-4 text-center"
-							style={{ color: "var(--muted-foreground)" }}
-						>
-							{search ? "Nenhuma spec encontrada" : "Nenhuma spec ainda. Crie uma!"}
-						</p>
-					)}
-				</div>
-			</div>
+					) : null}
 
-			<div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
-				{editing && selectedSpec ? (
-					<div className="animate-fade-in flex flex-col gap-4 p-6 max-w-3xl mx-auto w-full">
-						<div className="flex items-center gap-2">
-							<Input
-								value={editName}
-								onChange={(e) => setEditName(e.target.value)}
-								className="text-lg font-bold flex-1"
-								aria-label="Nome da spec"
+					<div className="grid gap-1">
+						{filtered.map((spec) => (
+							<SpecListItem
+								key={spec.id}
+								spec={spec}
+								selected={selected === spec.id}
+								validation={validations.get(spec.id)}
+								onSelect={() => handleSelect(spec.id)}
+								onValidate={() => handleValidate(spec.id)}
 							/>
-						</div>
-						<div className="flex flex-col gap-2">
-							{parseACs(editContent).map((ac) => (
-								<Checkbox
-									key={ac.line}
-									checked={ac.checked}
-									label={ac.text}
-									onChange={(e) => handleACChange(e.target.checked, ac.line)}
-								/>
-							))}
-						</div>
-						<Textarea
-							value={editContent}
-							onChange={(e) => setEditContent(e.target.value)}
-							className="min-h-[400px]"
-							spellCheck={false}
-						/>
-						<div className="flex gap-2">
-							<Button onClick={handleSave}>Salvar</Button>
-							<Button
-								variant="ghost"
-								onClick={() => {
-									setEditing(false);
-									setEditContent(selectedSpec.content);
-								}}
-							>
-								Cancelar
-							</Button>
-							<div className="flex-1" />
-							<Button variant="outline" onClick={() => handleValidate(selected!)}>
-								Validar
-							</Button>
-							<Button
-								variant="outline"
-								onClick={() => handleDelete(selected!)}
-								style={{ color: "var(--error)" }}
-							>
-								Excluir
-							</Button>
-						</div>
-						{validations.get(selected!) && (
-							<div className="flex flex-col gap-1">
-								{validations.get(selected!)?.issues.map((issue, i) => (
-									<div
-										key={i}
-										className="text-sm px-3 py-2 rounded-lg"
-										style={{
-											background: "var(--muted)",
-											color:
-												issue.type === "error"
-													? "var(--error)"
-													: "var(--warning)",
-										}}
-									>
-										{issue.type === "error" ? "✗" : "⚠"} {issue.msg}
-									</div>
-								))}
-								{validations.get(selected!)?.issues.length === 0 && (
-									<div
-										className="text-sm px-3 py-2 rounded-lg"
-										style={{ color: "var(--success)" }}
-									>
-										✅ Spec válida
-									</div>
-								)}
-							</div>
-						)}
+						))}
 					</div>
-				) : selectedSpec ? (
-					<MarkdownView
-						key={selectedSpec.id}
-						title={selectedSpec.id}
-						description="Spec de funcionalidade — define objetivo, constraints, critérios de aceitação e contexto."
-						sections={specSections}
-						actions={
-							<>
+
+					{filtered.length === 0 && !creating ? (
+						<p className="px-3 py-4 text-center text-sm text-[var(--color-text-secondary)]">
+							{search
+								? "Nenhuma especificação encontrada."
+								: "Nenhuma especificação registrada."}
+						</p>
+					) : null}
+				</div>
+			</aside>
+
+			<section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+				{selectedSpec ? (
+					<>
+						<div className="grid shrink-0 gap-3 border-b border-border px-4 py-3 lg:px-6">
+							<div className="flex flex-wrap items-center gap-2">
+								<Badge variant="info" tone="outline">
+									{selectedAcs.length} critérios
+								</Badge>
+								<Badge
+									variant={
+										completedAcs === selectedAcs.length &&
+										selectedAcs.length > 0
+											? "success"
+											: "amber"
+									}
+								>
+									{completedAcs}/{selectedAcs.length} concluídos
+								</Badge>
 								<Button
 									size="sm"
-									variant="outline"
+									variant="secondary"
 									onClick={() => handleValidate(selectedSpec.id)}
 								>
+									<Icon name="check" size={14} />
 									Validar
 								</Button>
-								<Button size="sm" onClick={() => handleEdit(selectedSpec)}>
-									Editar
-								</Button>
-							</>
-						}
-					>
-						{validations.get(selectedSpec.id) && (
-							<div className="flex flex-wrap gap-2 mb-4">
-								{validations.get(selectedSpec.id)?.issues.map((issue, i) => (
-									<Badge key={i} variant="warning">
-										{issue.type === "error" ? "✗" : "⚠"} {issue.msg}
-									</Badge>
-								))}
-								{validations.get(selectedSpec.id)?.issues.length === 0 && (
-									<Badge variant="success">✅ Válida</Badge>
-								)}
 							</div>
-						)}
-						<div className="flex flex-col gap-2 mb-6">
-							{parseACs(selectedSpec.content).map((ac) => (
-								<Checkbox
-									key={ac.line}
-									checked={ac.checked}
-									label={ac.text}
-									onChange={(e) => {
-										const newContent = toggleAC(
-											selectedSpec.content,
-											ac.line,
-											e.target.checked,
-										);
-										setEditContent(newContent);
-										fetch(`/api/specs/${selectedSpec.id}`, {
-											method: "PUT",
-											headers: { "Content-Type": "application/json" },
-											body: JSON.stringify({ content: newContent }),
-										}).then(() => load());
-									}}
-								/>
-							))}
+
+							{validations.get(selectedSpec.id) ? (
+								<div className="flex flex-wrap gap-2">
+									{validations.get(selectedSpec.id)?.issues.map((issue, i) => (
+										<Badge
+											key={`${issue.msg}-${i}`}
+											variant={issue.type === "error" ? "error" : "amber"}
+											tone="soft"
+										>
+											{issue.type === "error" ? "Erro" : "Aviso"} ·{" "}
+											{issue.msg}
+										</Badge>
+									))}
+									{validations.get(selectedSpec.id)?.issues.length === 0 ? (
+										<Badge variant="success">Especificação válida</Badge>
+									) : null}
+								</div>
+							) : null}
+
+							{selectedAcs.length > 0 ? (
+								<div className="grid max-h-40 gap-2 overflow-y-auto pr-1" tabIndex={0}>
+									{selectedAcs.map((ac) => (
+										<Checkbox
+											key={ac.line}
+											checked={ac.checked}
+											label={ac.text}
+											onChange={(e) => {
+												const newContent = toggleAC(
+													selectedSpec.content,
+													ac.line,
+													e.target.checked,
+												);
+												fetch(`/api/specs/${selectedSpec.id}`, {
+													method: "PUT",
+													headers: { "Content-Type": "application/json" },
+													body: JSON.stringify({ content: newContent }),
+												}).then(() => load());
+											}}
+										/>
+									))}
+								</div>
+							) : null}
 						</div>
-						<Markdown content={selectedSpec.content} />
-					</MarkdownView>
+
+						<DocumentEditor
+							key={selectedSpec.id}
+							file={selectedSpec.id}
+							initialContent={selectedSpec.content}
+							onSave={async (newContent) => {
+								const content = updateSpecName(newContent, selectedSpec.id);
+								await fetch(`/api/specs/${selectedSpec.id}`, {
+									method: "PUT",
+									headers: { "Content-Type": "application/json" },
+									body: JSON.stringify({ content }),
+								});
+								load();
+							}}
+							title={selectedSpec.id}
+							description="Especificação de funcionalidade: define objetivo, restrições, critérios de aceite e contexto."
+						/>
+					</>
 				) : (
-					<div className="flex items-center justify-center flex-1 min-h-0">
-						<p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-							Selecione uma spec ou crie uma nova
+					<div className="flex flex-1 items-center justify-center p-6 text-center">
+						<p className="text-sm text-[var(--color-text-secondary)]">
+							Selecione uma especificação ou crie uma nova.
 						</p>
 					</div>
 				)}
-			</div>
+			</section>
 		</div>
 	);
 }

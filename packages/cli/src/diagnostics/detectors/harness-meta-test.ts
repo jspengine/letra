@@ -22,19 +22,16 @@ export const harnessMetaTestDetector: Detector = {
 		const engineFile = join(rootDir, ENGINE_PATH);
 		const snapshotFile = join(rootDir, SNAPSHOT_PATH);
 
-		const engineContent = existsSync(engineFile)
-			? readFileSync(engineFile, "utf-8")
-			: "";
-		const snapshotContent = existsSync(snapshotFile)
-			? readFileSync(snapshotFile, "utf-8")
-			: "";
+		const engineContent = existsSync(engineFile) ? readFileSync(engineFile, "utf-8") : "";
+		const snapshotContent = existsSync(snapshotFile) ? readFileSync(snapshotFile, "utf-8") : "";
 
 		if (!engineContent) {
 			results.push({
 				id: "harness-meta-test_engine-not-found",
 				type: "error",
 				title: "engine.ts não encontrado",
-				description: "O arquivo engine.ts está ausente — o harness de diagnóstico não pode ser validado.",
+				description:
+					"O arquivo engine.ts está ausente — o harness de diagnóstico não pode ser validado.",
 				certainty: 1,
 				detector: "harness-meta-test",
 			});
@@ -44,7 +41,7 @@ export const harnessMetaTestDetector: Detector = {
 		// AC1: check required detectors are registered
 		const missingDetectors: string[] = [];
 		for (const name of REQUIRED_DETECTORS) {
-			const varName = name.replace(/-([a-z])/g, (_, c) => c.toUpperCase()) + "Detector";
+			const varName = `${name.replace(/-([a-z])/g, (_, c) => c.toUpperCase())}Detector`;
 			if (!engineContent.includes(varName)) {
 				missingDetectors.push(name);
 			}
@@ -53,17 +50,16 @@ export const harnessMetaTestDetector: Detector = {
 		if (missingDetectors.length > 0) {
 			const desc = `Detectores obrigatórios ausentes em engine.ts: ${missingDetectors.join(", ")}.`;
 			results.push({
-				id: `harness-meta-test_missing-detectors`,
+				id: "harness-meta-test_missing-detectors",
 				type: "error",
-				title: `Detectores ausentes no harness`,
+				title: "Detectores ausentes no harness",
 				description: desc,
 				certainty: 1,
 				detector: "harness-meta-test",
 				autoFix: async () => {
 					const addLines = missingDetectors
 						.map((n) => {
-							const varName =
-								n.replace(/-([a-z])/g, (_, c) => c.toUpperCase()) + "Detector";
+							const varName = `${n.replace(/-([a-z])/g, (_, c) => c.toUpperCase())}Detector`;
 							return `// import { ${varName} } from "./detectors/${n}.js"; — TODO: implement`;
 						})
 						.join("\n");
@@ -72,7 +68,7 @@ export const harnessMetaTestDetector: Detector = {
 							{
 								path: ENGINE_PATH,
 								before: engineContent,
-								after: engineContent + "\n" + addLines + "\n",
+								after: `${engineContent}\n${addLines}\n`,
 							},
 						],
 						snapshotId: `harness-meta-test_add-placeholder-${Date.now()}`,
@@ -83,7 +79,9 @@ export const harnessMetaTestDetector: Detector = {
 
 		// AC2: check TTL_MS
 		if (snapshotContent) {
-			const ttlMatch = snapshotContent.match(/TTL_MS\s*=\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)/);
+			const ttlMatch = snapshotContent.match(
+				/TTL_MS\s*=\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)\s*\*\s*(\d+)/,
+			);
 			const expectedValue = 30 * 24 * 60 * 60 * 1000;
 			if (ttlMatch) {
 				const computed =
@@ -94,9 +92,9 @@ export const harnessMetaTestDetector: Detector = {
 					Number(ttlMatch[5]);
 				if (computed !== expectedValue) {
 					results.push({
-						id: `harness-meta-test_ttl-wrong`,
+						id: "harness-meta-test_ttl-wrong",
 						type: "warning",
-						title: `TTL_MS não corresponde a 30 dias`,
+						title: "TTL_MS não corresponde a 30 dias",
 						description: `TTL_MS calculado como ${computed}ms, esperado ${expectedValue}ms (30 dias).`,
 						certainty: 1,
 						detector: "harness-meta-test",
@@ -104,7 +102,7 @@ export const harnessMetaTestDetector: Detector = {
 				}
 			} else {
 				results.push({
-					id: `harness-meta-test_ttl-not-found`,
+					id: "harness-meta-test_ttl-not-found",
 					type: "warning",
 					title: "TTL_MS não encontrado",
 					description: "Não foi possível encontrar a constante TTL_MS em snapshot.ts.",
@@ -116,10 +114,10 @@ export const harnessMetaTestDetector: Detector = {
 			// Also check MAX_SNAPSHOTS >= 20
 			const snapMatch = snapshotContent.match(/MAX_SNAPSHOTS\s*=\s*(\d+)/);
 			if (snapMatch) {
-				const val = parseInt(snapMatch[1], 10);
+				const val = Number.parseInt(snapMatch[1], 10);
 				if (val < 20) {
 					results.push({
-						id: `harness-meta-test_max-snapshots-low`,
+						id: "harness-meta-test_max-snapshots-low",
 						type: "warning",
 						title: `MAX_SNAPSHOTS (${val}) < 20`,
 						description: `MAX_SNAPSHOTS é ${val}, mas o mínimo esperado é 20.`,
@@ -149,7 +147,7 @@ export const harnessMetaTestDetector: Detector = {
 
 			const certMatch = content.match(/certainty:\s*([\d.]+)/);
 			if (!certMatch) continue;
-			const certainty = parseFloat(certMatch[1]);
+			const certainty = Number.parseFloat(certMatch[1]);
 			const hasAutoFix = content.includes("autoFix");
 
 			if (certainty >= 0.9 && !hasAutoFix) {

@@ -16,20 +16,15 @@ export function MarchingBorder({ className }: MarchingBorderProps) {
 			}}
 			aria-hidden="true"
 		>
-			<svg
-				width="100%"
-				height="100%"
-				fill="none"
-				xmlns="http://www.w3.org/2000/svg"
-			>
+			<svg width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
 				<rect
 					x="0"
 					y="0"
 					width="100%"
 					height="100%"
 					rx="8"
-					stroke="var(--live)"
-					strokeWidth="2"
+					stroke="var(--color-primary)"
+					strokeWidth="1.75"
 					strokeDasharray="8 4"
 					className="animate-dash-march"
 				/>

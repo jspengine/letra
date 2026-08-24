@@ -1,7 +1,40 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
+import { resolveActiveFlow } from "../flow-definition/resolve.js";
+import type { ResolvedFlowStage } from "../flow-definition/types.js";
 import { loadWorkflow } from "./flow-init.js";
+import type { Workflow } from "./flow-init.js";
+import { getLetraDir } from "./../workspace/resolver.js";
+
+type BoardStage = Pick<ResolvedFlowStage, "id" | "name" | "order" | "zone">;
+
+export function resolveBoardStages(
+	workflow: Workflow,
+	resolvedStages: BoardStage[] | null | undefined,
+): BoardStage[] {
+	const stages: BoardStage[] = resolvedStages?.length
+		? resolvedStages.map((stage) => ({ ...stage }))
+		: workflow.stages.map((stage) => ({ ...stage }));
+	const knownStageIds = new Set(stages.map((stage) => stage.id));
+
+	for (const item of workflow.items) {
+		if (knownStageIds.has(item.stage)) continue;
+		const workflowStage = workflow.stages.find((stage) => stage.id === item.stage);
+		stages.push(
+			workflowStage
+				? { ...workflowStage }
+				: {
+						id: item.stage,
+						name: item.stage,
+						order: stages.length,
+					},
+		);
+		knownStageIds.add(item.stage);
+	}
+
+	return stages.sort((left, right) => left.order - right.order);
+}
 
 function ageLabel(createdAt: string): string {
 	const created = new Date(createdAt);
@@ -23,9 +56,11 @@ export function flowBoard(root: string): void {
 		console.log(`    ${chalk.cyan("letra flow backlog add <desc>")}\n`);
 	}
 
+	const boardStages = resolveBoardStages(workflow, resolveActiveFlow(root).flow?.stages);
+
 	// Load health alerts for badge display
-	const healthPath = join(root, ".letra", "health-record.json");
-	let itemAlerts = new Map<string, number>();
+	const healthPath = join(getLetraDir(root), "health-record.json");
+	const itemAlerts = new Map<string, number>();
 	try {
 		if (existsSync(healthPath)) {
 			const health = JSON.parse(readFileSync(healthPath, "utf-8"));
@@ -43,10 +78,9 @@ export function flowBoard(root: string): void {
 		// Silently ignore health record errors
 	}
 
-	const stageMap = new Map(workflow.stages.map((s) => [s.id, s]));
 	const itemsByStage = new Map<string, typeof workflow.items>();
 
-	for (const stage of workflow.stages) {
+	for (const stage of boardStages) {
 		itemsByStage.set(stage.id, []);
 	}
 
@@ -55,7 +89,13 @@ export function flowBoard(root: string): void {
 		if (list) list.push(item);
 	}
 
-	for (const stage of workflow.stages) {
+	const backlogStageIds = new Set(
+		boardStages
+			.filter((stage) => stage.zone === "todo" || stage.id === "backlog")
+			.map((stage) => stage.id),
+	);
+
+	for (const stage of boardStages) {
 		const items = itemsByStage.get(stage.id) || [];
 		const count = items.length;
 		const countLabel =
@@ -66,12 +106,6 @@ export function flowBoard(root: string): void {
 					: chalk.white(`${count} items`);
 
 		console.log(`  ${chalk.bold(stage.name)} ${countLabel}`);
-
-		const backlogStageIds = new Set(
-				workflow.stages
-					.filter((s) => s.zone === "todo" || s.id === "backlog")
-					.map((s) => s.id),
-			);
 
 		for (const item of items) {
 			const desc =
@@ -85,9 +119,11 @@ export function flowBoard(root: string): void {
 				const specLink = workflow.specLinks?.[item.spec];
 				if (specLink) {
 					const specPath = join(root, specLink.path);
-					specInfo = existsSync(specPath) ? chalk.cyan(`📎${item.spec}`) : chalk.red(`⚠spec?`);
+					specInfo = existsSync(specPath)
+						? chalk.cyan(`📎${item.spec}`)
+						: chalk.red("⚠spec?");
 				} else {
-					specInfo = chalk.red(`⚠reg?`);
+					specInfo = chalk.red("⚠reg?");
 				}
 			} else if (!backlogStageIds.has(item.stage)) {
 				specInfo = chalk.yellow("⚠sem");

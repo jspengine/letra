@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, watch } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
 import chalk from "chalk";
 import { getHeuristicConfig, loadConfig } from "../config.js";
 import { logEntry } from "../session-log.js";
@@ -10,6 +10,7 @@ import {
 	checkLowConfidence,
 	checkSpecContent,
 } from "../validation/content.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export {
 	checkBinaryCriteria,
@@ -19,7 +20,13 @@ export {
 	checkSpecContent,
 };
 
-type Format = "text" | "github-annotation" | "junit";
+type Format = "text" | "github-annotation" | "junit" | "silent";
+
+export interface ValidationSummary {
+	passed: number;
+	failed: number;
+	warnings: number;
+}
 
 function out(
 	format: Format,
@@ -29,6 +36,7 @@ function out(
 	message: string,
 	note: string,
 ) {
+	if (format === "silent") return;
 	if (format === "github-annotation") {
 		const file = spec ? `.letra/specs/${spec}/spec.md` : "";
 		if (level === "fail") {
@@ -110,6 +118,7 @@ function flushResults(
 	totalFail: number,
 	totalWarning: number,
 ) {
+	if (format === "silent") return;
 	if (format === "junit") {
 		const suites: Array<{
 			name: string;
@@ -146,23 +155,38 @@ function flushResults(
 
 export async function validate(
 	targetPath?: string,
-	options?: { watch?: boolean; format?: string },
-) {
+	options?: { watch?: boolean; format?: string; exit?: boolean; log?: boolean },
+): Promise<ValidationSummary> {
 	const root = resolve(process.cwd(), targetPath || ".");
-	const specsDir = join(root, ".letra", "specs");
+	let specsDir = join(getLetraDir(root), "specs");
 	const fmt: Format = (options?.format as Format) || "text";
 
 	if (!existsSync(specsDir)) {
-		const msg = "Error: .letra/specs/ not found. Run 'letra init' first.";
-		if (fmt === "github-annotation") {
-			console.log(`::error file=,title=Init Required::${msg}`);
-		} else {
-			console.log(chalk.red(msg));
+		let found = false;
+		let search = root;
+		const fsRoot = resolve("/").replace(/\\/g, "/");
+		while (search && search !== fsRoot && search !== dirname(search)) {
+			const candidate = join(search, ".letra", "specs");
+			if (existsSync(candidate)) {
+				specsDir = candidate;
+				found = true;
+				break;
+			}
+			search = dirname(search);
 		}
-		process.exit(1);
+		if (!found) {
+			const msg = "Error: .letra/specs/ not found. Run 'letra init' first.";
+			if (options?.exit === false) throw new Error(msg);
+			if (fmt === "github-annotation") {
+				console.log(`::error file=,title=Init Required::${msg}`);
+			} else {
+				console.log(chalk.red(msg));
+			}
+			process.exit(1);
+		}
 	}
 
-	async function runValidation(): Promise<number> {
+	async function runValidation(): Promise<ValidationSummary> {
 		const config = loadConfig(root);
 		const entries = readdirSync(specsDir, { withFileTypes: true });
 		let totalPass = 0;
@@ -294,7 +318,7 @@ export async function validate(
 								}
 							}
 						} else if (label.includes("Arquivo de Config")) {
-							const configFile = join(root, ".letra", "config.json");
+							const configFile = join(getLetraDir(root), "config.json");
 							if (existsSync(configFile)) {
 								const cfgContent = readFileSync(configFile, "utf-8");
 								try {
@@ -479,14 +503,21 @@ export async function validate(
 
 		flushResults(allResults, fmt, specGroups, totalPass, totalFail, totalWarning);
 
-		logEntry(targetPath || process.cwd(), "validate", `Validação executada — ${totalPass} passed, ${totalFail} failed, ${totalWarning} warnings`, {
-			details: { passed: totalPass, failed: totalFail, warnings: totalWarning },
-		});
+		if (options?.log !== false) {
+			logEntry(
+				root,
+				"validate",
+				`Validação executada — ${totalPass} passed, ${totalFail} failed, ${totalWarning} warnings`,
+				{
+					details: { passed: totalPass, failed: totalFail, warnings: totalWarning },
+				},
+			);
+		}
 
-		return totalFail;
+		return { passed: totalPass, failed: totalFail, warnings: totalWarning };
 	}
 
-	const exitCode = await runValidation();
+	const summary = await runValidation();
 
 	if (options?.watch) {
 		let timer: ReturnType<typeof setTimeout> | null = null;
@@ -496,7 +527,7 @@ export async function validate(
 			if (timer) clearTimeout(timer);
 			timer = setTimeout(async () => {
 				console.clear();
-				const code = await runValidation();
+				await runValidation();
 				console.log(chalk.gray("\nWatching for changes... (Ctrl+C to stop)"));
 			}, 300);
 		});
@@ -510,6 +541,7 @@ export async function validate(
 		});
 		await new Promise(() => {});
 	} else {
-		process.exit(exitCode > 0 ? 1 : 0);
+		if (options?.exit !== false) process.exit(summary.failed > 0 ? 1 : 0);
 	}
+	return summary;
 }

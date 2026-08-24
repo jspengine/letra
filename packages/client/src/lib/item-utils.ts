@@ -5,11 +5,19 @@ export function computeSlug(item: Item, specs: ResolvedSpec[], workflow: Workflo
 		const specLink = workflow.specLinks?.[item.spec];
 		if (specLink) {
 			const name = item.spec;
-			return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+			return name
+				.toLowerCase()
+				.replace(/\s+/g, "-")
+				.replace(/[^a-z0-9-]/g, "");
 		}
 	}
 	const words = item.description.trim().split(/\s+/).filter(Boolean);
-	const base = words.slice(0, 3).join("-").toLowerCase().replace(/[^a-z0-9-]/g, "") || item.id.toLowerCase();
+	const base =
+		words
+			.slice(0, 3)
+			.join("-")
+			.toLowerCase()
+			.replace(/[^a-z0-9-]/g, "") || item.id.toLowerCase();
 	const existing = new Set(
 		workflow.items
 			.filter((it) => it.id !== item.id)
@@ -27,10 +35,20 @@ export function computeSlug(item: Item, specs: ResolvedSpec[], workflow: Workflo
 function computeSlugRaw(item: Item, specs: ResolvedSpec[], workflow: Workflow): string {
 	if (item.spec) {
 		const specLink = workflow.specLinks?.[item.spec];
-		if (specLink) return item.spec.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+		if (specLink)
+			return item.spec
+				.toLowerCase()
+				.replace(/\s+/g, "-")
+				.replace(/[^a-z0-9-]/g, "");
 	}
 	const words = item.description.trim().split(/\s+/).filter(Boolean);
-	return words.slice(0, 3).join("-").toLowerCase().replace(/[^a-z0-9-]/g, "") || item.id.toLowerCase();
+	return (
+		words
+			.slice(0, 3)
+			.join("-")
+			.toLowerCase()
+			.replace(/[^a-z0-9-]/g, "") || item.id.toLowerCase()
+	);
 }
 
 export type ItemType = "FEAT" | "BUG" | "CHORE" | "DOCS" | "TEST";
@@ -49,7 +67,7 @@ export const TYPE_COLORS: Record<ItemType, string> = {
 	BUG: "var(--error)",
 	CHORE: "var(--info)",
 	DOCS: "var(--warning)",
-	TEST: "var(--accent)",
+	TEST: "var(--color-info)",
 };
 
 export function countACs(specContent: string): { done: number; total: number } {
@@ -59,7 +77,10 @@ export function countACs(specContent: string): { done: number; total: number } {
 	for (const line of lines) {
 		const trimmed = line.trim();
 		if (/^- \[ \]/.test(trimmed)) total++;
-		if (/^- \[x\]/i.test(trimmed)) { done++; total++; }
+		if (/^- \[x\]/i.test(trimmed)) {
+			done++;
+			total++;
+		}
 	}
 	return { done, total };
 }
@@ -69,9 +90,7 @@ export function hasSpecOnDisk(specId: string, workflow: Workflow): boolean {
 }
 
 export function resolveSpecName(specId: string, workflow: Workflow): string {
-	return workflow.specLinks?.[specId]
-		? specId
-		: specId;
+	return workflow.specLinks?.[specId] ? specId : specId;
 }
 
 export function stageName(item: Item, workflow: Workflow): string {

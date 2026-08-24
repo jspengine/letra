@@ -1,13 +1,14 @@
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Detector, DiagnosticResult, Snapshot } from "../types.js";
+import { getLetraDir } from "./../../workspace/resolver.js";
 
 const BLOAT_THRESHOLD = 50 * 1024;
 
 export const snapshotBloatDetector: Detector = {
 	name: "snapshot-bloat",
 	async run(rootDir: string): Promise<DiagnosticResult[]> {
-		const snapshotsDir = join(rootDir, ".letra", "snapshots");
+		const snapshotsDir = join(getLetraDir(rootDir), "snapshots");
 		if (!existsSync(snapshotsDir)) return [];
 
 		const snapshots: Snapshot[] = readdirSync(snapshotsDir)

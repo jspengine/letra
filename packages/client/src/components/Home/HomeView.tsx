@@ -1,675 +1,1002 @@
-import { useEffect, useState } from "react";
-import type { Workflow, ResolvedSpec } from "@letra/types";
-import { Card, CardContent, Badge, Icon } from "@letra/ui";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Item, Workflow } from "@letra/types";
+import {
+	ActionPanel,
+	Badge,
+	Button,
+	Card,
+	CardContent,
+	CardHeader,
+	ErrorBanner,
+	Icon,
+	List,
+	ListItem,
+	MetadataRow,
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+	Sheet,
+	SheetClose,
+	SheetContent,
+	SheetDescription,
+	SheetFooter,
+	SheetHeader,
+	SheetTitle,
+	SkeletonCard,
+	Tag,
+} from "@letra/ui";
+import type { ActiveFlowDefinition } from "../../lib/active-flow";
+import { humanGateStageIds, orderedStages, stageAgentLabel } from "../../lib/active-flow";
+import SupervisionInbox, {
+	type ActivityEvent,
+	type AttentionSignal,
+	type FocusedWork,
+	type PendingDecision,
+} from "./SupervisionInbox";
 
 interface Props {
 	workflow: Workflow;
-	onSelectItem: (id: string) => void;
-	onTabChange?: (tab: "specs" | "flow") => void;
-}
-
-interface Decision {
-	name: string;
-	content: string;
+	activeFlow: ActiveFlowDefinition | null;
+	onTabChange?: (tab: "work" | "activity") => void;
 }
 
 interface FocusData {
 	active: boolean;
 	spec?: string;
-	content?: string;
+	itemId?: string;
+}
+
+interface HealthEntry {
+	id?: string;
+	type?: string;
+	title?: string;
+	what?: string;
+	source?: string;
+	where?: string;
+	severity?: string;
+	status?: "novo" | "ciente" | "descartado" | "resolvido";
+	detectedAt?: string;
+	resolvedAt?: string | null;
+	dismissedAt?: string | null;
+	dismissReason?: string | null;
+	acknowledgedAt?: string | null;
+}
+
+interface HealthResponse {
+	summary?: {
+		novo?: number;
+		ciente?: number;
+		resolvido?: number;
+		descartado?: number;
+	};
+	entries?: HealthEntry[];
+	active?: HealthEntry[];
+}
+
+interface DiagnosticSnapshot {
+	id: string;
+	timestamp: string;
+	diagnosticId: string;
+	diagnosticTitle: string;
+	files: { path: string; before: string; after: string }[];
+}
+
+interface DiagnosticSnapshotsResponse {
+	snapshots?: DiagnosticSnapshot[];
+}
+
+interface HealthSummaryView {
+	novo: number;
+	ciente: number;
+	resolvido: number;
+	descartado: number;
+}
+
+interface LogEntry {
+	id: string;
+	timestamp: string;
+	action: string;
+	description: string;
+	itemId?: string | null;
+}
+
+interface LogResponse {
+	entries?: LogEntry[];
+}
+
+function DashboardSkeleton() {
+	return (
+		<div className="flex w-full min-w-0 flex-col gap-[var(--layout-page-gap)] p-[var(--layout-page-padding)]">
+			<SkeletonCard />
+			<div className="ds-panel-grid xl:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)]">
+				<SkeletonCard />
+				<SkeletonCard />
+			</div>
+			<SkeletonCard />
+		</div>
+	);
 }
 
 function daysSince(dateStr: string): number {
 	return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function daysSinceFile(name: string): number {
-	const m = name.match(/^(\d{4}-\d{2}-\d{2})/);
-	if (m) return daysSince(`${m[1]}T00:00:00`);
-	return 0;
+function formatAgeLabel(createdAt: string): string {
+	const days = daysSince(createdAt);
+	if (days === 0) return "Hoje";
+	if (days === 1) return "1 dia";
+	return `${days} dias`;
 }
 
-function resolveTitle(content: string): string {
-	const m = content.match(/^#\s+(.+)/m);
-	return m ? m[1] : "";
-}
-
-function formatDate(name: string): string {
-	const m = name.match(/^(\d{4}-\d{2}-\d{2})/);
-	if (m) {
-		const [y, mo, d] = m[1].split("-");
-		return `${d}/${mo}/${y}`;
+function formatSince(timestamp: string): string {
+	const diff = Date.now() - new Date(timestamp).getTime();
+	const hours = Math.floor(diff / (1000 * 60 * 60));
+	if (hours < 1) {
+		const minutes = Math.max(1, Math.floor(diff / (1000 * 60)));
+		return `há ${minutes}min`;
 	}
-	return name.replace(/\.md$/, "").replace(/-/g, " ");
+	if (hours < 24) return `há ${hours}h`;
+	const days = Math.floor(hours / 24);
+	return `há ${days}d`;
 }
 
-function InfoIcon({ tip }: { tip: string }) {
+function severityLabel(value?: string): "baixa" | "media" | "alta" {
+	if (!value) return "media";
+	const normalized = value.toLowerCase();
+	if (normalized.includes("crit") || normalized.includes("alta") || normalized.includes("high")) {
+		return "alta";
+	}
+	if (normalized.includes("low") || normalized.includes("baixa")) {
+		return "baixa";
+	}
+	return "media";
+}
+
+function signalImpact(severity: "baixa" | "media" | "alta") {
+	if (severity === "alta") return "bloqueia conclusao";
+	if (severity === "media") return "pede investigacao";
+	return "pode aguardar";
+}
+
+function signalNextAction(status?: AttentionSignal["status"]) {
+	if (status === "ciente") return "acompanhar";
+	if (status === "resolvido") return "ver evidencia";
+	if (status === "descartado") return "ver justificativa";
+	return "investigar";
+}
+
+function formatEvidenceDate(timestamp?: string | null) {
+	if (!timestamp) return "nao registrado";
+	try {
+		return new Date(timestamp).toLocaleString("pt-BR", {
+			day: "2-digit",
+			month: "2-digit",
+			year: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+		});
+	} catch {
+		return timestamp;
+	}
+}
+
+function summarizeHealth(health: HealthResponse): HealthSummaryView {
+	const entries = health.entries ?? [];
+	return {
+		novo: health.summary?.novo ?? entries.filter((entry) => entry.status === "novo").length,
+		ciente:
+			health.summary?.ciente ?? entries.filter((entry) => entry.status === "ciente").length,
+		resolvido:
+			health.summary?.resolvido ??
+			entries.filter((entry) => entry.status === "resolvido").length,
+		descartado:
+			health.summary?.descartado ??
+			entries.filter((entry) => entry.status === "descartado").length,
+	};
+}
+
+function findRelatedSnapshot(entry: HealthEntry, snapshots: DiagnosticSnapshot[]) {
+	const candidates = [entry.id, entry.type, entry.source, entry.where, entry.title, entry.what]
+		.filter(Boolean)
+		.map((value) => String(value).toLowerCase());
+
+	return snapshots.find((snapshot) => {
+		const diagnosticId = snapshot.diagnosticId.toLowerCase();
+		const diagnosticTitle = snapshot.diagnosticTitle.toLowerCase();
+		return candidates.some((candidate) => {
+			if (!candidate) return false;
+			return (
+				diagnosticId === candidate ||
+				diagnosticId.includes(candidate) ||
+				diagnosticTitle.includes(candidate)
+			);
+		});
+	});
+}
+
+function normalizeSnapshots(data: DiagnosticSnapshotsResponse): DiagnosticSnapshot[] {
+	return (data.snapshots ?? []).filter((snapshot) => Array.isArray(snapshot.files));
+}
+
+function buildDiffPreview(before: string, after: string, maxLines = 16): string[] {
+	const beforeLines = before.split(/\r?\n/);
+	const afterLines = after.split(/\r?\n/);
+	let start = 0;
+	while (
+		start < beforeLines.length &&
+		start < afterLines.length &&
+		beforeLines[start] === afterLines[start]
+	) {
+		start += 1;
+	}
+
+	let beforeEnd = beforeLines.length - 1;
+	let afterEnd = afterLines.length - 1;
+	while (
+		beforeEnd >= start &&
+		afterEnd >= start &&
+		beforeLines[beforeEnd] === afterLines[afterEnd]
+	) {
+		beforeEnd -= 1;
+		afterEnd -= 1;
+	}
+
+	const removed = beforeLines.slice(start, beforeEnd + 1).slice(0, Math.floor(maxLines / 2));
+	const added = afterLines.slice(start, afterEnd + 1).slice(0, maxLines - removed.length);
+	const preview = [
+		...removed.map((line) => `- ${line || "(linha vazia)"}`),
+		...added.map((line) => `+ ${line || "(linha vazia)"}`),
+	];
+	return preview.length > 0 ? preview : ["Sem diferenca textual entre before/after."];
+}
+
+function mapHealthSignals(
+	health: HealthResponse,
+	snapshots: DiagnosticSnapshot[] = [],
+): AttentionSignal[] {
+	return (health.active ?? []).slice(0, 4).map((entry, index) => {
+		const severity = severityLabel(entry.severity);
+		return {
+			id: entry.id ?? `health-${index}`,
+			title: entry.title ?? entry.what ?? "Alerta ativo",
+			source: entry.source ?? entry.where ?? "health",
+			severity,
+			status: entry.status ?? "novo",
+			detectedAt: entry.detectedAt,
+			impact: signalImpact(severity),
+			nextAction: signalNextAction(entry.status),
+			technicalType: entry.type,
+			relatedSnapshot: findRelatedSnapshot(entry, snapshots),
+		};
+	});
+}
+
+function GovernanceSummary({
+	spec,
+	primaryItem,
+	primaryStageName,
+}: {
+	spec: string;
+	primaryItem?: Item;
+	primaryStageName?: string;
+}) {
 	return (
-		<span className="group relative inline-flex items-center">
-			<Icon
-				name="info"
-				size={14}
-				className="opacity-40 hover:opacity-70 cursor-help transition-opacity"
-				style={{ color: "var(--muted-foreground)" }}
+		<ActionPanel
+			density="compact"
+			tone="info"
+			icon={<Icon name="file-text" size={20} />}
+			title="Governança do workspace"
+			description="Contexto canônico usado para interpretar decisões, evidências e trabalho em foco nesta sessão."
+			meta={
+				<>
+					<Badge icon="file-text" variant="info" tone="soft">
+						{spec}
+					</Badge>
+					<Tag variant="info">contrato ativo</Tag>
+				</>
+			}
+		>
+			<MetadataRow
+				items={[
+					{
+						label: "Spec",
+						value: spec,
+						icon: <Icon name="file-text" size={14} />,
+					},
+					...(primaryItem
+						? [
+								{
+									label: "Item vinculado",
+									value: (
+										<Badge icon="box" variant="info" tone="soft">
+											{primaryItem.id}
+										</Badge>
+									),
+									icon: <Icon name="box" size={14} />,
+								},
+							]
+						: []),
+					...(primaryStageName
+						? [
+								{
+									label: "Estágio",
+									value: <Tag variant="info">{primaryStageName}</Tag>,
+									icon: <Icon name="circle" size={14} />,
+								},
+							]
+						: []),
+				]}
 			/>
-			<div
-				className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block z-50 w-48 px-2 py-1.5 text-xs text-left rounded shadow-lg pointer-events-none"
-				style={{
-					background: "var(--card)",
-					color: "var(--card-foreground)",
-					border: "1px solid var(--border)",
-				}}
-			>
-				{tip}
-			</div>
-		</span>
+		</ActionPanel>
 	);
 }
 
-function cn(...classes: (string | false | null | undefined)[]): string {
-	return classes.filter(Boolean).join(" ");
+function ItemSheet({
+	item,
+	stageName,
+	open,
+	onOpenChange,
+}: {
+	item: Item | null;
+	stageName: string | null;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+}) {
+	if (!item) return null;
+
+	const itemMetadata = [
+		{
+			label: "Estágio",
+			value: <Tag variant="info">{stageName ?? item.stage}</Tag>,
+			icon: <Icon name="circle" size={14} />,
+		},
+		{
+			label: "Idade",
+			value: formatAgeLabel(item.createdAt),
+			icon: <Icon name="clock" size={14} />,
+		},
+		...(item.spec
+			? [
+					{
+						label: "Spec",
+						value: item.spec,
+						icon: <Icon name="file-text" size={14} />,
+					},
+				]
+			: []),
+		...(item.claimedBy
+			? [
+					{
+						label: "Responsável",
+						value: item.claimedBy,
+						icon: <Icon name="user" size={14} />,
+					},
+				]
+			: []),
+	];
+
+	return (
+		<Sheet open={open} onOpenChange={onOpenChange}>
+			<SheetContent>
+				<SheetHeader>
+					<SheetTitle>{item.id}</SheetTitle>
+				</SheetHeader>
+				<div className="grid gap-[var(--layout-panel-gap)] p-[var(--card-padding)]">
+					<Card>
+						<CardContent>
+							<div className="ds-stack">
+								<div className="grid gap-[var(--space-1)]">
+									<div className="ds-cluster">
+										<Badge icon="box" variant="info" tone="soft">
+											{item.id}
+										</Badge>
+										{item.claimedBy ? <Tag>{item.claimedBy}</Tag> : null}
+									</div>
+									<p className="text-body-sm font-medium text-[var(--color-text-primary)]">
+										{item.description || "Sem descrição"}
+									</p>
+								</div>
+								<MetadataRow items={itemMetadata} />
+								{item.tasks && item.tasks.length > 0 ? (
+									<div className="ds-stack">
+										<div className="ds-cluster">
+											<Icon name="list-three" size={16} />
+											<h3 className="font-semibold">Tasks</h3>
+											<Badge variant="info" tone="soft">
+												{item.tasks.length}
+											</Badge>
+										</div>
+										<List>
+											{item.tasks.map((task) => (
+												<ListItem
+													key={task.id}
+													leading={
+														<Icon
+															name={
+																task.done
+																	? "circle-check"
+																	: "circle"
+															}
+															size={18}
+														/>
+													}
+													title={task.description}
+													meta={
+														<Tag
+															variant={task.done ? "success" : "info"}
+														>
+															{task.done ? "feito" : "pendente"}
+														</Tag>
+													}
+												/>
+											))}
+										</List>
+									</div>
+								) : null}
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+				<SheetFooter>
+					<Button variant="secondary" onClick={() => onOpenChange(false)}>
+						Fechar
+					</Button>
+				</SheetFooter>
+			</SheetContent>
+		</Sheet>
+	);
 }
 
-export default function HomeView({ workflow, onSelectItem, onTabChange }: Props) {
-	const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
+function SignalSheet({
+	signal,
+	open,
+	onOpenChange,
+	onAcknowledge,
+	onDismiss,
+	onScan,
+	actionBusy,
+	actionMessage,
+}: {
+	signal: AttentionSignal | null;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onAcknowledge: (signal: AttentionSignal) => void;
+	onDismiss: (signal: AttentionSignal) => void;
+	onScan: () => void;
+	actionBusy?: boolean;
+	actionMessage?: string;
+}) {
+	if (!signal) return null;
+	const diffFile = signal.relatedSnapshot?.files[0];
+	const diffPreview = diffFile ? buildDiffPreview(diffFile.before, diffFile.after) : [];
+
+	return (
+		<Sheet open={open} onOpenChange={onOpenChange}>
+			<SheetContent
+				side="right"
+				className="w-full max-w-[100vw] sm:max-w-3xl lg:max-w-4xl"
+				aria-labelledby="signal-sheet-title"
+				aria-describedby="signal-sheet-description"
+			>
+				<SheetHeader className="items-start gap-4">
+					<div className="grid min-w-0 gap-[var(--space-2)]">
+						<div className="ds-cluster">
+							<Badge
+								icon="alert-triangle"
+								variant={
+									signal.severity === "alta"
+										? "error"
+										: signal.severity === "baixa"
+											? "info"
+											: "amber"
+								}
+								tone="soft"
+							>
+								{signal.impact ?? "pede investigacao"}
+							</Badge>
+							<Tag
+								variant={
+									signal.status === "ciente"
+										? "warning"
+										: signal.status === "resolvido"
+											? "success"
+											: signal.status === "descartado"
+												? "default"
+												: "info"
+								}
+							>
+								{signal.status === "ciente"
+									? "em acompanhamento"
+									: (signal.status ?? "novo")}
+							</Tag>
+						</div>
+						<SheetTitle id="signal-sheet-title" className="break-words leading-tight">
+							{signal.title}
+						</SheetTitle>
+						<SheetDescription id="signal-sheet-description">
+							Evidencia do workspace para entender o impacto antes de agir.
+						</SheetDescription>
+					</div>
+					<SheetClose
+						aria-label="Fechar detalhes do sinal"
+						onClick={() => onOpenChange(false)}
+					>
+						<Icon name="x" size={16} />
+					</SheetClose>
+				</SheetHeader>
+				<div className="grid gap-[var(--layout-panel-gap)] overflow-y-auto p-[var(--card-padding)]">
+					<Card>
+						<CardHeader>
+							<div className="ds-cluster">
+								<Icon name="shield" size={16} />
+								<h3 className="font-semibold">Leitura de supervisao</h3>
+							</div>
+						</CardHeader>
+						<CardContent>
+							<MetadataRow
+								items={[
+									{
+										label: "Impacto",
+										value: signal.impact ?? "pede investigacao",
+										icon: <Icon name="alert-triangle" size={14} />,
+									},
+									{
+										label: "Acao segura",
+										value: signal.nextAction ?? "investigar",
+										icon: <Icon name="activity" size={14} />,
+									},
+									{
+										label: "Detectado em",
+										value: formatEvidenceDate(signal.detectedAt),
+										icon: <Icon name="clock" size={14} />,
+									},
+								]}
+							/>
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader>
+							<div className="ds-cluster">
+								<Icon name="file-text" size={16} />
+								<h3 className="font-semibold">Evidencia</h3>
+							</div>
+						</CardHeader>
+						<CardContent>
+							<List tone="surface">
+								<ListItem
+									leading={<Icon name="alert-circle" size={18} />}
+									title={signal.title}
+									description="Sinal ativo registrado no prontuario de saude do workspace."
+									meta={
+										<>
+											<Tag variant="info">{signal.source}</Tag>
+											<Tag>{signal.id}</Tag>
+										</>
+									}
+									tone={
+										signal.severity === "alta"
+											? "danger"
+											: signal.severity === "baixa"
+												? "info"
+												: "warning"
+									}
+								/>
+							</List>
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader>
+							<div className="ds-cluster">
+								<Icon name="git-branch" size={16} />
+								<h3 className="font-semibold">Comparacao de drift</h3>
+							</div>
+						</CardHeader>
+						<CardContent>
+							{signal.relatedSnapshot ? (
+								<div className="grid gap-[var(--space-4)]">
+									<MetadataRow
+										items={[
+											{
+												label: "Snapshot",
+												value: signal.relatedSnapshot.id,
+												icon: <Icon name="info" size={14} />,
+											},
+											{
+												label: "Registrado em",
+												value: formatEvidenceDate(
+													signal.relatedSnapshot.timestamp,
+												),
+												icon: <Icon name="clock" size={14} />,
+											},
+											{
+												label: "Arquivos",
+												value: signal.relatedSnapshot.files.length,
+												icon: <Icon name="file-text" size={14} />,
+											},
+										]}
+									/>
+									<List tone="surface">
+										{signal.relatedSnapshot.files.map((file) => (
+											<ListItem
+												key={file.path}
+												leading={<Icon name="file-text" size={18} />}
+												title={file.path}
+												description="Arquivo capturado no snapshot do diagnostico."
+												meta={<Tag variant="info">before/after</Tag>}
+											/>
+										))}
+									</List>
+									{diffFile ? (
+										<pre className="max-h-72 max-w-full overflow-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-sunken)] p-[var(--space-3)] text-xs leading-relaxed text-[var(--color-text-primary)]">
+											{diffPreview.join("\n")}
+										</pre>
+									) : null}
+								</div>
+							) : (
+								<List tone="surface">
+									<ListItem
+										leading={<Icon name="info" size={18} />}
+										title="Nenhum snapshot relacionado encontrado."
+										description="Este sinal nao possui comparacao before/after disponivel; a evidencia atual vem do health-record."
+										meta={<Tag>fallback honesto</Tag>}
+										tone="info"
+									/>
+								</List>
+							)}
+						</CardContent>
+					</Card>
+
+					<Collapsible>
+						<Card>
+							<CardHeader className="flex flex-wrap items-center justify-between">
+								<div className="ds-cluster">
+									<Icon name="code" size={16} />
+									<h3 className="font-semibold">Origem tecnica</h3>
+								</div>
+								<CollapsibleTrigger className="rounded-[var(--radius-md)] px-[var(--space-3)] py-[var(--space-2)] text-body-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--surface-hover)]">
+									Mostrar dados
+								</CollapsibleTrigger>
+							</CardHeader>
+							<CollapsibleContent>
+								<CardContent>
+									<MetadataRow
+										items={[
+											{
+												label: "ID",
+												value: signal.id,
+												icon: <Icon name="info" size={14} />,
+											},
+											{
+												label: "Origem",
+												value: signal.source,
+												icon: <Icon name="file-text" size={14} />,
+											},
+											{
+												label: "Tipo",
+												value: signal.technicalType ?? "nao informado",
+												icon: <Icon name="code" size={14} />,
+											},
+											{
+												label: "Urgencia",
+												value: signal.severity,
+												icon: <Icon name="alert-triangle" size={14} />,
+											},
+										]}
+									/>
+								</CardContent>
+							</CollapsibleContent>
+						</Card>
+					</Collapsible>
+				</div>
+				<SheetFooter className="grid gap-[var(--space-2)] sm:flex sm:flex-wrap sm:justify-between">
+					{actionMessage ? (
+						<p className="min-w-0 break-words text-caption text-[var(--color-text-secondary)] sm:mr-auto">
+							{actionMessage}
+						</p>
+					) : null}
+					<Button
+						className="w-full sm:w-auto"
+						variant="secondary"
+						onClick={onScan}
+						disabled={actionBusy}
+					>
+						<Icon name={actionBusy ? "loader-circle" : "activity"} size={14} />
+						Verificar agora
+					</Button>
+					<Button
+						className="w-full sm:w-auto"
+						variant="secondary"
+						onClick={() => onAcknowledge(signal)}
+						disabled={actionBusy || signal.status === "ciente"}
+					>
+						<Icon name="clock" size={14} />
+						Acompanhar
+					</Button>
+					<Button
+						className="w-full sm:w-auto"
+						variant="secondary"
+						onClick={() => onDismiss(signal)}
+						disabled={actionBusy}
+					>
+						<Icon name="circle-x" size={14} />
+						Descartar
+					</Button>
+				</SheetFooter>
+			</SheetContent>
+		</Sheet>
+	);
+}
+
+export default function HomeView({ workflow, activeFlow, onTabChange }: Props) {
 	const [focus, setFocus] = useState<FocusData | null>(null);
-	const [decisions, setDecisions] = useState<Decision[]>([]);
-	const [localStages, setLocalStages] = useState(workflow.stages);
-	const [dragStageIdx, setDragStageIdx] = useState<number | null>(null);
-	const [dragItemId, setDragItemId] = useState<string | null>(null);
-	const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+	const [signals, setSignals] = useState<AttentionSignal[]>([]);
+	const [healthSummary, setHealthSummary] = useState<HealthSummaryView | null>(null);
+	const [signalsAvailable, setSignalsAvailable] = useState(true);
+	const [diagnosticSnapshots, setDiagnosticSnapshots] = useState<DiagnosticSnapshot[]>([]);
+	const [activity, setActivity] = useState<ActivityEvent[]>([]);
+	const [activityAvailable, setActivityAvailable] = useState(true);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(false);
+	const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+	const [selectedSignal, setSelectedSignal] = useState<AttentionSignal | null>(null);
+	const [healthBusy, setHealthBusy] = useState(false);
+	const [healthActionMessage, setHealthActionMessage] = useState("");
+
+	const applyHealth = useCallback(
+		(health: HealthResponse, snapshots: DiagnosticSnapshot[] = []) => {
+			const nextSignals = mapHealthSignals(health, snapshots);
+			setHealthSummary(summarizeHealth(health));
+			setSignals(nextSignals);
+			setSignalsAvailable(true);
+			setSelectedSignal((current) => {
+				if (!current) return current;
+				return nextSignals.find((signal) => signal.id === current.id) ?? null;
+			});
+			return nextSignals;
+		},
+		[],
+	);
+
+	const refreshHealthSignals = useCallback(async () => {
+		const [healthResponse, snapshotsResponse] = await Promise.all([
+			fetch("/api/health"),
+			fetch("/api/diagnostics/snapshots?limit=20"),
+		]);
+		if (!healthResponse.ok) throw new Error("health unavailable");
+		const health = (await healthResponse.json()) as HealthResponse;
+		const snapshots = snapshotsResponse.ok
+			? normalizeSnapshots((await snapshotsResponse.json()) as DiagnosticSnapshotsResponse)
+			: diagnosticSnapshots;
+		setDiagnosticSnapshots(snapshots);
+		return applyHealth(health, snapshots);
+	}, [applyHealth]);
 
 	useEffect(() => {
-		setLocalStages(workflow.stages);
-	}, [workflow.stages]);
+		let cancelled = false;
 
-	useEffect(() => {
-		fetch("/api/specs")
-			.then((r) => r.json())
-			.then((data) => {
-				if (Array.isArray(data)) setSpecs(data);
-			})
-			.catch(() => {});
-		fetch("/api/focus")
-			.then((r) => r.json())
-			.then((data) => setFocus(data))
-			.catch(() => {});
-		fetch("/api/context?file=decisions")
-			.then((r) => r.json())
-			.then((data) => {
-				if (Array.isArray(data)) setDecisions(data);
-			})
-			.catch(() => {});
-	}, []);
+		async function load() {
+			setLoading(true);
+			setError(false);
 
-	const totalItems = workflow.items.length;
-	const doingItems = workflow.items.filter((it) => {
-		const st = workflow.stages.find((s) => s.id === it.stage);
-		return (
-			st?.zone === "doing" ||
-			(!st?.zone &&
-				workflow.stages.indexOf(st!) > 0 &&
-				workflow.stages.indexOf(st!) < workflow.stages.length - 1)
-		);
-	}).length;
-	const doneItems = workflow.items.filter((it) => {
-		const st = workflow.stages.find((s) => s.id === it.stage);
-		return (
-			st?.zone === "done" ||
-			(!st?.zone && workflow.stages.indexOf(st!) === workflow.stages.length - 1)
-		);
-	}).length;
-	const staleItems = workflow.items.filter((it) => daysSince(it.createdAt) > 7).length;
+			const [focusResult, healthResult, snapshotsResult, logResult] =
+				await Promise.allSettled([
+					fetch("/api/focus").then((response) => response.json()),
+					fetch("/api/health").then((response) => response.json()),
+					fetch("/api/diagnostics/snapshots?limit=20").then((response) =>
+						response.json(),
+					),
+					fetch("/api/log?limit=4").then((response) => response.json()),
+				]);
 
-	const specValid = specs.filter(
-		(s) =>
-			/## Outcome/.test(s.content) &&
-			/## Constraints/.test(s.content) &&
-			/## Acceptance Criteria/.test(s.content),
-	).length;
-	const specNoDate = specs.filter(
-		(s) => !/> Updated:\s*\d{4}-\d{2}-\d{2}/.test(s.content),
-	).length;
-	const specDrift = specs.filter((s) => {
-		const m = s.content.match(/> Updated:\s*(\d{4}-\d{2}-\d{2})/);
-		return m ? daysSince(m[1]) > 7 : false;
-	}).length;
+			if (cancelled) return;
 
-	const recentDecisions = decisions.slice(0, 4);
+			if (focusResult.status === "fulfilled") {
+				setFocus(focusResult.value);
+			}
 
-	function handleStageDragStart(idx: number) {
-		setDragStageIdx(idx);
-	}
+			const snapshots =
+				snapshotsResult.status === "fulfilled"
+					? normalizeSnapshots(snapshotsResult.value as DiagnosticSnapshotsResponse)
+					: [];
+			setDiagnosticSnapshots(snapshots);
 
-	function handleStageDragOver(e: React.DragEvent, idx: number) {
-		e.preventDefault();
-		if (dragStageIdx === null || dragStageIdx === idx) return;
-		setLocalStages((prev) => {
-			const next = [...prev];
-			const [moved] = next.splice(dragStageIdx, 1);
-			next.splice(idx, 0, moved);
-			return next.map((s, i) => ({ ...s, order: i }));
-		});
-		setDragStageIdx(idx);
-	}
+			if (healthResult.status === "fulfilled") {
+				const health = healthResult.value as HealthResponse;
+				applyHealth(health, snapshots);
+			} else {
+				setSignals([]);
+				setHealthSummary(null);
+				setSignalsAvailable(false);
+			}
 
-	function handleStageDragEnd() {
-		if (dragStageIdx !== null) {
-			const reordered = localStages.map((s, i) => ({ ...s, order: i }));
-			fetch("/api/workflow", {
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ stages: reordered }),
-			}).catch(() => {});
+			if (logResult.status === "fulfilled") {
+				const logs = logResult.value as LogResponse;
+				setActivity(
+					(logs.entries ?? []).slice(0, 4).map((entry) => ({
+						id: entry.id,
+						action: entry.action,
+						description: entry.description,
+						timestamp: entry.timestamp,
+						itemId: entry.itemId ?? null,
+					})),
+				);
+				setActivityAvailable(true);
+			} else {
+				setActivity([]);
+				setActivityAvailable(false);
+			}
+
+			if (
+				focusResult.status === "rejected" &&
+				healthResult.status === "rejected" &&
+				logResult.status === "rejected"
+			) {
+				setError(true);
+			}
+
+			setLoading(false);
 		}
-		setDragStageIdx(null);
+
+		load();
+		return () => {
+			cancelled = true;
+		};
+	}, [applyHealth]);
+
+	const stages = useMemo(() => orderedStages(workflow, activeFlow), [activeFlow, workflow]);
+
+	const decisions = useMemo<PendingDecision[]>(() => {
+		const gateStages = humanGateStageIds(workflow, activeFlow);
+
+		return workflow.items
+			.filter((item) => gateStages.has(item.stage))
+			.map((item) => ({
+				itemId: item.id,
+				title: item.description || item.id,
+				stage: stages.find((stage) => stage.id === item.stage)?.name ?? item.stage,
+				actor: stageAgentLabel(item.stage, workflow, activeFlow),
+				since: formatSince(item.createdAt),
+			}));
+	}, [activeFlow, stages, workflow]);
+
+	const selectedItem = selectedItemId
+		? (workflow.items.find((item) => item.id === selectedItemId) ?? null)
+		: null;
+	const selectedStageName = selectedItem
+		? (stages.find((stage) => stage.id === selectedItem.stage)?.name ?? null)
+		: null;
+	const primaryItemId = focus?.itemId ?? workflow.primaryItemId ?? workflow.items[0]?.id;
+	const primaryItem = primaryItemId
+		? workflow.items.find((item) => item.id === primaryItemId)
+		: undefined;
+	const primaryStageName = primaryItem
+		? (stages.find((stage) => stage.id === primaryItem.stage)?.name ?? primaryItem.stage)
+		: undefined;
+	const primaryWork: FocusedWork | undefined = primaryItem
+		? {
+				id: primaryItem.id,
+				title: primaryItem.description || primaryItem.id,
+				description: "Resumo operacional do item que está no centro da supervisão agora.",
+				stage: primaryStageName,
+				spec: primaryItem.spec ?? focus?.spec,
+				ageLabel: formatAgeLabel(primaryItem.createdAt),
+				actor:
+					primaryItem.claimedBy ??
+					stageAgentLabel(primaryItem.stage, workflow, activeFlow),
+			}
+		: undefined;
+
+	function openItem(itemId: string) {
+		setSelectedItemId(itemId);
+		window.dispatchEvent(new CustomEvent("letra-open-item", { detail: itemId }));
 	}
 
-	function handleItemDragStart(e: React.DragEvent, itemId: string) {
-		e.dataTransfer.setData("text/plain", itemId);
-		e.dataTransfer.effectAllowed = "move";
-		setDragItemId(itemId);
+	async function postHealthAction(
+		path: "/api/health/scan" | "/api/health/ack" | "/api/health/dismiss",
+		body?: Record<string, string>,
+	) {
+		setHealthBusy(true);
+		setHealthActionMessage("Atualizando saude do workspace...");
+		try {
+			const response = await fetch(path, {
+				method: "POST",
+				headers: body ? { "Content-Type": "application/json" } : undefined,
+				body: body ? JSON.stringify(body) : undefined,
+			});
+			if (!response.ok) throw new Error("health action failed");
+			const nextSignals = await refreshHealthSignals();
+			setHealthActionMessage("Saude do workspace atualizada.");
+			return nextSignals;
+		} catch {
+			setHealthActionMessage("Nao foi possivel atualizar a saude agora.");
+			return null;
+		} finally {
+			setHealthBusy(false);
+		}
 	}
 
-	function handleItemDragEnd() {
-		setDragItemId(null);
-		setDragOverStage(null);
+	async function scanHealth() {
+		await postHealthAction("/api/health/scan");
 	}
 
-	function handleStageDrop(e: React.DragEvent, targetStageId: string) {
-		e.preventDefault();
-		setDragOverStage(null);
-		const itemId = e.dataTransfer.getData("text/plain");
-		if (!itemId) return;
-		const item = workflow.items.find((it) => it.id === itemId);
-		if (!item || item.stage === targetStageId) return;
-		fetch(`/api/items/${itemId}`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ stage: targetStageId }),
-		}).then(() => {
-			onSelectItem(itemId);
-		});
+	async function acknowledgeSignal(signal: AttentionSignal) {
+		const nextSignals = await postHealthAction("/api/health/ack", { id: signal.id });
+		if (nextSignals) {
+			setSelectedSignal(nextSignals.find((entry) => entry.id === signal.id) ?? null);
+		}
+	}
+
+	async function dismissSignal(signal: AttentionSignal) {
+		const nextSignals = await postHealthAction("/api/health/dismiss", { id: signal.id });
+		if (nextSignals) {
+			setSelectedSignal(null);
+		}
+	}
+
+	if (loading) {
+		return <DashboardSkeleton />;
 	}
 
 	return (
-		<div className="flex flex-col flex-1 min-h-0">
-			<div className="flex-1 overflow-y-auto p-6">
-				<div className="flex flex-col gap-6">
-					<div>
-						<h1 className="text-2xl font-bold">{workflow.name}</h1>
-						<p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
-							{workflow.description || "AI Memory & Spec Hub"}
-						</p>
-					</div>
+		<div className="flex min-h-0 flex-1 flex-col">
+			<div className="flex-1 overflow-y-auto">
+				<div className="flex w-full min-w-0 flex-col gap-[var(--layout-page-gap)] p-[var(--layout-page-padding)]">
+					{error ? (
+						<ErrorBanner onRetry={() => window.location.reload()}>
+							Não foi possível carregar a supervisão agora.
+						</ErrorBanner>
+					) : null}
 
-					<div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-						<Card className="p-4 flex flex-col items-center text-center gap-1 transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 border-muted/60">
-							<span
-								className="text-xs font-medium uppercase tracking-wider flex items-center gap-1.5"
-								style={{ color: "var(--muted-foreground)" }}
-							>
-								<Icon name="specs" size={14} /> Specs
-								<InfoIcon tip="Total de thin specs. Válidas = possuem Outcome, Constraints e Acceptance Criteria. Incompletas = faltam seções obrigatórias." />
-							</span>
-							<span className="text-2xl font-bold">{specs.length}</span>
-							<span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-								{specValid} válidas · {specs.length - specValid} incompletas
-							</span>
-						</Card>
-						<Card className="p-4 flex flex-col items-center text-center gap-1 transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 border-muted/60">
-							<span
-								className="text-xs font-medium uppercase tracking-wider flex items-center gap-1.5"
-								style={{ color: "var(--muted-foreground)" }}
-							>
-								<Icon name="alert-circle" size={14} /> Drift
-								<InfoIcon tip="Specs com data de atualização há mais de 7 dias — indicam desalinhamento entre spec e implementação." />
-							</span>
-							<span
-								className="text-2xl font-bold"
-								style={{
-									color:
-										specDrift > 0
-											? "var(--warning)"
-											: specNoDate > 0
-												? "var(--muted-foreground)"
-												: "var(--success)",
-								}}
-							>
-								{specDrift > 0
-									? specDrift
-									: specNoDate > 0
-										? `${specNoDate}?`
-										: "0"}
-							</span>
-							<span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-								{specDrift > 0
-									? `${specDrift} desatualizadas há 7d+`
-									: specNoDate > 0
-										? `${specNoDate} sem data`
-										: "todas atualizadas"}
-							</span>
-						</Card>
-						<Card className="p-4 flex flex-col items-center text-center gap-1 transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 border-muted/60">
-							<span
-								className="text-xs font-medium uppercase tracking-wider flex items-center gap-1.5"
-								style={{ color: "var(--muted-foreground)" }}
-							>
-								<Icon name="star" size={14} /> Foco
-								<InfoIcon tip="Spec ativa sendo trabalhada agora. Definida via letra focus." />
-							</span>
-							{focus?.active ? (
-								<span className="text-lg font-semibold truncate max-w-full">
-									{focus.spec}
-								</span>
-							) : (
-								<span
-									className="text-2xl font-bold"
-									style={{ color: "var(--muted-foreground)" }}
-								>
-									—
-								</span>
-							)}
-							<span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-								{focus?.active
-									? focus.content
-											?.split("\n")
-											.find((l) => l.includes("**Outcome**"))
-											?.replace(/\*\*/g, "")
-											.replace("Outcome:", "")
-											.trim() || "Em foco"
-									: "nenhum foco definido"}
-							</span>
-						</Card>
-						<Card className="p-4 flex flex-col items-center text-center gap-1 transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 border-muted/60">
-							<span
-								className="text-xs font-medium uppercase tracking-wider flex items-center gap-1.5"
-								style={{ color: "var(--muted-foreground)" }}
-							>
-								<Icon name="check-circle" size={14} /> Health
-								<InfoIcon tip="Itens parados há mais de 7 dias no pipeline. Stale = número de itens esquecidos. Healthy = nenhum item parado." />
-							</span>
-							<Badge variant={staleItems > 0 ? "warning" : "success"}>
-								{staleItems > 0 ? `${staleItems} stale` : "healthy"}
-							</Badge>
-							<span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-								{doneItems} done (7d) · {doingItems} in progress
-							</span>
-						</Card>
-					</div>
+					<SupervisionInbox
+						decisions={decisions}
+						signals={signals}
+						healthSummary={healthSummary ?? undefined}
+						activity={activity}
+						signalsAvailable={signalsAvailable}
+						activityAvailable={activityAvailable}
+						primaryItemId={primaryItemId}
+						primaryWork={primaryWork}
+						onReviewDecision={openItem}
+						onOpenItem={openItem}
+						onOpenActivity={() => onTabChange?.("activity")}
+						onOpenWork={() => onTabChange?.("work")}
+						onOpenSignal={setSelectedSignal}
+						onScanHealth={scanHealth}
+						healthBusy={healthBusy}
+					/>
 
-					<div className="flex flex-col gap-2">
-						<h2 className="text-sm font-semibold flex items-center gap-2">
-							Pipeline
-							<span
-								className="text-xs font-normal"
-								style={{ color: "var(--muted-foreground)" }}
-							>
-								(arraste stages para reordenar, itens entre colunas para mover)
-							</span>
-							<button
-								onClick={() => onTabChange?.("flow")}
-								className="text-xs text-primary hover:underline font-normal ml-auto"
-							>
-								[ver fluxo completo]
-							</button>
-						</h2>
-						<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-							{localStages.map((stage, i) => {
-								const stageItems = workflow.items.filter(
-									(it) => it.stage === stage.id,
-								);
-								const isDoing =
-									stage.zone === "doing" ||
-									(i > 0 && i < workflow.stages.length - 1);
-								const isOver = dragOverStage === stage.id;
-								const miniItems = stageItems.slice(0, 3);
-								return (
-									<Card
-										key={stage.id}
-										draggable
-										onDragStart={() => handleStageDragStart(i)}
-										onDragOver={(e) => {
-											e.preventDefault();
-											if (dragItemId) {
-												setDragOverStage(stage.id);
-											} else {
-												handleStageDragOver(e, i);
-											}
-										}}
-										onDragEnd={handleStageDragEnd}
-										onDrop={(e) => {
-											if (dragItemId) {
-												handleStageDrop(e, stage.id);
-											}
-										}}
-										className={cn(
-											"p-3 transition-all duration-200 border-muted/60",
-											"hover:shadow-sm hover:-translate-y-0.5",
-											isDoing && "ring-1 ring-primary/10",
-											dragStageIdx === i && "opacity-40",
-											isOver && dragItemId && "ring-2 ring-primary/40",
-										)}
-										style={
-											stage.color
-												? { borderTop: `2px solid ${stage.color}80` }
-												: undefined
-										}
-									>
-										<CardContent className="p-0 flex flex-col gap-2">
-											<div className="flex items-center gap-1.5 text-xs">
-												<span
-													className="w-2 h-2 rounded-full shrink-0"
-													style={{
-														background:
-															stage.color ??
-															(stage.zone === "todo"
-																? "var(--primary)"
-																: stage.zone === "done"
-																	? "var(--success)"
-																	: "var(--warning)"),
-													}}
-												/>
-												{stage.color && (
-													<span
-														className="w-3 h-0.5 rounded shrink-0"
-														style={{ background: `${stage.color}40` }}
-													/>
-												)}
-												<span className="truncate font-medium">
-													{stage.name}
-												</span>
-												<span className="font-bold ml-auto">
-													{stageItems.length}
-												</span>
-											</div>
-											<div className="flex flex-col gap-1 min-h-[24px]">
-												{miniItems.length === 0 && (
-													<div
-														className="flex items-center justify-center h-6 rounded border border-dashed"
-														style={{ borderColor: "var(--border)" }}
-													>
-														<span
-															className="text-[10px]"
-															style={{
-																color: "var(--muted-foreground)",
-															}}
-														>
-															—
-														</span>
-													</div>
-												)}
-												{miniItems.map((it) => {
-													const days = daysSince(it.createdAt);
-													return (
-														<div
-															key={it.id}
-															draggable
-															onDragStart={(e) =>
-																handleItemDragStart(e, it.id)
-															}
-															onDragEnd={handleItemDragEnd}
-															onClick={() => onTabChange?.("flow")}
-															className={cn(
-																"flex items-center gap-1 px-1.5 py-1 rounded cursor-grab active:cursor-grabbing text-xs transition-all border",
-																"hover:shadow-sm hover:-translate-y-0.5",
-																dragItemId === it.id &&
-																	"opacity-40",
-																stage.color
-																	? "border-transparent"
-																	: "border-border/50",
-															)}
-															style={{
-																background: stage.color
-																	? `${stage.color}12`
-																	: "var(--muted)",
-																borderLeft: stage.color
-																	? `2px solid ${stage.color}60`
-																	: undefined,
-															}}
-														>
-															<Icon
-																name="list-three"
-																size={10}
-																className="opacity-30 shrink-0"
-															/>
-															<span className="truncate flex-1">
-																{it.id}
-															</span>
-															<span
-																className="shrink-0 tabular-nums"
-																style={{
-																	color:
-																		days <= 2
-																			? "var(--muted-foreground)"
-																			: days <= 7
-																				? "var(--warning)"
-																				: "var(--error)",
-																}}
-															>
-																{days}d
-															</span>
-														</div>
-													);
-												})}
-												{stageItems.length > 3 && (
-													<button
-														onClick={() => onTabChange?.("flow")}
-														className="text-[10px] text-primary hover:underline text-left"
-													>
-														+{stageItems.length - 3} mais
-													</button>
-												)}
-											</div>
-										</CardContent>
-									</Card>
-								);
-							})}
-						</div>
-					</div>
-
-					<div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-						<div className="lg:col-span-2 xl:col-span-2 flex flex-col gap-4">
-							<div className="flex flex-col gap-2">
-								<div className="flex items-center justify-between">
-									<h2 className="text-sm font-semibold flex items-center gap-1.5">
-										<Icon name="specs" size={14} /> Specs Recentes
-									</h2>
-									<button
-										onClick={() => onTabChange?.("specs")}
-										className="text-xs text-primary hover:underline"
-									>
-										[ver todas]
-									</button>
-								</div>
-								<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-									{[...specs]
-										.sort((a, b) => {
-											const da = a.content.match(
-												/> Updated:\s*(\d{4}-\d{2}-\d{2})/,
-											);
-											const db = b.content.match(
-												/> Updated:\s*(\d{4}-\d{2}-\d{2})/,
-											);
-											const ta = da ? new Date(da[1]).getTime() : 0;
-											const tb = db ? new Date(db[1]).getTime() : 0;
-											return tb - ta;
-										})
-										.slice(0, 4)
-										.map((spec) => {
-											const hasOutcome = /## Outcome/.test(spec.content);
-											const hasAC = /## Acceptance Criteria/.test(
-												spec.content,
-											);
-											const acDone = (spec.content.match(/-\s+\[x\]/g) || [])
-												.length;
-											const acTotal = (
-												spec.content.match(/-\s+\[(\s|x)\]/g) || []
-											).length;
-											const pct =
-												acTotal > 0
-													? Math.round((acDone / acTotal) * 100)
-													: 0;
-											return (
-												<Card
-													key={spec.id}
-													className="p-3 transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 border-muted/60"
-												>
-													<CardContent className="p-0">
-														<div className="flex items-center gap-2">
-															<span className="text-sm font-medium truncate flex-1">
-																{spec.id}
-															</span>
-															<Badge
-																variant={
-																	hasOutcome && hasAC
-																		? "success"
-																		: "warning"
-																}
-																className="shrink-0"
-															>
-																{pct}%
-															</Badge>
-														</div>
-														<div
-															className="flex items-center gap-2 mt-1 text-xs"
-															style={{
-																color: "var(--muted-foreground)",
-															}}
-														>
-															<span className="flex items-center gap-1">
-																<Icon
-																	name="check"
-																	size={14}
-																	style={{
-																		color:
-																			hasOutcome && hasAC
-																				? "var(--success)"
-																				: "var(--warning)",
-																	}}
-																/>
-																{acTotal} ACs
-															</span>
-															<span>
-																·{" "}
-																{hasOutcome
-																	? "completa"
-																	: "rascunho"}
-															</span>
-														</div>
-													</CardContent>
-												</Card>
-											);
-										})}
-									{specs.length === 0 && (
-										<p
-											className="text-sm"
-											style={{ color: "var(--muted-foreground)" }}
-										>
-											Nenhuma spec ainda.
-										</p>
-									)}
-								</div>
-							</div>
-						</div>
-
-						<div className="flex flex-col gap-4">
-							<div className="flex flex-col gap-2">
-								<h2 className="text-sm font-semibold flex items-center gap-1.5">
-									<Icon name="context" size={14} /> Decisões Recentes
-								</h2>
-								{recentDecisions.length === 0 ? (
-									<p
-										className="text-sm"
-										style={{ color: "var(--muted-foreground)" }}
-									>
-										Nenhuma decisão registrada.
-									</p>
-								) : (
-									<div className="flex flex-col gap-2">
-										{recentDecisions.map((d) => (
-											<Card
-												key={d.name}
-												className="p-3 transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 border-muted/60"
-											>
-												<CardContent className="p-0">
-													<div
-														className="text-xs"
-														style={{ color: "var(--muted-foreground)" }}
-													>
-														{formatDate(d.name)}
-													</div>
-													<div className="text-sm font-medium truncate">
-														{resolveTitle(d.content) || d.name}
-													</div>
-												</CardContent>
-											</Card>
-										))}
-									</div>
-								)}
-								{decisions.length > 4 && (
-									<button className="text-xs text-primary hover:underline self-start">
-										+{decisions.length - 4} mais
-									</button>
-								)}
-							</div>
-						</div>
-
-						<div className="flex flex-col gap-2">
-							<h2 className="text-sm font-semibold flex items-center gap-1.5">
-								<Icon name="flow" size={14} /> Métricas
-							</h2>
-							<Card className="p-3 transition-all duration-200 hover:shadow-sm border-muted/60">
-								<CardContent className="p-0 flex flex-col gap-1">
-									{workflow.stages.map((stage) => {
-										const items = workflow.items.filter(
-											(it) => it.stage === stage.id,
-										);
-										const avg =
-											items.length > 0
-												? Math.round(
-														(items.reduce(
-															(acc, it) =>
-																acc + daysSince(it.createdAt),
-															0,
-														) /
-															items.length) *
-															10,
-													) / 10
-												: 0;
-										const max =
-											items.length > 0
-												? Math.max(
-														...items.map((it) =>
-															daysSince(it.createdAt),
-														),
-													)
-												: 0;
-										return (
-											<div
-												key={stage.id}
-												className="flex items-center gap-2 text-xs py-1 border-b last:border-0 transition-colors duration-150 hover:bg-primary/5"
-												style={{ borderColor: "var(--border)" }}
-											>
-												<span className="w-16 shrink-0">{stage.name}</span>
-												<span
-													className="flex-1"
-													style={{ color: "var(--muted-foreground)" }}
-												>
-													{items.length} items · avg {avg}d · max {max}d
-												</span>
-												{avg > 0 && avg > 5 && (
-													<Badge variant="warning">bottleneck</Badge>
-												)}
-											</div>
-										);
-									})}
-								</CardContent>
-							</Card>
-						</div>
-					</div>
+					{focus?.active && focus.spec ? (
+						<GovernanceSummary
+							spec={focus.spec}
+							primaryItem={primaryItem}
+							primaryStageName={primaryStageName}
+						/>
+					) : null}
 				</div>
 			</div>
+
+			<ItemSheet
+				item={selectedItem}
+				stageName={selectedStageName}
+				open={!!selectedItem}
+				onOpenChange={(open) => {
+					if (!open) setSelectedItemId(null);
+				}}
+			/>
+			<SignalSheet
+				signal={selectedSignal}
+				open={!!selectedSignal}
+				onOpenChange={(open) => {
+					if (!open) setSelectedSignal(null);
+				}}
+				onAcknowledge={acknowledgeSignal}
+				onDismiss={dismissSignal}
+				onScan={scanHealth}
+				actionBusy={healthBusy}
+				actionMessage={healthActionMessage}
+			/>
 		</div>
 	);
 }

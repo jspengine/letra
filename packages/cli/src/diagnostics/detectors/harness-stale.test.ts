@@ -60,7 +60,7 @@ describe("harness-stale detector", () => {
 	});
 
 	it("should not detect when adapters have L1 refs", async () => {
-		writeWorkflow(["cursor", "opencode"]);
+		writeWorkflow(["cursor", "opencode", "codex"]);
 		writeAdapter(".cursorrules", true);
 		writeAdapter("AGENTS.md", true);
 

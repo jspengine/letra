@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DiagnosticResult } from "./diagnostics/types.js";
+import { getLetraDir } from "./workspace/resolver.js";
 
 export type HealthStatus = "novo" | "ciente" | "descartado" | "resolvido";
 
@@ -29,7 +30,7 @@ const SCHEMA_VERSION = 1;
 const CLEANUP_DAYS = 90;
 
 function recordPath(root: string): string {
-	return join(root, ".letra", RECORD_FILE);
+	return join(getLetraDir(root), RECORD_FILE);
 }
 
 export function loadHealthRecord(root: string): HealthRecord {
@@ -48,7 +49,7 @@ export function loadHealthRecord(root: string): HealthRecord {
 }
 
 export function saveHealthRecord(root: string, record: HealthRecord): void {
-	const dir = join(root, ".letra");
+	const dir = getLetraDir(root);
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 	record.lastScanAt = new Date().toISOString();
 	writeFileSync(recordPath(root), JSON.stringify(record, null, 2), "utf-8");
@@ -59,7 +60,7 @@ function hashResult(result: DiagnosticResult): string {
 	let hash = 0;
 	for (let i = 0; i < key.length; i++) {
 		const char = key.charCodeAt(i);
-		hash = ((hash << 5) - hash) + char;
+		hash = (hash << 5) - hash + char;
 		hash |= 0;
 	}
 	return `hr-${Math.abs(hash).toString(16).padStart(6, "0")}`;

@@ -1,0 +1,7 @@
+id: security-clear
+name: Security Clear
+type: automated
+blocking: true
+blocksHandoff: false
+description: Automated security scan (no critical vulnerabilities, no exposed secrets).
+policyRef: policies/sdlc-default.json

@@ -1,28 +1,50 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import chalk from "chalk";
+import { ADAPTER_REGISTRY } from "../adapters/registry.js";
 import ora from "ora";
 import { generateAdapters } from "../adapters/generate.js";
+import { generateHermesAdapter } from "../adapters/hermes.js";
 import { logEntry } from "../session-log.js";
 import { DiagnosticEngine } from "../diagnostics/engine.js";
 import { loadHealthRecord, mergeScanResults, saveHealthRecord } from "../health-record.js";
+import { DEFAULT_HARNESS_VERSION, loadHarness, resolveHarnessRoot } from "../harness/loader.js";
+import type { StageDef, StagePhases } from "../harness/types.js";
+import {
+	resolveWorkspaceRoot,
+	getWorkflowPath,
+	type WorkspaceResolution,
+} from "../workspace/resolver.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export interface Stage {
 	id: string;
 	name: string;
 	order: number;
 	zone?: "todo" | "doing" | "done";
+	phases?: StagePhases;
 	stageId?: string;
 	allow?: string[];
 	validate?: string[];
 	color?: string;
+	gate?: string | null;
 }
 
 export interface Task {
 	id: string;
 	description: string;
 	done: boolean;
+}
+
+export interface ItemHandoff {
+	from: string;
+	to: string;
+	summary: string;
+	evidence: string[];
+	timestamp: string;
+	expiresAt: string;
+	executorId?: string;
 }
 
 export interface Item {
@@ -36,6 +58,8 @@ export interface Item {
 	tasks?: Task[];
 	claimedBy?: string;
 	claimedAt?: string;
+	currentPhase?: string;
+	handoff?: ItemHandoff;
 }
 
 export interface SpecLink {
@@ -52,6 +76,22 @@ export interface WebhookConfig {
 	lastSentAt?: string;
 }
 
+export interface LegacyWorkflowTarget {
+	id: string;
+	path: string;
+	projectType?: string;
+	buildCommand?: string | null;
+	testCommand?: string | null;
+	adapters?: string[];
+}
+
+export interface WorkflowLocation {
+	id: string;
+	path: string;
+	label: string;
+	adapters: string[];
+}
+
 export interface Workflow {
 	version: string;
 	name: string;
@@ -65,6 +105,14 @@ export interface Workflow {
 	tools: string[];
 	webhooks?: WebhookConfig[];
 	primaryItemId?: string;
+	state?: {
+		currentStage?: string;
+		locked?: boolean;
+	};
+	targets?: LegacyWorkflowTarget[];
+	locations?: WorkflowLocation[];
+	template?: string;
+	harnessVersion?: string;
 }
 
 function askText(query: string, defaultValue: string): Promise<string> {
@@ -80,14 +128,9 @@ function askText(query: string, defaultValue: string): Promise<string> {
 }
 
 export function detectExistingTools(root: string): string[] {
-	const tools: string[] = [];
-	if (existsSync(join(root, ".cursorrules"))) tools.push("cursor");
-	if (existsSync(join(root, "CLAUDE.md"))) tools.push("claude-code");
-	if (existsSync(join(root, ".windsurfrules"))) tools.push("windsurf");
-	if (existsSync(join(root, "AGENTS.md"))) tools.push("opencode");
-	if (existsSync(join(root, ".github", "copilot-instructions.md"))) tools.push("vscode");
-	if (existsSync(join(root, ".hermes", "instructions.md"))) tools.push("hermes");
-	return tools;
+	return Object.values(ADAPTER_REGISTRY)
+		.filter((adapter) => adapter.detectionPaths.some((path) => existsSync(join(root, path))))
+		.map((adapter) => adapter.id);
 }
 
 export function detectProjectName(root: string): string {
@@ -123,26 +166,136 @@ function now(): string {
 	return new Date().toISOString();
 }
 
+function cloneStagePhases(phases: StagePhases | undefined): StagePhases | undefined {
+	if (!phases) return undefined;
+	return {
+		initialState: phases.initialState,
+		states: Object.fromEntries(
+			Object.entries(phases.states).map(([phaseId, phaseDef]) => [
+				phaseId,
+				{
+					...phaseDef,
+					actions: phaseDef.actions
+						? phaseDef.actions.map((action) => ({ ...action }))
+						: undefined,
+					transitions: phaseDef.transitions
+						? phaseDef.transitions.map((transition) => ({ ...transition }))
+						: undefined,
+					harness: phaseDef.harness
+						? {
+								...phaseDef.harness,
+								tools: phaseDef.harness.tools
+									? [...phaseDef.harness.tools]
+									: undefined,
+								checks: phaseDef.harness.checks
+									? [...phaseDef.harness.checks]
+									: undefined,
+							}
+						: undefined,
+				},
+			]),
+		),
+	};
+}
+
+export function stageFromTemplateStage(stage: StageDef): Stage {
+	return {
+		id: stage.id,
+		name: stage.name,
+		order: stage.order,
+		zone: stage.zone,
+		phases: cloneStagePhases(stage.phases),
+	};
+}
+
 function workflowFilePath(root: string): string {
-	return join(root, ".letra", "workflow.json");
+	return join(getLetraDir(root), "workflow.json");
+}
+
+function normalizedPath(path: string): string {
+	return path.replace(/\\/g, "/");
+}
+
+function locationLabel(path: string, fallback: string): string {
+	const name = basename(normalizedPath(path));
+	return name || fallback;
+}
+
+export function migrateTargetsToLocations(workflow: Workflow): {
+	workflow: Workflow;
+	migrated: boolean;
+} {
+	let migrated = false;
+	const locations: WorkflowLocation[] = Array.isArray(workflow.locations)
+		? workflow.locations.map((location, index) => ({
+				id: location.id || `loc-${index + 1}`,
+				path: normalizedPath(location.path),
+				label: location.label || locationLabel(location.path, `Projeto ${index + 1}`),
+				adapters: Array.isArray(location.adapters) ? [...new Set(location.adapters)] : [],
+			}))
+		: [];
+
+	if (Array.isArray(workflow.locations)) {
+		migrated = workflow.locations.some(
+			(location, index) =>
+				location.path !== locations[index]?.path ||
+				location.label !== locations[index]?.label ||
+				!Array.isArray(location.adapters),
+		);
+	}
+
+	const byPath = new Map(locations.map((location) => [normalizedPath(location.path), location]));
+	if (Array.isArray(workflow.targets) && workflow.targets.length > 0) {
+		for (const target of workflow.targets) {
+			const targetPath = normalizedPath(target.path);
+			const targetAdapters = Array.isArray(target.adapters) ? target.adapters : [];
+			const existing = byPath.get(targetPath);
+			if (existing) {
+				existing.adapters = [...new Set([...existing.adapters, ...targetAdapters])];
+			} else {
+				const location: WorkflowLocation = {
+					id: target.id?.replace(/^target-/, "loc-") || `loc-${locations.length + 1}`,
+					path: targetPath,
+					label: locationLabel(targetPath, `Projeto ${locations.length + 1}`),
+					adapters: [...new Set(targetAdapters)],
+				};
+				locations.push(location);
+				byPath.set(targetPath, location);
+			}
+		}
+		workflow.targets = undefined;
+		migrated = true;
+	}
+
+	if (Array.isArray(workflow.locations) || migrated) {
+		workflow.locations = locations;
+	}
+
+	return { workflow, migrated };
 }
 
 export function loadWorkflow(root: string): Workflow | null {
 	const filePath = workflowFilePath(root);
 	if (!existsSync(filePath)) return null;
 	try {
-		return JSON.parse(readFileSync(filePath, "utf-8")) as Workflow;
+		const workflow = JSON.parse(readFileSync(filePath, "utf-8")) as Workflow;
+		const result = migrateTargetsToLocations(workflow);
+		if (result.migrated) {
+			result.workflow.updatedAt = now();
+			writeFileSync(filePath, JSON.stringify(result.workflow, null, 2), "utf-8");
+		}
+		return result.workflow;
 	} catch {
 		return null;
 	}
 }
 
 export function saveWorkflow(root: string, workflow: Workflow): void {
-	const dir = join(root, ".letra");
+	const dir = getLetraDir(root);
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 	const filePath = workflowFilePath(root);
 	if (existsSync(filePath)) {
-		const backupDir = join(root, ".letra", "backups");
+		const backupDir = join(getLetraDir(root), "backups");
 		if (!existsSync(backupDir)) mkdirSync(backupDir, { recursive: true });
 		const ts = new Date().toISOString().replace(/[:.]/g, "-");
 		const backupPath = join(backupDir, `workflow-${ts}.json`);
@@ -156,18 +309,38 @@ export function saveWorkflow(root: string, workflow: Workflow): void {
 	writeFileSync(filePath, JSON.stringify(workflow, null, 2));
 }
 
+export function loadWorkspaceWorkflow(cwd?: string): {
+	workflow: Workflow | null;
+	resolution: WorkspaceResolution;
+} {
+	const resolution = resolveWorkspaceRoot(cwd);
+	const workflow = loadWorkflow(resolution.targetDir);
+	return { workflow, resolution };
+}
+
+export function saveWorkspaceWorkflow(workflow: Workflow, resolution: WorkspaceResolution): void {
+	saveWorkflow(resolution.targetDir, workflow);
+}
+
 export type WriteWorkflowSource =
 	| "flow-move"
 	| "flow-backlog"
 	| "flow-edit"
 	| "flow-import"
+	| "flow-bind"
 	| "flow-init"
 	| "flow-ac"
 	| "flow-claim"
 	| "flow-release"
+	| "flow-handoff"
+	| "flow-handoff-rollback"
+	| "orchestrator"
+	| "orchestrator-reclaim"
+	| "orchestrator-retry"
 	| "init"
 	| "stage-drift"
 	| "web-ui"
+	| "web-ui-gate-decision"
 	| "focus";
 
 export interface WriteWorkflowOptions {
@@ -179,6 +352,8 @@ export interface WriteWorkflowOptions {
 	skipLog?: boolean;
 	skipEngine?: boolean;
 	quiet?: boolean;
+	confineAdapterWrites?: boolean;
+	resolution?: import("../workspace/resolver.js").WorkspaceResolution;
 }
 
 export interface WriteWorkflowResult {
@@ -196,8 +371,22 @@ const ADAPTER_TARGETS: Record<string, string> = {
 	hermes: ".hermes/instructions.md",
 };
 
-export async function writeWorkflow(root: string, options: WriteWorkflowOptions): Promise<WriteWorkflowResult> {
-	const { workflow, source, primaryItemId, skipAdapters, skipSitrep, skipLog, skipEngine, quiet } = options;
+export async function writeWorkflow(
+	root: string,
+	options: WriteWorkflowOptions,
+): Promise<WriteWorkflowResult> {
+	const {
+		workflow,
+		source,
+		primaryItemId,
+		skipAdapters,
+		skipSitrep,
+		skipLog,
+		skipEngine,
+		quiet,
+		confineAdapterWrites,
+		resolution,
+	} = options;
 
 	if (!workflow.items || !Array.isArray(workflow.items)) {
 		return { ok: false, filesUpdated: [], error: "workflow.items must be an array" };
@@ -210,18 +399,20 @@ export async function writeWorkflow(root: string, options: WriteWorkflowOptions)
 	let graveIssueCount = 0;
 
 	// 1. Persist workflow.json
+	if (primaryItemId) workflow.primaryItemId = primaryItemId;
 	saveWorkflow(root, workflow);
 	filesUpdated.push(".letra/workflow.json");
 
 	// 2. Run engine diagnostics (AC9)
 	if (!skipEngine) {
 		try {
-			const engine = new DiagnosticEngine(root);
+			const engine = new DiagnosticEngine(resolution?.workspaceDir ?? root);
 			const diagOutput = await engine.runAll();
 			const rawResults = engine.getLastResults();
-			const healthRecord = loadHealthRecord(root);
+			const hrRoot = resolution?.workspaceDir ?? root;
+			const healthRecord = loadHealthRecord(hrRoot);
 			mergeScanResults(healthRecord, rawResults);
-			saveHealthRecord(root, healthRecord);
+			saveHealthRecord(hrRoot, healthRecord);
 			graveIssueCount = diagOutput.suggestions.filter((s) => s.type === "error").length;
 			if (diagOutput.errors.length > 0) {
 				graveIssueCount += diagOutput.errors.length;
@@ -229,7 +420,11 @@ export async function writeWorkflow(root: string, options: WriteWorkflowOptions)
 			if (!quiet) {
 				const totalIssues = diagOutput.fixes.length + diagOutput.suggestions.length;
 				if (totalIssues > 0) {
-					console.log(chalk.gray(`  Diagnóstico: ${totalIssues} issue(s), ${diagOutput.fixes.length} auto-corrigido(s)`));
+					console.log(
+						chalk.gray(
+							`  Diagnóstico: ${totalIssues} issue(s), ${diagOutput.fixes.length} auto-corrigido(s)`,
+						),
+					);
 				}
 			}
 		} catch (e) {
@@ -244,8 +439,8 @@ export async function writeWorkflow(root: string, options: WriteWorkflowOptions)
 		const activeStage = primaryItemId
 			? workflow.items.find((i) => i.id === primaryItemId)?.stage
 			: workflow.items[0]?.stage;
-		generateAdapters(root, workflow.tools, {
-			source: "flow-move",
+		const adapterOpts = {
+			source: "flow-move" as const,
 			workflow: {
 				name: workflow.name,
 				stages: workflow.stages,
@@ -254,7 +449,24 @@ export async function writeWorkflow(root: string, options: WriteWorkflowOptions)
 			activeStageId: activeStage || workflow.stages[0]?.id || "backlog",
 			primaryItemId: primaryItemId || workflow.items[0]?.id,
 			graveIssueCount: graveIssueCount > 0 ? graveIssueCount : undefined,
-		});
+			workspaceDir: resolution?.workspaceDir,
+			quiet,
+			confineWrites: confineAdapterWrites,
+		};
+		generateAdapters(root, workflow.tools, adapterOpts);
+
+		// Hermes-specific writing when selected
+		if (workflow.tools.includes("hermes")) {
+			const hermesContent = generateHermesAdapter(root);
+			if (hermesContent) {
+				const hermesPath = join(root, ".hermes", "instructions.md");
+				const hermesDir = join(hermesPath, "..");
+				if (!existsSync(hermesDir)) mkdirSync(hermesDir, { recursive: true });
+				writeFileSync(hermesPath, hermesContent, "utf-8");
+				filesUpdated.push(".hermes/instructions.md");
+			}
+		}
+
 		for (const tool of workflow.tools) {
 			const target = ADAPTER_TARGETS[tool];
 			if (target) filesUpdated.push(target);
@@ -265,28 +477,35 @@ export async function writeWorkflow(root: string, options: WriteWorkflowOptions)
 	if (!skipSitrep) {
 		try {
 			const { sitrep } = await import("./sitrep.js");
-			await sitrep(root, { quiet: true, skipLog: true });
+			await sitrep(resolution?.workspaceDir ?? root, { quiet: true, skipLog: true });
 		} catch {}
 	}
 
 	// 5. Log
 	if (!skipLog) {
 		try {
-			logEntry(root, "system", `workflow_updated via ${source}` as const);
+			logEntry(
+				resolution?.workspaceDir ?? root,
+				"system",
+				`workflow_updated via ${source}` as const,
+			);
 		} catch {}
 	}
 
 	return { ok: true, filesUpdated };
 }
 
-export async function flowInit(root: string, options?: { quick?: boolean }): Promise<Workflow> {
+export async function flowInit(
+	root: string,
+	options?: { quick?: boolean; template?: string },
+): Promise<Workflow> {
 	if (!process.stdin.isTTY && !options?.quick) {
 		console.log(chalk.yellow("Non-TTY: usando defaults. Passe --quick para confirmar."));
 		return flowInitQuick(root);
 	}
 
 	if (options?.quick) {
-		return flowInitQuick(root);
+		return flowInitQuick(root, options.template);
 	}
 
 	const name = await askText("Workflow name?", detectProjectName(root));
@@ -297,12 +516,41 @@ export async function flowInit(root: string, options?: { quick?: boolean }): Pro
 	const stages = stagesFromInput(stagesInput);
 
 	const detected = detectExistingTools(root);
-	const defaultTools = detected.length > 0 ? detected.join(", ") : "cursor, opencode";
+	const defaultTools = detected.length > 0 ? detected.join(", ") : "hermes, opencode";
 	const toolsInput = await askText("Tools (comma-separated)?", defaultTools);
 	const tools = toolsInput
 		.split(",")
 		.map((s) => s.trim().toLowerCase())
 		.filter(Boolean);
+
+	const templateDefault = "none";
+	const templateInput = await askText(
+		"Spec template? (web-api/cli-tool/mobile-feature/campanha-marketing/pesquisa/evento/none)",
+		templateDefault,
+	);
+	const template =
+		templateInput.trim().toLowerCase() === "none"
+			? undefined
+			: templateInput.trim().toLowerCase();
+
+	const locationsInput = await askText("Location paths (comma-separated, or leave empty)?", "");
+	const locations: WorkflowLocation[] = [];
+	if (locationsInput.trim()) {
+		for (const raw of locationsInput.split(",")) {
+			const t = raw.trim();
+			if (!t) continue;
+			locations.push({
+				id:
+					t
+						.replace(/[^a-z0-9-_]+/gi, "-")
+						.replace(/^-+|-+$/g, "")
+						.toLowerCase() || `loc-${locations.length + 1}`,
+				path: normalizedPath(t),
+				label: locationLabel(t, `Projeto ${locations.length + 1}`),
+				adapters: [],
+			});
+		}
+	}
 
 	const workflow: Workflow = {
 		version: "1.0",
@@ -314,33 +562,43 @@ export async function flowInit(root: string, options?: { quick?: boolean }): Pro
 		tools,
 	};
 
+	if (template) workflow.template = template;
+	if (template) workflow.harnessVersion = DEFAULT_HARNESS_VERSION;
+	if (locations.length > 0) workflow.locations = locations;
+
 	return workflow;
 }
 
-async function flowInitQuick(root: string): Promise<Workflow> {
+async function flowInitQuick(root: string, templateId = "flow-main"): Promise<Workflow> {
 	const defaultName = detectProjectName(root);
-	const defaultStagesList = "backlog, design, code, review, done";
-	const detected = detectExistingTools(root);
-	const defaultTools = detected.length > 0 ? detected.join(", ") : "cursor, opencode";
-
-	const name = await askText("Workflow name?", defaultName);
-	const stagesInput = await askText("Stages (comma-separated)?", defaultStagesList);
-	const stages = stagesFromInput(stagesInput);
-
-	const toolsInput = await askText("Tools (comma-separated)?", defaultTools);
-	const tools = toolsInput
-		.split(",")
-		.map((s) => s.trim().toLowerCase())
-		.filter(Boolean);
+	const harness = loadHarness(resolveHarnessRoot(root));
+	const template = harness?.flows?.[templateId];
+	const templateStages = template?.stages;
+	const stages =
+		templateStages && templateStages.length > 0
+			? templateStages.map(stageFromTemplateStage)
+			: [
+					{ id: "backlog", name: "Backlog", order: 0, zone: "todo" as const },
+					{ id: "design", name: "Design", order: 1, zone: "doing" as const },
+					{ id: "code", name: "Code", order: 2, zone: "doing" as const },
+					{ id: "review", name: "Review", order: 3, zone: "doing" as const },
+					{ id: "done", name: "Done", order: 4, zone: "done" as const },
+				];
+	const tools = detectExistingTools(root);
+	if (tools.length === 0) {
+		tools.push("hermes", "opencode");
+	}
 
 	const workflow: Workflow = {
 		version: "1.0",
-		name,
+		name: defaultName,
 		createdAt: now(),
 		updatedAt: now(),
 		stages,
 		items: [],
 		tools,
+		template: template?.id ?? templateId,
+		harnessVersion: DEFAULT_HARNESS_VERSION,
 	};
 
 	return workflow;
@@ -348,7 +606,7 @@ async function flowInitQuick(root: string): Promise<Workflow> {
 
 export async function flowInitAction(
 	targetPath: string | undefined,
-	options?: { quick?: boolean },
+	options?: { quick?: boolean; template?: string },
 ): Promise<void> {
 	const root = resolve(process.cwd(), targetPath || ".");
 	const filePath = workflowFilePath(root);

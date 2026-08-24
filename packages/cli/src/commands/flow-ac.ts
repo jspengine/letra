@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { loadWorkflow, writeWorkflow } from "./flow-init.js";
 import { logEntry } from "../session-log.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 function findACLine(lines: string[], n: number): number | null {
 	let count = 0;
@@ -34,7 +35,7 @@ export function markAC(root: string, itemId: string, acNum: number): void {
 		process.exit(1);
 	}
 
-	const specDir = join(root, ".letra", "specs", item.spec);
+	const specDir = join(getLetraDir(root), "specs", item.spec);
 	const specFile = join(specDir, "spec.md");
 	if (!existsSync(specFile)) {
 		console.log(chalk.red(`Spec file not found: ${specFile}`));
@@ -46,7 +47,11 @@ export function markAC(root: string, itemId: string, acNum: number): void {
 
 	const lineIdx = findACLine(lines, acNum);
 	if (lineIdx === null) {
-		console.log(chalk.red(`AC #${acNum} not found in spec "${item.spec}" (unchecked ACs: ${lines.filter((l) => /^- \[ \]/.test(l.trim())).length})`));
+		console.log(
+			chalk.red(
+				`AC #${acNum} not found in spec "${item.spec}" (unchecked ACs: ${lines.filter((l) => /^- \[ \]/.test(l.trim())).length})`,
+			),
+		);
 		process.exit(1);
 	}
 
@@ -56,7 +61,13 @@ export function markAC(root: string, itemId: string, acNum: number): void {
 	writeFileSync(specFile, lines.join("\n"), "utf-8");
 
 	if (workflow.specLinks?.[item.spec]) {
-		writeWorkflow(root, { workflow, source: "flow-ac", primaryItemId: item.id, skipSitrep: true, quiet: true });
+		writeWorkflow(root, {
+			workflow,
+			source: "flow-ac",
+			primaryItemId: item.id,
+			skipSitrep: true,
+			quiet: true,
+		});
 	}
 
 	logEntry(root, "ac_done", `AC ${acNum} marcado como concluído em ${item.spec}`, {
@@ -65,10 +76,16 @@ export function markAC(root: string, itemId: string, acNum: number): void {
 		details: { spec: item.spec },
 	});
 
-	console.log(`  ${chalk.green("✓")} AC #${acNum} marcado como concluído em ${chalk.cyan(item.spec)}`);
+	console.log(
+		`  ${chalk.green("✓")} AC #${acNum} marcado como concluído em ${chalk.cyan(item.spec)}`,
+	);
 }
 
-export function flowAcAction(targetPath: string | undefined, itemId: string, acNumber: string): void {
+export function flowAcAction(
+	targetPath: string | undefined,
+	itemId: string,
+	acNumber: string,
+): void {
 	const root = resolve(process.cwd(), targetPath || ".");
 	const n = Number(acNumber);
 	if (!Number.isInteger(n) || n < 1) {

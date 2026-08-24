@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Letra — Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root{
+    --primary:#FFB800; --primary-hover:#FFC933; --primary-active:#E0A400;
+    --primary-subtle:rgba(255,184,0,0.14);
+    --bg-base:#0F1115; --bg-surface:#171A20; --bg-sunken:#1D2128;
+    --border:#2A2F38; --border-strong:#3A404C;
+    --text-primary:#ECEDEF; --text-secondary:#9AA1AC; --text-disabled:#5B6270;
+    --success:#22C55E; --success-subtle:rgba(34,197,94,0.14);
+    --info:#3B82F6; --info-subtle:rgba(59,130,246,0.14);
+    --danger:#EF4444; --danger-subtle:rgba(239,68,68,0.14);
+    --agent:#8B5CF6; --agent-subtle:rgba(139,92,246,0.14);
+    --radius-sm:6px; --radius-md:10px; --radius-lg:16px;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.35); --shadow-md:0 8px 24px rgba(0,0,0,.45); --shadow-lg:0 24px 60px rgba(0,0,0,.6);
+    --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-6:24px; --space-8:32px; --space-12:48px; --space-16:64px;
+    --ease:cubic-bezier(0.2,0.8,0.2,1); --fast:180ms;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg-base);color:var(--text-primary);font-family:'Inter',sans-serif;font-size:14px;line-height:1.6;}
+  h1,h2,h3{font-family:'Sora',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  a{color:var(--info);}
+  svg.lucide{stroke-width:1.75;flex-shrink:0;}
+
+  .shell{display:flex;min-height:100vh;}
+  .toc{width:230px;flex-shrink:0;background:var(--bg-sunken);border-right:1px solid var(--border);padding:var(--space-6) var(--space-4);position:sticky;top:0;height:100vh;overflow-y:auto;}
+  .toc .brand{display:flex;align-items:center;gap:8px;margin-bottom:var(--space-6);}
+  .toc .brand img{height:22px;}
+  .toc a{display:flex;align-items:center;gap:8px;color:var(--text-secondary);text-decoration:none;font-size:12.5px;font-weight:500;padding:6px 10px;border-radius:var(--radius-sm);margin-bottom:2px;transition:background var(--fast) var(--ease),color var(--fast) var(--ease);}
+  .toc a:hover{background:var(--bg-surface);color:var(--text-primary);}
+  .toc-group{margin-bottom:var(--space-4);}
+  .toc-group-title{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-disabled);font-weight:700;padding:0 10px;margin-bottom:6px;}
+
+  .main{flex:1;min-width:0;}
+  .hero{padding:var(--space-16) var(--space-12) var(--space-12);border-bottom:1px solid var(--border);background:radial-gradient(1100px 380px at 8% 0%, rgba(255,184,0,.08), transparent);}
+  .hero img.logo{height:34px;margin-bottom:var(--space-8);}
+  .hero .eyebrow{display:flex;align-items:center;gap:8px;color:var(--primary);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:var(--space-4);font-family:'JetBrains Mono',monospace;}
+  .hero h1{font-size:40px;font-weight:600;line-height:1.15;margin:0 0 var(--space-3);letter-spacing:-.01em;}
+  .hero p{color:var(--text-secondary);max-width:580px;font-size:16px;margin:0;}
+  .token-strip{display:flex;margin-top:var(--space-8);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-sm);width:fit-content;border:1px solid var(--border);}
+  .token-strip div{width:56px;height:56px;}
+
+  section.block{padding:var(--space-12);border-bottom:1px solid var(--border);}
+  section.block h2{font-size:20px;font-weight:600;margin:0 0 4px;display:flex;align-items:center;gap:8px;}
+  section.block h2 svg{color:var(--primary);}
+  section.block .subtitle{color:var(--text-secondary);font-size:13px;margin:0 0 var(--space-8);}
+  .demo{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--space-8);margin-bottom:var(--space-6);}
+  .demo-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-disabled);font-weight:700;margin-bottom:var(--space-4);font-family:'JetBrains Mono',monospace;}
+  .row{display:flex;gap:var(--space-4);flex-wrap:wrap;align-items:center;}
+  .col{display:flex;flex-direction:column;gap:var(--space-4);}
+
+  .swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--space-4);}
+  .swatch{border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border);}
+  .swatch .fill{height:60px;}
+  .swatch .info{padding:var(--space-3);background:var(--bg-surface);}
+  .swatch .name{font-size:11px;font-weight:600;}
+  .swatch .val{font-size:10px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;}
+
+  .type-row{display:flex;align-items:baseline;gap:var(--space-6);padding:var(--space-3) 0;border-bottom:1px dashed var(--border);}
+  .type-row:last-child{border-bottom:none;}
+  .type-row .tag{width:150px;flex-shrink:0;font-size:10px;color:var(--text-disabled);font-family:'JetBrains Mono',monospace;}
+  .t-display{font-family:'Sora',sans-serif;font-size:44px;font-weight:600;}
+  .t-h1{font-family:'Sora',sans-serif;font-size:32px;font-weight:600;}
+  .t-h2{font-family:'Inter',sans-serif;font-size:22px;font-weight:600;}
+  .t-h3{font-family:'Inter',sans-serif;font-size:16px;font-weight:600;}
+  .t-body{font-size:15px;}
+  .t-body-sm{font-size:13px;color:var(--text-secondary);}
+  .t-caption{font-size:12px;font-weight:500;color:var(--text-secondary);}
+  .t-mono{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--primary);}
+
+  .btn{font-size:13px;font-weight:600;padding:9px 16px;border-radius:var(--radius-sm);border:1px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all var(--fast) var(--ease);font-family:'Inter',sans-serif;}
+  .btn-primary{background:var(--primary);color:#171100;}
+  .btn-primary:hover{background:var(--primary-hover);}
+  .btn-primary:active{background:var(--primary-active);}
+  .btn-secondary{background:transparent;color:var(--text-primary);border-color:var(--border-strong);}
+  .btn-secondary:hover{border-color:var(--text-secondary);}
+  .btn-danger{background:var(--danger);color:#1A0708;}
+  .btn-ghost{background:transparent;color:var(--text-secondary);}
+  .btn-ghost:hover{color:var(--text-primary);background:var(--bg-sunken);}
+  .btn-sm{padding:6px 10px;font-size:12px;}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  .field{display:flex;flex-direction:column;gap:6px;width:270px;}
+  .field label{font-size:12.5px;font-weight:600;}
+  .field .req{color:var(--danger);}
+  .field input,.field select,.field textarea{font-size:13px;padding:9px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-sunken);color:var(--text-primary);outline:none;font-family:'Inter',sans-serif;transition:border-color var(--fast) var(--ease);}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-subtle);}
+  .field .helper{font-size:11.5px;color:var(--text-secondary);display:flex;align-items:center;gap:5px;}
+  .field.error input{border-color:var(--danger);}
+  .field.error .helper{color:var(--danger);font-weight:500;}
+  .field input:disabled{background:var(--bg-base);color:var(--text-disabled);cursor:not-allowed;}
+  .checkbox-row{display:flex;align-items:center;gap:8px;font-size:13px;}
+  .checkbox-row input[type=checkbox],.checkbox-row input[type=radio]{accent-color:var(--primary);}
+
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--space-4);}
+  .card{border-radius:var(--radius-md);padding:var(--space-6);background:var(--bg-surface);border:1px solid var(--border);transition:border-color var(--fast) var(--ease);}
+  .card.agent-active{border-left:2px solid var(--agent);}
+  .card.selected{border-color:var(--primary);}
+  .card .chead{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .card h3{margin:0;font-size:14px;font-family:'Inter',sans-serif;font-weight:600;}
+  .card p{margin:0;font-size:12.5px;color:var(--text-secondary);}
+
+  .grid-demo{display:grid;grid-template-columns:repeat(12,1fr);gap:8px;}
+  .grid-demo div{background:var(--primary-subtle);border:1px dashed var(--primary);border-radius:4px;height:34px;font-size:10px;color:var(--primary);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;text-transform:uppercase;letter-spacing:.03em;}
+  .badge svg{width:12px;height:12px;}
+  .badge-amber{background:var(--primary-subtle);color:var(--primary);}
+  .badge-success{background:var(--success-subtle);color:var(--success);}
+  .badge-info{background:var(--info-subtle);color:var(--info);}
+  .badge-error{background:var(--danger-subtle);color:var(--danger);}
+  .badge-agent{background:var(--agent-subtle);color:var(--agent);}
+  .badge-count{background:var(--danger);color:#1A0708;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;}
+
+  .tag{display:inline-flex;align-items:center;font-size:12px;font-weight:500;padding:4px 12px;border-radius:999px;background:var(--bg-sunken);border:1px solid var(--border);color:var(--text-secondary);}
+
+  .progress-track{width:100%;height:8px;background:var(--bg-sunken);border-radius:99px;overflow:hidden;}
+  .progress-fill{height:100%;border-radius:99px;transition:width var(--fast) var(--ease);}
+
+  .tabs{display:flex;gap:var(--space-6);border-bottom:1px solid var(--border);}
+  .tab{padding:10px 2px;font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer;border-bottom:2px solid transparent;}
+  .tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+  .tab.disabled{color:var(--text-disabled);cursor:not-allowed;}
+
+  .avatar{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:var(--bg-sunken);border:1px solid var(--border);color:var(--text-secondary);font-family:'Sora',sans-serif;font-weight:600;flex-shrink:0;}
+  .avatar.xs{width:22px;height:22px;font-size:9px;} .avatar.sm{width:26px;height:26px;font-size:10px;}
+  .avatar.md{width:34px;height:34px;font-size:12px;} .avatar.lg{width:48px;height:48px;font-size:15px;} .avatar.xl{width:64px;height:64px;font-size:20px;}
+  .avatar .dot{position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;border:2px solid var(--bg-base);}
+  .dot.online{background:var(--success);} .dot.away{background:var(--primary);} .dot.offline{background:var(--text-disabled);} .dot.error{background:var(--danger);}
+
+  .list-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--radius-sm);cursor:pointer;transition:background var(--fast) var(--ease);}
+  .list-item:hover{background:var(--bg-sunken);}
+  .list-item .li-icon{width:36px;height:36px;border-radius:var(--radius-sm);background:var(--bg-sunken);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .list-item .li-title{font-size:13px;font-weight:600;}
+  .list-item .li-desc{font-size:12px;color:var(--text-secondary);}
+  .list-item .chevron{margin-left:auto;color:var(--text-disabled);}
+
+  .search-box{position:relative;width:320px;}
+  .search-box input{width:100%;padding:9px 12px 9px 36px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:13px;background:var(--bg-sunken);color:var(--text-primary);font-family:'Inter',sans-serif;}
+  .search-box .icon{position:absolute;left:11px;top:50%;transform:translate(0,-50%);color:var(--text-disabled);display:flex;}
+  .search-results{margin-top:8px;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:var(--bg-surface);display:none;}
+  .search-results.show{display:block;}
+  .search-results div{padding:9px 12px;font-size:12.5px;border-bottom:1px solid var(--border);cursor:pointer;}
+  .search-results div:last-child{border-bottom:none;}
+  .search-results div:hover{background:var(--bg-sunken);}
+  .search-results mark{background:var(--primary-subtle);color:var(--primary);border-radius:3px;padding:0 2px;}
+
+  .toast-demo-list{display:flex;flex-direction:column;gap:10px;max-width:380px;}
+  .toast{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:var(--radius-md);box-shadow:var(--shadow-sm);font-size:12.5px;border-left:3px solid transparent;background:var(--bg-sunken);border:1px solid var(--border);}
+  .toast.success{border-left-color:var(--success);} .toast.success svg{color:var(--success);}
+  .toast.error{border-left-color:var(--danger);} .toast.error svg{color:var(--danger);}
+  .toast.info{border-left-color:var(--info);} .toast.info svg{color:var(--info);}
+  .toast.agent{border-left-color:var(--agent);} .toast.agent svg{color:var(--agent);}
+  .toast .ttitle{font-weight:700;margin-bottom:2px;font-family:'Inter',sans-serif;font-size:12.5px;}
+  #liveToastArea{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;gap:10px;z-index:999;}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1000;}
+  .overlay.show{display:flex;}
+  .modal{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);width:420px;max-width:90vw;box-shadow:var(--shadow-lg);overflow:hidden;}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;padding:var(--space-4) var(--space-6);border-bottom:1px solid var(--border);}
+  .modal-header h3{margin:0;font-size:14px;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:8px;}
+  .modal-header h3 svg{color:var(--danger);}
+  .modal-body{padding:var(--space-6);font-size:13px;color:var(--text-secondary);}
+  .modal-footer{padding:var(--space-4) var(--space-6);border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;}
+  .close-btn{background:none;border:none;cursor:pointer;color:var(--text-secondary);display:flex;}
+  .close-btn:hover{color:var(--text-primary);}
+
+  .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:1000;}
+  .drawer-overlay.show{display:block;}
+  .drawer{position:fixed;top:0;right:-360px;width:360px;height:100%;background:var(--bg-surface);border-left:1px solid var(--border);box-shadow:var(--shadow-lg);transition:right 280ms var(--ease);display:flex;flex-direction:column;z-index:1001;}
+  .drawer.show{right:0;}
+  .sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:1000;}
+  .sheet-overlay.show{display:block;}
+  .sheet{position:fixed;background:var(--bg-surface);border:1px solid var(--border);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;z-index:1001;pointer-events:none;}
+  .sheet.show{pointer-events:auto;}
+  .drawer-header{padding:var(--space-6);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .drawer-header h3{margin:0;font-size:14px;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:8px;}
+  .drawer-header h3 svg{color:var(--agent);}
+  .drawer-body{padding:var(--space-6);flex:1;overflow-y:auto;font-size:13px;color:var(--text-secondary);}
+  .drawer-body .kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);font-family:'JetBrains Mono',monospace;font-size:12px;}
+  .drawer-footer{padding:var(--space-4) var(--space-6);border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;}
+
+  .sidebar-demo{width:220px;background:var(--bg-sunken);border-radius:var(--radius-md);padding:var(--space-4);border:1px solid var(--border);}
+  .sidebar-demo .logo-row{display:flex;align-items:center;gap:8px;margin-bottom:var(--space-4);padding:0 8px;}
+  .sidebar-demo .logo-row img{height:18px;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-sm);font-size:12.5px;font-weight:500;color:var(--text-secondary);cursor:pointer;margin-bottom:2px;transition:all var(--fast) var(--ease);}
+  .nav-item:hover{background:var(--bg-surface);}
+  .nav-item.active{background:var(--primary-subtle);color:var(--primary);font-weight:600;}
+  .nav-item svg{width:16px;height:16px;}
+
+  .code-note{margin-top:var(--space-4);font-size:11px;color:var(--text-disabled);display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;}
+  .icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:var(--space-4);}
+  .icon-item{display:flex;flex-direction:column;align-items:center;gap:8px;padding:var(--space-4);background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);}
+  .icon-item .lbl{font-size:11px;color:var(--text-secondary);text-align:center;font-family:'JetBrains Mono',monospace;}
+  .icon-item svg{width:22px;height:22px;}
+
+  .logo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--space-4);}
+  .logo-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-6);display:flex;flex-direction:column;align-items:center;gap:var(--space-4);}
+  .logo-card img{max-height:40px;max-width:100%;}
+  .logo-card.dark-bg{background:var(--bg-base);}
+  .logo-card .lname{font-size:12px;color:var(--text-secondary);}
+
+  .ease-box{width:70px;height:70px;background:var(--primary);border-radius:var(--radius-md);cursor:pointer;transition:transform var(--fast) var(--ease), background var(--fast) var(--ease);}
+  .ease-box:hover{transform:scale(1.15) rotate(6deg);background:var(--primary-hover);}
+  .cmd-item:hover{background:var(--bg-sunken);}
+  .cmd-item:focus-within{background:var(--primary-subtle);}
+  .kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border);font-family:'JetBrains Mono',monospace;font-size:12px;}
+  @keyframes dash-march { to { stroke-dashoffset: -24; } }
+  @keyframes validating-bar { 0% { transform: translateX(-100%); } 50% { transform: translateX(100%); } 100% { transform: translateX(300%); } }
+  @keyframes human-pulse { 0%,100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--gate-available) 50%, transparent); background-color: color-mix(in oklch, var(--gate-available) 8%, transparent); } 50% { box-shadow: 0 0 0 12px color-mix(in oklch, var(--gate-available) 20%, transparent); background-color: color-mix(in oklch, var(--gate-available) 15%, transparent); } }
+  .toggle-switch{display:inline-flex;align-items:center;width:36px;height:20px;border-radius:99px;background:var(--bg-sunken);border:1px solid var(--border);cursor:pointer;transition:background var(--fast) var(--ease),border-color var(--fast) var(--ease);flex-shrink:0;}
+  .toggle-switch.checked{background:var(--primary);border-color:var(--primary);}
+  .toggle-thumb{display:block;width:14px;height:14px;border-radius:50%;background:var(--text-primary);transition:transform var(--fast) var(--ease);margin:0 2px;}
+  .toggle-switch.checked .toggle-thumb{transform:translateX(16px);background:#171100;}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav class="toc">
+    <div class="brand"><img src="https://letra-web.vercel.app/brand/logos/svg/letra-horizontal.svg" alt="Letra"></div>
+    <div class="toc-group">
+      <div class="toc-group-title">Fundamentos</div>
+      <a href="#cores"><i data-lucide="palette" style="width:14px;height:14px;"></i> Cores</a>
+      <a href="#tipografia"><i data-lucide="type" style="width:14px;height:14px;"></i> Tipografia</a>
+      <a href="#icones"><i data-lucide="shapes" style="width:14px;height:14px;"></i> Ícones</a>
+      <a href="#motion"><i data-lucide="wand-2" style="width:14px;height:14px;"></i> Motion</a>
+      <a href="#layout"><i data-lucide="layout-grid" style="width:14px;height:14px;"></i> Layout &amp; Grid</a>
+    </div>
+    <div class="toc-group">
+      <div class="toc-group-title">Componentes</div>
+      <a href="#buttons"><i data-lucide="mouse-pointer-click" style="width:14px;height:14px;"></i> Button</a>
+      <a href="#cards"><i data-lucide="square" style="width:14px;height:14px;"></i> Card</a>
+      <a href="#formularios"><i data-lucide="text-cursor-input" style="width:14px;height:14px;"></i> Input &amp; Form</a>
+      <a href="#badges"><i data-lucide="tag" style="width:14px;height:14px;"></i> Badge &amp; Tag</a>
+      <a href="#progress"><i data-lucide="loader" style="width:14px;height:14px;"></i> Progress</a>
+      <a href="#tabs"><i data-lucide="gallery-horizontal" style="width:14px;height:14px;"></i> Tabs</a>
+      <a href="#avatares"><i data-lucide="bot" style="width:14px;height:14px;"></i> Avatar</a>
+      <a href="#listitem"><i data-lucide="list" style="width:14px;height:14px;"></i> List Item</a>
+      <a href="#drawers"><i data-lucide="panel-right" style="width:14px;height:14px;"></i> Drawer</a>
+      <a href="#sidebar"><i data-lucide="panel-left" style="width:14px;height:14px;"></i> Menu lateral</a>
+      <a href="#toasts"><i data-lucide="bell" style="width:14px;height:14px;"></i> Toast</a>
+      <a href="#search"><i data-lucide="search" style="width:14px;height:14px;"></i> Search</a>
+      <a href="#modais"><i data-lucide="square-x" style="width:14px;height:14px;"></i> Modal</a>
+      <a href="#alert"><i data-lucide="triangle-alert" style="width:14px;height:14px;"></i> Alert</a>
+      <a href="#accordion"><i data-lucide="chevrons-up-down" style="width:14px;height:14px;"></i> Accordion</a>
+      <a href="#collapsible"><i data-lucide="panel-right-close" style="width:14px;height:14px;"></i> Collapsible</a>
+      <a href="#command"><i data-lucide="command" style="width:14px;height:14px;"></i> Command</a>
+      <a href="#dialog"><i data-lucide="square-x" style="width:14px;height:14px;"></i> Dialog</a>
+      <a href="#dropdown"><i data-lucide="menu" style="width:14px;height:14px;"></i> Dropdown</a>
+      <a href="#empty-state"><i data-lucide="inbox" style="width:14px;height:14px;"></i> Empty State</a>
+      <a href="#error-banner"><i data-lucide="x-circle" style="width:14px;height:14px;"></i> Error Banner</a>
+      <a href="#icon-system"><i data-lucide="shapes" style="width:14px;height:14px;"></i> Icon</a>
+      <a href="#label"><i data-lucide="tag" style="width:14px;height:14px;"></i> Label</a>
+      <a href="#nav-menu"><i data-lucide="menu" style="width:14px;height:14px;"></i> Nav Menu</a>
+      <a href="#popover"><i data-lucide="arrow-up-right" style="width:14px;height:14px;"></i> Popover</a>
+      <a href="#radio-group"><i data-lucide="circle" style="width:14px;height:14px;"></i> Radio Group</a>
+      <a href="#scroll-area"><i data-lucide="scroll" style="width:14px;height:14px;"></i> Scroll Area</a>
+      <a href="#separator"><i data-lucide="minus" style="width:14px;height:14px;"></i> Separator</a>
+      <a href="#sheet"><i data-lucide="panel-right" style="width:14px;height:14px;"></i> Sheet</a>
+      <a href="#skeleton"><i data-lucide="rectangle" style="width:14px;height:14px;"></i> Skeleton</a>
+      <a href="#switch"><i data-lucide="toggle-left" style="width:14px;height:14px;"></i> Switch</a>
+      <a href="#table"><i data-lucide="table" style="width:14px;height:14px;"></i> Table</a>
+      <a href="#tooltip"><i data-lucide="message-circle" style="width:14px;height:14px;"></i> Tooltip</a>
+      <div class="toc-group-title">Padrões</div>
+      <a href="#sidebar"><i data-lucide="panel-left" style="width:14px;height:14px;"></i> Sidebar</a>
+      <a href="#doc-editor"><i data-lucide="file-text" style="width:14px;height:14px;"></i> Document Editor</a>
+      <a href="#kanban"><i data-lucide="columns-3" style="width:14px;height:14px;"></i> Kanban Board</a>
+      <a href="#gate-card"><i data-lucide="shield" style="width:14px;height:14px;"></i> Gate Card</a>
+      <a href="#timeline"><i data-lucide="timeline" style="width:14px;height:14px;"></i> Timeline</a>
+      <a href="#marching-border"><i data-lucide="border-all" style="width:14px;height:14px;"></i> Marching Border</a>
+      <a href="#validating-bar"><i data-lucide="loader" style="width:14px;height:14px;"></i> Validating Bar</a>
+      <a href="#assets"><i data-lucide="image" style="width:14px;height:14px;"></i> Assets</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <header class="hero">
+      <img class="logo" src="https://letra-web.vercel.app/brand/logos/svg/letra-horizontal.svg" alt="Letra">
+      <div class="eyebrow"><i data-lucide="terminal" style="width:14px;height:14px;"></i> Mission Control para engenharia assistida por IA</div>
+      <h1>Da intenção à entrega</h1>
+      <p>Design system oficial do Letra — tokens de cor, tipografia e componentes para orquestração e supervisão de agentes.</p>
+      <div class="token-strip">
+        <div style="background:var(--primary)"></div>
+        <div style="background:var(--agent)"></div>
+        <div style="background:var(--success)"></div>
+        <div style="background:var(--info)"></div>
+        <div style="background:var(--danger)"></div>
+        <div style="background:var(--bg-sunken)"></div>
+      </div>
+    </header>
+
+    <!-- CORES -->
+    <section class="block" id="cores">
+      <h2><i data-lucide="palette"></i> Colors</h2>
+      <p class="subtitle">Paleta oficial — Amber como marca, Purple reservado para agentes/raciocínio de IA.</p>
+      <div class="swatches">
+        <div class="swatch"><div class="fill" style="background:var(--primary)"></div><div class="info"><div class="name">Amber — brand primary</div><div class="val">#FFB800</div></div></div>
+        <div class="swatch"><div class="fill" style="background:var(--agent)"></div><div class="info"><div class="name">Purple — agents / AI reasoning</div><div class="val">#8B5CF6</div></div></div>
+        <div class="swatch"><div class="fill" style="background:var(--success)"></div><div class="info"><div class="name">Emerald — success</div><div class="val">#22C55E</div></div></div>
+        <div class="swatch"><div class="fill" style="background:var(--info)"></div><div class="info"><div class="name">Blue — info / telemetry</div><div class="val">#3B82F6</div></div></div>
+        <div class="swatch"><div class="fill" style="background:var(--danger)"></div><div class="info"><div class="name">Red — error / risk</div><div class="val">#EF4444</div></div></div>
+        <div class="swatch"><div class="fill" style="background:var(--bg-base)"></div><div class="info"><div class="name">Slate — background</div><div class="val">#0F1115</div></div></div>
+        <div class="swatch"><div class="fill" style="background:var(--bg-surface)"></div><div class="info"><div class="name">bg-surface</div><div class="val">#171A20</div></div></div>
+        <div class="swatch"><div class="fill" style="background:var(--bg-sunken)"></div><div class="info"><div class="name">bg-sunken</div><div class="val">#1D2128</div></div></div>
+        <div class="swatch"><div class="fill" style="background:var(--text-primary)"></div><div class="info"><div class="name">text-primary</div><div class="val">#ECEDEF</div></div></div>
+        <div class="swatch"><div class="fill" style="background:var(--text-secondary)"></div><div class="info"><div class="name">text-secondary</div><div class="val">#9AA1AC</div></div></div>
+      </div>
+    </section>
+
+    <!-- TIPOGRAFIA -->
+    <section class="block" id="tipografia">
+      <h2><i data-lucide="type"></i> Typography</h2>
+      <p class="subtitle">Sora para identidade (display/H1) · Inter para toda a UI funcional · JetBrains Mono para dados.</p>
+      <div class="demo">
+        <div class="type-row"><span class="tag mono">Display / Sora 600</span><span class="t-display">Letra</span></div>
+        <div class="type-row"><span class="tag mono">H1 / Sora 600 40px</span><span class="t-h1">Da intenção à entrega</span></div>
+        <div class="type-row"><span class="tag mono">H2 / Inter 600 28px</span><span class="t-h2">Engineering, orchestrated</span></div>
+        <div class="type-row"><span class="tag mono">H3 / Inter 600 20px</span><span class="t-h3">Título de card</span></div>
+        <div class="type-row"><span class="tag mono">Body / Inter 400 16px</span><span class="t-body">Mission Control para engenharia assistida por IA.</span></div>
+        <div class="type-row"><span class="tag mono">Body-sm / Inter 400</span><span class="t-body-sm">Texto de apoio e legendas.</span></div>
+        <div class="type-row"><span class="tag mono">Caption / Inter 500 12px</span><span class="t-caption">4 agents active · Awaiting approval</span></div>
+        <div class="type-row"><span class="tag mono">Mono / JetBrains Mono 14px</span><span class="t-mono">$ letra flow start --workspace my-project</span></div>
+      </div>
+    </section>
+
+    <!-- ICONES -->
+    <section class="block" id="icones">
+      <h2><i data-lucide="shapes"></i> Icons — lucide-react</h2>
+      <p class="subtitle">Stroke-width 1.75 · cor sempre herdada do token semântico do contexto.</p>
+      <div class="icon-grid">
+        <div class="icon-item"><i data-lucide="bot" style="color:var(--agent)"></i><span class="lbl">bot — agente</span></div>
+        <div class="icon-item"><i data-lucide="sparkles" style="color:var(--agent)"></i><span class="lbl">sparkles — raciocínio</span></div>
+        <div class="icon-item"><i data-lucide="zap" style="color:var(--primary)"></i><span class="lbl">zap — execução</span></div>
+        <div class="icon-item"><i data-lucide="workflow" style="color:var(--info)"></i><span class="lbl">workflow</span></div>
+        <div class="icon-item"><i data-lucide="git-branch" style="color:var(--info)"></i><span class="lbl">git-branch</span></div>
+        <div class="icon-item"><i data-lucide="terminal" style="color:var(--text-secondary)"></i><span class="lbl">terminal — logs</span></div>
+        <div class="icon-item"><i data-lucide="circle-check" style="color:var(--success)"></i><span class="lbl">circle-check</span></div>
+        <div class="icon-item"><i data-lucide="circle-x" style="color:var(--danger)"></i><span class="lbl">circle-x</span></div>
+        <div class="icon-item"><i data-lucide="plug" style="color:var(--info)"></i><span class="lbl">plug — MCP</span></div>
+        <div class="icon-item"><i data-lucide="settings-2" style="color:var(--text-secondary)"></i><span class="lbl">settings-2</span></div>
+        <div class="icon-item"><i data-lucide="search" style="color:var(--text-secondary)"></i><span class="lbl">search</span></div>
+        <div class="icon-item"><i data-lucide="clock" style="color:var(--primary)"></i><span class="lbl">clock — pendente</span></div>
+      </div>
+    </section>
+
+    <!-- MOTION -->
+    <section class="block" id="motion">
+      <h2><i data-lucide="wand-2"></i> Motion</h2>
+      <p class="subtitle">Passe o mouse ou toque no quadrado → <span class="mono">180ms · cubic-bezier(0.2, 0.8, 0.2, 1)</span></p>
+      <div class="demo"><div class="ease-box"></div></div>
+    </section>
+
+    <!-- LAYOUT -->
+    <section class="block" id="layout">
+      <h2><i data-lucide="layout-grid"></i> Layout &amp; Grid</h2>
+      <p class="subtitle">Grid de 12 colunas, gutter de 24px.</p>
+      <div class="demo">
+        <div class="grid-demo"><div style="grid-column:span 12">12</div></div>
+        <div class="grid-demo" style="margin-top:8px"><div style="grid-column:span 6">6</div><div style="grid-column:span 6">6</div></div>
+        <div class="grid-demo" style="margin-top:8px"><div style="grid-column:span 4">4</div><div style="grid-column:span 4">4</div><div style="grid-column:span 4">4</div></div>
+        <div class="grid-demo" style="margin-top:8px"><div style="grid-column:span 3">3</div><div style="grid-column:span 3">3</div><div style="grid-column:span 3">3</div><div style="grid-column:span 3">3</div></div>
+      </div>
+    </section>
+
+    <!-- BUTTONS -->
+    <section class="block" id="buttons">
+      <h2><i data-lucide="mouse-pointer-click"></i> Button</h2>
+      <p class="subtitle">5 variantes: primary, secondary, danger, ghost, sm.</p>
+      <div class="demo row">
+        <button class="btn btn-primary"><i data-lucide="play" style="width:14px;height:14px;"></i> Primary</button>
+        <button class="btn btn-secondary">Secondary</button>
+        <button class="btn btn-danger"><i data-lucide="trash-2" style="width:14px;height:14px;"></i> Danger</button>
+        <button class="btn btn-ghost">Ghost</button>
+        <button class="btn btn-primary btn-sm">Small</button>
+        <button class="btn btn-primary" disabled>Disabled</button>
+      </div>
+    </section>
+
+    <!-- CARDS -->
+    <section class="block" id="cards">
+      <h2><i data-lucide="square"></i> Card</h2>
+      <p class="subtitle">Header + corpo + ações · borda esquerda em Purple quando o agente está ativo/raciocinando.</p>
+      <div class="card-grid">
+        <div class="card agent-active">
+          <div class="chead"><i data-lucide="bot" style="width:16px;height:16px;color:var(--agent)"></i><h3>agent-triage-01</h3></div>
+          <p>Raciocinando sobre 3 tickets recebidos nos últimos 5 minutos.</p>
+        </div>
+        <div class="card">
+          <div class="chead"><i data-lucide="workflow" style="width:16px;height:16px;color:var(--info)"></i><h3>pipeline-onboarding</h3></div>
+          <p>Card padrão — usado em listas densas de pipelines.</p>
+        </div>
+        <div class="card selected">
+          <div class="chead"><i data-lucide="circle-check" style="width:16px;height:16px;color:var(--success)"></i><h3>Selecionado</h3></div>
+          <p>Borda em Amber indica seleção ativa.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FORMS -->
+    <section class="block" id="formularios">
+      <h2><i data-lucide="text-cursor-input"></i> Input &amp; Textarea</h2>
+      <p class="subtitle">Borda de foco em Amber · erro sobrepõe com Red.</p>
+      <div class="demo row" style="align-items:flex-start;gap:32px;">
+        <div class="field">
+          <label>Nome do agente <span class="req">*</span></label>
+          <input type="text" placeholder="Ex: agent-triage-01">
+          <span class="helper"><i data-lucide="info" style="width:12px;height:12px;"></i> Identificador único no workspace.</span>
+        </div>
+        <div class="field error">
+          <label>Webhook de callback <span class="req">*</span></label>
+          <input type="text" value="https://api/agents">
+          <span class="helper"><i data-lucide="octagon-alert" style="width:12px;height:12px;"></i> URL inválida.</span>
+        </div>
+        <div class="field">
+          <label>Modelo base</label>
+          <input type="text" value="claude-sonnet-5" disabled>
+        </div>
+        <div class="field">
+          <label>Estratégia de retry</label>
+          <select><option>Exponential backoff</option><option>Fixed delay</option></select>
+        </div>
+      </div>
+      <div class="demo row">
+        <div class="checkbox-row"><input type="checkbox" checked> Logging verboso</div>
+        <div class="checkbox-row"><input type="radio" name="r" checked> Sandbox</div>
+        <div class="checkbox-row"><input type="radio" name="r"> Produção</div>
+      </div>
+    </section>
+
+    <!-- BADGES & TAGS -->
+    <section class="block" id="badges">
+      <h2><i data-lucide="tag"></i> Badge &amp; Tag</h2>
+      <p class="subtitle">5 variantes semânticas: amber, success, info, error, agent.</p>
+      <div class="demo col">
+        <div class="row">
+          <span class="badge badge-amber"><i data-lucide="clock"></i> pending</span>
+          <span class="badge badge-success"><i data-lucide="circle-check"></i> running</span>
+          <span class="badge badge-info"><i data-lucide="info"></i> telemetry</span>
+          <span class="badge badge-error"><i data-lucide="circle-x"></i> failed</span>
+          <span class="badge badge-agent"><i data-lucide="bot"></i> agent</span>
+        </div>
+        <div class="row">
+          <span class="tag">React</span><span class="tag">TypeScript</span><span class="tag">Tailwind</span><span class="tag">Amber</span>
+        </div>
+        <div class="row" style="align-items:center;">
+          <span>Alertas ativos</span><span class="badge-count">3</span>
+          <span style="margin-left:16px">Execuções na fila</span><span class="badge-count">99+</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROGRESS -->
+    <section class="block" id="progress">
+      <h2><i data-lucide="loader"></i> Progress</h2>
+      <p class="subtitle">Amber = genérico/raciocinando · Success = concluído · Danger = falha/rollback.</p>
+      <div class="demo col">
+        <div><div class="demo-label">Amber — em execução</div><div class="progress-track"><div class="progress-fill" style="width:60%;background:var(--primary)"></div></div></div>
+        <div><div class="demo-label">Agent — raciocinando</div><div class="progress-track"><div class="progress-fill" style="width:40%;background:var(--agent)"></div></div></div>
+        <div><div class="demo-label">Success — concluído</div><div class="progress-track"><div class="progress-fill" style="width:100%;background:var(--success)"></div></div></div>
+        <div><div class="demo-label">Danger — falha</div><div class="progress-track"><div class="progress-fill" style="width:25%;background:var(--danger)"></div></div></div>
+      </div>
+    </section>
+
+    <!-- TABS -->
+    <section class="block" id="tabs">
+      <h2><i data-lucide="gallery-horizontal"></i> Tabs</h2>
+      <p class="subtitle">Tab ativa com underline em Amber.</p>
+      <div class="demo">
+        <div class="tabs">
+          <div class="tab active">Active</div>
+          <div class="tab">Inactive</div>
+          <div class="tab disabled">Disabled</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AVATARES -->
+    <section class="block" id="avatares">
+      <h2><i data-lucide="bot"></i> Avatar</h2>
+      <p class="subtitle">Iniciais para humanos · ícone bot em Purple para agentes.</p>
+      <div class="demo row" style="align-items:center;">
+        <div class="avatar xs">AS</div>
+        <div class="avatar sm">AS</div>
+        <div class="avatar md">AS</div>
+        <div class="avatar lg" style="color:var(--agent)"><i data-lucide="bot" style="width:22px;height:22px;"></i><span class="dot online"></span></div>
+        <div class="avatar xl" style="color:var(--agent)"><i data-lucide="bot" style="width:28px;height:28px;"></i><span class="dot away"></span></div>
+        <div class="avatar lg" style="color:var(--agent)"><i data-lucide="bot" style="width:22px;height:22px;"></i><span class="dot error"></span></div>
+        <div class="avatar lg" style="color:var(--text-disabled)"><i data-lucide="bot" style="width:22px;height:22px;"></i><span class="dot offline"></span></div>
+      </div>
+    </section>
+
+    <!-- LIST ITEM -->
+    <section class="block" id="listitem">
+      <h2><i data-lucide="list"></i> List Item</h2>
+      <p class="subtitle">Linha clicável com ícone, título e descrição.</p>
+      <div class="demo col" style="gap:2px;">
+        <div class="list-item">
+          <div class="li-icon"><i data-lucide="workflow" style="width:16px;height:16px;color:var(--info)"></i></div>
+          <div><div class="li-title">Orchestrate</div><div class="li-desc">Connect agents in flows</div></div>
+          <i data-lucide="chevron-right" class="chevron" style="width:16px;height:16px;"></i>
+        </div>
+        <div class="list-item">
+          <div class="li-icon"><i data-lucide="gauge" style="width:16px;height:16px;color:var(--primary)"></i></div>
+          <div><div class="li-title">Monitor</div><div class="li-desc">Real-time supervision</div></div>
+          <i data-lucide="chevron-right" class="chevron" style="width:16px;height:16px;"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- DRAWERS -->
+    <section class="block" id="drawers">
+      <h2><i data-lucide="panel-right"></i> Drawer <span class="mono" style="font-size:11px;color:var(--text-disabled);font-weight:400;">extensão de produto</span></h2>
+      <p class="subtitle">Inspeção contextual de um agente em execução.</p>
+      <div class="demo">
+        <button class="btn btn-primary" onclick="document.getElementById('drawerOverlay').classList.add('show');document.getElementById('drawer').classList.add('show')"><i data-lucide="bot" style="width:14px;height:14px;"></i> Inspecionar agente</button>
+      </div>
+    </section>
+    <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+    <div class="drawer" id="drawer">
+      <div class="drawer-header"><h3><i data-lucide="bot" style="width:16px;height:16px;"></i> agent-triage-01</h3><button class="close-btn" onclick="closeDrawer()"><i data-lucide="x" style="width:18px;height:18px;"></i></button></div>
+      <div class="drawer-body">
+        <div class="kv"><span>status</span><span style="color:var(--agent)">reasoning</span></div>
+        <div class="kv"><span>uptime</span><span>4h 12m</span></div>
+        <div class="kv"><span>latência p50</span><span>412ms</span></div>
+        <div class="kv"><span>tokens consumidos</span><span>128,402</span></div>
+      </div>
+      <div class="drawer-footer">
+        <button class="btn btn-secondary" onclick="closeDrawer()">Fechar</button>
+        <button class="btn btn-primary" onclick="closeDrawer()"><i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Reiniciar</button>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <section class="block" id="sidebar">
+      <h2><i data-lucide="panel-left"></i> Menu lateral <span class="mono" style="font-size:11px;color:var(--text-disabled);font-weight:400;">extensão de produto</span></h2>
+      <div class="demo">
+        <div class="sidebar-demo">
+          <div class="logo-row"><img src="https://letra-web.vercel.app/brand/logos/svg/letra-symbol.svg" alt=""> <span style="font-size:13px;font-weight:600;">letra</span></div>
+          <div class="nav-item active"><i data-lucide="layout-dashboard"></i> Dashboard</div>
+          <div class="nav-item"><i data-lucide="bot"></i> Agentes</div>
+          <div class="nav-item"><i data-lucide="workflow"></i> Pipelines</div>
+          <div class="nav-item"><i data-lucide="terminal"></i> Logs</div>
+          <div class="nav-item"><i data-lucide="settings-2"></i> Configurações</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TOASTS -->
+    <section class="block" id="toasts">
+      <h2><i data-lucide="bell"></i> Toast <span class="mono" style="font-size:11px;color:var(--text-disabled);font-weight:400;">extensão de produto</span></h2>
+      <p class="subtitle">Inclui tipo "agent update" (Purple) para eventos gerados por um agente autônomo.</p>
+      <div class="demo toast-demo-list">
+        <div class="toast success"><i data-lucide="circle-check" style="width:16px;height:16px;"></i><div><div class="ttitle">Execução concluída</div>pipeline-onboarding finalizou com sucesso.</div></div>
+        <div class="toast error"><i data-lucide="circle-x" style="width:16px;height:16px;"></i><div><div class="ttitle">Falha no pipeline</div>Timeout excedido.</div></div>
+        <div class="toast agent"><i data-lucide="sparkles" style="width:16px;height:16px;"></i><div><div class="ttitle">agent-triage-01</div>Decidiu escalar 2 tickets para revisão humana.</div></div>
+        <div class="toast info"><i data-lucide="info" style="width:16px;height:16px;"></i><div><div class="ttitle">Nova versão do modelo</div>claude-sonnet-5 disponível.</div></div>
+      </div>
+      <div class="demo"><button class="btn btn-primary" onclick="fireToast()"><i data-lucide="bell-ring" style="width:14px;height:14px;"></i> Disparar toast ao vivo</button></div>
+    </section>
+    <div id="liveToastArea"></div>
+
+    <!-- SEARCH -->
+    <section class="block" id="search">
+      <h2><i data-lucide="search"></i> Search <span class="mono" style="font-size:11px;color:var(--text-disabled);font-weight:400;">extensão de produto</span></h2>
+      <div class="demo">
+        <div class="search-box">
+          <span class="icon"><i data-lucide="search" style="width:15px;height:15px;"></i></span>
+          <input type="text" placeholder="Buscar agente, pipeline, log..." oninput="doSearch(this.value)">
+          <div class="search-results" id="searchResults"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODAIS -->
+    <section class="block" id="modais">
+      <h2><i data-lucide="square-x"></i> Modal <span class="mono" style="font-size:11px;color:var(--text-disabled);font-weight:400;">extensão de produto</span></h2>
+      <div class="demo"><button class="btn btn-danger" onclick="document.getElementById('modalOverlay').classList.add('show')"><i data-lucide="trash-2" style="width:14px;height:14px;"></i> Encerrar agente</button></div>
+    </section>
+    <div class="overlay" id="modalOverlay">
+      <div class="modal">
+        <div class="modal-header"><h3><i data-lucide="octagon-alert"></i> Encerrar agente?</h3><button class="close-btn" onclick="closeModal()"><i data-lucide="x" style="width:16px;height:16px;"></i></button></div>
+        <div class="modal-body">Esta ação encerra <strong>agent-triage-01</strong> imediatamente. Execuções em andamento serão interrompidas.</div>
+        <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancelar</button><button class="btn btn-danger" onclick="closeModal()">Sim, encerrar</button></div>
+      </div>
+    </div>
+
+    <!-- ALERT -->
+    <section class="block" id="alert">
+      <h2><i data-lucide="triangle-alert"></i> Alert</h2>
+      <p class="subtitle">4 variantes semânticas: info, success, warning, error.</p>
+      <div class="demo col" style="gap:12px;">
+        <div class="row" style="gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:var(--radius-md);background:color-mix(in srgb, var(--info) 12%, transparent);border:1px solid color-mix(in srgb, var(--info) 35%, transparent);">
+            <div style="display:flex;gap:10px;"><i data-lucide="info" style="width:16px;height:16px;color:var(--info);flex-shrink:0;margin-top:2px;"></i><div style="font-size:13px;"><strong style="display:block;margin-bottom:4px;">Info</strong> Telemetria conectada.</div></div>
+          </div>
+          <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:var(--radius-md);background:color-mix(in srgb, var(--success) 12%, transparent);border:1px solid color-mix(in srgb, var(--success) 35%, transparent);">
+            <div style="display:flex;gap:10px;"><i data-lucide="circle-check" style="width:16px;height:16px;color:var(--success);flex-shrink:0;margin-top:2px;"></i><div style="font-size:13px;"><strong style="display:block;margin-bottom:4px;">Success</strong> Pipeline concluído.</div></div>
+          </div>
+        </div>
+        <div class="row" style="gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:var(--radius-md);background:color-mix(in srgb, var(--primary) 12%, transparent);border:1px solid color-mix(in srgb, var(--primary) 35%, transparent);">
+            <div style="display:flex;gap:10px;"><i data-lucide="triangle-alert" style="width:16px;height:16px;color:var(--primary);flex-shrink:0;margin-top:2px;"></i><div style="font-size:13px;"><strong style="display:block;margin-bottom:4px;">Warning</strong> 3 alertas ativos.</div></div>
+          </div>
+          <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:var(--radius-md);background:color-mix(in srgb, var(--danger) 12%, transparent);border:1px solid color-mix(in srgb, var(--danger) 35%, transparent);">
+            <div style="display:flex;gap:10px;"><i data-lucide="x-circle" style="width:16px;height:16px;color:var(--danger);flex-shrink:0;margin-top:2px;"></i><div style="font-size:13px;"><strong style="display:block;margin-bottom:4px;">Error</strong> Falha na conexão.</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACCORDION -->
+    <section class="block" id="accordion">
+      <h2><i data-lucide="chevrons-up-down"></i> Accordion</h2>
+      <p class="subtitle">Seções expansíveis com chevron animado.</p>
+      <div class="demo col" style="gap:0;">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;" onclick="toggleAccordion(this)">
+          <span>agent-triage-01</span>
+          <i data-lucide="chevron-down" style="width:14px;height:14px;transition:transform var(--fast) var(--ease);"></i>
+        </div>
+        <div class="acc-content" style="padding:0 16px;max-height:0;overflow:hidden;transition:max-height 280ms var(--ease);font-size:12.5px;color:var(--text-secondary);">
+          <div style="padding:12px 0;">Status: raciocinando · Uptime: 4h 12m · Tokens: 128k</div>
+        </div>
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;" onclick="toggleAccordion(this)">
+          <span>pipeline-onboarding</span>
+          <i data-lucide="chevron-down" style="width:14px;height:14px;transition:transform var(--fast) var(--ease);"></i>
+        </div>
+        <div class="acc-content" style="padding:0 16px;max-height:0;overflow:hidden;transition:max-height 280ms var(--ease);font-size:12.5px;color:var(--text-secondary);">
+          <div style="padding:12px 0;">3 estágios · 2 gates humanos · Duração: 12m</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLLAPSIBLE -->
+    <section class="block" id="collapsible">
+      <h2><i data-lucide="panel-right-close"></i> Collapsible</h2>
+      <p class="subtitle">Painel expansível inline para detalhes contextuais.</p>
+      <div class="demo">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg-sunken);border-radius:var(--radius-sm);cursor:pointer;" onclick="this.nextElementSibling.classList.toggle('show');this.querySelector('i').style.transform=this.nextElementSibling.classList.contains('show')?'rotate(180deg)':'rotate(0deg)';">
+            <span style="font-size:13px;font-weight:600;">Detalhes da execução</span>
+            <i data-lucide="chevron-down" style="width:14px;height:14px;transition:transform var(--fast) var(--ease);"></i>
+          </div>
+          <div class="coll-content" style="overflow:hidden;max-height:0;transition:max-height 280ms var(--ease);">
+            <div style="padding:12px;font-size:12.5px;color:var(--text-secondary);background:var(--bg-surface);border-radius:var(--radius-sm);margin-top:4px;">
+              <div class="kv"><span>Modelo</span><span>claude-sonnet-5</span></div>
+              <div class="kv"><span>Latência</span><span>412ms</span></div>
+              <div class="kv"><span>Custo</span><span>$0.042</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMMAND -->
+    <section class="block" id="command">
+      <h2><i data-lucide="command"></i> Command Palette</h2>
+      <p class="subtitle">Paleta de comandos com busca e filtro automático.</p>
+      <div class="demo">
+        <div style="border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;max-width:340px;">
+          <div style="position:relative;">
+            <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-disabled);"></i>
+            <input type="text" placeholder="Buscar ação..." style="width:100%;padding:10px 12px 10px 36px;background:var(--bg-base);border:none;border-bottom:1px solid var(--border);color:var(--text-primary);font-size:13px;outline:none;font-family:'Inter',sans-serif;" oninput="filterCommand(this)">
+          </div>
+          <div style="padding:4px;">
+            <div class="cmd-item" data-value="Criar agente"><span style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;font-size:12.5px;cursor:pointer;"><i data-lucide="bot" style="width:14px;height:14px;color:var(--agent);"></i> Criar agente</span></div>
+            <div class="cmd-item" data-value="Iniciar pipeline"><span style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;font-size:12.5px;cursor:pointer;"><i data-lucide="workflow" style="width:14px;height:14px;color:var(--info);"></i> Iniciar pipeline</span></div>
+            <div class="cmd-item" data-value="Executar validação"><span style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;font-size:12.5px;cursor:pointer;"><i data-lucide="circle-check" style="width:14px;height:14px;color:var(--success);"></i> Executar validação</span></div>
+          </div>
+          <div style="padding:4px 8px;border-top:1px solid var(--border);font-size:10px;color:var(--text-disabled);display:flex;gap:12px;padding-top:6px;padding-bottom:6px;">
+            <span><span class="mono" style="background:var(--bg-sunken);padding:1px 5px;border-radius:3px;">↑↓</span> navegar</span>
+            <span><span class="mono" style="background:var(--bg-sunken);padding:1px 5px;border-radius:3px;">↵</span> selecionar</span>
+            <span><span class="mono" style="background:var(--bg-sunken);padding:1px 5px;border-radius:3px;">Esc</span> fechar</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DIALOG -->
+    <section class="block" id="dialog">
+      <h2><i data-lucide="square-x"></i> Dialog</h2>
+      <p class="subtitle">3 variantes: genérico, confirmação (default/danger), prompt com input.</p>
+      <div class="demo row">
+        <button class="btn btn-primary btn-sm" onclick="openDialog('generic')">Dialog genérico</button>
+        <button class="btn btn-secondary btn-sm" onclick="openDialog('confirm')">ConfirmDialog</button>
+        <button class="btn btn-secondary btn-sm" onclick="openDialog('prompt')">PromptDialog</button>
+      </div>
+    </section>
+
+    <!-- DROPDOWN -->
+    <section class="block" id="dropdown">
+      <h2><i data-lucide="menu"></i> Dropdown Menu</h2>
+      <p class="subtitle">Menu flutuante com itens, separador e label.</p>
+      <div class="demo">
+        <div style="position:relative;display:inline-block;" onclick="toggleDropdown(event)">
+          <button class="btn btn-secondary btn-sm"><i data-lucide="more-horizontal" style="width:14px;height:14px;"></i> Ações</button>
+          <div class="dd-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:160px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:4px;z-index:50;box-shadow:var(--shadow-md);">
+            <div style="padding:6px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-disabled);">Gerenciar</div>
+            <button style="display:flex;width:100%;align-items:center;gap:8px;padding:6px 8px;border:none;background:none;color:var(--text-primary);font-size:12.5px;border-radius:4px;cursor:pointer;" onmouseenter="this.style.background='var(--bg-sunken)'" onmouseleave="this.style.background='none'"><i data-lucide="play" style="width:14px;height:14px;"></i> Executar</button>
+            <button style="display:flex;width:100%;align-items:center;gap:8px;padding:6px 8px;border:none;background:none;color:var(--text-primary);font-size:12.5px;border-radius:4px;cursor:pointer;" onmouseenter="this.style.background='var(--bg-sunken)'" onmouseleave="this.style.background='none'"><i data-lucide="copy" style="width:14px;height:14px;"></i> Duplicar</button>
+            <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+            <button style="display:flex;width:100%;align-items:center;gap:8px;padding:6px 8px;border:none;background:none;color:var(--danger);font-size:12.5px;border-radius:4px;cursor:pointer;" onmouseenter="this.style.background='var(--bg-sunken)'" onmouseleave="this.style.background='none'"><i data-lucide="trash-2" style="width:14px;height:14px;"></i> Remover</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EMPTY STATE -->
+    <section class="block" id="empty-state">
+      <h2><i data-lucide="inbox"></i> Empty State</h2>
+      <p class="subtitle">Estado vazio com ícone, título, descrição e ação opcional.</p>
+      <div class="demo" style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 20px;">
+        <i data-lucide="bot" style="width:40px;height:40px;color:var(--text-disabled);margin-bottom:16px;"></i>
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 4px;font-family:'Inter',sans-serif;">Nenhum agente ativo</h3>
+        <p style="font-size:12.5px;color:var(--text-secondary);max-width:280px;margin:0 0 16px;">Crie seu primeiro agente para começar a orquestrar pipelines.</p>
+        <button class="btn btn-primary btn-sm"><i data-lucide="plus" style="width:14px;height:14px;"></i> Criar agente</button>
+      </div>
+    </section>
+
+    <!-- ERROR BANNER -->
+    <section class="block" id="error-banner">
+      <h2><i data-lucide="x-circle"></i> Error Banner</h2>
+      <p class="subtitle">Banner de erro com retry e detalhes expansíveis.</p>
+      <div class="demo">
+        <div style="border-radius:var(--radius-md);border:1px solid var(--danger);background:color-mix(in srgb, var(--danger) 10%, transparent);padding:12px;font-size:13px;">
+          <div style="display:flex;gap:10px;">
+            <i data-lucide="x-circle" style="width:16px;height:16px;color:var(--danger);flex-shrink:0;margin-top:2px;"></i>
+            <div style="flex:1;">
+              <strong style="display:block;margin-bottom:4px;">Falha na execução</strong>
+              <div style="margin-bottom:8px;">O pipeline onboarding encontrou um timeout.</div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-sm" style="background:color-mix(in srgb, var(--danger) 15%, transparent);color:var(--danger);border:1px solid transparent;padding:4px 10px;font-size:11px;border-radius:var(--radius-sm);cursor:pointer;">Tentar novamente</button>
+                <button class="btn btn-sm" style="background:none;color:var(--text-secondary);border:none;padding:4px 10px;font-size:11px;cursor:pointer;" onclick="toggleDetails(this)">Detalhes</button>
+              </div>
+            </div>
+          </div>
+          <div class="err-details" style="display:none;margin-top:8px;">
+            <pre style="background:color-mix(in srgb, var(--bg-base) 50%, transparent);padding:8px;border-radius:4px;font-size:11px;overflow-x:auto;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);">Error: TimeoutError: Request timed out after 30000ms
+    at fetchAgent (pipeline.ts:142)
+    at runPipeline (pipeline.ts:89)</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ICON -->
+    <section class="block" id="icon-system">
+      <h2><i data-lucide="shapes"></i> Icon (sistema nativo)</h2>
+      <p class="subtitle">40+ ícones SVG inline complementares ao Lucide. <span class="mono">stroke-width: 1.75</span></p>
+      <div class="icon-grid" style="grid-template-columns:repeat(auto-fill,minmax(90px,1fr));">
+        <div class="icon-item"><i data-lucide="home" style="width:18px;height:18px;"></i><span class="lbl">home</span></div>
+        <div class="icon-item"><i data-lucide="search" style="width:18px;height:18px;"></i><span class="lbl">search</span></div>
+        <div class="icon-item"><i data-lucide="settings" style="width:18px;height:18px;"></i><span class="lbl">settings</span></div>
+        <div class="icon-item"><i data-lucide="user" style="width:18px;height:18px;"></i><span class="lbl">user</span></div>
+        <div class="icon-item"><i data-lucide="trash-2" style="width:18px;height:18px;"></i><span class="lbl">trash</span></div>
+        <div class="icon-item"><i data-lucide="copy" style="width:18px;height:18px;"></i><span class="lbl">copy</span></div>
+        <div class="icon-item"><i data-lucide="folder" style="width:18px;height:18px;"></i><span class="lbl">folder</span></div>
+        <div class="icon-item"><i data-lucide="code" style="width:18px;height:18px;"></i><span class="lbl">code</span></div>
+        <div class="icon-item"><i data-lucide="clock" style="width:18px;height:18px;"></i><span class="lbl">clock</span></div>
+        <div class="icon-item"><i data-lucide="shield" style="width:18px;height:18px;"></i><span class="lbl">shield</span></div>
+      </div>
+    </section>
+
+    <!-- LABEL -->
+    <section class="block" id="label">
+      <h2><i data-lucide="tag"></i> Label</h2>
+      <p class="subtitle">Label de formulário com alinhamento a peer-disabled.</p>
+      <div class="demo row" style="gap:16px;">
+        <div class="field"><label style="font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px;"><span>Nome do agente</span><span class="badge badge-agent" style="font-size:9px;padding:1px 6px;">required</span></label><input type="text" placeholder="Ex: agent-triage-01" style="width:100%;padding:9px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-sunken);color:var(--text-primary);font-size:13px;outline:none;font-family:'Inter',sans-serif;"></div>
+        <div class="field"><label style="font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px;"><span>Modelo (desabilitado)</span></label><input type="text" value="claude-sonnet-5" disabled style="width:100%;padding:9px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-base);color:var(--text-disabled);font-size:13px;outline:none;font-family:'Inter',sans-serif;cursor:not-allowed;"></div>
+      </div>
+    </section>
+
+    <!-- NAV MENU -->
+    <section class="block" id="nav-menu">
+      <h2><i data-lucide="menu"></i> Navigation Menu</h2>
+      <p class="subtitle">Menu de navegação com submenu em portal.</p>
+      <div class="demo">
+        <div style="display:flex;gap:4px;padding:4px;background:var(--bg-sunken);border-radius:var(--radius-md);width:fit-content;">
+          <button class="btn btn-ghost btn-sm" style="font-size:12px;">Dashboard</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:12px;">Agentes</button>
+          <div style="position:relative;display:inline-block;" onmouseenter="this.querySelector('.nav-sub').style.display='flex'" onmouseleave="this.querySelector('.nav-sub').style.display='none'">
+            <button class="btn btn-ghost btn-sm" style="font-size:12px;display:flex;align-items:center;gap:4px;">Pipelines <i data-lucide="chevron-down" style="width:12px;height:12px;"></i></button>
+            <div class="nav-sub" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;flex-direction:column;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:4px;min-width:140px;box-shadow:var(--shadow-md);z-index:50;">
+              <button style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:none;background:none;color:var(--text-primary);font-size:12px;border-radius:4px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--bg-sunken)'" onmouseleave="this.style.background='none'">Em execução</button>
+              <button style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:none;background:none;color:var(--text-primary);font-size:12px;border-radius:4px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--bg-sunken)'" onmouseleave="this.style.background='none'">Histórico</button>
+              <button style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:none;background:none;color:var(--text-primary);font-size:12px;border-radius:4px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--bg-sunken)'" onmouseleave="this.style.background='none'">Configurações</button>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="font-size:12px;">Logs</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- POPOVER -->
+    <section class="block" id="popover">
+      <h2><i data-lucide="arrow-up-right"></i> Popover</h2>
+      <p class="subtitle">Conteúdo flutuante com alinhamento configurável.</p>
+      <div class="demo">
+        <div style="position:relative;display:inline-block;" onclick="this.classList.toggle('active');this.querySelector('.pop-content').style.display=this.classList.contains('active')?'block':'none'">
+          <button class="btn btn-secondary btn-sm"><i data-lucide="info" style="width:14px;height:14px;"></i> Info do agente</button>
+          <div class="pop-content" style="display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);min-width:200px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;box-shadow:var(--shadow-md);z-index:50;">
+            <div style="font-size:12px;font-weight:600;margin-bottom:4px;">agent-triage-01</div>
+            <div style="font-size:11.5px;color:var(--text-secondary);">Modelo: claude-sonnet-5<br>Status: <span style="color:var(--agent);">raciocinando</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RADIO GROUP -->
+    <section class="block" id="radio-group">
+      <h2><i data-lucide="circle"></i> Radio Group</h2>
+      <p class="subtitle">Seleção única com indicador circular.</p>
+      <div class="demo row" style="gap:16px;">
+        <div class="checkbox-row"><input type="radio" name="radioDemo" checked> Sandbox</div>
+        <div class="checkbox-row"><input type="radio" name="radioDemo"> Produção</div>
+        <div class="checkbox-row"><input type="radio" name="radioDemo" disabled> Desabilitado</div>
+      </div>
+    </section>
+
+    <!-- SCROLL AREA -->
+    <section class="block" id="scroll-area">
+      <h2><i data-lucide="scroll"></i> Scroll Area</h2>
+      <p class="subtitle">Área rolável com scrollbar customizada (sempre/auto/hover).</p>
+      <div class="demo">
+        <div style="max-height:120px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-md);padding:8px;">
+          <div style="padding:8px;font-size:12px;border-bottom:1px solid var(--border);">agent-triage-01 — raciocinando</div>
+          <div style="padding:8px;font-size:12px;border-bottom:1px solid var(--border);">pipeline-onboarding — concluído</div>
+          <div style="padding:8px;font-size:12px;border-bottom:1px solid var(--border);">agent-billing-02 — executando</div>
+          <div style="padding:8px;font-size:12px;border-bottom:1px solid var(--border);">pipeline-deploy — falha</div>
+          <div style="padding:8px;font-size:12px;border-bottom:1px solid var(--border);">agent-triage-02 — aguardando</div>
+          <div style="padding:8px;font-size:12px;">pipeline-rollback — concluído</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEPARATOR -->
+    <section class="block" id="separator">
+      <h2><i data-lucide="minus"></i> Separator</h2>
+      <p class="subtitle">Linha horizontal ou vertical para dividir conteúdo.</p>
+      <div class="demo" style="display:flex;flex-direction:column;gap:16px;">
+        <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+          <span>Dashboard</span>
+          <div style="width:1px;height:16px;background:var(--border);"></div>
+          <span>Agentes</span>
+          <div style="width:1px;height:16px;background:var(--border);"></div>
+          <span>Pipelines</span>
+        </div>
+        <div style="height:1px;background:var(--border);width:100%;"></div>
+        <div style="font-size:12px;color:var(--text-secondary);">Separador horizontal entre seções</div>
+      </div>
+    </section>
+
+    <!-- SHEET -->
+    <section class="block" id="sheet">
+      <h2><i data-lucide="panel-right"></i> Sheet</h2>
+      <p class="subtitle">Painel lateral em 4 direções — similar ao Drawer, mas com suporte a top/bottom/left/right.</p>
+      <div class="demo row">
+        <button class="btn btn-secondary btn-sm" onclick="openSheet('right')"><i data-lucide="panel-right" style="width:14px;height:14px;"></i> Right</button>
+        <button class="btn btn-secondary btn-sm" onclick="openSheet('left')"><i data-lucide="panel-left" style="width:14px;height:14px;"></i> Left</button>
+        <button class="btn btn-secondary btn-sm" onclick="openSheet('top')"><i data-lucide="arrow-up" style="width:14px;height:14px;"></i> Top</button>
+        <button class="btn btn-secondary btn-sm" onclick="openSheet('bottom')"><i data-lucide="arrow-down" style="width:14px;height:14px;"></i> Bottom</button>
+      </div>
+    </section>
+    <div class="sheet-overlay" id="sheetOverlay" onclick="closeSheet()"></div>
+    <div class="sheet" id="sheetPanel">
+      <div class="drawer-header"><h3><i data-lucide="bot" style="width:16px;height:16px;color:var(--agent);"></i> agent-triage-01</h3><button class="close-btn" onclick="closeSheet()"><i data-lucide="x" style="width:18px;height:18px;"></i></button></div>
+      <div class="drawer-body">
+        <div class="kv"><span>status</span><span style="color:var(--agent)">reasoning</span></div>
+        <div class="kv"><span>uptime</span><span>4h 12m</span></div>
+        <div class="kv"><span>latência p50</span><span>412ms</span></div>
+      </div>
+      <div class="drawer-footer">
+        <button class="btn btn-secondary btn-sm" onclick="closeSheet()">Fechar</button>
+        <button class="btn btn-primary btn-sm" onclick="closeSheet()"><i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Reiniciar</button>
+      </div>
+    </div>
+
+    <!-- SKELETON -->
+    <section class="block" id="skeleton">
+      <h2><i data-lucide="rectangle"></i> Skeleton</h2>
+      <p class="subtitle">6 variantes de loading: Card, Pipeline, Table, Agent List, Kanban e bloco genérico.</p>
+      <div class="demo">
+        <div class="row" style="gap:12px;">
+          <div style="flex:1;min-width:140px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;">
+            <div style="height:12px;width:40%;border-radius:6px;background:var(--bg-sunken);margin-bottom:8px;"></div>
+            <div style="height:10px;width:100%;border-radius:6px;background:var(--bg-sunken);margin-bottom:6px;"></div>
+            <div style="height:10px;width:60%;border-radius:6px;background:var(--bg-sunken);"></div>
+          </div>
+          <div style="flex:1;min-width:140px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;">
+            <div style="height:12px;width:50%;border-radius:6px;background:var(--bg-sunken);margin-bottom:8px;"></div>
+            <div style="height:10px;width:100%;border-radius:6px;background:var(--bg-sunken);margin-bottom:6px;"></div>
+            <div style="height:10px;width:75%;border-radius:6px;background:var(--bg-sunken);"></div>
+          </div>
+          <div style="flex:1;min-width:140px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;">
+            <div style="height:12px;width:35%;border-radius:6px;background:var(--bg-sunken);margin-bottom:8px;"></div>
+            <div style="height:10px;width:100%;border-radius:6px;background:var(--bg-sunken);margin-bottom:6px;"></div>
+            <div style="height:10px;width:50%;border-radius:6px;background:var(--bg-sunken);"></div>
+          </div>
+        </div>
+        <div class="code-note" style="margin-top:12px;"><i data-lucide="info" style="width:12px;height:12px;"></i> SkeletonCard · SkeletonPipeline · SkeletonTable · SkeletonAgentList · SkeletonKanban</div>
+      </div>
+    </section>
+
+    <!-- SWITCH -->
+    <section class="block" id="switch">
+      <h2><i data-lucide="toggle-left"></i> Switch</h2>
+      <p class="subtitle">Toggle com tamanhos sm e default.</p>
+      <div class="demo row" style="gap:24px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+          <span class="toggle-switch checked" onclick="toggleSwitch(this)"><span class="toggle-thumb"></span></span>
+          Logging verboso
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+          <span class="toggle-switch" onclick="toggleSwitch(this)"><span class="toggle-thumb"></span></span>
+          Notificações
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:not-allowed;opacity:0.5;">
+          <span class="toggle-switch" style="opacity:0.4;"><span class="toggle-thumb"></span></span>
+          Modo agente (indisponível)
+        </label>
+      </div>
+    </section>
+
+    <!-- TABLE -->
+    <section class="block" id="table">
+      <h2><i data-lucide="table"></i> Table</h2>
+      <p class="subtitle">Tabela de dados com header, body, footer e row hover.</p>
+      <div class="demo" style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead><tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--text-secondary);">Agente</th><th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--text-secondary);">Status</th><th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--text-secondary);">Uptime</th></tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border);transition:background var(--fast) var(--ease);" onmouseenter="this.style.background='var(--bg-sunken)'" onmouseleave="this.style.background='transparent'"><td style="padding:8px 12px;">agent-triage-01</td><td style="padding:8px 12px;"><span class="badge badge-agent" style="font-size:10px;">raciocinando</span></td><td style="padding:8px 12px;color:var(--text-secondary);">4h 12m</td></tr>
+            <tr style="border-bottom:1px solid var(--border);transition:background var(--fast) var(--ease);" onmouseenter="this.style.background='var(--bg-sunken)'" onmouseleave="this.style.background='transparent'"><td style="padding:8px 12px;">pipeline-onboarding</td><td style="padding:8px 12px;"><span class="badge badge-success" style="font-size:10px;">concluído</span></td><td style="padding:8px 12px;color:var(--text-secondary);">—</td></tr>
+            <tr style="border-bottom:1px solid var(--border);transition:background var(--fast) var(--ease);" onmouseenter="this.style.background='var(--bg-sunken)'" onmouseleave="this.style.background='transparent'"><td style="padding:8px 12px;">agent-billing-02</td><td style="padding:8px 12px;"><span class="badge badge-amber" style="font-size:10px;">executando</span></td><td style="padding:8px 12px;color:var(--text-secondary);">2h 08m</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TOOLTIP -->
+    <section class="block" id="tooltip">
+      <h2><i data-lucide="message-circle"></i> Tooltip</h2>
+      <p class="subtitle">Posições: top, bottom, left, right.</p>
+      <div class="demo row" style="gap:24px;justify-content:center;padding:32px;">
+        <div style="position:relative;display:inline-flex;">
+          <button class="btn btn-sm" style="background:var(--bg-sunken);border:1px solid var(--border);" onmouseenter="showTooltip(this,'Top','top')" onmouseleave="hideTooltip(this)">Top</button>
+        </div>
+        <div style="position:relative;display:inline-flex;">
+          <button class="btn btn-sm" style="background:var(--bg-sunken);border:1px solid var(--border);" onmouseenter="showTooltip(this,'Bottom','bottom')" onmouseleave="hideTooltip(this)">Bottom</button>
+        </div>
+        <div style="position:relative;display:inline-flex;">
+          <button class="btn btn-sm" style="background:var(--bg-sunken);border:1px solid var(--border);" onmouseenter="showTooltip(this,'Left','left')" onmouseleave="hideTooltip(this)">Left</button>
+        </div>
+        <div style="position:relative;display:inline-flex;">
+          <button class="btn btn-sm" style="background:var(--bg-sunken);border:1px solid var(--border);" onmouseenter="showTooltip(this,'Right','right')" onmouseleave="hideTooltip(this)">Right</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SIDEBAR -->
+    <section class="block" id="sidebar-pattern">
+      <h2><i data-lucide="panel-left"></i> Sidebar <span class="mono" style="font-size:11px;color:var(--text-disabled);font-weight:400;">padrão shadcn</span></h2>
+      <p class="subtitle">Sidebar colapsável com provider, menu, grupos e sub-menu. <span class="mono">Ctrl+B</span> para toggle.</p>
+      <div class="demo">
+        <div class="sidebar-demo" style="width:100%;max-width:260px;">
+          <div class="logo-row"><img src="https://letra-web.vercel.app/brand/logos/svg/letra-symbol.svg" alt=""> <span style="font-size:13px;font-weight:600;">letra</span></div>
+          <div class="nav-item active"><i data-lucide="layout-dashboard"></i> Supervisão</div>
+          <div class="nav-item"><i data-lucide="workflow"></i> Fluxo</div>
+          <div class="nav-item"><i data-lucide="bot"></i> Agentes</div>
+          <div class="nav-item"><i data-lucide="list"></i> Especificações</div>
+          <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+          <div class="nav-item" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-disabled);cursor:default;">Workspace</div>
+          <div class="nav-item"><i data-lucide="settings-2"></i> Configurações</div>
+          <div class="nav-item"><i data-lucide="terminal"></i> Auditoria</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DOCUMENT EDITOR -->
+    <section class="block" id="doc-editor">
+      <h2><i data-lucide="file-text"></i> Document Editor <span class="mono" style="font-size:11px;color:var(--text-disabled);font-weight:400;">padrão</span></h2>
+      <p class="subtitle">Editor markdown com preview lado a lado e navegação por seções.</p>
+      <div class="demo" style="padding:0;overflow:hidden;">
+        <div style="display:flex;flex-direction:column;">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--bg-surface);">
+            <div style="display:flex;gap:4px;flex:1;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-disabled);">README.md</div>
+              <div style="width:6px;height:6px;border-radius:50%;background:var(--primary);display:none;"></div>
+            </div>
+            <button class="btn btn-primary btn-sm">Editar</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;min-height:180px;">
+            <div style="border-right:1px solid var(--border);padding:12px 16px;font-size:12.5px;font-family:'JetBrains Mono',monospace;background:var(--bg-base);color:var(--text-secondary);line-height:1.8;">
+              <span style="color:var(--text-primary);font-weight:600;"># Letra</span><br>
+              <br>
+              <span style="color:var(--text-primary);font-weight:600;">## Visão Geral</span><br>
+              Mission Control para engenharia assistida por IA.<br>
+              <br>
+              <span style="color:var(--text-primary);font-weight:600;">## Stack</span><br>
+              - React 19 + TypeScript<br>
+              - Tailwind v4<br>
+              - Biome
+            </div>
+            <div style="padding:12px 16px;font-size:12.5px;background:var(--bg-surface);">
+              <div style="font-weight:600;font-size:18px;font-family:'Sora',sans-serif;margin-bottom:8px;">Letra</div>
+              <div style="font-weight:600;font-size:13px;margin-top:8px;">Visão Geral</div>
+              <div style="color:var(--text-secondary);margin-bottom:8px;">Mission Control para engenharia assistida por IA.</div>
+              <div style="font-weight:600;font-size:13px;margin-top:8px;">Stack</div>
+              <ul style="margin:4px 0;padding-left:16px;color:var(--text-secondary);">
+                <li>React 19 + TypeScript</li>
+                <li>Tailwind v4</li>
+                <li>Biome</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- KANBAN BOARD -->
+    <section class="block" id="kanban">
+      <h2><i data-lucide="columns-3"></i> Kanban Board <span class="mono" style="font-size:11px;color:var(--text-disabled);font-weight:400;">padrão</span></h2>
+      <p class="subtitle">Colunas por estágio com cards arrastáveis, tipo, responsável, progresso e idade.</p>
+      <div class="demo" style="padding:12px;overflow-x:auto;">
+        <div style="display:flex;gap:12px;min-width:600px;">
+          <div style="flex:1;min-width:160px;">
+            <div style="display:flex;align-items:center;gap:6px;padding:0 4px 8px;border-bottom:1px solid var(--border);margin-bottom:8px;">
+              <div style="width:6px;height:16px;border-radius:3px;background:var(--info);"></div>
+              <span style="font-size:11px;font-weight:600;">Backlog</span>
+              <span class="badge-count" style="background:var(--bg-sunken);color:var(--text-secondary);font-size:9px;min-width:16px;height:16px;">3</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <div style="padding:8px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-surface);">
+                <div style="display:flex;gap:4px;margin-bottom:4px;">
+                  <span class="badge" style="font-size:7px;padding:1px 4px;background:var(--info-subtle);color:var(--info);">FEAT</span>
+                  <span style="font-size:9px;font-family:'JetBrains Mono',monospace;flex:1;overflow:hidden;text-overflow:ellipsis;">item-47-auth</span>
+                  <span class="badge" style="font-size:7px;padding:1px 4px;background:var(--bg-sunken);color:var(--text-disabled);">na fila</span>
+                </div>
+                <div style="height:4px;border-radius:2px;background:var(--bg-sunken);"><div style="width:0%;height:100%;border-radius:2px;background:var(--primary);"></div></div>
+                <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:7px;color:var(--text-disabled);"><span>—</span><span>0%</span><span>idade 3d</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1;min-width:160px;">
+            <div style="display:flex;align-items:center;gap:6px;padding:0 4px 8px;border-bottom:1px solid var(--border);margin-bottom:8px;">
+              <div style="width:6px;height:16px;border-radius:3px;background:var(--primary);"></div>
+              <span style="font-size:11px;font-weight:600;">Code</span>
+              <span class="badge-count" style="background:var(--bg-sunken);color:var(--text-secondary);font-size:9px;min-width:16px;height:16px;">2</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <div style="padding:8px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-surface);border-left:2px solid var(--success);">
+                <div style="display:flex;gap:4px;margin-bottom:4px;">
+                  <span class="badge" style="font-size:7px;padding:1px 4px;background:var(--success-subtle);color:var(--success);">BUG</span>
+                  <span style="font-size:9px;font-family:'JetBrains Mono',monospace;flex:1;overflow:hidden;text-overflow:ellipsis;">bug-201-fix</span>
+                  <span class="badge" style="font-size:7px;padding:1px 4px;background:var(--primary-subtle);color:var(--primary);">em andamento</span>
+                </div>
+                <div style="height:4px;border-radius:2px;background:var(--bg-sunken);"><div style="width:60%;height:100%;border-radius:2px;background:var(--primary);"></div></div>
+                <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:7px;color:var(--text-secondary);"><span>João</span><span>60%</span><span>idade 1d</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1;min-width:160px;">
+            <div style="display:flex;align-items:center;gap:6px;padding:0 4px 8px;border-bottom:2px solid var(--gate-available);margin-bottom:8px;">
+              <div style="width:8px;height:16px;border-radius:3px;background:var(--gate-available);"></div>
+              <span style="font-size:11px;font-weight:600;color:var(--gate-available);">Review</span>
+              <span class="badge-count" style="background:var(--gate-available);color:#fff;font-size:9px;min-width:16px;height:16px;">1</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;background:color-mix(in srgb, var(--gate-available) 4%, transparent);border-radius:var(--radius-md);padding:6px;">
+              <div style="padding:8px;border:1px solid var(--gate-available);border-radius:var(--radius-md);background:var(--bg-surface);animation:human-pulse 2s ease-in-out infinite;">
+                <div style="display:flex;gap:4px;margin-bottom:4px;">
+                  <span class="badge" style="font-size:7px;padding:1px 4px;background:var(--primary-subtle);color:var(--primary);">FEAT</span>
+                  <span style="font-size:9px;font-family:'JetBrains Mono',monospace;flex:1;overflow:hidden;text-overflow:ellipsis;">item-42-flow</span>
+                  <span class="badge" style="font-size:7px;padding:1px 4px;background:color-mix(in srgb,var(--gate-available)15%,transparent);color:var(--gate-available);">gate</span>
+                </div>
+                <div style="height:4px;border-radius:2px;background:var(--bg-sunken);"><div style="width:100%;height:100%;border-radius:2px;background:var(--success);"></div></div>
+                <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:7px;color:var(--text-secondary);"><span>Maria</span><span>100%</span><span>idade 0d</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1;min-width:160px;">
+            <div style="display:flex;align-items:center;gap:6px;padding:0 4px 8px;border-bottom:1px solid var(--border);margin-bottom:8px;">
+              <div style="width:6px;height:16px;border-radius:3px;background:var(--success);"></div>
+              <span style="font-size:11px;font-weight:600;">Done</span>
+              <span class="badge-count" style="background:var(--bg-sunken);color:var(--text-secondary);font-size:9px;min-width:16px;height:16px;">5</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <div style="display:flex;align-items:center;justify-content:center;height:60px;"><span style="font-size:10px;color:var(--text-disabled);">Vazio</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- GATE CARD -->
+    <section class="block" id="gate-card">
+      <h2><i data-lucide="shield"></i> Gate Card <span class="mono" style="font-size:11px;color:var(--text-disabled);font-weight:400;">padrão</span></h2>
+      <p class="subtitle">6 estados: waiting, available (com ações), approved, changes-requested, rejected, expired.</p>
+      <div class="demo col" style="gap:8px;">
+        <div style="border-radius:var(--radius-md);border:1px solid var(--border);border-left:4px solid var(--gate-available);background:var(--bg-surface);padding:12px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+              <span style="font-size:9px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:3px;background:var(--gate-available)20;color:var(--gate-available);">Aprovação Necessária</span>
+              <span style="font-size:9px;color:var(--text-disabled);">há 12min</span>
+            </div>
+            <div style="font-size:13px;font-weight:600;">Implementar autenticação OAuth</div>
+            <div style="font-size:11px;color:var(--text-secondary);">Review · agent-triage-01</div>
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0;">
+            <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:4px 8px;">Alterar</button>
+            <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:4px 8px;color:var(--danger);"><i data-lucide="x" style="width:12px;height:12px;"></i></button>
+            <button class="btn btn-primary btn-sm" style="font-size:10px;padding:4px 10px;"><i data-lucide="check" style="width:12px;height:12px;"></i> Aprovar</button>
+          </div>
+        </div>
+        <div style="border-radius:var(--radius-md);border:1px solid var(--border);border-left:4px solid var(--success);background:var(--bg-surface);padding:12px;display:flex;align-items:flex-start;gap:12px;">
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+              <span style="font-size:9px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:3px;background:var(--success-subtle);color:var(--success);">Aprovado</span>
+              <span style="font-size:9px;color:var(--text-disabled);">há 2h</span>
+            </div>
+            <div style="font-size:13px;font-weight:600;">Refatorar módulo de pipeline</div>
+            <div style="font-size:11px;color:var(--text-secondary);">Review · agente-sistema</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TIMELINE -->
+    <section class="block" id="timeline">
+      <h2><i data-lucide="timeline"></i> Activity Timeline <span class="mono" style="font-size:11px;color:var(--text-disabled);font-weight:400;">padrão</span></h2>
+      <p class="subtitle">Linha do tempo vertical com agrupamento Hoje/Ontem/Semana/Anterior.</p>
+      <div class="demo" style="padding:0;max-height:260px;overflow-y:auto;">
+        <div style="padding:12px;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-disabled);margin-bottom:8px;"><span style="width:20px;height:20px;border-radius:50%;background:var(--bg-surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:8px;">H</span> Hoje</div>
+          <div style="display:flex;flex-direction:column;gap:8px;position:relative;padding-left:30px;">
+            <div style="position:absolute;left:9px;top:0;bottom:0;width:1px;background:var(--border);"></div>
+            <div style="display:flex;align-items:flex-start;gap:8px;position:relative;">
+              <div style="width:18px;height:18px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:white;font-size:7px;font-weight:700;flex-shrink:0;position:relative;z-index:1;">J</div>
+              <div><div style="font-size:10px;"><strong>João</strong> <span style="color:var(--text-secondary)">moveu para Code</span></div><div style="font-size:8px;color:var(--text-disabled);font-family:'JetBrains Mono',monospace;">item-42-flow</div></div>
+              <div style="margin-left:auto;font-size:7px;color:var(--text-disabled);">14:32</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;position:relative;">
+              <div style="width:18px;height:18px;border-radius:50%;background:var(--bg-surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;"><i data-lucide="circle" style="width:8px;height:8px;color:var(--info);"></i></div>
+              <div><div style="font-size:10px;"><strong>Sistema</strong> <span style="color:var(--text-secondary)">criou item no Backlog</span></div><div style="font-size:8px;color:var(--text-disabled);font-family:'JetBrains Mono',monospace;">item-47-auth</div></div>
+              <div style="margin-left:auto;font-size:7px;color:var(--text-disabled);">11:05</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MARCHING BORDER -->
+    <section class="block" id="marching-border">
+      <h2><i data-lucide="border-all"></i> Marching Border <span class="mono" style="font-size:11px;color:var(--text-disabled);font-weight:400;">padrão</span></h2>
+      <p class="subtitle">Borda animada SVG com dash-march para indicar estado "ao vivo"/claimed.</p>
+      <div class="demo" style="display:flex;justify-content:center;gap:16px;padding:24px;">
+        <div style="position:relative;width:160px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-surface);">
+          <div aria-hidden="true" style="position:absolute;pointer-events:none;inset:-2px;">
+            <svg width="100%" height="100%" fill="none"><rect x="0" y="0" width="100%" height="100%" rx="8" stroke="var(--live)" stroke-width="1.75" stroke-dasharray="8 4" class="animate-dash-march" style="animation:dash-march .4s linear infinite;"></rect></svg>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <i data-lucide="bot" style="width:14px;height:14px;color:var(--agent);"></i>
+            <span style="font-size:12px;font-weight:600;">agent-triage-01</span>
+          </div>
+          <div style="font-size:10px;color:var(--agent);">● ativo</div>
+        </div>
+        <div style="width:160px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-surface);">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <i data-lucide="bot" style="width:14px;height:14px;color:var(--text-disabled);"></i>
+            <span style="font-size:12px;font-weight:600;">agent-billing-02</span>
+          </div>
+          <div style="font-size:10px;color:var(--text-disabled);">○ inativo</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VALIDATING BAR -->
+    <section class="block" id="validating-bar">
+      <h2><i data-lucide="loader"></i> Validating Bar <span class="mono" style="font-size:11px;color:var(--text-disabled);font-weight:400;">padrão</span></h2>
+      <p class="subtitle">Barra de progresso fina no topo da viewport durante validação.</p>
+      <div class="demo" style="display:flex;flex-direction:column;gap:12px;padding:0;overflow:hidden;">
+        <div style="height:3px;background:var(--bg-sunken);position:relative;overflow:hidden;">
+          <div class="animate-validating-bar" style="position:absolute;inset:0;width:100%;height:100%;background:var(--primary);transform:translateX(-100%);animation:validating-bar 1.5s ease-in-out infinite;"></div>
+        </div>
+        <div style="padding:0 16px 12px;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-secondary);"><i data-lucide="check-circle" style="width:12px;height:12px;color:var(--success);"></i> Validando especificações...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ASSETS -->
+    <section class="block" id="assets" style="border-bottom:none;">
+      <h2><i data-lucide="image"></i> Brand Assets</h2>
+      <p class="subtitle">Logos oficiais em SVG.</p>
+      <div class="logo-grid">
+        <div class="logo-card"><img src="https://letra-web.vercel.app/brand/logos/svg/letra-horizontal.svg"><span class="lname">Horizontal</span></div>
+        <div class="logo-card"><img src="https://letra-web.vercel.app/brand/logos/svg/letra-vertical.svg"><span class="lname">Vertical</span></div>
+        <div class="logo-card"><img src="https://letra-web.vercel.app/brand/logos/svg/letra-symbol.svg"><span class="lname">Symbol</span></div>
+        <div class="logo-card dark-bg"><img src="https://letra-web.vercel.app/brand/logos/svg/letra-dark.svg"><span class="lname">Wordmark dark</span></div>
+        <div class="logo-card"><img src="https://letra-web.vercel.app/brand/logos/svg/letra-light.svg"><span class="lname">Wordmark light</span></div>
+        <div class="logo-card"><img src="https://letra-web.vercel.app/brand/logos/svg/app-icon.svg"><span class="lname">App Icon</span></div>
+        <div class="logo-card"><img src="https://letra-web.vercel.app/brand/logos/svg/letra-monochrome.svg"><span class="lname">Monochrome</span></div>
+        <div class="logo-card"><img src="https://letra-web.vercel.app/brand/logos/svg/favicon.svg"><span class="lname">Favicon</span></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  lucide.createIcons();
+  function closeModal(){ document.getElementById('modalOverlay').classList.remove('show'); }
+  function closeDrawer(){ document.getElementById('drawerOverlay').classList.remove('show'); document.getElementById('drawer').classList.remove('show'); }
+  function closeSheet(){
+    const sheet = document.getElementById('sheetPanel');
+    const overlay = document.getElementById('sheetOverlay');
+    overlay.classList.remove('show');
+    // Determine current side from computed style
+    const right = sheet.style.right;
+    const left = sheet.style.left;
+    const top = sheet.style.top;
+    const bottom = sheet.style.bottom;
+    if (right === '0px' || right === '0') sheet.style.right = '-360px';
+    else if (left === '0px' || left === '0') sheet.style.left = '-360px';
+    else if (top === '0px' || top === '0') sheet.style.top = '-60vh';
+    else if (bottom === '0px' || bottom === '0') sheet.style.bottom = '-60vh';
+    setTimeout(() => sheet.classList.remove('show'), 280);
+  }
+  document.addEventListener('keydown', e => { if(e.key==='Escape'){ closeModal(); closeDrawer(); closeSheet(); } });
+
+  // ── Accordion ──
+  function toggleAccordion(el) {
+    const content = el.nextElementSibling;
+    const icon = el.querySelector('i[data-lucide]');
+    const isOpen = content.style.maxHeight && content.style.maxHeight !== '0px';
+    content.style.maxHeight = isOpen ? '0px' : content.scrollHeight + 'px';
+    if (icon) icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+  }
+
+  // ── Command filter ──
+  function filterCommand(input) {
+    const q = input.value.toLowerCase();
+    input.closest('div').querySelectorAll('.cmd-item').forEach(item => {
+      const val = item.getAttribute('data-value') || '';
+      item.style.display = val.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
+
+  // ── Dialog ──
+  function openDialog(type) {
+    const o = document.createElement('div');
+    o.className = 'overlay';
+    o.style.display = 'flex';
+    if (type === 'generic') {
+      o.innerHTML = '<div class="modal"><div class="modal-header"><h3><i data-lucide="info" style="color:var(--info);"></i> Informação</h3><button class="close-btn" onclick="this.closest(\'.overlay\').remove()"><i data-lucide="x" style="width:16px;height:16px;"></i></button></div><div class="modal-body">Pipeline onboarding executado com sucesso. 3 agentes processados.</div><div class="modal-footer"><button class="btn btn-primary btn-sm" onclick="this.closest(\'.overlay\').remove()">OK</button></div></div>';
+    } else if (type === 'confirm') {
+      o.innerHTML = '<div class="modal"><div class="modal-header"><h3><i data-lucide="octagon-alert" style="color:var(--danger);"></i> Encerrar agente?</h3><button class="close-btn" onclick="this.closest(\'.overlay\').remove()"><i data-lucide="x" style="width:16px;height:16px;"></i></button></div><div class="modal-body">Esta ação encerra <strong>agent-triage-01</strong> imediatamente.</div><div class="modal-footer"><button class="btn btn-secondary btn-sm" onclick="this.closest(\'.overlay\').remove()">Cancelar</button><button class="btn btn-danger btn-sm" onclick="this.closest(\'.overlay\').remove()">Sim, encerrar</button></div></div>';
+    } else if (type === 'prompt') {
+      o.innerHTML = '<div class="modal"><div class="modal-header"><h3><i data-lucide="edit" style="color:var(--primary);"></i> Criar agente</h3><button class="close-btn" onclick="this.closest(\'.overlay\').remove()"><i data-lucide="x" style="width:16px;height:16px;"></i></button></div><div class="modal-body"><label style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;">Nome do agente<input type="text" placeholder="Ex: agent-triage-02" style="margin-top:4px;padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-sunken);color:var(--text-primary);font-size:13px;outline:none;font-family:\'Inter\',sans-serif;"></label></div><div class="modal-footer"><button class="btn btn-secondary btn-sm" onclick="this.closest(\'.overlay\').remove()">Cancelar</button><button class="btn btn-primary btn-sm" onclick="this.closest(\'.overlay\').remove()">Criar</button></div></div>';
+    }
+    document.body.appendChild(o);
+    lucide.createIcons();
+  }
+
+  // ── Dropdown ──
+  function toggleDropdown(e) {
+    e.stopPropagation();
+    const menu = e.currentTarget.querySelector('.dd-menu');
+    const isOpen = menu.style.display === 'block';
+    document.querySelectorAll('.dd-menu').forEach(m => m.style.display = 'none');
+    menu.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) {
+      setTimeout(() => document.addEventListener('click', closeDropdown, { once: true }), 0);
+    }
+  }
+  function closeDropdown() {
+    document.querySelectorAll('.dd-menu').forEach(m => m.style.display = 'none');
+  }
+
+  // ── Error Banner details ──
+  function toggleDetails(btn) {
+    const details = btn.closest('div').querySelector('.err-details');
+    if (details) details.style.display = details.style.display === 'none' ? 'block' : 'none';
+    btn.textContent = details?.style.display === 'block' ? 'Ocultar' : 'Detalhes';
+  }
+
+  // ── Sheet ──
+  function openSheet(side) {
+    const sheet = document.getElementById('sheetPanel');
+    const overlay = document.getElementById('sheetOverlay');
+    const isVertical = side === 'top' || side === 'bottom';
+
+    // Reset and set off-screen position first
+    sheet.style.transition = 'none';
+    sheet.style.right = 'auto';
+    sheet.style.left = 'auto';
+    sheet.style.top = 'auto';
+    sheet.style.bottom = 'auto';
+    sheet.style.width = isVertical ? '100%' : '360px';
+    sheet.style.maxHeight = isVertical ? '60vh' : 'none';
+    sheet.style.height = isVertical ? 'auto' : '100%';
+
+    if (side === 'right') {
+      sheet.style.right = '-360px';
+      sheet.style.top = '0';
+    } else if (side === 'left') {
+      sheet.style.left = '-360px';
+      sheet.style.top = '0';
+    } else if (side === 'top') {
+      sheet.style.top = '-60vh';
+      sheet.style.left = '0';
+    } else if (side === 'bottom') {
+      sheet.style.bottom = '-60vh';
+      sheet.style.left = '0';
+    }
+
+    // Force reflow
+    void sheet.offsetHeight;
+
+    // Animate in
+    sheet.style.transition = 'all 280ms cubic-bezier(0.2,0.8,0.2,1)';
+    sheet.classList.add('show');
+    overlay.classList.add('show');
+
+    if (side === 'right') sheet.style.right = '0';
+    else if (side === 'left') sheet.style.left = '0';
+    else if (side === 'top') sheet.style.top = '0';
+    else if (side === 'bottom') sheet.style.bottom = '0';
+  }
+
+  // ── Switch toggle ──
+  function toggleSwitch(el) {
+    if (el.closest('label')?.style.cursor === 'not-allowed') return;
+    el.classList.toggle('checked');
+  }
+
+  // ── Tooltip ──
+  function showTooltip(btn, text, pos) {
+    const container = btn.parentElement;
+    const existing = container.querySelector('.demo-tooltip');
+    if (existing) existing.remove();
+    const tip = document.createElement('div');
+    tip.className = 'demo-tooltip';
+    tip.style.cssText = 'position:absolute;z-index:50;padding:6px 10px;border-radius:8px;font-size:11px;white-space:nowrap;pointer-events:none;background:var(--text-primary);color:var(--bg-base);';
+    tip.textContent = text;
+    if (pos === 'top') { tip.style.bottom = 'calc(100% + 8px)'; tip.style.left = '50%'; tip.style.transform = 'translateX(-50%)'; }
+    else if (pos === 'bottom') { tip.style.top = 'calc(100% + 8px)'; tip.style.left = '50%'; tip.style.transform = 'translateX(-50%)'; }
+    else if (pos === 'left') { tip.style.right = 'calc(100% + 8px)'; tip.style.top = '50%'; tip.style.transform = 'translateY(-50%)'; }
+    else if (pos === 'right') { tip.style.left = 'calc(100% + 8px)'; tip.style.top = '50%'; tip.style.transform = 'translateY(-50%)'; }
+    container.appendChild(tip);
+  }
+  function hideTooltip(btn) {
+    const tip = btn.parentElement.querySelector('.demo-tooltip');
+    if (tip) tip.remove();
+  }
+
+  const searchData = ['agent-triage-01','pipeline-onboarding','agent-billing-02','Logs de execução','Configuração de retry'];
+  function doSearch(term){
+    const box = document.getElementById('searchResults');
+    if(!term){ box.classList.remove('show'); box.innerHTML=''; return; }
+    const matches = searchData.filter(i => i.toLowerCase().includes(term.toLowerCase()));
+    box.innerHTML = matches.length ? matches.map(m => { const re=new RegExp('('+term+')','ig'); return '<div>'+m.replace(re,'<mark>$1</mark>')+'</div>'; }).join('') : '<div>Nenhum resultado para "'+term+'"</div>';
+    box.classList.add('show');
+  }
+
+  let toastCount = 0;
+  function fireToast(){
+    toastCount++;
+    const area = document.getElementById('liveToastArea');
+    const el = document.createElement('div');
+    el.className = 'toast agent'; el.style.minWidth = '280px';
+    el.innerHTML = '<i data-lucide="sparkles" style="width:16px;height:16px;color:var(--agent)"></i><div><div class="ttitle">agent-triage-01 #'+toastCount+'</div>Evento gerado automaticamente pelo agente.</div>';
+    area.prepend(el); lucide.createIcons();
+    setTimeout(() => { el.style.transition='opacity .3s'; el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 4000);
+  }
+</script>
+</body>
+</html>

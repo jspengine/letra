@@ -2,9 +2,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
-import { clearFocusFile, writeFocusFile } from "../adapters/focus-sync.js";
+import { clearFocusFile } from "../adapters/focus-sync.js";
+import { writeFocusWithRecommendations } from "../adapters/focus-recommendations.js";
 import { loadWorkflow, writeWorkflow } from "./flow-init.js";
 import { logEntry } from "../session-log.js";
+import { getLetraDir } from "./../workspace/resolver.js";
 
 export default function () {
 	return new Command("focus")
@@ -13,7 +15,7 @@ export default function () {
 		.option("--clear", "Remove focus file")
 		.action(async (spec: string | undefined, options: { clear?: boolean; claim?: boolean }) => {
 			const root = resolve(process.cwd());
-			const focusFile = join(root, ".letra", "focus.md");
+			const focusFile = join(getLetraDir(root), "focus.md");
 
 			if (options.clear) {
 				if (existsSync(focusFile)) {
@@ -29,9 +31,14 @@ export default function () {
 					let releasedCount = 0;
 					for (const item of workflow.items) {
 						if (item.claimedBy) {
-							logEntry(root, "item_release", `Auto-release on focus clear: ${item.id}`, { itemId: item.id });
-							delete item.claimedBy;
-							delete item.claimedAt;
+							logEntry(
+								root,
+								"item_release",
+								`Auto-release on focus clear: ${item.id}`,
+								{ itemId: item.id },
+							);
+							item.claimedBy = undefined;
+							item.claimedAt = undefined;
 							releasedCount++;
 						}
 					}
@@ -49,7 +56,7 @@ export default function () {
 			}
 
 			if (spec) {
-				const specDir = join(root, ".letra", "specs", spec);
+				const specDir = join(getLetraDir(root), "specs", spec);
 				const specFile = join(specDir, "spec.md");
 
 				if (!existsSync(specFile)) {
@@ -59,7 +66,7 @@ export default function () {
 
 				const workflow = loadWorkflow(root);
 				let itemId = "";
-				let activeStageId = "code";
+				let activeStageId = "";
 
 				if (workflow) {
 					const itemWithSpec = workflow.items.find((item) => item.spec === spec);
@@ -67,10 +74,11 @@ export default function () {
 						itemId = itemWithSpec.id;
 						activeStageId = itemWithSpec.stage;
 					} else {
-						const codeStage = workflow.stages.find(
-							(s) => s.id === "code" || s.name.toLowerCase() === "code",
-						);
-						activeStageId = codeStage ? codeStage.id : workflow.stages[0]?.id;
+						const devStage =
+							workflow.stages.find((s) => s.zone === "doing") ??
+							workflow.stages.find((s) => s.order > 0 && s.zone !== "done") ??
+							workflow.stages[0];
+						activeStageId = devStage?.id ?? workflow.stages[0]?.id;
 					}
 				}
 
@@ -79,19 +87,27 @@ export default function () {
 					if (itemWithSpec && itemWithSpec.id === itemId) {
 						for (const other of workflow.items) {
 							if (other.claimedBy === "opencode" && other.id !== itemId) {
-								logEntry(root, "item_release", `Auto-release on refocus: ${other.id}`, { itemId: other.id });
-								delete other.claimedBy;
-								delete other.claimedAt;
+								logEntry(
+									root,
+									"item_release",
+									`Auto-release on refocus: ${other.id}`,
+									{ itemId: other.id },
+								);
+								other.claimedBy = undefined;
+								other.claimedAt = undefined;
 							}
 						}
 						itemWithSpec.claimedBy = "opencode";
 						itemWithSpec.claimedAt = new Date().toISOString();
 						console.log(chalk.gray(`  Claimed ${itemId}.`));
-						logEntry(root, "item_claim", `Auto-claim: ${itemId}`, { itemId, by: "opencode" });
+						logEntry(root, "item_claim", `Auto-claim: ${itemId}`, {
+							itemId,
+							by: "opencode",
+						});
 					}
 				}
 
-				writeFocusFile(root, spec, itemId);
+				writeFocusWithRecommendations(root, spec, itemId);
 				logEntry(root, "focus_set", `Foco definido: ${spec}`, { itemId });
 				console.log(chalk.green(`Focus set to "${spec}".`));
 

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "../../lib/utils";
-import { Badge, Button } from "@letra/ui";
+import { Badge, Button, Label, RadioGroup, RadioGroupItem } from "@letra/ui";
 import { PersonalizationWizard } from "./PersonalizationWizard";
-import { TEMPLATES } from "./templates";
+import { TEMPLATES, type WorkflowTemplate } from "./templates";
 
 interface SetupWizardProps {
 	onComplete: (templateId: string) => void;
@@ -12,6 +12,46 @@ interface SetupWizardProps {
 export function SetupWizard({ onComplete, onPersonalizedComplete }: SetupWizardProps) {
 	const [selected, setSelected] = useState<string | null>(null);
 	const [personalizing, setPersonalizing] = useState(false);
+	const [templates, setTemplates] = useState<WorkflowTemplate[]>(TEMPLATES);
+
+	useEffect(() => {
+		fetch("/api/harness/templates")
+			.then((response) => response.json())
+			.then((data) => {
+				if (!Array.isArray(data) || data.length === 0) return;
+				const harnessTemplates: WorkflowTemplate[] = data.map((template: any) => ({
+					id: String(template.id),
+					name: String(template.name ?? template.id),
+					description: String(template.description ?? ""),
+					icon: "cross",
+					stages: Array.isArray(template.stages)
+						? template.stages.map((stage: any) => ({
+								id: String(stage.id),
+								name: String(stage.name ?? stage.id),
+								zone:
+									stage.zone === "todo" ||
+									stage.zone === "doing" ||
+									stage.zone === "done"
+										? stage.zone
+										: undefined,
+							}))
+						: [],
+				}));
+				setTemplates([
+					...harnessTemplates,
+					TEMPLATES.find((template) => template.id === "personalizado") ?? {
+						id: "personalizado",
+						name: "Personalizar",
+						description: "Monte seu próprio fluxo.",
+						icon: "settings",
+						stages: [],
+					},
+				]);
+			})
+			.catch(() => {
+				setTemplates(TEMPLATES);
+			});
+	}, []);
 
 	if (personalizing) {
 		return (
@@ -40,12 +80,12 @@ export function SetupWizard({ onComplete, onPersonalizedComplete }: SetupWizardP
 		<div className="min-h-screen flex flex-col items-center justify-center p-8">
 			<div className="max-w-2xl w-full">
 				<div className="text-center mb-10">
-					<div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-4">
+					<div className="inline-flex items-center justify-center w-14 h-14 rounded-[var(--radius-lg)] bg-primary/10 mb-4">
 						<svg
 							viewBox="0 0 24 24"
 							fill="none"
 							stroke="currentColor"
-							strokeWidth="2"
+							strokeWidth="1.75"
 							strokeLinecap="round"
 							strokeLinejoin="round"
 							className="w-7 h-7 text-primary"
@@ -68,26 +108,29 @@ export function SetupWizard({ onComplete, onPersonalizedComplete }: SetupWizardP
 					</p>
 				</div>
 
-				<div className="grid gap-4">
-					{TEMPLATES.map((t) => (
-						<button
+				<RadioGroup
+					value={selected ?? ""}
+					onValueChange={setSelected}
+					className="grid gap-4"
+					aria-label="Template de workflow"
+				>
+					{templates.map((t) => (
+						<Label
 							key={t.id}
-							type="button"
-							onClick={() => setSelected(t.id)}
 							className={cn(
-								"w-full text-left rounded-xl border p-5 transition-all cursor-pointer",
+								"relative block w-full cursor-pointer rounded-[var(--radius-md)] border p-5 text-left transition-all",
 								selected === t.id
 									? "border-primary bg-primary/5 ring-2 ring-primary/20"
 									: "border-border bg-card hover:border-primary/50 hover:bg-muted/30",
 							)}
 						>
 							<div className="flex items-start gap-4">
-								<div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+								<div className="w-10 h-10 rounded-[var(--radius-sm)] bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
 									<svg
 										viewBox="0 0 24 24"
 										fill="none"
 										stroke="currentColor"
-										strokeWidth="2"
+										strokeWidth="1.75"
 										strokeLinecap="round"
 										strokeLinejoin="round"
 										className="w-5 h-5 text-primary"
@@ -102,12 +145,10 @@ export function SetupWizard({ onComplete, onPersonalizedComplete }: SetupWizardP
 											{t.name}
 										</span>
 										{t.stages.length > 0 && (
-											<Badge variant="secondary">
-												{t.stages.length} estágios
-											</Badge>
+											<Badge variant="info">{t.stages.length} estágios</Badge>
 										)}
 										{t.id === "personalizado" && (
-											<Badge variant="warning">Do zero</Badge>
+											<Badge variant="amber">Do zero</Badge>
 										)}
 									</div>
 									<p className="text-sm text-muted-foreground">{t.description}</p>
@@ -119,7 +160,7 @@ export function SetupWizard({ onComplete, onPersonalizedComplete }: SetupWizardP
 													className={cn(
 														"text-xs px-2 py-0.5 rounded-full border",
 														s.zone === "todo"
-															? "border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10"
+															? "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10"
 															: s.zone === "doing"
 																? "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10"
 																: "border-green-500/30 text-green-600 dark:text-green-400 bg-green-500/10",
@@ -131,33 +172,11 @@ export function SetupWizard({ onComplete, onPersonalizedComplete }: SetupWizardP
 										</div>
 									)}
 								</div>
-								<div
-									className={cn(
-										"w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-1",
-										selected === t.id
-											? "border-primary bg-primary"
-											: "border-muted-foreground/30",
-									)}
-								>
-									{selected === t.id && (
-										<svg
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="white"
-											strokeWidth="3"
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											className="w-3 h-3"
-											aria-hidden="true"
-										>
-											<path d="M5 12l5 5 9-9" />
-										</svg>
-									)}
-								</div>
+								<RadioGroupItem value={t.id} aria-label={t.name} />
 							</div>
-						</button>
+						</Label>
 					))}
-				</div>
+				</RadioGroup>
 
 				<div className="mt-8 flex justify-center">
 					<Button

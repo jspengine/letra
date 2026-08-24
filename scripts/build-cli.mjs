@@ -21,7 +21,15 @@ execSync("npm run build", { cwd: clientDir, stdio: "inherit" });
 console.log("[build] Building CLI...");
 execSync("npx tsup", { cwd: cliDir, stdio: "inherit" });
 
-// Step 3: Copy client dist into CLI output
+// Step 3: Copy default harness files into CLI output
+const harnessDefaultDir = join(cliDir, "src", "harness", "default");
+const cliHarnessDir = join(cliDir, "dist", "harness", "default");
+if (existsSync(harnessDefaultDir)) {
+	console.log("[build] Copying default harness to CLI dist...");
+	cpSync(harnessDefaultDir, cliHarnessDir, { recursive: true });
+}
+
+// Step 4: Copy client dist into CLI output
 const clientDist = join(clientDir, "dist");
 const cliClientDir = join(cliDir, "dist", "client");
 if (existsSync(clientDist)) {

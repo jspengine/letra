@@ -1,65 +1,152 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Item, ResolvedSpec, Workflow } from "@letra/types";
-import { Badge, Button, Icon, Progress, Skeleton } from "@letra/ui";
-import { Markdown } from "../ui/markdown";
+import {
+	ActionPanel,
+	Badge,
+	Button,
+	Card,
+	CardContent,
+	Checkbox,
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+	ConfirmDialog,
+	Dialog,
+	Icon,
+	MetadataRow,
+	Progress,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+	Skeleton,
+	Tag,
+	Markdown,
+} from "@letra/ui";
 import { cn } from "../../lib/utils";
-import { computeSlug, computeTypeTag, countACs, TYPE_COLORS, stageName } from "../../lib/item-utils";
+import { createEventSourceWithReconnect } from "../../lib/withReconnect";
+import { computeSlug, countACs } from "../../lib/item-utils";
+import { translateTerm } from "../../lib/term-translations";
+import {
+	itemOperationalState,
+	orderedStages,
+	stageActionLabel,
+	type ActiveFlowDefinition,
+	type ActiveFlowStage,
+	type OperationalState,
+} from "../../lib/active-flow";
 
 interface Props {
 	item: Item;
 	workflow: Workflow;
+	activeFlow: ActiveFlowDefinition | null;
 	specs: ResolvedSpec[];
 	onClose: () => void;
 	onItemMoved: () => void;
-	onTabChange?: (tab: "specs") => void;
+	onOpenSpec?: () => void;
 }
 
-const slugCache = new Map<string, string>();
-const typeCache = new Map<string, string>();
-
-function cachedSlug(item: Item, specs: ResolvedSpec[], workflow: Workflow): string {
-	const cached = slugCache.get(item.id);
-	if (cached) return cached;
-	const slug = computeSlug(item, specs, workflow);
-	slugCache.set(item.id, slug);
-	return slug;
+interface ActivityEntry {
+	id: string;
+	timestamp: string;
+	action: string;
+	description: string;
 }
 
-function cachedType(item: Item): string {
-	const cached = typeCache.get(item.id);
-	if (cached) return cached;
-	const type = computeTypeTag(item);
-	typeCache.set(item.id, type);
-	return type;
+function daysSince(iso: string): number {
+	const created = new Date(iso).getTime();
+	if (Number.isNaN(created)) return 0;
+	return Math.max(0, Math.floor((Date.now() - created) / 86400000));
+}
+
+function stateCopy(state: OperationalState): {
+	label: string;
+	action: string;
+	tone: "default" | "warning" | "danger" | "success" | "info";
+	badge: "amber" | "success" | "info" | "error" | "agent";
+	icon: "check-circle" | "clock" | "chevron-right" | "shield" | "circle";
+} {
+	if (state === "waiting")
+		return {
+			label: "Aguardando decisão",
+			action: "Revisar o gate antes de avançar.",
+			tone: "warning",
+			badge: "amber",
+			icon: "clock",
+		};
+	if (state === "blocked")
+		return {
+			label: "Bloqueado",
+			action: "Examinar a causa do bloqueio.",
+			tone: "danger",
+			badge: "error",
+			icon: "shield",
+		};
+	if (state === "running")
+		return {
+			label: "Em execução",
+			action: "Acompanhar o responsável e evidências.",
+			tone: "info",
+			badge: "agent",
+			icon: "chevron-right",
+		};
+	if (state === "done")
+		return {
+			label: "Concluído",
+			action: "Verificar evidências registradas.",
+			tone: "success",
+			badge: "success",
+			icon: "check-circle",
+		};
+	return {
+		label: "Na fila",
+		action: "Avaliar prioridade e próximo responsável.",
+		tone: "default",
+		badge: "info",
+		icon: "circle",
+	};
 }
 
 export default function ItemDetailModal({
 	item,
 	workflow,
+	activeFlow,
 	specs,
 	onClose,
 	onItemMoved,
-	onTabChange,
+	onOpenSpec,
 }: Props) {
-	const modalRef = useRef<HTMLDivElement>(null);
+	const modalRef = useRef<HTMLDialogElement>(null);
 	const prevFocusRef = useRef<HTMLElement | null>(null);
 	const [moveTarget, setMoveTarget] = useState("");
 	const [sseWarning, setSseWarning] = useState<string | null>(null);
 	const [specLoading, setSpecLoading] = useState(true);
-	const [activities, setActivities] = useState<{ id: string; timestamp: string; action: string; description: string }[]>([]);
+	const [activities, setActivities] = useState<ActivityEntry[]>([]);
 	const [activitiesLoaded, setActivitiesLoaded] = useState(false);
 	const [showTimeline, setShowTimeline] = useState(false);
+	const [showAdvancedActions, setShowAdvancedActions] = useState(false);
+	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-	const slug = cachedSlug(item, specs, workflow);
-	const typeTag = cachedType(item);
-	const typeColor = TYPE_COLORS[typeTag as keyof typeof TYPE_COLORS] ?? "var(--primary)";
-	const curStage = workflow.stages.find((s) => s.id === item.stage);
+	const slug = computeSlug(item, specs, workflow);
+	const title = item.description?.trim() || slug;
+	const resolvedStages = orderedStages(workflow, activeFlow);
+	const curStage = resolvedStages.find((stage) => stage.id === item.stage);
 	const linkedSpec = item.spec ? specs.find((s) => s.id === item.spec) : null;
 	const acCount = linkedSpec ? countACs(linkedSpec.content) : null;
-	const daysInStage = Math.floor((Date.now() - new Date(item.createdAt).getTime()) / (1000 * 60 * 60 * 24));
 	const hasTasks = item.tasks && item.tasks.length > 0;
-	const progressMax = acCount ? acCount.total : hasTasks ? item.tasks!.length : 0;
-	const progressVal = acCount ? acCount.done : hasTasks ? item.tasks!.filter((t) => t.done).length : 0;
+	const progressMax = acCount ? acCount.total : hasTasks ? (item.tasks?.length ?? 0) : 0;
+	const progressVal = acCount
+		? acCount.done
+		: hasTasks
+			? item.tasks?.filter((task) => task.done).length ?? 0
+			: 0;
+	const daysInFlow = daysSince(item.createdAt);
+	const state = itemOperationalState(item, workflow, activeFlow);
+	const stateUi = stateCopy(state);
+	const stageAction = curStage ? stageActionLabel(curStage) : "Item registrado no fluxo.";
+	const owner = item.claimedBy ?? curStage?.roles[0]?.label ?? "Não atribuído";
+	const availableStages = resolvedStages.filter((stage) => stage.id !== item.stage);
 
 	useEffect(() => {
 		prevFocusRef.current = document.activeElement as HTMLElement;
@@ -69,26 +156,26 @@ export default function ItemDetailModal({
 		};
 	}, []);
 
-	// Focus trap
 	useEffect(() => {
-		const focusable = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-		function handleKeyDown(e: KeyboardEvent) {
+		const focusable =
+			'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+		function handleKeyDown(event: KeyboardEvent) {
 			const modal = modalRef.current;
 			if (!modal) return;
-			if (e.key === "Escape") {
+			if (event.key === "Escape") {
 				onClose();
 				return;
 			}
-			if (e.key !== "Tab") return;
-			const els = modal.querySelectorAll<HTMLElement>(focusable);
-			if (els.length === 0) return;
-			const first = els[0];
-			const last = els[els.length - 1];
-			if (e.shiftKey && document.activeElement === first) {
-				e.preventDefault();
+			if (event.key !== "Tab") return;
+			const elements = modal.querySelectorAll<HTMLElement>(focusable);
+			if (elements.length === 0) return;
+			const first = elements[0];
+			const last = elements[elements.length - 1];
+			if (event.shiftKey && document.activeElement === first) {
+				event.preventDefault();
 				last.focus();
-			} else if (!e.shiftKey && document.activeElement === last) {
-				e.preventDefault();
+			} else if (!event.shiftKey && document.activeElement === last) {
+				event.preventDefault();
 				first.focus();
 			}
 		}
@@ -96,38 +183,33 @@ export default function ItemDetailModal({
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [onClose]);
 
-	// SSE listener for workflow-updated
 	useEffect(() => {
-		const evtSource = new EventSource("/api/events");
-		evtSource.addEventListener("workflow-updated", (e: MessageEvent) => {
+		const eventSource = createEventSourceWithReconnect("/events");
+		eventSource.addEventListener("workflow-updated", (event: MessageEvent) => {
 			try {
-				const data = JSON.parse(e.data);
+				const data = JSON.parse(event.data);
 				if (data.itemId === item.id && data.stage && data.stage !== item.stage) {
-					const newStage = workflow.stages.find((s) => s.id === data.stage);
-					setSseWarning(
-						`📦 ${item.id} movido para ${newStage?.name ?? data.stage}`,
-					);
+					const newStage = resolvedStages.find((stage) => stage.id === data.stage);
+					setSseWarning(`${item.id} movido para ${newStage?.name ?? data.stage}`);
 					if (newStage?.zone === "done") {
 						setTimeout(() => onClose(), 3000);
 					}
 				}
 			} catch {
-				// ignore parse errors
+				// Ignore malformed event payloads.
 			}
 		});
-		return () => evtSource.close();
-	}, [item.id, item.stage, workflow.stages, onClose]);
+		return () => eventSource.close();
+	}, [item.id, item.stage, onClose, resolvedStages]);
 
-	// Spec loading simulation
 	useEffect(() => {
-		const t = setTimeout(() => setSpecLoading(false), 150);
-		return () => clearTimeout(t);
+		const timer = setTimeout(() => setSpecLoading(false), 150);
+		return () => clearTimeout(timer);
 	}, []);
 
-	// Load recent activities from session-log
 	useEffect(() => {
-		fetch(`/api/log?item=${item.id}&limit=5`)
-			.then((r) => r.json())
+		fetch(`/api/log?item=${item.id}&limit=100`)
+			.then((response) => response.json())
 			.then((data) => {
 				if (data.entries) setActivities(data.entries);
 			})
@@ -152,7 +234,7 @@ export default function ItemDetailModal({
 			onItemMoved();
 			onClose();
 		});
-	}, [item.id, onItemMoved, onClose]);
+	}, [item.id, onClose, onItemMoved]);
 
 	const handleTaskToggle = useCallback(
 		(taskId: string, done: boolean) => {
@@ -160,8 +242,8 @@ export default function ItemDetailModal({
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					tasks: item.tasks?.map((t) =>
-						t.id === taskId ? { ...t, done } : t,
+					tasks: item.tasks?.map((task) =>
+						task.id === taskId ? { ...task, done } : task,
 					),
 				}),
 			}).then(() => onItemMoved());
@@ -169,586 +251,404 @@ export default function ItemDetailModal({
 		[item.id, item.tasks, onItemMoved],
 	);
 
-	const availableStages = workflow.stages.filter((s) => s.id !== item.stage);
-
 	return (
 		<>
-		<div
-			className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
-			style={{ background: "var(--overlay)" }}
-			onClick={(e) => {
-				if (e.target === e.currentTarget) onClose();
-			}}
-		>
-			<div
-				ref={modalRef}
-				tabIndex={-1}
-				role="dialog"
-				aria-modal="true"
-				aria-label={slug}
-				className="flex flex-col w-[90vw] h-[90vh] rounded-xl border shadow-2xl overflow-hidden"
-				style={{
-					background: "var(--card)",
-					borderColor: "var(--border)",
-					animation: "modal-enter 200ms ease-out",
-				}}
+			<Dialog
+				open
+				onClose={onClose}
+				title={title}
+				variant="fullscreen"
+				hideHeader
+				contentRef={modalRef}
+				className="animate-fade-in"
 			>
-				{/* SSE Warning Banner */}
 				{sseWarning && (
-					<div
-						className="px-4 py-2 text-sm flex items-center gap-2 shrink-0"
-						style={{
-							background: "color-mix(in srgb, var(--warning) 15%, transparent)",
-							color: "var(--warning)",
-							borderBottom: "1px solid var(--border)",
-						}}
-					>
+					<div className="app-warning-banner flex shrink-0 items-center gap-2 px-4 py-2 text-sm">
+						<Icon name="alert-triangle" size={14} />
 						<span>{sseWarning}</span>
-						<button
+						<Button
 							onClick={() => setSseWarning(null)}
-							className="ml-auto text-xs px-1.5 py-0.5 rounded hover:bg-white/10"
+							className="ml-auto"
+							size="sm"
+							variant="ghost"
+							aria-label="Dispensar aviso"
 						>
-							✕
-						</button>
+							<Icon name="x" size={14} />
+						</Button>
 					</div>
 				)}
 
-				{/* Header */}
-				<div
-					className="flex items-center gap-2 px-4 py-3 border-b shrink-0"
-					style={{ borderColor: "var(--border)" }}
-				>
-					<button
-						onClick={onClose}
-						className="flex items-center gap-1.5 text-sm font-medium rounded-lg px-2 py-1 hover:bg-muted/50 transition-colors"
-						style={{ color: "var(--muted-foreground)" }}
-					>
-						<Icon name="chevron-left" size={16} />
-						Kanban Board
-					</button>
-					<div className="flex-1" />
-					<h2 className="text-sm font-semibold truncate max-w-[300px]">{slug}</h2>
-					<div className="flex-1" />
-					<button
-						onClick={onClose}
-						className="text-sm px-2 py-1 rounded hover:bg-muted/50 transition-colors"
-						style={{ color: "var(--muted-foreground)" }}
-						aria-label="Fechar"
-					>
-						✕
-					</button>
-				</div>
+				<header className="app-header-surface flex shrink-0 items-start gap-3 px-5 py-4">
+					<div className="flex min-w-0 flex-1 flex-col gap-1">
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
+							<Badge variant="info" tone="soft" className="font-mono">
+								{item.id}
+							</Badge>
+							<Badge variant={stateUi.badge} tone="soft" icon={stateUi.icon}>
+								{stateUi.label}
+							</Badge>
+							<Tag>{curStage?.name ?? item.stage}</Tag>
+						</div>
+						<h2 className="line-clamp-2 text-lg font-semibold leading-snug text-[var(--color-text-primary)]">
+							{title}
+						</h2>
+						<p className="text-caption text-[var(--color-text-secondary)]">
+							{item.spec ?? slug}
+						</p>
+					</div>
+					{item.spec && onOpenSpec && (
+						<Button size="sm" variant="secondary" onClick={onOpenSpec}>
+							<Icon name="file-text" size={14} />
+							Abrir especificação
+						</Button>
+					)}
+					<Button onClick={onClose} size="sm" variant="ghost" aria-label="Fechar">
+						<Icon name="x" size={16} />
+					</Button>
+				</header>
 
-				{/* Body: sidebar + spec */}
-				<div className="flex flex-1 min-h-0">
-					{/* Sidebar — desktop ~280px, mobile full width stacked */}
-					<aside
-						className="w-72 shrink-0 border-r overflow-y-auto hidden lg:flex flex-col"
-						style={{ borderColor: "var(--border)", background: "var(--card)" }}
-					>
-						<div className="p-4 flex flex-col gap-4">
-							{/* Type tag */}
-							<div className="flex items-center gap-2">
-								<span
-									className="text-xs font-semibold px-2 py-0.5 rounded"
-									style={{
-										background: `color-mix(in srgb, ${typeColor} 15%, transparent)`,
-										color: typeColor,
-									}}
-								>
-									{typeTag}
-								</span>
-								<span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-									{item.id}
-								</span>
-							</div>
+				<div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[22rem_minmax(0,1fr)]">
+					<aside className="app-section-card hidden min-h-0 flex-col gap-4 overflow-y-auto rounded-none border-y-0 border-l-0 p-4 lg:flex">
+						<ActionPanel
+							tone={stateUi.tone}
+							density="compact"
+							icon={<Icon name={stateUi.icon} size={16} />}
+							title="Próxima ação"
+							description={`${stateUi.action} ${stageAction}`}
+						/>
 
-							{/* Metadata */}
-							<div className="flex flex-col gap-1.5 text-xs" style={{ color: "var(--muted-foreground)" }}>
-								<div className="flex justify-between">
-									<span>Estágio</span>
-									<Badge variant="secondary">{curStage?.name ?? item.stage}</Badge>
+						<Card>
+							<CardContent className="gap-3 p-4">
+								<div className="flex items-center justify-between gap-2">
+									<h3 className="text-body-sm font-semibold">
+										Estado do trabalho
+									</h3>
+									<span className="text-caption tabular-nums text-[var(--color-text-secondary)]">
+										{progressMax > 0
+											? `${progressVal}/${progressMax}`
+											: "sem checklist"}
+									</span>
 								</div>
-								<div className="flex justify-between">
-									<span>Progresso</span>
-									<span>{progressVal}/{progressMax}</span>
-								</div>
-								<div className="flex justify-between">
-									<span>Idade</span>
-									<span>{daysInStage}d</span>
-								</div>
-								{item.claimedBy && (
-									<div className="flex justify-between">
-										<span>Responsável</span>
-										<span>🤖 {item.claimedBy}</span>
-									</div>
+								{progressMax > 0 && (
+									<Progress
+										value={progressVal}
+										max={progressMax}
+										size="sm"
+										state={
+											state === "done"
+												? "complete"
+												: state === "blocked"
+													? "error"
+													: state === "waiting"
+														? "warning"
+														: "default"
+										}
+									/>
 								)}
-							</div>
+								<MetadataRow
+									className="grid-cols-1"
+									items={[
+										{ label: "Responsável", value: owner },
+										{
+											label: "Tempo no fluxo",
+											value: daysInFlow === 0 ? "Hoje" : `${daysInFlow}d`,
+										},
+										{
+											label: "Evidência",
+											value: linkedSpec
+												? linkedSpec.id
+												: "Sem especificação vinculada",
+										},
+									]}
+								/>
+							</CardContent>
+						</Card>
 
-							{/* Progress bar */}
-							{progressMax > 0 && <Progress value={progressVal} max={progressMax} size="sm" />}
-
-							<hr style={{ borderColor: "var(--border)" }} />
-
-							{/* Actions */}
-							<div className="flex flex-col gap-2">
+						<Card>
+							<CardContent className="gap-3 p-4">
+								<h3 className="text-body-sm font-semibold">Movimentação</h3>
 								<div className="flex items-center gap-2">
-									<select
-										value={moveTarget}
-										onChange={(e) => setMoveTarget(e.target.value)}
-										className="flex-1 text-xs px-2 py-1.5 rounded border"
-										style={{
-											borderColor: "var(--border)",
-											background: "var(--background)",
-											color: "var(--foreground)",
-										}}
-										aria-label="Mover para"
-									>
-										<option value="">Mover para…</option>
-										{availableStages.map((s) => (
-											<option key={s.id} value={s.id}>
-												{s.name}
-											</option>
-										))}
-									</select>
+									<Select value={moveTarget} onValueChange={setMoveTarget}>
+										<SelectTrigger
+											className="app-select-surface flex-1 text-xs"
+											aria-label="Mover para"
+										>
+											<SelectValue placeholder="Mover para..." />
+										</SelectTrigger>
+										<SelectContent>
+											{availableStages.map((stage) => (
+												<SelectItem key={stage.id} value={stage.id}>
+													{stage.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
 									<Button size="sm" disabled={!moveTarget} onClick={handleMove}>
 										Mover
 									</Button>
 								</div>
-								{item.spec && onTabChange && (
-									<Button size="sm" variant="outline" onClick={() => onTabChange("specs")}>
-										<Icon name="file-text" size={14} className="mr-1" />
-										Editar spec
+								{item.spec && onOpenSpec && (
+									<Button size="sm" variant="secondary" onClick={onOpenSpec}>
+										<Icon name="file-text" size={14} />
+										Abrir especificação vinculada
 									</Button>
 								)}
-								<Button size="sm" variant="outline" onClick={() => setShowTimeline(true)}>
-									<Icon name="clock" size={14} className="mr-1" />
-									Timeline
-								</Button>
-								<Button size="sm" variant="outline" onClick={handleDelete} style={{ color: "var(--error)" }}>
-									Excluir
-								</Button>
-							</div>
+								<Collapsible
+									open={showAdvancedActions}
+									onOpenChange={setShowAdvancedActions}
+								>
+									<CollapsibleTrigger className="app-section-muted flex w-full items-center gap-2 text-xs font-semibold">
+										<Icon
+											name="chevron-right"
+											size={12}
+											className={cn(
+												"transition-transform",
+												showAdvancedActions && "rotate-90",
+											)}
+										/>
+										Ações avançadas
+									</CollapsibleTrigger>
+									<CollapsibleContent className="mt-2">
+										<Button
+											size="sm"
+											variant="secondary"
+											onClick={() => setShowDeleteConfirm(true)}
+											className="app-danger-text w-full justify-start"
+										>
+											<Icon name="trash" size={14} />
+											Excluir item
+										</Button>
+									</CollapsibleContent>
+								</Collapsible>
+							</CardContent>
+						</Card>
 
-							<hr style={{ borderColor: "var(--border)" }} />
-
-							{/* Recent activities */}
-							<div>
-								<h4 className="text-xs font-semibold mb-2" style={{ color: "var(--muted-foreground)" }}>
-									Atividades recentes
-								</h4>
-								{!activitiesLoaded ? (
-									<p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-										Carregando…
-									</p>
-								) : activities.length === 0 ? (
-									<p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-										Sem atividades registradas.
-									</p>
-								) : (
-									<ul className="flex flex-col gap-1.5">
-										{activities.map((a) => (
-											<li key={a.id} className="flex items-start gap-1.5 text-xs">
-												<span className="shrink-0 tabular-nums" style={{ color: "var(--muted-foreground)" }}>
-													{new Date(a.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-												</span>
-												<span className="text-[10px] font-medium uppercase shrink-0" style={{ color: "var(--primary)" }}>
-													{a.action}
-												</span>
-												<span className="truncate" style={{ color: "var(--foreground)" }}>
-													{a.description}
-												</span>
-											</li>
-										))}
-									</ul>
-								)}
-							</div>
-						</div>
+						<EventLog
+							activities={activities}
+							loaded={activitiesLoaded}
+							open={showTimeline}
+							onOpenChange={setShowTimeline}
+						/>
 					</aside>
 
-					{/* Mobile sidebar — collapsible accordion (shown < 1024px) */}
-					<div className="lg:hidden w-full border-b shrink-0" style={{ borderColor: "var(--border)" }}>
-						<MobileMeta
-							item={item}
-							slug={slug}
-							typeTag={typeTag}
-							typeColor={typeColor}
-							curStageName={curStage?.name ?? item.stage}
-							progressVal={progressVal}
-							progressMax={progressMax}
-							daysInStage={daysInStage}
-							availableStages={availableStages}
-							moveTarget={moveTarget}
-							onMoveTargetChange={setMoveTarget}
-							onMove={handleMove}
-							onDelete={handleDelete}
-							onTabChange={onTabChange}
-							itemSpec={item.spec}
-						/>
-					</div>
-
-					{/* Spec Area */}
-					<main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-						{specLoading ? (
-							<div className="p-6 flex flex-col gap-4">
-								<Skeleton className="h-6 w-48" />
-								<Skeleton className="h-4 w-full" />
-								<Skeleton className="h-4 w-3/4" />
-								<Skeleton className="h-20 w-full" />
-								<Skeleton className="h-4 w-full" />
-								<Skeleton className="h-4 w-2/3" />
-							</div>
-						) : linkedSpec ? (
-							<div className="flex flex-col flex-1 min-h-0">
-								<div
-									className="flex-1 overflow-y-auto p-6"
-									style={{ background: "var(--background)" }}
-								>
-									<Markdown content={linkedSpec.content} />
-								</div>
-							</div>
-						) : (
-							<div className="flex-1 flex items-center justify-center">
-								<div className="text-center flex flex-col gap-2">
-									<Icon name="file-text" size={24} style={{ color: "var(--muted-foreground)" }} />
-									<p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-										{item.spec ? "Spec não encontrada" : "Nenhuma spec vinculada"}
-									</p>
-									{item.spec && (
-										<Button size="sm" variant="outline" onClick={() => onTabChange?.("specs")}>
-											Criar spec
-										</Button>
-									)}
-								</div>
-							</div>
-						)}
-
-						{/* Tasks section at bottom of spec area */}
-						{hasTasks && (
-							<div
-								className="border-t p-4 shrink-0 max-h-48 overflow-y-auto"
-								style={{ borderColor: "var(--border)", background: "var(--card)" }}
-							>
-								<span className="text-xs font-medium block mb-2" style={{ color: "var(--muted-foreground)" }}>
-									Tasks ({item.tasks!.filter((t) => t.done).length}/{item.tasks!.length})
-								</span>
-								<div className="flex flex-col gap-1">
-									{item.tasks!.map((task) => (
-										<label
-											key={task.id}
-											className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5"
-										>
-											<input
-												type="checkbox"
-												checked={task.done}
-												onChange={(e) => handleTaskToggle(task.id, e.target.checked)}
-												className="rounded border-muted"
-											/>
-											<span
-												className={cn(task.done && "line-through")}
-												style={{
-													color: task.done ? "var(--muted-foreground)" : "var(--foreground)",
-												}}
+					<main className="flex min-h-0 flex-col overflow-hidden">
+						<div className="app-section-shell flex min-h-0 flex-1 overflow-y-auto p-5">
+							<div className="mx-auto grid w-full max-w-5xl gap-4">
+								<ActionPanel
+									className="lg:hidden"
+									tone={stateUi.tone}
+									icon={<Icon name={stateUi.icon} size={18} />}
+									title={stateUi.label}
+									description={`${stateUi.action} ${stageAction}`}
+									meta={
+										<>
+											<Tag>{owner}</Tag>
+											<Tag>
+												{daysInFlow === 0
+													? "Hoje no fluxo"
+													: `${daysInFlow}d no fluxo`}
+											</Tag>
+										</>
+									}
+									action={
+										item.spec && onOpenSpec ? (
+											<Button
+												size="sm"
+												variant="secondary"
+												onClick={onOpenSpec}
 											>
-												{task.description}
-											</span>
-										</label>
-									))}
-								</div>
+												<Icon name="file-text" size={14} />
+												Abrir especificação
+											</Button>
+										) : null
+									}
+								/>
+
+								{hasTasks && <TaskList item={item} onToggle={handleTaskToggle} />}
+
+								<Card>
+									<CardContent className="gap-4 p-5">
+										<div className="flex items-center justify-between gap-2">
+											<div>
+												<h3 className="text-body-sm font-semibold">
+													Evidência vinculada
+												</h3>
+												<p className="text-caption text-[var(--color-text-secondary)]">
+													{linkedSpec
+														? linkedSpec.id
+														: "Nenhuma especificação vinculada a este item."}
+												</p>
+											</div>
+										</div>
+										{specLoading ? (
+											<div className="grid gap-3">
+												<Skeleton className="h-6 w-48" />
+												<Skeleton className="h-4 w-full" />
+												<Skeleton className="h-4 w-3/4" />
+												<Skeleton className="h-20 w-full" />
+											</div>
+										) : linkedSpec ? (
+											<div className="max-w-none rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-base)] p-4">
+												<Markdown content={linkedSpec.content} />
+											</div>
+										) : (
+											<div className="flex min-h-48 items-center justify-center rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)]">
+												<div className="grid justify-items-center gap-2 text-center">
+													<Icon
+														name="file-text"
+														size={24}
+														className="app-section-muted"
+													/>
+													<p className="app-section-muted text-sm">
+														{item.spec
+															? "Especificação não encontrada"
+															: "Nenhuma especificação vinculada"}
+													</p>
+												</div>
+											</div>
+										)}
+									</CardContent>
+								</Card>
 							</div>
-						)}
+						</div>
 					</main>
 				</div>
 
-				{/* Mobile sticky action bar (< 640px) */}
-				<div className="sm:hidden flex items-center gap-2 px-4 py-3 border-t shrink-0"
-					style={{ borderColor: "var(--border)", background: "var(--card)" }}
-				>
-					<select
-						value={moveTarget}
-						onChange={(e) => setMoveTarget(e.target.value)}
-						className="flex-1 text-xs px-2 py-2 rounded border"
-						style={{
-							borderColor: "var(--border)",
-							background: "var(--background)",
-							color: "var(--foreground)",
-						}}
-						aria-label="Mover para"
-					>
-						<option value="">Mover para…</option>
-						{availableStages.map((s) => (
-							<option key={s.id} value={s.id}>{s.name}</option>
-						))}
-					</select>
-					<Button size="sm" disabled={!moveTarget} onClick={handleMove}>Mover</Button>
-					{item.spec && onTabChange && (
-						<Button size="sm" variant="outline" onClick={() => onTabChange("specs")}>
-							<Icon name="file-text" size={14} />
-						</Button>
-					)}
+				<div className="app-section-card flex shrink-0 items-center gap-2 rounded-none border-x-0 border-b-0 px-4 py-3 lg:hidden">
+					<Select value={moveTarget} onValueChange={setMoveTarget}>
+						<SelectTrigger
+							className="app-select-surface flex-1 text-xs"
+							aria-label="Mover para"
+						>
+							<SelectValue placeholder="Mover para..." />
+						</SelectTrigger>
+						<SelectContent>
+							{availableStages.map((stage) => (
+								<SelectItem key={stage.id} value={stage.id}>
+									{stage.name}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					<Button size="sm" disabled={!moveTarget} onClick={handleMove}>
+						Mover
+					</Button>
 				</div>
-			</div>
-		</div>
-
-		{showTimeline && (
-			<TimelineModal
-				itemId={item.id}
-				slug={slug}
-				onClose={() => setShowTimeline(false)}
+			</Dialog>
+			<ConfirmDialog
+				open={showDeleteConfirm}
+				onClose={() => setShowDeleteConfirm(false)}
+				onConfirm={handleDelete}
+				title="Excluir item"
+				message={`Excluir ${item.id} remove este item do fluxo. Esta ação deve ser usada apenas quando o item não representa mais trabalho real.`}
+				confirmLabel="Excluir"
+				cancelLabel="Cancelar"
+				variant="danger"
 			/>
-		)}
 		</>
 	);
 }
 
-interface MobileMetaProps {
-	item: Item;
-	slug: string;
-	typeTag: string;
-	typeColor: string;
-	curStageName: string;
-	progressVal: number;
-	progressMax: number;
-	daysInStage: number;
-	availableStages: Workflow["stages"];
-	moveTarget: string;
-	onMoveTargetChange: (v: string) => void;
-	onMove: () => void;
-	onDelete: () => void;
-	onTabChange?: (tab: "specs") => void;
-	itemSpec?: string;
-}
-
-function MobileMeta({
+function TaskList({
 	item,
-	slug,
-	typeTag,
-	typeColor,
-	curStageName,
-	progressVal,
-	progressMax,
-	daysInStage,
-	availableStages,
-	moveTarget,
-	onMoveTargetChange,
-	onMove,
-	onDelete,
-	onTabChange,
-	itemSpec,
-}: MobileMetaProps) {
-	const [open, setOpen] = useState(false);
-
+	onToggle,
+}: { item: Item; onToggle: (taskId: string, done: boolean) => void }) {
+	if (!item.tasks || item.tasks.length === 0) return null;
 	return (
-		<div>
-			<button
-				onClick={() => setOpen(!open)}
-				className="flex items-center gap-2 w-full px-4 py-2.5 text-sm font-medium"
-				style={{ color: "var(--foreground)" }}
-			>
-				<Icon
-					name="chevron-down"
-					size={14}
-					className={cn("transition-transform", open && "rotate-180")}
-				/>
-				Detalhes do item
-			</button>
-			{open && (
-				<div className="px-4 pb-3 flex flex-col gap-3 text-xs">
-					<div className="flex items-center gap-2">
-						<span
-							className="text-xs font-semibold px-2 py-0.5 rounded"
-							style={{
-								background: `color-mix(in srgb, ${typeColor} 15%, transparent)`,
-								color: typeColor,
-							}}
+		<Card>
+			<CardContent className="gap-3 p-4">
+				<h3 className="text-body-sm font-semibold">
+					Tarefas ({item.tasks.filter((task) => task.done).length}/{item.tasks.length})
+				</h3>
+				<div className="grid gap-1">
+					{item.tasks.map((task) => (
+						<label
+							key={task.id}
+							className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] px-1 py-1 text-xs hover:bg-[var(--surface-hover)]"
 						>
-							{typeTag}
-						</span>
-						<span style={{ color: "var(--muted-foreground)" }}>{item.id}</span>
-					</div>
-					<div className="flex flex-col gap-1" style={{ color: "var(--muted-foreground)" }}>
-						<div className="flex justify-between">
-							<span>Estágio</span>
-							<Badge variant="secondary">{curStageName}</Badge>
-						</div>
-						<div className="flex justify-between">
-							<span>Progresso</span>
-							<span>{progressVal}/{progressMax}</span>
-						</div>
-						<div className="flex justify-between">
-							<span>Idade</span>
-							<span>{daysInStage}d</span>
-						</div>
-						{item.claimedBy && (
-							<div className="flex justify-between">
-								<span>Responsável</span>
-								<span>🤖 {item.claimedBy}</span>
-							</div>
-						)}
-					</div>
-					{progressMax > 0 && <Progress value={progressVal} max={progressMax} size="sm" />}
-					<div className="flex items-center gap-2">
-						<select
-							value={moveTarget}
-							onChange={(e) => onMoveTargetChange(e.target.value)}
-							className="flex-1 text-xs px-2 py-1.5 rounded border"
-							style={{
-								borderColor: "var(--border)",
-								background: "var(--background)",
-								color: "var(--foreground)",
-							}}
-							aria-label="Mover para"
-						>
-							<option value="">Mover para…</option>
-							{availableStages.map((s) => (
-								<option key={s.id} value={s.id}>{s.name}</option>
-							))}
-						</select>
-						<button
-							onClick={onMove}
-							disabled={!moveTarget}
-							className="text-xs px-3 py-1.5 rounded-lg font-medium disabled:opacity-50"
-							style={{ background: "var(--primary)", color: "white" }}
-						>
-							Mover
-						</button>
-					</div>
+							<Checkbox
+								checked={task.done}
+								onChange={(event) =>
+									onToggle(task.id, (event.target as HTMLInputElement).checked)
+								}
+							/>
+							<span
+								className={cn(
+									"text-[var(--color-text-primary)]",
+									task.done && "text-[var(--color-text-secondary)] line-through",
+								)}
+							>
+								{task.description}
+							</span>
+						</label>
+					))}
 				</div>
-			)}
-		</div>
+			</CardContent>
+		</Card>
 	);
 }
 
-interface TimelineModalProps {
-	itemId: string;
-	slug: string;
-	onClose: () => void;
-}
-
-function TimelineModal({ itemId, slug, onClose }: TimelineModalProps) {
-	const [entries, setEntries] = useState<
-		{ id: string; timestamp: string; action: string; description: string }[]
-	>([]);
-	const [loaded, setLoaded] = useState(false);
-
-	useEffect(() => {
-		fetch(`/api/log?item=${itemId}&limit=200`)
-			.then((r) => r.json())
-			.then((data) => {
-				if (data.entries) setEntries(data.entries);
-			})
-			.catch(() => {})
-			.finally(() => setLoaded(true));
-	}, [itemId]);
-
-	const modalRef = useRef<HTMLDivElement>(null);
-
-	useEffect(() => {
-		modalRef.current?.focus();
-	}, []);
-
-	useEffect(() => {
-		function handleKeyDown(e: KeyboardEvent) {
-			if (e.key === "Escape") onClose();
-		}
-		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [onClose]);
-
+function EventLog({
+	activities,
+	loaded,
+	open,
+	onOpenChange,
+}: {
+	activities: ActivityEntry[];
+	loaded: boolean;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+}) {
 	return (
-		<div
-			className="fixed inset-0 z-[60] flex items-center justify-center animate-fade-in"
-			style={{ background: "var(--overlay)" }}
-			onClick={(e) => {
-				if (e.target === e.currentTarget) onClose();
-			}}
-		>
-			<div
-				ref={modalRef}
-				tabIndex={-1}
-				role="dialog"
-				aria-label={`Timeline: ${slug}`}
-				className="flex flex-col w-[95vw] h-[90vh] rounded-xl border shadow-2xl overflow-hidden"
-				style={{
-					background: "var(--card)",
-					borderColor: "var(--border)",
-					animation: "modal-enter 200ms ease-out",
-				}}
-			>
-				<div
-					className="flex items-center gap-2 px-4 py-3 border-b shrink-0"
-					style={{ borderColor: "var(--border)" }}
-				>
-					<Icon name="clock" size={20} className="text-primary" />
-					<h2 className="text-sm font-semibold">Timeline: {slug}</h2>
-					<span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-						{loaded ? `${entries.length} eventos` : "carregando…"}
-					</span>
-					<div className="flex-1" />
-					<p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-						Dados: .letra/session-log.json
-					</p>
-					<button
-						onClick={onClose}
-						className="text-sm px-2 py-1 rounded hover:bg-muted/50 transition-colors"
-						style={{ color: "var(--muted-foreground)" }}
-						aria-label="Fechar"
-					>
-						✕
-					</button>
-				</div>
-
-				<div className="flex-1 overflow-y-auto p-4">
-					{!loaded ? (
-						<p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-							Carregando…
-						</p>
-					) : entries.length === 0 ? (
-						<p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-							Nenhum evento registrado para este item.
-						</p>
-					) : (
-						<div className="relative">
-							<div
-								className="absolute left-4 top-0 bottom-0 w-px"
-								style={{ background: "var(--border)" }}
-							/>
-							<ul className="flex flex-col gap-3">
-								{entries.map((entry) => (
-									<li key={entry.id} className="relative pl-10">
-										<div
-											className="absolute left-2.5 top-1.5 w-3 h-3 rounded-full border-2"
-											style={{
-												background: "var(--card)",
-												borderColor: "var(--primary)",
-											}}
-										/>
+		<Card>
+			<CardContent className="gap-3 p-4">
+				<Collapsible open={open} onOpenChange={onOpenChange}>
+					<CollapsibleTrigger className="app-section-muted flex w-full items-center gap-2 text-xs font-semibold">
+						<Icon
+							name="chevron-right"
+							size={12}
+							className={cn("transition-transform", open && "rotate-90")}
+						/>
+						Log de eventos
+						{loaded && (
+							<span className="text-caption font-normal">({activities.length})</span>
+						)}
+					</CollapsibleTrigger>
+					<CollapsibleContent className="mt-3">
+						<div className="grid max-h-72 gap-2 overflow-y-auto">
+							{!loaded ? (
+								<p className="app-section-muted text-xs">Carregando...</p>
+							) : activities.length === 0 ? (
+								<p className="app-section-muted text-xs">
+									Nenhum evento registrado para este item.
+								</p>
+							) : (
+								activities.map((entry) => (
+									<div
+										key={entry.id}
+										className="grid gap-0.5 border-l-2 border-[var(--color-primary)] pl-2"
+									>
 										<div className="flex items-baseline gap-2">
-											<span
-												className="text-[10px] font-medium uppercase shrink-0"
-												style={{ color: "var(--primary)" }}
-											>
+											<span className="app-primary-text text-caption font-medium uppercase">
 												{entry.action}
 											</span>
-											<span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-												{new Date(entry.timestamp).toLocaleString([], {
-													year: "numeric",
-													month: "2-digit",
-													day: "2-digit",
+											<span className="app-section-muted text-caption">
+												{new Date(entry.timestamp).toLocaleTimeString([], {
 													hour: "2-digit",
 													minute: "2-digit",
-													second: "2-digit",
 												})}
 											</span>
 										</div>
-										<p className="text-sm mt-0.5">{entry.description}</p>
-									</li>
-								))}
-							</ul>
+										<p className="text-xs leading-relaxed">
+											{entry.description}
+										</p>
+									</div>
+								))
+							)}
 						</div>
-					)}
-				</div>
-			</div>
-		</div>
+					</CollapsibleContent>
+				</Collapsible>
+			</CardContent>
+		</Card>
 	);
 }

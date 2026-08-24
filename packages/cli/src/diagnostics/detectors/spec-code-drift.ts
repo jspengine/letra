@@ -2,19 +2,52 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Detector, DiagnosticResult } from "../types.js";
 import { searchInSource, walkDir } from "../shared/file-search.js";
+import { getLetraDir } from "./../../workspace/resolver.js";
 
 const DONE_AC_PATTERN = /-\s\[x\]\s\*\*`([^`]+)`\*\*/g;
-const ACTIVE_STAGES = new Set(["code", "review", "done"]);
+
+function loadActiveStages(workflowPath: string): Set<string> {
+	try {
+		const raw = readFileSync(workflowPath, "utf-8");
+		const wf = JSON.parse(raw);
+		const stages = wf.stages || [];
+		const hasZoneInfo = stages.some((s: { zone?: string }) => s.zone);
+		const active = new Set<string>();
+		if (hasZoneInfo) {
+			for (const s of stages) {
+				if (s.zone === "doing" || s.zone === "done") {
+					active.add(s.id);
+				}
+			}
+		} else {
+			for (let i = 2; i < stages.length; i++) {
+				const s = stages[i];
+				if (s?.id) active.add(s.id);
+			}
+		}
+		if (active.size === 0 && stages.length > 0) {
+			for (let i = 1; i < stages.length; i++) {
+				const s = stages[i];
+				if (s?.id) active.add(s.id);
+			}
+		}
+		return active;
+	} catch {
+		return new Set(["code", "review", "done"]);
+	}
+}
 
 export const specCodeDriftDetector: Detector = {
 	name: "spec-code-drift",
+	devOnly: true,
 	async run(rootDir: string): Promise<DiagnosticResult[]> {
 		const results: DiagnosticResult[] = [];
-		const workflowPath = join(rootDir, ".letra", "workflow.json");
-		const specsDir = join(rootDir, ".letra", "specs");
+		const workflowPath = join(getLetraDir(rootDir), "workflow.json");
+		const specsDir = join(getLetraDir(rootDir), "specs");
 
 		if (!existsSync(workflowPath) || !existsSync(specsDir)) return results;
 
+		const activeStages = loadActiveStages(workflowPath);
 		const specStages = loadSpecStages(workflowPath);
 		const specDirs = readdirSync(specsDir, { withFileTypes: true }).filter(
 			(d) => d.isDirectory() && !d.name.startsWith("_"),
@@ -22,7 +55,7 @@ export const specCodeDriftDetector: Detector = {
 
 		for (const dir of specDirs) {
 			const stage = specStages.get(dir.name);
-			if (!stage || !ACTIVE_STAGES.has(stage)) continue;
+			if (!stage || !activeStages.has(stage)) continue;
 
 			const specFile = join(specsDir, dir.name, "spec.md");
 			if (!existsSync(specFile)) continue;
@@ -79,5 +112,3 @@ function loadSpecStages(workflowPath: string): Map<string, string> {
 	} catch {}
 	return map;
 }
-
-

@@ -10,6 +10,11 @@
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
 		"resolveJsonModule": true,
+		"paths": {
+			"@letra/types": ["../types/src/index.ts"],
+			"@letra/ui": ["./src/index.ts"],
+			"@/*": ["../client/src/*"]
+		},
 		"declaration": true,
 		"declarationMap": true,
 		"sourceMap": true,

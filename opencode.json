@@ -1,0 +1,25 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "shadcn": {
+      "type": "local",
+      "command": [
+        "npx",
+        "shadcn@latest",
+        "mcp"
+      ],
+      "enabled": true
+    },
+    "letra": {
+      "type": "local",
+      "command": [
+        "npx",
+        "tsx",
+        "packages/cli/src/index.ts",
+        "mcp",
+        "serve"
+      ],
+      "enabled": true
+    }
+  }
+}

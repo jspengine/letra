@@ -1,0 +1,51 @@
+executors:
+  - id: opencode
+    label: OpenCode
+    capabilities:
+      - code
+      - review
+      - design
+      - security
+    notification:
+      - sse
+      - polling
+    heartbeat: true
+    maxExecutionTime: 1800
+    priority: 1
+
+  - id: cursor
+    label: Cursor
+    capabilities:
+      - code
+      - review
+    notification:
+      - file-watch
+    heartbeat: false
+    maxExecutionTime: 3600
+    priority: 2
+
+  - id: claude-code
+    label: Claude Code
+    capabilities:
+      - code
+      - review
+      - design
+    notification:
+      - polling
+    heartbeat: false
+    maxExecutionTime: 1800
+    priority: 3
+
+stageExecutorPreferences:
+  design:
+    - opencode
+    - claude-code
+  code:
+    - opencode
+    - cursor
+    - claude-code
+  review:
+    - cursor
+    - opencode
+  security:
+    - opencode

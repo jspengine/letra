@@ -14,7 +14,9 @@ import {
 } from "./health-record.js";
 import type { HealthEntry, HealthRecord } from "./health-record.js";
 
-function makeResult(overrides: Partial<DiagnosticResult> & { id?: string; title: string }): DiagnosticResult {
+function makeResult(
+	overrides: Partial<DiagnosticResult> & { id?: string; title: string },
+): DiagnosticResult {
 	return {
 		id: overrides.id ?? "",
 		type: overrides.type ?? "warning",
@@ -51,7 +53,11 @@ describe("health-record", () => {
 			mkdirSync(dir, { recursive: true });
 			writeFileSync(
 				join(dir, "health-record.json"),
-				JSON.stringify({ schemaVersion: 1, lastScanAt: "2025-01-01", entries: [{ id: "hr-001", status: "novo" }] }),
+				JSON.stringify({
+					schemaVersion: 1,
+					lastScanAt: "2025-01-01",
+					entries: [{ id: "hr-001", status: "novo" }],
+				}),
 			);
 			const record = loadHealthRecord(tmpDir);
 			expect(record.entries).toHaveLength(1);
@@ -81,7 +87,9 @@ describe("health-record", () => {
 	describe("mergeScanResults", () => {
 		it("should add new entries from scan results", () => {
 			const record: HealthRecord = { schemaVersion: 1, lastScanAt: "", entries: [] };
-			const results = [makeResult({ title: "Test Warning", type: "warning", detector: "detector-a" })];
+			const results = [
+				makeResult({ title: "Test Warning", type: "warning", detector: "detector-a" }),
+			];
 			mergeScanResults(record, results);
 			expect(record.entries).toHaveLength(1);
 			expect(record.entries[0].title).toBe("Test Warning");
@@ -91,7 +99,9 @@ describe("health-record", () => {
 
 		it("should set severity alta for error type", () => {
 			const record: HealthRecord = { schemaVersion: 1, lastScanAt: "", entries: [] };
-			const results = [makeResult({ title: "Error!", type: "error", detector: "detector-a" })];
+			const results = [
+				makeResult({ title: "Error!", type: "error", detector: "detector-a" }),
+			];
 			mergeScanResults(record, results);
 			expect(record.entries[0].severity).toBe("alta");
 		});
@@ -191,10 +201,58 @@ describe("health-record", () => {
 	describe("getActiveEntries", () => {
 		it("should return novo and ciente entries only", () => {
 			const entries: HealthEntry[] = [
-				{ id: "1", type: "warning", title: "A", status: "novo", severity: "media", source: "t", detectedAt: "", resolvedAt: null, dismissedAt: null, dismissReason: null, acknowledgedAt: null },
-				{ id: "2", type: "warning", title: "B", status: "ciente", severity: "media", source: "t", detectedAt: "", resolvedAt: null, dismissedAt: null, dismissReason: null, acknowledgedAt: null },
-				{ id: "3", type: "warning", title: "C", status: "resolvido", severity: "media", source: "t", detectedAt: "", resolvedAt: "", dismissedAt: null, dismissReason: null, acknowledgedAt: null },
-				{ id: "4", type: "warning", title: "D", status: "descartado", severity: "media", source: "t", detectedAt: "", resolvedAt: null, dismissedAt: "", dismissReason: null, acknowledgedAt: null },
+				{
+					id: "1",
+					type: "warning",
+					title: "A",
+					status: "novo",
+					severity: "media",
+					source: "t",
+					detectedAt: "",
+					resolvedAt: null,
+					dismissedAt: null,
+					dismissReason: null,
+					acknowledgedAt: null,
+				},
+				{
+					id: "2",
+					type: "warning",
+					title: "B",
+					status: "ciente",
+					severity: "media",
+					source: "t",
+					detectedAt: "",
+					resolvedAt: null,
+					dismissedAt: null,
+					dismissReason: null,
+					acknowledgedAt: null,
+				},
+				{
+					id: "3",
+					type: "warning",
+					title: "C",
+					status: "resolvido",
+					severity: "media",
+					source: "t",
+					detectedAt: "",
+					resolvedAt: "",
+					dismissedAt: null,
+					dismissReason: null,
+					acknowledgedAt: null,
+				},
+				{
+					id: "4",
+					type: "warning",
+					title: "D",
+					status: "descartado",
+					severity: "media",
+					source: "t",
+					detectedAt: "",
+					resolvedAt: null,
+					dismissedAt: "",
+					dismissReason: null,
+					acknowledgedAt: null,
+				},
 			];
 			const record: HealthRecord = { schemaVersion: 1, lastScanAt: "", entries };
 			const active = getActiveEntries(record);
@@ -206,11 +264,71 @@ describe("health-record", () => {
 	describe("getSummary", () => {
 		it("should return correct counts", () => {
 			const entries: HealthEntry[] = [
-				{ id: "1", type: "warning", title: "A", status: "novo", severity: "alta", source: "t", detectedAt: "", resolvedAt: null, dismissedAt: null, dismissReason: null, acknowledgedAt: null },
-				{ id: "2", type: "warning", title: "B", status: "novo", severity: "media", source: "t", detectedAt: "", resolvedAt: null, dismissedAt: null, dismissReason: null, acknowledgedAt: null },
-				{ id: "3", type: "warning", title: "C", status: "ciente", severity: "media", source: "t", detectedAt: "", resolvedAt: null, dismissedAt: null, dismissReason: null, acknowledgedAt: null },
-				{ id: "4", type: "warning", title: "D", status: "resolvido", severity: "media", source: "t", detectedAt: "", resolvedAt: "", dismissedAt: null, dismissReason: null, acknowledgedAt: null },
-				{ id: "5", type: "warning", title: "E", status: "descartado", severity: "media", source: "t", detectedAt: "", resolvedAt: null, dismissedAt: "", dismissReason: null, acknowledgedAt: null },
+				{
+					id: "1",
+					type: "warning",
+					title: "A",
+					status: "novo",
+					severity: "alta",
+					source: "t",
+					detectedAt: "",
+					resolvedAt: null,
+					dismissedAt: null,
+					dismissReason: null,
+					acknowledgedAt: null,
+				},
+				{
+					id: "2",
+					type: "warning",
+					title: "B",
+					status: "novo",
+					severity: "media",
+					source: "t",
+					detectedAt: "",
+					resolvedAt: null,
+					dismissedAt: null,
+					dismissReason: null,
+					acknowledgedAt: null,
+				},
+				{
+					id: "3",
+					type: "warning",
+					title: "C",
+					status: "ciente",
+					severity: "media",
+					source: "t",
+					detectedAt: "",
+					resolvedAt: null,
+					dismissedAt: null,
+					dismissReason: null,
+					acknowledgedAt: null,
+				},
+				{
+					id: "4",
+					type: "warning",
+					title: "D",
+					status: "resolvido",
+					severity: "media",
+					source: "t",
+					detectedAt: "",
+					resolvedAt: "",
+					dismissedAt: null,
+					dismissReason: null,
+					acknowledgedAt: null,
+				},
+				{
+					id: "5",
+					type: "warning",
+					title: "E",
+					status: "descartado",
+					severity: "media",
+					source: "t",
+					detectedAt: "",
+					resolvedAt: null,
+					dismissedAt: "",
+					dismissReason: null,
+					acknowledgedAt: null,
+				},
 			];
 			const record: HealthRecord = { schemaVersion: 1, lastScanAt: "", entries };
 			const summary = getSummary(record);

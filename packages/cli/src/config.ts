@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { getLetraDir } from "./workspace/resolver.js";
 
 export interface HeuristicConfig {
 	severity: "error" | "warning" | "off";
@@ -27,7 +28,7 @@ const DEFAULT_HEURISTICS: Record<string, HeuristicConfig> = {
 };
 
 export function loadConfig(root: string): Config {
-	const configPath = join(root, ".letra", "config.json");
+	const configPath = join(getLetraDir(root), "config.json");
 	const heuristics: Record<string, HeuristicConfig> = {};
 
 	for (const [key, value] of Object.entries(DEFAULT_HEURISTICS)) {
