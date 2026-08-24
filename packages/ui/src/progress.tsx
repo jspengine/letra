@@ -68,7 +68,7 @@ export function Progress({
 				aria-valuemin={0}
 				aria-valuemax={max}
 				aria-valuenow={indeterminate ? undefined : value}
-				aria-label={label}
+				aria-label={label ?? "Progresso"}
 			>
 				<div
 					className={cn(

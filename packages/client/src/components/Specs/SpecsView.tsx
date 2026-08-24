@@ -386,7 +386,7 @@ export default function SpecsView() {
 						aria-label="Buscar especificações"
 					/>
 
-					<div className="overflow-x-auto">
+					<div className="overflow-x-auto" tabIndex={0}>
 						<ButtonGroup
 							ariaLabel="Filtrar especificações"
 							className="w-max flex-nowrap lg:w-full"
@@ -422,7 +422,7 @@ export default function SpecsView() {
 					</div>
 				</div>
 
-				<div className="flex-1 overflow-y-auto p-2">
+				<div className="flex-1 overflow-y-auto p-2" tabIndex={0}>
 					{creating ? (
 						<div className="mb-2 grid gap-2 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] p-3">
 							<Input
@@ -517,7 +517,7 @@ export default function SpecsView() {
 							) : null}
 
 							{selectedAcs.length > 0 ? (
-								<div className="grid max-h-40 gap-2 overflow-y-auto pr-1">
+								<div className="grid max-h-40 gap-2 overflow-y-auto pr-1" tabIndex={0}>
 									{selectedAcs.map((ac) => (
 										<Checkbox
 											key={ac.line}
