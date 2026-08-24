@@ -472,7 +472,7 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 						</div>
 					</div>
 			) : (
-					<div className="flex min-w-0 flex-1 overflow-hidden">
+					<div className="flex min-w-0 flex-1 overflow-y-hidden">
 						{/* ─── Left Column: Kanban ─── */}
 						<div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4 gap-3">
 							<ActionPanel
@@ -630,7 +630,9 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 						<div
 							className={cn(
 								"app-section-card shrink-0 overflow-y-auto transition-all duration-300 ease-in-out",
-								observationPanelOpen ? "w-80 border-l" : "w-0 border-l-0"
+								observationPanelOpen
+									? "w-80 border-l opacity-100"
+									: "w-0 border-l-0 opacity-0 overflow-hidden"
 							)}
 						>
 							<ActivityTimeline workflow={workflow} activeFlow={activeFlow} onSelectItem={setSelectedItemId} />
