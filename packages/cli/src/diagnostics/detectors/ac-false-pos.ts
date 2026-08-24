@@ -57,7 +57,7 @@ function extractSearchTerms(command: string): string[] {
 	if (nonFlagWords.length > 1) {
 		const subCommandWords = nonFlagWords.slice(1);
 		for (const word of subCommandWords) {
-			if (word.length >= 2) {
+			if (word.length >= 3) {
 				terms.push(word);
 			}
 		}
@@ -66,9 +66,19 @@ function extractSearchTerms(command: string): string[] {
 			terms.push(toKebabCase(subCommandWords));
 			terms.push(toSnakeCase(subCommandWords));
 		}
+
+		const parentWords = nonFlagWords.slice(0, -1);
+		if (parentWords.length >= 1) {
+			const lastWord = nonFlagWords[nonFlagWords.length - 1];
+			if (lastWord.length >= 2) {
+				terms.push(toCamelCase([...parentWords, lastWord]));
+				terms.push(toKebabCase([...parentWords, lastWord]));
+				terms.push(toSnakeCase([...parentWords, lastWord]));
+			}
+		}
 	}
 
-	return [...new Set(terms)].filter((t) => t.length > 1);
+	return [...new Set(terms)].filter((t) => t.length > 2);
 }
 
 function isApiEndpoint(command: string): boolean {

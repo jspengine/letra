@@ -134,6 +134,15 @@ Testing only.
 		expect(results).toHaveLength(0);
 	});
 
+	it("should detect split-line subcommands like backlog list", async () => {
+		await initProject();
+		await createSpec("commands", ["- [x] **`flow backlog list`**"]);
+		createSourceFile('const backlog = cmd.command("backlog");\nbacklog.command("list")');
+
+		const results = await acFalsePosDetector.run(tmpDir);
+		expect(results).toHaveLength(0);
+	});
+
 	it("should handle multiple ACs in one spec", async () => {
 		await initProject();
 		await createSpec("multi", [
