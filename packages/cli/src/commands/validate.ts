@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, watch } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
 import chalk from "chalk";
 import { getHeuristicConfig, loadConfig } from "../config.js";
 import { logEntry } from "../session-log.js";
@@ -158,18 +158,32 @@ export async function validate(
 	options?: { watch?: boolean; format?: string; exit?: boolean; log?: boolean },
 ): Promise<ValidationSummary> {
 	const root = resolve(process.cwd(), targetPath || ".");
-	const specsDir = join(getLetraDir(root), "specs");
+	let specsDir = join(getLetraDir(root), "specs");
 	const fmt: Format = (options?.format as Format) || "text";
 
 	if (!existsSync(specsDir)) {
-		const msg = "Error: .letra/specs/ not found. Run 'letra init' first.";
-		if (options?.exit === false) throw new Error(msg);
-		if (fmt === "github-annotation") {
-			console.log(`::error file=,title=Init Required::${msg}`);
-		} else {
-			console.log(chalk.red(msg));
+		let found = false;
+		let search = root;
+		const fsRoot = resolve("/").replace(/\\/g, "/");
+		while (search && search !== fsRoot && search !== dirname(search)) {
+			const candidate = join(search, ".letra", "specs");
+			if (existsSync(candidate)) {
+				specsDir = candidate;
+				found = true;
+				break;
+			}
+			search = dirname(search);
 		}
-		process.exit(1);
+		if (!found) {
+			const msg = "Error: .letra/specs/ not found. Run 'letra init' first.";
+			if (options?.exit === false) throw new Error(msg);
+			if (fmt === "github-annotation") {
+				console.log(`::error file=,title=Init Required::${msg}`);
+			} else {
+				console.log(chalk.red(msg));
+			}
+			process.exit(1);
+		}
 	}
 
 	async function runValidation(): Promise<ValidationSummary> {

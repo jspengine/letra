@@ -18,6 +18,37 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npm -w packages/cli run dev -- init --yes
+      - name: Debug workspace resolution
+        run: |
+          echo "CWD: $(pwd)"
+          echo "ls -la repo root .letra/:"
+          ls -la .letra/ || echo "no .letra/ at root"
+          echo ""
+          echo "ls -la repo root .letra/specs/:"
+          ls -la .letra/specs/ || echo "no .letra/specs/ at root"
+          echo ""
+          echo "node -e getLetraDir:"
+          node -e "
+            const { resolveDataDir, resolveWorkspaceRoot, getLetraDir } = require('./packages/cli/src/workspace/resolver.js');
+          " 2>&1 || true
+          echo ""
+          echo "Debug tsx resolver from packages/cli CWD:"
+          cd packages/cli && npx tsx -e "
+            import { getLetraDir } from './src/workspace/resolver.js';
+            import { existsSync } from 'fs';
+            import { join, resolve } from 'path';
+            const root = resolve(process.cwd(), '.');
+            const letraDir = getLetraDir(root);
+            const specsDir = join(letraDir, 'specs');
+            console.log('CWD:', process.cwd());
+            console.log('root:', root);
+            console.log('letraDir:', letraDir);
+            console.log('specsDir:', specsDir);
+            console.log('letraDir exists:', existsSync(letraDir));
+            console.log('specsDir exists:', existsSync(specsDir));
+            import { readdirSync } from 'fs';
+            try { console.log('specsDir contents:', readdirSync(specsDir)); } catch(e) { console.log('specsDir read error:', e.message); }
+          "
       - run: npm -w packages/cli run dev -- lint
 
   typecheck:
@@ -56,4 +87,30 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npm -w packages/cli run dev -- init --yes
+      - name: Debug workspace resolution
+        run: |
+          echo "CWD: $(pwd)"
+          echo "ls -la repo root .letra/:"
+          ls -la .letra/ || echo "no .letra/ at root"
+          echo ""
+          echo "ls -la repo root .letra/specs/:"
+          ls -la .letra/specs/ || echo "no .letra/specs/ at root"
+          echo ""
+          echo "Debug tsx resolver from packages/cli CWD:"
+          cd packages/cli && npx tsx -e "
+            import { getLetraDir } from './src/workspace/resolver.js';
+            import { existsSync } from 'fs';
+            import { join, resolve } from 'path';
+            const root = resolve(process.cwd(), '.');
+            const letraDir = getLetraDir(root);
+            const specsDir = join(letraDir, 'specs');
+            console.log('CWD:', process.cwd());
+            console.log('root:', root);
+            console.log('letraDir:', letraDir);
+            console.log('specsDir:', specsDir);
+            console.log('letraDir exists:', existsSync(letraDir));
+            console.log('specsDir exists:', existsSync(specsDir));
+            import { readdirSync } from 'fs';
+            try { console.log('specsDir contents:', readdirSync(specsDir)); } catch(e) { console.log('specsDir read error:', e.message); }
+          "
       - run: npm -w packages/cli run dev -- validate
