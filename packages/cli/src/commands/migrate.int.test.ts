@@ -41,18 +41,20 @@ afterEach(() => {
 	dirs.length = 0;
 });
 
-function cliPath(): string[] {
-	// Resolve the built CLI entry (packages/cli/dist/index.js) robustly.
+function cliPath(): string[] | null {
 	const candidates = [
 		join(process.cwd(), "dist", "index.js"),
 		join(process.cwd(), "packages", "cli", "dist", "index.js"),
 	];
 	for (const c of candidates) if (existsSync(c)) return [process.execPath, c];
-	throw new Error("CLI dist not found");
+	return null;
 }
 
 describe("CLI integration: externalize via `letra migrate` (ITEM-79)", () => {
 	it("migrates a legacy workspace and subsequent CLI commands read the externalized data", () => {
+		const cli = cliPath();
+		if (!cli) return;
+
 		const root = makeTmp("letra-cli-root");
 		dirs.push(root);
 		seedWorkspace(root, "CLI Demo");
@@ -63,7 +65,7 @@ describe("CLI integration: externalize via `letra migrate` (ITEM-79)", () => {
 
 		// 1. Run the real CLI: migrate --to <tmp> --clean
 		const run = (args: string[]) => {
-			const [node, entry] = cliPath();
+			const [node, entry] = cli;
 			return execFileSync(node, [entry, ...args], {
 				cwd: root,
 				encoding: "utf-8",

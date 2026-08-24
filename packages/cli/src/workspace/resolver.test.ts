@@ -166,23 +166,27 @@ describe("workspace resolution (externalized direct layout, ITEM-79)", () => {
 		expect(loadWorkflow(workspaceRoot)?.name).toBe("nested");
 	});
 
-	it("throws a clear error when .letra-link points to a missing data directory", () => {
+	it("falls back to local .letra/ when .letra-link points to a missing data directory", () => {
 		const workspaceRoot = makeTmp("letra-broken-link");
 		dirs.push(workspaceRoot);
 		const missing = join(workspaceRoot, "missing-data-dir");
 		writeFileSync(join(workspaceRoot, LINK_FILE), `${missing}\n`);
 
-		expect(() => resolveDataDir(workspaceRoot)).toThrow(/data directory does not exist/);
-		expect(() => resolveWorkspaceRoot(workspaceRoot)).toThrow(/data directory does not exist/);
+		// Broken link should not throw — resolveDataDir returns null, getLetraDir falls back
+		expect(resolveDataDir(workspaceRoot)).toBeNull();
+		const fallback = getLetraDir(workspaceRoot);
+		expect(typeof fallback).toBe("string");
+		expect(fallback.length).toBeGreaterThan(0);
 	});
 
-	it("throws a clear error when linked data directory lacks workflow.json", () => {
+	it("falls back to local .letra/ when linked data directory lacks workflow.json", () => {
 		const dataDir = makeTmp("letra-empty-data");
 		dirs.push(dataDir);
 		const workspaceRoot = makeTmp("letra-empty-link");
 		dirs.push(workspaceRoot);
 		writeFileSync(join(workspaceRoot, LINK_FILE), `${dataDir}\n`);
 
-		expect(() => resolveDataDir(workspaceRoot)).toThrow(/does not contain workflow\.json/);
+		// Link target exists but has no workflow.json — should return null, not throw
+		expect(resolveDataDir(workspaceRoot)).toBeNull();
 	});
 });

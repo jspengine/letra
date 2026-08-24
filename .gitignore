@@ -3,6 +3,7 @@ dist/
 *.tsbuildinfo
 .DS_Store
 .env
+.letra-link
 .letra/specs/*/status.md
 .letra/backups/
 .letra/workflow.v*.json

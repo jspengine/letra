@@ -46,13 +46,15 @@ function readLinkTarget(dir: string): { path: string; target: string; dataDir: s
 	const content = readFileSync(linkPath, "utf-8").trim();
 	const target = content.split("\n")[0].trim();
 	if (!target) {
-		throw new Error(`Invalid Letra link at ${linkPath}: expected a data directory path.`);
+		console.warn(`Letra link at ${linkPath} is empty — ignoring.`);
+		return null;
 	}
 	const dataPath = parseLinkTarget(dir, target);
 	if (!existsSync(dataPath)) {
-		throw new Error(
-			`Invalid Letra link at ${linkPath}: data directory does not exist (${dataPath}).`,
+		console.warn(
+			`Letra link target does not exist (${dataPath}) — falling back to local .letra/.`,
 		);
+		return null;
 	}
 	const directWorkflow = join(dataPath, "workflow.json");
 	const legacyHarnessDir = join(dataPath, LETRA_FOLDER);
@@ -63,9 +65,10 @@ function readLinkTarget(dir: string): { path: string; target: string; dataDir: s
 	if (existsSync(legacyWorkflow)) {
 		return { path: linkPath, target: dataPath, dataDir: legacyHarnessDir };
 	}
-	throw new Error(
-		`Invalid Letra link at ${linkPath}: target does not contain workflow.json (${dataPath}).`,
+	console.warn(
+		`Letra link target (${dataPath}) has no workflow.json — falling back to local .letra/.`,
 	);
+	return null;
 }
 
 function resolution(
