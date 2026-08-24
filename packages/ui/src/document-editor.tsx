@@ -124,6 +124,7 @@ export function DocumentEditor({
 				<div
 					ref={scrollRef}
 					className="flex-1 overflow-y-auto bg-[var(--color-bg-base)] px-4 py-6 sm:px-6 lg:px-8"
+					tabIndex={0}
 				>
 					<div className="mx-auto max-w-3xl rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] px-5 py-5 shadow-sm sm:px-7 sm:py-6">
 						<Markdown content={content} />

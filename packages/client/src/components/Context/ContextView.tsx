@@ -241,16 +241,15 @@ export default function ContextView({ initialTab = "context.md" }: Props) {
 				</div>
 
 				<div className="flex min-h-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden p-3 md:flex-col md:gap-4 md:overflow-x-hidden md:overflow-y-auto">
-					{SOURCE_GROUPS.map((group) => (
+				{SOURCE_GROUPS.map((group) => (
 					<section
 						key={group.title}
-						role="tablist"
-						aria-label={group.title}
 						className="flex min-w-[17rem] flex-col gap-1 md:min-w-0"
 					>
-							<h3 className="px-1 text-xs font-semibold uppercase text-[var(--color-text-secondary)]">
-								{group.title}
-							</h3>
+						<h3 className="px-1 text-xs font-semibold uppercase text-[var(--color-text-secondary)]">
+							{group.title}
+						</h3>
+						<div role="tablist" aria-label={group.title}>
 							{group.sources.map((entry) => (
 								<KnowledgeSourceButton
 									key={entry.id}
@@ -262,8 +261,9 @@ export default function ContextView({ initialTab = "context.md" }: Props) {
 									}}
 								/>
 							))}
-						</section>
-					))}
+						</div>
+					</section>
+				))}
 				</div>
 
 				{tab === "decisions" && decisions.length > 0 ? (
