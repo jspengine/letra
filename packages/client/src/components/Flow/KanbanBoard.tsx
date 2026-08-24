@@ -26,6 +26,7 @@ interface Props {
 	specRefreshKey?: number;
 	onAddItem?: () => void;
 	filter?: string;
+	className?: string;
 }
 
 function computeItemState(state: OperationalState): {
@@ -245,6 +246,7 @@ export default function KanbanBoard({
 	specRefreshKey,
 	onAddItem,
 	filter = "all",
+	className,
 }: Props) {
 	const [dragOver, setDragOver] = useState<string | null>(null);
 	const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -413,7 +415,7 @@ export default function KanbanBoard({
 	}
 
 	return (
-		<div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden p-4">
+		<div className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden p-4", className)}>
 			{visibleItems.length === 0 ? (
 				<div className="app-board-filter-empty flex min-h-[16rem] flex-1 flex-col items-center justify-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] p-6 text-center">
 					<div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-bg-sunken)] text-[var(--color-text-secondary)]">

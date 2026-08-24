@@ -64,9 +64,24 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 		pendingChecks: boolean[];
 	} | null>(null);
 	const [activeFilter, setActiveFilter] = useState<WorkFilter>("all");
+	const [observationPanelOpen, setObservationPanelOpen] = useState(() => {
+		try {
+			return localStorage.getItem("letra-observation-panel") !== "false";
+		} catch {
+			return true;
+		}
+	});
 	const humanGateStages = humanGateStageIds(workflow, activeFlow);
 	const doneStages = doneStageIds(workflow, activeFlow);
 	const resolvedStages = orderedStages(workflow, activeFlow);
+
+	const toggleObservationPanel = () => {
+		const next = !observationPanelOpen;
+		setObservationPanelOpen(next);
+		try {
+			localStorage.setItem("letra-observation-panel", String(next));
+		} catch {}
+	};
 
 	const loadSpecs = useCallback(() => {
 		fetch("/api/specs")
@@ -392,6 +407,15 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 						<Badge icon="shield" variant={attentionItems > 0 ? (blockedItems > 0 ? "error" : "amber") : "info"} tone="soft">
 							{attentionItems} atenção
 						</Badge>
+						<Button
+							variant={observationPanelOpen ? "secondary" : "ghost"}
+							size="sm"
+							onClick={toggleObservationPanel}
+							className="h-8 px-2 text-caption"
+						>
+							<Icon name="list-three" size={12} />
+							Observar
+						</Button>
 						<DropdownMenu>
 							{({ open, setOpen }) => (
 								<>
@@ -447,198 +471,149 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 							</div>
 						</div>
 					</div>
-				) : (
-					<div className="app-section-shell min-w-0 gap-3 overflow-y-auto p-3 sm:gap-4 sm:p-4 xl:overflow-hidden">
-						<ActionPanel
-							className="min-w-0"
-							tone={primaryTone}
-							icon={<Icon name={primaryState === "blocked" ? "shield" : primaryState === "waiting" ? "clock" : "grid"} size={20} />}
-							title={primaryItem ? `Próximo trabalho seguro: ${primaryItem.id}` : "Nenhum trabalho em foco"}
-							description={primaryDescription}
-							meta={
-								<>
-									{primaryItem ? <Badge variant="info" tone="soft">{primaryStage?.name ?? primaryItem.stage}</Badge> : null}
-									{primaryItem?.claimedBy ? <Tag>{primaryItem.claimedBy}</Tag> : null}
-								</>
-							}
-							action={
-								<Button
-									size="sm"
-									onClick={() => {
-										if (primaryItem) setSelectedItemId(primaryItem.id);
-										else setShowAddDialog(true);
-									}}
-								>
-									{primaryActionLabel}
-								</Button>
-							}
-							secondaryAction={
-								primaryItem ? (
-									<Button size="sm" variant="secondary" onClick={() => setShowAddDialog(true)}>
-										Novo item
+			) : (
+					<div className="flex min-w-0 flex-1 overflow-hidden">
+						{/* ─── Left Column: Kanban ─── */}
+						<div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4 gap-3">
+							<ActionPanel
+								className="min-w-0"
+								tone={primaryTone}
+								icon={<Icon name={primaryState === "blocked" ? "shield" : primaryState === "waiting" ? "clock" : "grid"} size={20} />}
+								title={primaryItem ? `Próximo trabalho seguro: ${primaryItem.id}` : "Nenhum trabalho em foco"}
+								description={primaryDescription}
+								meta={
+									<>
+										{primaryItem ? <Badge variant="info" tone="soft">{primaryStage?.name ?? primaryItem.stage}</Badge> : null}
+										{primaryItem?.claimedBy ? <Tag>{primaryItem.claimedBy}</Tag> : null}
+									</>
+								}
+								action={
+									<Button
+										size="sm"
+										onClick={() => {
+											if (primaryItem) setSelectedItemId(primaryItem.id);
+											else setShowAddDialog(true);
+										}}
+									>
+										{primaryActionLabel}
 									</Button>
-								) : null
-							}
-						/>
+								}
+								secondaryAction={
+									primaryItem ? (
+										<Button size="sm" variant="secondary" onClick={() => setShowAddDialog(true)}>
+											Novo item
+										</Button>
+									) : null
+								}
+							/>
 
-						<div className="grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-							{[
-								{ label: "Atenção", value: attentionItems, sub: blockedItems > 0 ? `${blockedItems} bloqueado${blockedItems === 1 ? "" : "s"}` : "decisão humana", color: attentionItems > 0 ? "var(--color-warning)" : "var(--color-text-secondary)", icon: "shield", urgent: attentionItems > 0 },
-								{ label: "Em andamento", value: runningItems, sub: `${activeAgents} ator${activeAgents === 1 ? "" : "es"} ativo${activeAgents === 1 ? "" : "s"}`, color: "var(--color-primary)", icon: "cpu", pulse: runningItems > 0 },
-								{ label: "Na fila", value: queuedItems, sub: "sem responsável", color: "var(--color-text-secondary)", icon: "circle" },
-								{ label: "Progresso", value: `${pctComplete}%`, sub: `${doneItems}/${totalItems} concluídos`, color: "var(--color-primary)", icon: "bar-chart" },
-							].map((stat) => (
-								<Card key={stat.label} className="app-summary-card hover:shadow-sm" data-urgent={stat.urgent ? "true" : "false"}>
-									<CardContent className="grid gap-0.5 p-2.5">
-										<div className="flex items-center justify-between">
-											<span className="app-section-muted text-caption font-medium uppercase tracking-wider">{stat.label}</span>
-											{stat.icon && <Icon name={stat.icon as any} size={10} style={{ color: stat.color }} />}
-										</div>
-										<div className="flex items-baseline gap-1">
-											<span className={cn("text-lg font-bold tabular-nums", stat.pulse && "animate-pulse")} style={{ color: stat.color }}>{stat.value}</span>
-											{stat.pulse && <span className="w-1 h-1 rounded-full bg-[var(--color-primary)] animate-pulse" />}
-										</div>
-										<span className="app-section-muted text-caption">{stat.sub}</span>
-									</CardContent>
-								</Card>
-							))}
-						</div>
+							<div className="grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+								{[
+									{ label: "Atenção", value: attentionItems, sub: blockedItems > 0 ? `${blockedItems} bloqueado${blockedItems === 1 ? "" : "s"}` : "decisão humana", color: attentionItems > 0 ? "var(--color-warning)" : "var(--color-text-secondary)", icon: "shield", urgent: attentionItems > 0 },
+									{ label: "Em andamento", value: runningItems, sub: `${activeAgents} ator${activeAgents === 1 ? "" : "es"} ativo${activeAgents === 1 ? "" : "s"}`, color: "var(--color-primary)", icon: "cpu", pulse: runningItems > 0 },
+									{ label: "Na fila", value: queuedItems, sub: "sem responsável", color: "var(--color-text-secondary)", icon: "circle" },
+									{ label: "Progresso", value: `${pctComplete}%`, sub: `${doneItems}/${totalItems} concluídos`, color: "var(--color-primary)", icon: "bar-chart" },
+								].map((stat) => (
+									<Card key={stat.label} className="app-summary-card hover:shadow-sm" data-urgent={stat.urgent ? "true" : "false"}>
+										<CardContent className="grid gap-0.5 p-2.5">
+											<div className="flex items-center justify-between">
+												<span className="app-section-muted text-caption font-medium uppercase tracking-wider">{stat.label}</span>
+												{stat.icon && <Icon name={stat.icon as any} size={10} style={{ color: stat.color }} />}
+											</div>
+											<div className="flex items-baseline gap-1">
+												<span className={cn("text-lg font-bold tabular-nums", stat.pulse && "animate-pulse")} style={{ color: stat.color }}>{stat.value}</span>
+												{stat.pulse && <span className="w-1 h-1 rounded-full bg-[var(--color-primary)] animate-pulse" />}
+											</div>
+											<span className="app-section-muted text-caption">{stat.sub}</span>
+										</CardContent>
+									</Card>
+								))}
+							</div>
 
-						{/* ─── 3. Agent Control Center ─── */}
-						{Object.keys(agentItems).length > 0 && (
-							<div className="min-w-0 shrink-0">
-								<div className="flex items-center gap-2 mb-2">
-									<span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">Atores em andamento</span>
-									<div className="app-section-muted flex items-center gap-1 text-caption">
-										<div className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)] animate-pulse" />
-										<span>{activeAgents} ativo{activeAgents !== 1 ? "s" : ""}</span>
+							{/* ─── 3. Agent Control Center ─── */}
+							{Object.keys(agentItems).length > 0 && (
+								<div className="min-w-0 shrink-0">
+									<div className="flex items-center gap-2 mb-2">
+										<span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">Atores em andamento</span>
+										<div className="app-section-muted flex items-center gap-1 text-caption">
+											<div className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)] animate-pulse" />
+											<span>{activeAgents} ativo{activeAgents !== 1 ? "s" : ""}</span>
+										</div>
+									</div>
+									<div className="flex min-w-0 gap-2 overflow-x-auto pb-1 scrollbar-none">
+										{Object.entries(agentItems).map(([name, items], ai) => {
+											const latestItem = items[0];
+											const resolvedStage = orderedStages(workflow, activeFlow).find((entry) => entry.id === latestItem.stage);
+											const action = resolvedStage ? stageActionLabel(resolvedStage) : "Processando";
+											const totalACs = items.reduce((sum, it) => {
+												if (it.tasks) return sum + it.tasks.filter((t) => t.done).length;
+												return sum;
+											}, 0);
+											const totalTasks = items.reduce((sum, it) => sum + (it.tasks?.length || 0), 0);
+											const pct = totalTasks > 0 ? Math.round((totalACs / totalTasks) * 100) : null;
+											const isRunning = !humanGateStages.has(latestItem.stage) && !doneStages.has(latestItem.stage);
+											return (
+												<div
+													key={name}
+													className={cn("app-agent-card p-3 min-w-[160px] flex flex-col gap-1.5 shrink-0 transition-all hover:shadow-sm", isRunning && "animate-agent-breathe")}
+													data-running={isRunning ? "true" : "false"}
+												>
+													<div className="flex items-center gap-2">
+														<div className="w-5 h-5 rounded-full flex items-center justify-center text-caption font-bold" style={{ background: `color-mix(in oklch, ${AGENT_COLORS[ai % AGENT_COLORS.length]} 20%, transparent)`, color: AGENT_COLORS[ai % AGENT_COLORS.length] }}>
+															{name.charAt(0).toUpperCase()}
+														</div>
+														<div className="flex-1 min-w-0">
+															<div className="flex items-center gap-1">
+																<span className="text-xs font-semibold truncate">{name}</span>
+																{isRunning && <span className="w-1 h-1 rounded-full bg-[var(--color-primary)] animate-pulse" />}
+															</div>
+															<span className="app-section-muted text-caption">{action}</span>
+														</div>
+													</div>
+													<div className="flex flex-col gap-0.5">
+														{pct === null ? (
+															<span className="app-section-muted text-caption">
+																Sem progresso declarado
+															</span>
+														) : (
+															<div className="flex items-center gap-1">
+																<Progress value={pct} max={100} size="xs" className="flex-1" />
+																<span className="text-caption tabular-nums font-medium text-[var(--color-text-primary)]">{pct}%</span>
+															</div>
+														)}
+														<span className="app-section-muted text-caption">
+															{items.length} {items.length === 1 ? "item" : "itens"}
+														</span>
+													</div>
+													<div className={cn("text-caption font-medium px-1.5 py-0.5 rounded-full self-start", isRunning ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "bg-muted text-muted-foreground")}>
+														{isRunning ? "Em andamento" : "Na fila"}
+													</div>
+												</div>
+											);
+										})}
 									</div>
 								</div>
-								<div className="flex min-w-0 gap-2 overflow-x-auto pb-1 scrollbar-none">
-									{Object.entries(agentItems).map(([name, items], ai) => {
-										const latestItem = items[0];
-										const resolvedStage = orderedStages(workflow, activeFlow).find((entry) => entry.id === latestItem.stage);
-										const action = resolvedStage ? stageActionLabel(resolvedStage) : "Processando";
-										const totalACs = items.reduce((sum, it) => {
-											if (it.tasks) return sum + it.tasks.filter((t) => t.done).length;
-											return sum;
-										}, 0);
-										const totalTasks = items.reduce((sum, it) => sum + (it.tasks?.length || 0), 0);
-										const pct = totalTasks > 0 ? Math.round((totalACs / totalTasks) * 100) : null;
-										const isRunning = !humanGateStages.has(latestItem.stage) && !doneStages.has(latestItem.stage);
-										return (
-											<div
-												key={name}
-												className={cn("app-agent-card p-3 min-w-[160px] flex flex-col gap-1.5 shrink-0 transition-all hover:shadow-sm", isRunning && "animate-agent-breathe")}
-												data-running={isRunning ? "true" : "false"}
-											>
-												<div className="flex items-center gap-2">
-													<div className="w-5 h-5 rounded-full flex items-center justify-center text-caption font-bold" style={{ background: `color-mix(in oklch, ${AGENT_COLORS[ai % AGENT_COLORS.length]} 20%, transparent)`, color: AGENT_COLORS[ai % AGENT_COLORS.length] }}>
-														{name.charAt(0).toUpperCase()}
-													</div>
-													<div className="flex-1 min-w-0">
-														<div className="flex items-center gap-1">
-															<span className="text-xs font-semibold truncate">{name}</span>
-															{isRunning && <span className="w-1 h-1 rounded-full bg-[var(--color-primary)] animate-pulse" />}
-														</div>
-														<span className="app-section-muted text-caption">{action}</span>
-													</div>
-												</div>
-												<div className="flex flex-col gap-0.5">
-													{pct === null ? (
-														<span className="app-section-muted text-caption">
-															Sem progresso declarado
-														</span>
-													) : (
-														<div className="flex items-center gap-1">
-															<Progress value={pct} max={100} size="xs" className="flex-1" />
-															<span className="text-caption tabular-nums font-medium text-[var(--color-text-primary)]">{pct}%</span>
-														</div>
-													)}
-													<span className="app-section-muted text-caption">
-														{items.length} {items.length === 1 ? "item" : "itens"}
-													</span>
-												</div>
-												<div className={cn("text-caption font-medium px-1.5 py-0.5 rounded-full self-start", isRunning ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "bg-muted text-muted-foreground")}>
-													{isRunning ? "Em andamento" : "Na fila"}
-												</div>
-											</div>
-										);
-									})}
-								</div>
+							)}
+
+							{/* ─── 5. Filter Group ─── */}
+							<div className="flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]">
+								<ButtonGroup ariaLabel="Filtrar trabalho" className="w-max max-w-none flex-nowrap sm:w-auto sm:max-w-full sm:flex-wrap">
+									{filterOptions.map(({ key, label }) => (
+										<ButtonGroupItem
+											key={key}
+											selected={activeFilter === key}
+											count={filterCounts[key]}
+											onClick={() => setActiveFilter(key)}
+										>
+											{label}
+										</ButtonGroupItem>
+									))}
+								</ButtonGroup>
 							</div>
-						)}
 
-						{/* ─── 4. Pipeline Visual (connected) ─── */}
-						<div className="hidden min-w-0 shrink-0 overflow-x-auto pb-1 [scrollbar-width:thin]">
-							<div className="flex min-w-max items-center gap-0">
-								{pipelineStages.map((stage, idx) => {
-									const isCurrent = idx === currentStageIdx;
-									const isDone = idx < currentStageIdx;
-									const isHumanGate = stage.isHumanGate;
-									const hasItems = stage.itemCount > 0;
-									const isLast = idx === pipelineStages.length - 1;
-									return (
-										<div key={stage.id} className="flex items-center gap-0 flex-1">
-											<Tooltip content={`${stage.name}: ${stage.itemCount} itens`}>
-												<div className={cn(
-													"flex items-center gap-1.5 px-2 py-1.5 rounded-[var(--radius-md)] transition-all cursor-default border",
-													isCurrent && "border-primary/40 bg-primary/[0.06]",
-													isDone && "border-transparent",
-													isHumanGate && hasItems && "border-[var(--color-success)]/40 bg-[var(--color-success)]/[0.06]",
-													!isCurrent && !isDone && !(isHumanGate && hasItems) && "border-transparent",
-												)}>
-													{isDone ? (
-														<Icon name="check" size={10} style={{ color: "var(--color-success)" }} />
-													) : isCurrent ? (
-														<div className="w-2 h-2 rounded-full bg-[var(--color-primary)] animate-pulse" />
-													) : (
-														<div className="w-1.5 h-1.5 rounded-full" style={{ background: hasItems ? "var(--color-text-secondary)" : "var(--color-border)" }} />
-													)}
-													<div className="flex flex-col">
-														<div className="flex items-center gap-1">
-															<span className={cn(
-																"text-caption font-semibold truncate",
-																isDone && "text-[var(--color-success)]",
-																isCurrent && "text-[var(--color-primary)]",
-																isHumanGate && hasItems && "text-[var(--color-success)]",
-															)}>{stage.name}</span>
-															{hasItems && (
-																<Badge variant={isHumanGate ? "amber" : "info"} className="text-[7px] px-1 py-0 h-3.5">{stage.itemCount}</Badge>
-															)}
-														</div>
-													</div>
-												</div>
-											</Tooltip>
-											{!isLast && (
-												<div className="flex-1 h-px mx-1" style={{ background: isDone ? "var(--color-success)" : "var(--color-border)" }} />
-											)}
-										</div>
-									);
-								})}
-							</div>
-						</div>
-
-						{/* ─── 5. Filter Group ─── */}
-						<div className="flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]">
-							<ButtonGroup ariaLabel="Filtrar trabalho" className="w-max max-w-none flex-nowrap sm:w-auto sm:max-w-full sm:flex-wrap">
-								{filterOptions.map(({ key, label }) => (
-									<ButtonGroupItem
-										key={key}
-										selected={activeFilter === key}
-										count={filterCounts[key]}
-										onClick={() => setActiveFilter(key)}
-									>
-										{label}
-									</ButtonGroupItem>
-								))}
-							</ButtonGroup>
-						</div>
-
-						{/* ─── 6+7. Kanban + Timeline ─── */}
-						<div className="flex min-w-0 flex-1 gap-3 overflow-hidden">
+							{/* ─── 6. Kanban Board ─── */}
 							<div className="app-section-card flex min-w-0 flex-1 flex-col overflow-hidden">
-							<KanbanBoard
+								<KanbanBoard
 									workflow={workflow}
 									activeFlow={activeFlow}
 									onSelectItem={setSelectedItemId}
@@ -649,9 +624,16 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 									onItemDecided={onItemMoved}
 								/>
 							</div>
-							<div className="app-section-card hidden w-72 shrink-0 xl:block">
-								<ActivityTimeline workflow={workflow} activeFlow={activeFlow} onSelectItem={setSelectedItemId} />
-							</div>
+						</div>
+
+						{/* ─── Right Column: Observation Panel ─── */}
+						<div
+							className={cn(
+								"app-section-card shrink-0 overflow-y-auto transition-all duration-300 ease-in-out",
+								observationPanelOpen ? "w-80 border-l" : "w-0 border-l-0"
+							)}
+						>
+							<ActivityTimeline workflow={workflow} activeFlow={activeFlow} onSelectItem={setSelectedItemId} />
 						</div>
 					</div>
 				)}
