@@ -23,28 +23,28 @@ function buildSignals(
 		signals.push({
 			level: "warning",
 			code: "no-current-item",
-			message: "Nenhum item ativo encontrado; contexto cai para triagem/descoberta.",
+			message: "Nenhum item em andamento. Selecione um item no Kanban para começar.",
 		});
 	}
 	if (focusDiverged) {
 		signals.push({
 			level: "error",
 			code: "focus-diverged",
-			message: "focus.md aponta para uma spec diferente do item ativo do workflow.",
+			message: "Foco desatualizado. Atualize focus.md ou selecione o item correto.",
 		});
 	}
 	if (alertCount > 0) {
 		signals.push({
 			level: highSeverityCount > 0 ? "error" : "warning",
 			code: "active-health-alerts",
-			message: `${alertCount} alerta(s) de health ativo(s) impactam a atividade ${activity}.`,
+			message: `${alertCount} alerta(s) ativo(s). Verifique o painel de supervisão antes de continuar.`,
 		});
 	}
 	if ((activity === "review" || activity === "gate") && pendingAcs > 0) {
 		signals.push({
 			level: "warning",
 			code: "pending-acceptance-criteria",
-			message: `${pendingAcs} AC(s) ainda pendente(s) exigem atenção antes de revisar ou aprovar.`,
+			message: `${pendingAcs} AC(s) pendente(s). Complete os critérios antes de prosseguir.`,
 		});
 	}
 	if (intentSignal) {
