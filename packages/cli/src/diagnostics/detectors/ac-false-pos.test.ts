@@ -46,10 +46,10 @@ Testing only.
 		writeFileSync(join(specDir, "spec.md"), spec);
 	}
 
-	function createSourceFile(content: string) {
+	function createSourceFile(content: string, ext = ".ts") {
 		const srcDir = join(tmpDir, "packages", "cli", "src");
 		mkdirSync(srcDir, { recursive: true });
-		writeFileSync(join(srcDir, "test-file.ts"), content);
+		writeFileSync(join(srcDir, `test-file${ext}`), content);
 	}
 
 	it("should not flag ACs that have matching source code", async () => {
@@ -84,6 +84,51 @@ Testing only.
 		await initProject();
 		await createSpec("my-feature", ["- [x] **`parse data`**"]);
 		createSourceFile("function parseData() { return 1; }");
+
+		const results = await acFalsePosDetector.run(tmpDir);
+		expect(results).toHaveLength(0);
+	});
+
+	it("should detect kebab-case and snake_case variants", async () => {
+		await initProject();
+		await createSpec("my-feature", ["- [x] **`my function`**"]);
+		createSourceFile("const my_function = 42;");
+
+		const results = await acFalsePosDetector.run(tmpDir);
+		expect(results).toHaveLength(0);
+	});
+
+	it("should detect base command name from multi-word commands", async () => {
+		await initProject();
+		await createSpec("commands", ["- [x] **`letra init`**"]);
+		createSourceFile('.command("init")');
+
+		const results = await acFalsePosDetector.run(tmpDir);
+		expect(results).toHaveLength(0);
+	});
+
+	it("should detect command with flags by extracting base command", async () => {
+		await initProject();
+		await createSpec("commands", ["- [x] **`flow init --quick`**"]);
+		createSourceFile('.command("init [path]")');
+
+		const results = await acFalsePosDetector.run(tmpDir);
+		expect(results).toHaveLength(0);
+	});
+
+	it("should detect API endpoints by path segments", async () => {
+		await initProject();
+		await createSpec("api", ["- [x] **`GET /api/workflow`**"]);
+		createSourceFile('.get("/api/workflow")');
+
+		const results = await acFalsePosDetector.run(tmpDir);
+		expect(results).toHaveLength(0);
+	});
+
+	it("should detect commands in JSON files", async () => {
+		await initProject();
+		await createSpec("config", ["- [x] **`npm run dev`**"]);
+		createSourceFile('{"scripts": {"dev": "vite"}}', ".json");
 
 		const results = await acFalsePosDetector.run(tmpDir);
 		expect(results).toHaveLength(0);

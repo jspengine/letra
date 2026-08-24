@@ -1,10 +1,12 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
+const AC_SEARCH_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".yaml", ".yml"];
+
 export function searchInSource(
 	rootDir: string,
 	terms: string[],
-	extensions = [".ts", ".tsx"],
+	extensions = AC_SEARCH_EXTENSIONS,
 	targetDirs?: string[],
 ): boolean {
 	const searchDirs = targetDirs ?? ["packages/cli/src", "packages/client/src", "packages/ui/src"];
