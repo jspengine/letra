@@ -12,12 +12,12 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 	icon?: IconName;
 }
 
-const variantTokens: Record<Variant, { color: string; onColor: string }> = {
-	amber: { color: "var(--color-primary)", onColor: "var(--color-on-accent)" },
-	success: { color: "var(--color-success)", onColor: "var(--color-on-status)" },
-	info: { color: "var(--color-info)", onColor: "var(--color-on-status)" },
-	error: { color: "var(--color-danger)", onColor: "var(--color-on-status)" },
-	agent: { color: "var(--color-agent)", onColor: "var(--color-on-status)" },
+const variantTokens: Record<Variant, { color: string; onColor: string; softColor: string }> = {
+	amber: { color: "var(--color-primary)", onColor: "var(--color-on-accent)", softColor: "var(--color-primary)" },
+	success: { color: "var(--color-success)", onColor: "var(--color-on-status)", softColor: "var(--color-success)" },
+	info: { color: "var(--color-info)", onColor: "var(--color-on-status)", softColor: "#60A5FA" },
+	error: { color: "var(--color-danger)", onColor: "var(--color-on-status)", softColor: "var(--color-danger)" },
+	agent: { color: "var(--color-agent)", onColor: "var(--color-on-status)", softColor: "#A78BFA" },
 };
 
 const variantIcons: Record<Variant, IconName> = {
@@ -33,15 +33,15 @@ function badgeColors(variant: Variant, tone: Tone) {
 	if (tone === "outline") {
 		return {
 			background: "transparent",
-			color: tokens.color,
-			borderColor: `color-mix(in oklch, ${tokens.color} 48%, transparent)`,
+			color: tokens.softColor,
+			borderColor: `color-mix(in oklch, ${tokens.softColor} 48%, transparent)`,
 		};
 	}
 	if (tone === "soft") {
 		return {
-			background: `color-mix(in oklch, ${tokens.color} 14%, transparent)`,
-			color: tokens.color,
-			borderColor: `color-mix(in oklch, ${tokens.color} 36%, transparent)`,
+			background: `color-mix(in oklch, ${tokens.softColor} 14%, transparent)`,
+			color: tokens.softColor,
+			borderColor: `color-mix(in oklch, ${tokens.softColor} 36%, transparent)`,
 		};
 	}
 	return {
