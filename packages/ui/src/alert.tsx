@@ -27,7 +27,10 @@ export function Alert({ title, children, variant = "info", className }: AlertPro
 	const token = tokenMap[variant] ?? "color-info";
 	return (
 		<div
-			className={cn("flex gap-[var(--space-2)] p-[var(--space-3)] rounded-[var(--radius-md)] border-[length:var(--border-thin)]", className)}
+			className={cn(
+				"flex gap-[var(--space-2)] p-[var(--space-3)] rounded-[var(--radius-md)] border-[length:var(--border-thin)]",
+				className,
+			)}
 			style={{
 				background: `color-mix(in srgb, var(--${token}) 12%, transparent)`,
 				borderColor: `color-mix(in srgb, var(--${token}) 35%, transparent)`,

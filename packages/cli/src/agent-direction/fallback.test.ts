@@ -11,22 +11,31 @@ function fixture(): string {
 	const root = mkdtempSync(join(tmpdir(), "letra-direction-fallback-"));
 	roots.push(root);
 	mkdirSync(join(root, ".letra", "specs", "fallback"), { recursive: true });
-	writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify({
-		version: "1.0",
-		name: "Fallback fixture",
-		createdAt: "2026-07-05T00:00:00.000Z",
-		updatedAt: "2026-07-05T00:00:00.000Z",
-		stages: [{ id: "code", name: "Code", order: 0, zone: "doing" }],
-		items: [{
-			id: "ITEM-1",
-			description: "Fallback direction",
-			stage: "code",
-			spec: "fallback",
-			createdAt: "2026-07-05T00:00:00.000Z",
-		}],
-		primaryItemId: "ITEM-1",
-		tools: ["codex"],
-	}, null, 2));
+	writeFileSync(
+		join(root, ".letra", "workflow.json"),
+		JSON.stringify(
+			{
+				version: "1.0",
+				name: "Fallback fixture",
+				createdAt: "2026-07-05T00:00:00.000Z",
+				updatedAt: "2026-07-05T00:00:00.000Z",
+				stages: [{ id: "code", name: "Code", order: 0, zone: "doing" }],
+				items: [
+					{
+						id: "ITEM-1",
+						description: "Fallback direction",
+						stage: "code",
+						spec: "fallback",
+						createdAt: "2026-07-05T00:00:00.000Z",
+					},
+				],
+				primaryItemId: "ITEM-1",
+				tools: ["codex"],
+			},
+			null,
+			2,
+		),
+	);
 	writeFileSync(
 		join(root, ".letra", "specs", "fallback", "spec.md"),
 		"# Spec\n\n## Acceptance Criteria\n- [ ] **AC1**: fallback remains safe\n",
@@ -49,20 +58,24 @@ describe("direction fallback", () => {
 			revision: canonical.revision,
 			item: canonical.item,
 			pendingAC: canonical.pendingAC,
-			warnings: expect.arrayContaining([{
-				code: "LIVE_CONTEXT_UNAVAILABLE",
-				message: expect.stringContaining("letra direction --json"),
-			}]),
+			warnings: expect.arrayContaining([
+				{
+					code: "LIVE_CONTEXT_UNAVAILABLE",
+					message: expect.stringContaining("letra direction --json"),
+				},
+			]),
 		});
-		expect(canonical.warnings).not.toContainEqual(expect.objectContaining({
-			code: "LIVE_CONTEXT_UNAVAILABLE",
-		}));
+		expect(canonical.warnings).not.toContainEqual(
+			expect.objectContaining({
+				code: "LIVE_CONTEXT_UNAVAILABLE",
+			}),
+		);
 	});
 
 	it("does not duplicate the fallback warning when canonical state is already degraded", () => {
 		const fallback = resolveFallbackDirection(fixture());
-		expect(fallback.warnings.filter(
-			(warning) => warning.code === "LIVE_CONTEXT_UNAVAILABLE",
-		)).toHaveLength(1);
+		expect(
+			fallback.warnings.filter((warning) => warning.code === "LIVE_CONTEXT_UNAVAILABLE"),
+		).toHaveLength(1);
 	});
 });

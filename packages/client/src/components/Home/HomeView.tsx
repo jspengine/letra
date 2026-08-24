@@ -118,9 +118,7 @@ function DashboardSkeleton() {
 }
 
 function daysSince(dateStr: string): number {
-	return Math.floor(
-		(Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24),
-	);
+	return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function formatAgeLabel(createdAt: string): string {
@@ -186,9 +184,14 @@ function summarizeHealth(health: HealthResponse): HealthSummaryView {
 	const entries = health.entries ?? [];
 	return {
 		novo: health.summary?.novo ?? entries.filter((entry) => entry.status === "novo").length,
-		ciente: health.summary?.ciente ?? entries.filter((entry) => entry.status === "ciente").length,
-		resolvido: health.summary?.resolvido ?? entries.filter((entry) => entry.status === "resolvido").length,
-		descartado: health.summary?.descartado ?? entries.filter((entry) => entry.status === "descartado").length,
+		ciente:
+			health.summary?.ciente ?? entries.filter((entry) => entry.status === "ciente").length,
+		resolvido:
+			health.summary?.resolvido ??
+			entries.filter((entry) => entry.status === "resolvido").length,
+		descartado:
+			health.summary?.descartado ??
+			entries.filter((entry) => entry.status === "descartado").length,
 	};
 }
 
@@ -202,7 +205,11 @@ function findRelatedSnapshot(entry: HealthEntry, snapshots: DiagnosticSnapshot[]
 		const diagnosticTitle = snapshot.diagnosticTitle.toLowerCase();
 		return candidates.some((candidate) => {
 			if (!candidate) return false;
-			return diagnosticId === candidate || diagnosticId.includes(candidate) || diagnosticTitle.includes(candidate);
+			return (
+				diagnosticId === candidate ||
+				diagnosticId.includes(candidate) ||
+				diagnosticTitle.includes(candidate)
+			);
 		});
 	});
 }
@@ -215,13 +222,21 @@ function buildDiffPreview(before: string, after: string, maxLines = 16): string[
 	const beforeLines = before.split(/\r?\n/);
 	const afterLines = after.split(/\r?\n/);
 	let start = 0;
-	while (start < beforeLines.length && start < afterLines.length && beforeLines[start] === afterLines[start]) {
+	while (
+		start < beforeLines.length &&
+		start < afterLines.length &&
+		beforeLines[start] === afterLines[start]
+	) {
 		start += 1;
 	}
 
 	let beforeEnd = beforeLines.length - 1;
 	let afterEnd = afterLines.length - 1;
-	while (beforeEnd >= start && afterEnd >= start && beforeLines[beforeEnd] === afterLines[afterEnd]) {
+	while (
+		beforeEnd >= start &&
+		afterEnd >= start &&
+		beforeLines[beforeEnd] === afterLines[afterEnd]
+	) {
 		beforeEnd -= 1;
 		afterEnd -= 1;
 	}
@@ -235,7 +250,10 @@ function buildDiffPreview(before: string, after: string, maxLines = 16): string[
 	return preview.length > 0 ? preview : ["Sem diferenca textual entre before/after."];
 }
 
-function mapHealthSignals(health: HealthResponse, snapshots: DiagnosticSnapshot[] = []): AttentionSignal[] {
+function mapHealthSignals(
+	health: HealthResponse,
+	snapshots: DiagnosticSnapshot[] = [],
+): AttentionSignal[] {
 	return (health.active ?? []).slice(0, 4).map((entry, index) => {
 		const severity = severityLabel(entry.severity);
 		return {
@@ -393,11 +411,20 @@ function ItemSheet({
 												<ListItem
 													key={task.id}
 													leading={
-														<Icon name={task.done ? "circle-check" : "circle"} size={18} />
+														<Icon
+															name={
+																task.done
+																	? "circle-check"
+																	: "circle"
+															}
+															size={18}
+														/>
 													}
 													title={task.description}
 													meta={
-														<Tag variant={task.done ? "success" : "info"}>
+														<Tag
+															variant={task.done ? "success" : "info"}
+														>
 															{task.done ? "feito" : "pendente"}
 														</Tag>
 													}
@@ -454,19 +481,46 @@ function SignalSheet({
 				<SheetHeader className="items-start gap-4">
 					<div className="grid min-w-0 gap-[var(--space-2)]">
 						<div className="ds-cluster">
-							<Badge icon="alert-triangle" variant={signal.severity === "alta" ? "error" : signal.severity === "baixa" ? "info" : "amber"} tone="soft">
+							<Badge
+								icon="alert-triangle"
+								variant={
+									signal.severity === "alta"
+										? "error"
+										: signal.severity === "baixa"
+											? "info"
+											: "amber"
+								}
+								tone="soft"
+							>
 								{signal.impact ?? "pede investigacao"}
 							</Badge>
-							<Tag variant={signal.status === "ciente" ? "warning" : signal.status === "resolvido" ? "success" : signal.status === "descartado" ? "default" : "info"}>
-								{signal.status === "ciente" ? "em acompanhamento" : signal.status ?? "novo"}
+							<Tag
+								variant={
+									signal.status === "ciente"
+										? "warning"
+										: signal.status === "resolvido"
+											? "success"
+											: signal.status === "descartado"
+												? "default"
+												: "info"
+								}
+							>
+								{signal.status === "ciente"
+									? "em acompanhamento"
+									: (signal.status ?? "novo")}
 							</Tag>
 						</div>
-						<SheetTitle id="signal-sheet-title" className="break-words leading-tight">{signal.title}</SheetTitle>
+						<SheetTitle id="signal-sheet-title" className="break-words leading-tight">
+							{signal.title}
+						</SheetTitle>
 						<SheetDescription id="signal-sheet-description">
 							Evidencia do workspace para entender o impacto antes de agir.
 						</SheetDescription>
 					</div>
-					<SheetClose aria-label="Fechar detalhes do sinal" onClick={() => onOpenChange(false)}>
+					<SheetClose
+						aria-label="Fechar detalhes do sinal"
+						onClick={() => onOpenChange(false)}
+					>
 						<Icon name="x" size={16} />
 					</SheetClose>
 				</SheetHeader>
@@ -481,9 +535,21 @@ function SignalSheet({
 						<CardContent>
 							<MetadataRow
 								items={[
-									{ label: "Impacto", value: signal.impact ?? "pede investigacao", icon: <Icon name="alert-triangle" size={14} /> },
-									{ label: "Acao segura", value: signal.nextAction ?? "investigar", icon: <Icon name="activity" size={14} /> },
-									{ label: "Detectado em", value: formatEvidenceDate(signal.detectedAt), icon: <Icon name="clock" size={14} /> },
+									{
+										label: "Impacto",
+										value: signal.impact ?? "pede investigacao",
+										icon: <Icon name="alert-triangle" size={14} />,
+									},
+									{
+										label: "Acao segura",
+										value: signal.nextAction ?? "investigar",
+										icon: <Icon name="activity" size={14} />,
+									},
+									{
+										label: "Detectado em",
+										value: formatEvidenceDate(signal.detectedAt),
+										icon: <Icon name="clock" size={14} />,
+									},
 								]}
 							/>
 						</CardContent>
@@ -508,7 +574,13 @@ function SignalSheet({
 											<Tag>{signal.id}</Tag>
 										</>
 									}
-									tone={signal.severity === "alta" ? "danger" : signal.severity === "baixa" ? "info" : "warning"}
+									tone={
+										signal.severity === "alta"
+											? "danger"
+											: signal.severity === "baixa"
+												? "info"
+												: "warning"
+									}
 								/>
 							</List>
 						</CardContent>
@@ -526,9 +598,23 @@ function SignalSheet({
 								<div className="grid gap-[var(--space-4)]">
 									<MetadataRow
 										items={[
-											{ label: "Snapshot", value: signal.relatedSnapshot.id, icon: <Icon name="info" size={14} /> },
-											{ label: "Registrado em", value: formatEvidenceDate(signal.relatedSnapshot.timestamp), icon: <Icon name="clock" size={14} /> },
-											{ label: "Arquivos", value: signal.relatedSnapshot.files.length, icon: <Icon name="file-text" size={14} /> },
+											{
+												label: "Snapshot",
+												value: signal.relatedSnapshot.id,
+												icon: <Icon name="info" size={14} />,
+											},
+											{
+												label: "Registrado em",
+												value: formatEvidenceDate(
+													signal.relatedSnapshot.timestamp,
+												),
+												icon: <Icon name="clock" size={14} />,
+											},
+											{
+												label: "Arquivos",
+												value: signal.relatedSnapshot.files.length,
+												icon: <Icon name="file-text" size={14} />,
+											},
 										]}
 									/>
 									<List tone="surface">
@@ -577,10 +663,26 @@ function SignalSheet({
 								<CardContent>
 									<MetadataRow
 										items={[
-											{ label: "ID", value: signal.id, icon: <Icon name="info" size={14} /> },
-											{ label: "Origem", value: signal.source, icon: <Icon name="file-text" size={14} /> },
-											{ label: "Tipo", value: signal.technicalType ?? "nao informado", icon: <Icon name="code" size={14} /> },
-											{ label: "Urgencia", value: signal.severity, icon: <Icon name="alert-triangle" size={14} /> },
+											{
+												label: "ID",
+												value: signal.id,
+												icon: <Icon name="info" size={14} />,
+											},
+											{
+												label: "Origem",
+												value: signal.source,
+												icon: <Icon name="file-text" size={14} />,
+											},
+											{
+												label: "Tipo",
+												value: signal.technicalType ?? "nao informado",
+												icon: <Icon name="code" size={14} />,
+											},
+											{
+												label: "Urgencia",
+												value: signal.severity,
+												icon: <Icon name="alert-triangle" size={14} />,
+											},
 										]}
 									/>
 								</CardContent>
@@ -594,15 +696,30 @@ function SignalSheet({
 							{actionMessage}
 						</p>
 					) : null}
-					<Button className="w-full sm:w-auto" variant="secondary" onClick={onScan} disabled={actionBusy}>
+					<Button
+						className="w-full sm:w-auto"
+						variant="secondary"
+						onClick={onScan}
+						disabled={actionBusy}
+					>
 						<Icon name={actionBusy ? "loader-circle" : "activity"} size={14} />
 						Verificar agora
 					</Button>
-					<Button className="w-full sm:w-auto" variant="secondary" onClick={() => onAcknowledge(signal)} disabled={actionBusy || signal.status === "ciente"}>
+					<Button
+						className="w-full sm:w-auto"
+						variant="secondary"
+						onClick={() => onAcknowledge(signal)}
+						disabled={actionBusy || signal.status === "ciente"}
+					>
 						<Icon name="clock" size={14} />
 						Acompanhar
 					</Button>
-					<Button className="w-full sm:w-auto" variant="secondary" onClick={() => onDismiss(signal)} disabled={actionBusy}>
+					<Button
+						className="w-full sm:w-auto"
+						variant="secondary"
+						onClick={() => onDismiss(signal)}
+						disabled={actionBusy}
+					>
 						<Icon name="circle-x" size={14} />
 						Descartar
 					</Button>
@@ -627,17 +744,20 @@ export default function HomeView({ workflow, activeFlow, onTabChange }: Props) {
 	const [healthBusy, setHealthBusy] = useState(false);
 	const [healthActionMessage, setHealthActionMessage] = useState("");
 
-	const applyHealth = useCallback((health: HealthResponse, snapshots: DiagnosticSnapshot[] = []) => {
-		const nextSignals = mapHealthSignals(health, snapshots);
-		setHealthSummary(summarizeHealth(health));
-		setSignals(nextSignals);
-		setSignalsAvailable(true);
-		setSelectedSignal((current) => {
-			if (!current) return current;
-			return nextSignals.find((signal) => signal.id === current.id) ?? null;
-		});
-		return nextSignals;
-	}, []);
+	const applyHealth = useCallback(
+		(health: HealthResponse, snapshots: DiagnosticSnapshot[] = []) => {
+			const nextSignals = mapHealthSignals(health, snapshots);
+			setHealthSummary(summarizeHealth(health));
+			setSignals(nextSignals);
+			setSignalsAvailable(true);
+			setSelectedSignal((current) => {
+				if (!current) return current;
+				return nextSignals.find((signal) => signal.id === current.id) ?? null;
+			});
+			return nextSignals;
+		},
+		[],
+	);
 
 	const refreshHealthSignals = useCallback(async () => {
 		const [healthResponse, snapshotsResponse] = await Promise.all([
@@ -660,12 +780,15 @@ export default function HomeView({ workflow, activeFlow, onTabChange }: Props) {
 			setLoading(true);
 			setError(false);
 
-			const [focusResult, healthResult, snapshotsResult, logResult] = await Promise.allSettled([
-				fetch("/api/focus").then((response) => response.json()),
-				fetch("/api/health").then((response) => response.json()),
-				fetch("/api/diagnostics/snapshots?limit=20").then((response) => response.json()),
-				fetch("/api/log?limit=4").then((response) => response.json()),
-			]);
+			const [focusResult, healthResult, snapshotsResult, logResult] =
+				await Promise.allSettled([
+					fetch("/api/focus").then((response) => response.json()),
+					fetch("/api/health").then((response) => response.json()),
+					fetch("/api/diagnostics/snapshots?limit=20").then((response) =>
+						response.json(),
+					),
+					fetch("/api/log?limit=4").then((response) => response.json()),
+				]);
 
 			if (cancelled) return;
 
@@ -705,7 +828,11 @@ export default function HomeView({ workflow, activeFlow, onTabChange }: Props) {
 				setActivityAvailable(false);
 			}
 
-			if (focusResult.status === "rejected" && healthResult.status === "rejected" && logResult.status === "rejected") {
+			if (
+				focusResult.status === "rejected" &&
+				healthResult.status === "rejected" &&
+				logResult.status === "rejected"
+			) {
 				setError(true);
 			}
 
@@ -728,36 +855,36 @@ export default function HomeView({ workflow, activeFlow, onTabChange }: Props) {
 			.map((item) => ({
 				itemId: item.id,
 				title: item.description || item.id,
-				stage:
-					stages.find((stage) => stage.id === item.stage)?.name ?? item.stage,
+				stage: stages.find((stage) => stage.id === item.stage)?.name ?? item.stage,
 				actor: stageAgentLabel(item.stage, workflow, activeFlow),
 				since: formatSince(item.createdAt),
 			}));
 	}, [activeFlow, stages, workflow]);
 
 	const selectedItem = selectedItemId
-		? workflow.items.find((item) => item.id === selectedItemId) ?? null
+		? (workflow.items.find((item) => item.id === selectedItemId) ?? null)
 		: null;
 	const selectedStageName = selectedItem
-		? stages.find((stage) => stage.id === selectedItem.stage)?.name ?? null
+		? (stages.find((stage) => stage.id === selectedItem.stage)?.name ?? null)
 		: null;
 	const primaryItemId = focus?.itemId ?? workflow.primaryItemId ?? workflow.items[0]?.id;
 	const primaryItem = primaryItemId
 		? workflow.items.find((item) => item.id === primaryItemId)
 		: undefined;
 	const primaryStageName = primaryItem
-		? stages.find((stage) => stage.id === primaryItem.stage)?.name ?? primaryItem.stage
+		? (stages.find((stage) => stage.id === primaryItem.stage)?.name ?? primaryItem.stage)
 		: undefined;
 	const primaryWork: FocusedWork | undefined = primaryItem
 		? {
 				id: primaryItem.id,
 				title: primaryItem.description || primaryItem.id,
-				description:
-					"Resumo operacional do item que está no centro da supervisão agora.",
+				description: "Resumo operacional do item que está no centro da supervisão agora.",
 				stage: primaryStageName,
 				spec: primaryItem.spec ?? focus?.spec,
 				ageLabel: formatAgeLabel(primaryItem.createdAt),
-				actor: primaryItem.claimedBy ?? stageAgentLabel(primaryItem.stage, workflow, activeFlow),
+				actor:
+					primaryItem.claimedBy ??
+					stageAgentLabel(primaryItem.stage, workflow, activeFlow),
 			}
 		: undefined;
 
@@ -847,7 +974,6 @@ export default function HomeView({ workflow, activeFlow, onTabChange }: Props) {
 							primaryStageName={primaryStageName}
 						/>
 					) : null}
-
 				</div>
 			</div>
 

@@ -4,7 +4,8 @@ import { logEntry } from "../session-log.js";
 
 const FALLBACK_WARNING = {
 	code: "LIVE_CONTEXT_UNAVAILABLE",
-	message: "O contexto vivo por MCP não está sendo usado. Execute letra direction --json antes de agir e novamente antes de concluir.",
+	message:
+		"O contexto vivo por MCP não está sendo usado. Execute letra direction --json antes de agir e novamente antes de concluir.",
 };
 
 let degradedLogged = false;

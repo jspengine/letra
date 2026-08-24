@@ -26,12 +26,14 @@ export interface CreateAgentDirectionSnapshotInput {
 }
 
 function slug(value: string): string {
-	return value
-		.normalize("NFD")
-		.replace(/[\u0300-\u036f]/g, "")
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "") || "action";
+	return (
+		value
+			.normalize("NFD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "") || "action"
+	);
 }
 
 function findCurrentItem(workflow: Workflow, currentItemId?: string | null): Item | null {
@@ -45,9 +47,11 @@ function findCurrentItem(workflow: Workflow, currentItemId?: string | null): Ite
 	}
 	const doingStages = new Set(
 		workflow.stages
-			.filter((stage, index) =>
-				stage.zone === "doing"
-				|| (!stage.zone && index > 0 && index < workflow.stages.length - 1))
+			.filter(
+				(stage, index) =>
+					stage.zone === "doing" ||
+					(!stage.zone && index > 0 && index < workflow.stages.length - 1),
+			)
 			.map((stage) => stage.id),
 	);
 	return workflow.items.find((item) => doingStages.has(item.stage)) ?? null;
@@ -67,16 +71,20 @@ function firstPendingAC(content: string | null): AgentDirectionSnapshot["pending
 
 function activeHint(stage: ResolvedFlowStage | null): FlowActivityHint | null {
 	if (!stage?.activity) return null;
-	return stage.activity.design
-		?? stage.activity.implement
-		?? stage.activity.review
-		?? stage.activity.diagnose
-		?? stage.activity.gate
-		?? null;
+	return (
+		stage.activity.design ??
+		stage.activity.implement ??
+		stage.activity.review ??
+		stage.activity.diagnose ??
+		stage.activity.gate ??
+		null
+	);
 }
 
 function commandMutates(command: string): boolean {
-	return /\bletra\s+(?:ac\s+done|flow\s+move|focus|sitrep|health\s+(?:ack|dismiss|scan))\b/i.test(command);
+	return /\bletra\s+(?:ac\s+done|flow\s+move|focus|sitrep|health\s+(?:ack|dismiss|scan))\b/i.test(
+		command,
+	);
 }
 
 function resolveCommands(
@@ -99,12 +107,14 @@ function resolveCommands(
 			if (!nextStageId) return [];
 			command = command.replaceAll("<NEXT-STAGE>", nextStageId);
 		}
-		return [{
-			id: slug(entry.label || command),
-			command,
-			label: entry.label || command,
-			mutates: commandMutates(command),
-		}];
+		return [
+			{
+				id: slug(entry.label || command),
+				command,
+				label: entry.label || command,
+				mutates: commandMutates(command),
+			},
+		];
 	});
 }
 
@@ -116,7 +126,9 @@ function resolveActions(hint: FlowActivityHint | null): AgentDirectionAction[] {
 	}));
 }
 
-function semanticRevision(snapshot: Omit<AgentDirectionSnapshot, "revision" | "generatedAt">): string {
+function semanticRevision(
+	snapshot: Omit<AgentDirectionSnapshot, "revision" | "generatedAt">,
+): string {
 	return `sha256:${createHash("sha256").update(JSON.stringify(snapshot)).digest("hex")}`;
 }
 
@@ -125,11 +137,13 @@ export function createAgentDirectionSnapshot(
 ): AgentDirectionSnapshot {
 	const item = input.workflow ? findCurrentItem(input.workflow, input.currentItemId) : null;
 	const stage = item
-		? input.flow?.stages.find((candidate) => candidate.id === item.stage) ?? null
+		? (input.flow?.stages.find((candidate) => candidate.id === item.stage) ?? null)
 		: null;
 	const sortedStages = input.flow ? [...input.flow.stages].sort((a, b) => a.order - b.order) : [];
-	const stageIndex = stage ? sortedStages.findIndex((candidate) => candidate.id === stage.id) : -1;
-	const nextStageId = stageIndex >= 0 ? sortedStages[stageIndex + 1]?.id ?? null : null;
+	const stageIndex = stage
+		? sortedStages.findIndex((candidate) => candidate.id === stage.id)
+		: -1;
+	const nextStageId = stageIndex >= 0 ? (sortedStages[stageIndex + 1]?.id ?? null) : null;
 	const hint = activeHint(stage);
 	const pendingAC = firstPendingAC(input.specContent);
 	const warnings = (input.flow?.warnings ?? []).map((warning) => ({
@@ -147,7 +161,9 @@ export function createAgentDirectionSnapshot(
 	// Constitution governance
 	const constitutionPath = join(getLetraDir(input.workspaceRoot), "constitution.md");
 	const constitutionAvailable = existsSync(constitutionPath);
-	const constitutionVersion = input.constitutionVersion ?? (constitutionAvailable ? readConstitutionVersion(input.workspaceRoot) : null);
+	const constitutionVersion =
+		input.constitutionVersion ??
+		(constitutionAvailable ? readConstitutionVersion(input.workspaceRoot) : null);
 	const governanceReferences: GovernanceReference[] = [];
 	if (constitutionAvailable) {
 		governanceReferences.push({
@@ -226,9 +242,10 @@ export function resolveAgentDirection(root: string): AgentDirectionSnapshot {
 	const resolution = resolveActiveFlow(root);
 	const focus = readFocusFile(root);
 	const workflow = resolution.workflow;
-	const focusedItem = workflow && focus?.itemId
-		? workflow.items.find((item) => item.id === focus.itemId) ?? null
-		: null;
+	const focusedItem =
+		workflow && focus?.itemId
+			? (workflow.items.find((item) => item.id === focus.itemId) ?? null)
+			: null;
 	const selectedItem = focusedItem ?? (workflow ? findCurrentItem(workflow) : null);
 	const specName = selectedItem?.spec ?? focus?.specName ?? null;
 	return createAgentDirectionSnapshot({

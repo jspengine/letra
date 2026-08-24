@@ -1,6 +1,16 @@
-import type { AdapterFormat, AdapterSource, HarnessSnapshot, HarnessDirectionActivity } from "./types.js";
+import type {
+	AdapterFormat,
+	AdapterSource,
+	HarnessSnapshot,
+	HarnessDirectionActivity,
+} from "./types.js";
 
-const L1_FILES = [".letra/context.md", ".letra/constitution.md", ".letra/glossary.md", ".letra/constraints.md"] as const;
+const L1_FILES = [
+	".letra/context.md",
+	".letra/constitution.md",
+	".letra/glossary.md",
+	".letra/constraints.md",
+] as const;
 
 function formatL1(snapshot: HarnessSnapshot, format: AdapterFormat): string {
 	if (format === "at") {
@@ -53,9 +63,8 @@ function formatProtocol(snapshot: HarnessSnapshot): string | null {
 		? snapshot.items.find((i) => i.id === snapshot.primaryItemId)
 		: snapshot.items[0];
 
-	const acLine = snapshot.totalACs > 0
-		? `ACs: ${snapshot.pendingACs}/${snapshot.totalACs} pendentes`
-		: "";
+	const acLine =
+		snapshot.totalACs > 0 ? `ACs: ${snapshot.pendingACs}/${snapshot.totalACs} pendentes` : "";
 
 	const lines: string[] = [
 		"PASSO OBRIGATÓRIO #1: letra pulse — verificar estado do workspace",
@@ -64,11 +73,17 @@ function formatProtocol(snapshot: HarnessSnapshot): string | null {
 	];
 
 	if (snapshot.focusSpec) {
-		lines.push(`PASSO OBRIGATÓRIO #4: Leia .letra/specs/${snapshot.focusSpec}/spec.md — ACs do item`);
+		lines.push(
+			`PASSO OBRIGATÓRIO #4: Leia .letra/specs/${snapshot.focusSpec}/spec.md — ACs do item`,
+		);
 	} else if (primaryItem?.spec) {
-		lines.push(`PASSO OBRIGATÓRIO #4: Leia .letra/specs/${primaryItem.spec}/spec.md — ACs do item`);
+		lines.push(
+			`PASSO OBRIGATÓRIO #4: Leia .letra/specs/${primaryItem.spec}/spec.md — ACs do item`,
+		);
 	} else {
-		lines.push("PASSO OBRIGATÓRIO #4: Identifique o item ativo via `letra pulse` e leia sua spec");
+		lines.push(
+			"PASSO OBRIGATÓRIO #4: Identifique o item ativo via `letra pulse` e leia sua spec",
+		);
 	}
 
 	return lines.join("\n");
@@ -84,9 +99,7 @@ function formatFocus(snapshot: HarnessSnapshot): string | null {
 
 	if (!primaryItem) return null;
 
-	const lines: string[] = [
-		`Item: ${primaryItem.id} · ${primaryItem.description}`,
-	];
+	const lines: string[] = [`Item: ${primaryItem.id} · ${primaryItem.description}`];
 
 	if (snapshot.focusSpec) lines.push(`Spec: ${snapshot.focusSpec}`);
 
@@ -116,7 +129,8 @@ function formatAlerts(snapshot: HarnessSnapshot): string | null {
 			lines.push(`  ${alert.title}`);
 			continue;
 		}
-		const severityLabel = alert.severity === "alta" ? "alta" : alert.severity === "media" ? "média" : "baixa";
+		const severityLabel =
+			alert.severity === "alta" ? "alta" : alert.severity === "media" ? "média" : "baixa";
 		lines.push(`Alerta · severidade ${severityLabel}`);
 		lines.push(`  ID: ${alert.id}`);
 		lines.push(`  O que: ${alert.title}`);
@@ -146,14 +160,14 @@ function formatExecutionFlow(): string {
 	return [
 		"**Loop por AC**:",
 		"  1. Implemente o AC no código",
-		`  2. \`letra ac done <AC-ID>\` — marca como concluído no spec.md`,
-		"  3. \`letra validate\` — verifica se ACs estão consistentes",
+		"  2. `letra ac done <AC-ID>` — marca como concluído no spec.md",
+		"  3. `letra validate` — verifica se ACs estão consistentes",
 		"  4. Repita até todos os ACs do item estarem concluídos",
 		"",
 		"**Ao concluir todos ACs**:",
-		`  → \`letra pulse\` — confirma estado`,
-		`  → \`letra sitrep\` — atualiza context.md`,
-		`  → \`letra flow move <ITEM-ID> --auto\` — avança para próximo estágio`,
+		"  → `letra pulse` — confirma estado",
+		"  → `letra sitrep` — atualiza context.md",
+		"  → `letra flow move <ITEM-ID> --auto` — avança para próximo estágio",
 	].join("\n");
 }
 
@@ -187,13 +201,21 @@ function formatHarnessDirection(snapshot: HarnessSnapshot, format: AdapterFormat
 	}
 
 	// AC4: Estágio sem activity → papel + item + estágio apenas
-	const hasActivity = dir.activities.length > 0 && (
-		dir.activities.some((a) => a.objective || (a.commands && a.commands.length > 0) || (a.mustNotDo && a.mustNotDo.length > 0) || (a.nextActions && a.nextActions.length > 0))
-	);
+	const hasActivity =
+		dir.activities.length > 0 &&
+		dir.activities.some(
+			(a) =>
+				a.objective ||
+				(a.commands && a.commands.length > 0) ||
+				(a.mustNotDo && a.mustNotDo.length > 0) ||
+				(a.nextActions && a.nextActions.length > 0),
+		);
 
 	if (!hasActivity) {
 		const roleLabel = dir.roleIds.length > 0 ? dir.roleIds.join(", ") : null;
-		const itemLabel = item ? `${item.id} — ${item.description} (${stageName ?? stageId})` : null;
+		const itemLabel = item
+			? `${item.id} — ${item.description} (${stageName ?? stageId})`
+			: null;
 
 		if (format === "at") {
 			const lines = ["# harness-direction:start", "## Direção do Harness", ""];
@@ -214,7 +236,9 @@ function formatHarnessDirection(snapshot: HarnessSnapshot, format: AdapterFormat
 			version ? `**Versão**: ${version}` : "",
 			roleLabel ? `**Papel**: ${roleLabel}` : "",
 			stageId ? `**Estágios**: ${stageId}` : "",
-		].filter(Boolean).join(" | ");
+		]
+			.filter(Boolean)
+			.join(" | ");
 		if (meta) body.push(meta);
 		if (itemLabel) body.push(`**Item**: ${itemLabel}`);
 		body.push("_Estágio sem activity configurada no harness._");
@@ -224,21 +248,39 @@ function formatHarnessDirection(snapshot: HarnessSnapshot, format: AdapterFormat
 	// Separate gate activities from work activities; prefer work data
 	const gateActivities = dir.activities.filter((a) => a.kind === "gate");
 	const workActivities = dir.activities.filter((a) => a.kind !== "gate");
-	const aggObjective = workActivities.find((a) => a.objective)?.objective ?? gateActivities.find((a) => a.objective)?.objective;
-	const aggCommands = workActivities.length > 0 ? workActivities.flatMap((a) => a.commands ?? []) : gateActivities.flatMap((a) => a.commands ?? []);
-	const aggMustNotDo = workActivities.length > 0 ? workActivities.flatMap((a) => a.mustNotDo ?? []) : gateActivities.flatMap((a) => a.mustNotDo ?? []);
-	const aggNextActions = workActivities.length > 0 ? workActivities.flatMap((a) => a.nextActions ?? []) : gateActivities.flatMap((a) => a.nextActions ?? []);
+	const aggObjective =
+		workActivities.find((a) => a.objective)?.objective ??
+		gateActivities.find((a) => a.objective)?.objective;
+	const aggCommands =
+		workActivities.length > 0
+			? workActivities.flatMap((a) => a.commands ?? [])
+			: gateActivities.flatMap((a) => a.commands ?? []);
+	const aggMustNotDo =
+		workActivities.length > 0
+			? workActivities.flatMap((a) => a.mustNotDo ?? [])
+			: gateActivities.flatMap((a) => a.mustNotDo ?? []);
+	const aggNextActions =
+		workActivities.length > 0
+			? workActivities.flatMap((a) => a.nextActions ?? [])
+			: gateActivities.flatMap((a) => a.nextActions ?? []);
 	// Gate sub-section (only if gate has unique data beyond work activities)
-	const gateSub = gateActivities.length > 0 && (
-		gateActivities.some((a) => a.objective && !workActivities.some((w) => w.objective === a.objective)) ||
-		gateActivities.some((a) => a.commands && a.commands.length > 0) ||
-		gateActivities.some((a) => a.nextActions && a.nextActions.length > 0)
-	) ? {
-		objective: gateActivities.find((a) => a.objective && !workActivities.some((w) => w.objective === a.objective))?.objective,
-		commands: gateActivities.flatMap((a) => a.commands ?? []),
-		mustNotDo: gateActivities.flatMap((a) => a.mustNotDo ?? []),
-		nextActions: gateActivities.flatMap((a) => a.nextActions ?? []),
-	} : null;
+	const gateSub =
+		gateActivities.length > 0 &&
+		(gateActivities.some(
+			(a) => a.objective && !workActivities.some((w) => w.objective === a.objective),
+		) ||
+			gateActivities.some((a) => a.commands && a.commands.length > 0) ||
+			gateActivities.some((a) => a.nextActions && a.nextActions.length > 0))
+			? {
+					objective: gateActivities.find(
+						(a) =>
+							a.objective && !workActivities.some((w) => w.objective === a.objective),
+					)?.objective,
+					commands: gateActivities.flatMap((a) => a.commands ?? []),
+					mustNotDo: gateActivities.flatMap((a) => a.mustNotDo ?? []),
+					nextActions: gateActivities.flatMap((a) => a.nextActions ?? []),
+				}
+			: null;
 
 	// Resolve placeholders: <AC-ID> and <ITEM-ID>
 	const pendingIds = dir.pendingACIds ?? [];
@@ -256,7 +298,9 @@ function formatHarnessDirection(snapshot: HarnessSnapshot, format: AdapterFormat
 			for (const acId of pendingIds) {
 				resolvedCommands.push({
 					...cmd,
-					command: cmd.command.replace("<AC-ID>", acId).replace("<ITEM-ID>", resolvedItemId ?? acId),
+					command: cmd.command
+						.replace("<AC-ID>", acId)
+						.replace("<ITEM-ID>", resolvedItemId ?? acId),
 				});
 			}
 		} else if (hasItemPlaceholder) {
@@ -290,12 +334,24 @@ function formatHarnessDirection(snapshot: HarnessSnapshot, format: AdapterFormat
 			lines.push(`@proibições: ${aggMustNotDo.join(" | ")}`);
 		}
 		if (aggNextActions.length > 0) {
-			lines.push(`@proximas: ${aggNextActions.slice(0, 2).map((a) => a.label).join(" | ")}`);
+			lines.push(
+				`@proximas: ${aggNextActions
+					.slice(0, 2)
+					.map((a) => a.label)
+					.join(" | ")}`,
+			);
 		}
 		if (gateSub) {
 			if (gateSub.objective) lines.push(`@gate: ${gateSub.objective}`);
-			if (gateSub.commands.length > 0) lines.push(`@gate-comandos: ${gateSub.commands.map((c) => c.command).join(" | ")}`);
-			if (gateSub.nextActions.length > 0) lines.push(`@gate-proximas: ${gateSub.nextActions.slice(0, 2).map((a) => a.label).join(" | ")}`);
+			if (gateSub.commands.length > 0)
+				lines.push(`@gate-comandos: ${gateSub.commands.map((c) => c.command).join(" | ")}`);
+			if (gateSub.nextActions.length > 0)
+				lines.push(
+					`@gate-proximas: ${gateSub.nextActions
+						.slice(0, 2)
+						.map((a) => a.label)
+						.join(" | ")}`,
+				);
 		}
 		lines.push("# harness-direction:end");
 		return lines.join("\n");
@@ -308,7 +364,9 @@ function formatHarnessDirection(snapshot: HarnessSnapshot, format: AdapterFormat
 			version ? `**Versão**: ${version}` : "",
 			roleLabel ? `**Papel**: ${roleLabel}` : "",
 			stagesLabel ? `**Estágios**: ${stagesLabel}` : "",
-		].filter(Boolean).join(" | ");
+		]
+			.filter(Boolean)
+			.join(" | ");
 		body.push(meta);
 	}
 
@@ -345,7 +403,9 @@ function formatHarnessDirection(snapshot: HarnessSnapshot, format: AdapterFormat
 		}
 		if (gateSub.nextActions.length > 0) {
 			gateSub.nextActions.slice(0, 2).forEach((a, i) => {
-				body.push(`${i + 1 + aggNextActions.slice(0, 2).length}. ${a.label}${a.description ? ` — ${a.description}` : ""}`);
+				body.push(
+					`${i + 1 + aggNextActions.slice(0, 2).length}. ${a.label}${a.description ? ` — ${a.description}` : ""}`,
+				);
 			});
 		}
 	}
@@ -423,10 +483,12 @@ export function formatAdapterContent(
 		if (format === "at") {
 			sections.push(L1_FILES.map((p) => `@${p}`).join("\n"));
 		} else {
-			sections.push("Read the following files before starting any task:\n" +
-				L1_FILES.map((p) => `- ${p}`).join("\n"));
+			sections.push(
+				`Read the following files before starting any task:\n${L1_FILES.map((p) => `- ${p}`).join("\n")}`,
+			);
 		}
-		if (snapshot.hasFocus) sections[1] += format === "at" ? "\n@.letra/focus.md" : "\n- .letra/focus.md";
+		if (snapshot.hasFocus)
+			sections[1] += format === "at" ? "\n@.letra/focus.md" : "\n- .letra/focus.md";
 		sections.push(`## Referências\n\n${formatMarkdownReferences(snapshot)}`);
 		sections.push(...["", formatRulesText()]);
 		return sections.join("\n");
@@ -456,7 +518,9 @@ export function formatAdapterContent(
 	const hasGrave = snapshot.alerts?.some((a) => a.severity === "alta");
 	if (hasGrave) {
 		const graveAlerts = snapshot.alerts?.filter((a) => a.severity === "alta") || [];
-		sections.push(`## ⚠ ATENÇÃO — Problema Grave\n\n${formatAlerts({ ...snapshot, alerts: graveAlerts })}`);
+		sections.push(
+			`## ⚠ ATENÇÃO — Problema Grave\n\n${formatAlerts({ ...snapshot, alerts: graveAlerts })}`,
+		);
 	}
 
 	const alerts = formatAlerts(snapshot);
@@ -521,7 +585,7 @@ function formatHandoff(snapshot: HarnessSnapshot): string | null {
 		}
 	}
 	if (h.nextStageName) {
-		lines.push("", `Após mover, verifique o novo estágio com \`letra pulse\``);
+		lines.push("", "Após mover, verifique o novo estágio com `letra pulse`");
 	}
 	return lines.join("\n");
 }

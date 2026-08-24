@@ -89,6 +89,9 @@ describe("DocumentEditor", () => {
 
 		await user.click(screen.getByRole("button", { name: "Cancelar" }));
 
-		expect(screen.getByRole("textbox", { name: "Conteúdo Markdown" })).toHaveProperty("value", "# Alterado");
+		expect(screen.getByRole("textbox", { name: "Conteúdo Markdown" })).toHaveProperty(
+			"value",
+			"# Alterado",
+		);
 	});
 });

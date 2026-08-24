@@ -250,11 +250,11 @@ export function completeAcOperation(root: string, input: CompleteAcInput): Opera
 		? markPendingAc(readFileSync(acceptancePath, "utf-8"), requestedAc)
 		: null;
 
-	const specTmp = specPath + ".tmp";
+	const specTmp = `${specPath}.tmp`;
 	writeFileSync(specTmp, updatedSpec, "utf-8");
 	renameSync(specTmp, specPath);
 	if (updatedAcceptance) {
-		const acceptanceTmp = acceptancePath + ".tmp";
+		const acceptanceTmp = `${acceptancePath}.tmp`;
 		writeFileSync(acceptanceTmp, updatedAcceptance, "utf-8");
 		renameSync(acceptanceTmp, acceptancePath);
 	}
@@ -347,7 +347,9 @@ export async function requestTransitionOperation(
 	const activeFlow = resolveActiveFlow(workspaceRoot).flow;
 	const sourceDefinition = activeFlow?.stages.find((stage) => stage.id === item.stage);
 	const targetDefinition = activeFlow?.stages.find((stage) => stage.id === target.id);
-	const blockingGate = [sourceDefinition?.gate, targetDefinition?.gate].find((gate) => gate?.blocking);
+	const blockingGate = [sourceDefinition?.gate, targetDefinition?.gate].find(
+		(gate) => gate?.blocking,
+	);
 	if (blockingGate) {
 		const checker = new GateChecker(workspaceRoot);
 		const gateResult = checker.check(blockingGate.id, item);
@@ -362,7 +364,7 @@ export async function requestTransitionOperation(
 				prohibitions: [...(gateHint?.mustNotDo ?? reviewHint?.mustNotDo ?? [])],
 				requiredEvidence: gateHint?.evidence ? [gateHint.evidence] : [],
 			};
-			delete (enriched as unknown as Record<string, unknown>).pendingAC;
+			(enriched as unknown as Record<string, unknown>).pendingAC = undefined;
 			const entry = audit(workspaceRoot, "agent_transition_requested", before, {
 				outcome: "approval-required",
 				reasonCode: "HUMAN_APPROVAL_REQUIRED",
@@ -385,7 +387,8 @@ export async function requestTransitionOperation(
 				workspaceRoot,
 				before,
 				"BLOCKING_GATE",
-				gateResult.reason ?? `O gate "${blockingGate.name}" deve ser satisfeito antes da transição.`,
+				gateResult.reason ??
+					`O gate "${blockingGate.name}" deve ser satisfeito antes da transição.`,
 				input,
 				subject,
 			);

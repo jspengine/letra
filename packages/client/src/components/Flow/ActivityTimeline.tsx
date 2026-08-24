@@ -48,20 +48,58 @@ function ageLabel(days: number): string {
 function signalFromState(
 	state: OperationalState,
 	days: number,
-): Pick<SupervisionSignal, "statusLabel" | "actionLabel" | "tone" | "badgeVariant" | "icon" | "priority"> {
+): Pick<
+	SupervisionSignal,
+	"statusLabel" | "actionLabel" | "tone" | "badgeVariant" | "icon" | "priority"
+> {
 	if (state === "waiting") {
-		return { statusLabel: "Decisão", actionLabel: "Revisar gate", tone: "warning", badgeVariant: "amber", icon: "clock", priority: 0 };
+		return {
+			statusLabel: "Decisão",
+			actionLabel: "Revisar gate",
+			tone: "warning",
+			badgeVariant: "amber",
+			icon: "clock",
+			priority: 0,
+		};
 	}
 	if (state === "blocked") {
-		return { statusLabel: "Bloqueio", actionLabel: "Examinar causa", tone: "danger", badgeVariant: "error", icon: "shield", priority: 1 };
+		return {
+			statusLabel: "Bloqueio",
+			actionLabel: "Examinar causa",
+			tone: "danger",
+			badgeVariant: "error",
+			icon: "shield",
+			priority: 1,
+		};
 	}
 	if (state === "running") {
-		return { statusLabel: "Em execução", actionLabel: "Acompanhar", tone: "info", badgeVariant: "agent", icon: "chevron-right", priority: 2 };
+		return {
+			statusLabel: "Em execução",
+			actionLabel: "Acompanhar",
+			tone: "info",
+			badgeVariant: "agent",
+			icon: "chevron-right",
+			priority: 2,
+		};
 	}
 	if (state === "done") {
-		return { statusLabel: "Concluído", actionLabel: "Ver evidência", tone: "success", badgeVariant: "success", icon: "check-circle", priority: days > 14 ? 5 : 4 };
+		return {
+			statusLabel: "Concluído",
+			actionLabel: "Ver evidência",
+			tone: "success",
+			badgeVariant: "success",
+			icon: "check-circle",
+			priority: days > 14 ? 5 : 4,
+		};
 	}
-	return { statusLabel: days >= 14 ? "Maior espera" : "Na fila", actionLabel: "Avaliar prioridade", tone: "default", badgeVariant: "info", icon: "circle", priority: days >= 14 ? 3 : 6 };
+	return {
+		statusLabel: days >= 14 ? "Maior espera" : "Na fila",
+		actionLabel: "Avaliar prioridade",
+		tone: "default",
+		badgeVariant: "info",
+		icon: "circle",
+		priority: days >= 14 ? 3 : 6,
+	};
 }
 
 export default function ActivityTimeline({ workflow, activeFlow, onSelectItem }: Props) {
@@ -100,9 +138,7 @@ export default function ActivityTimeline({ workflow, activeFlow, onSelectItem }:
 				<h3 className="app-section-muted text-xs font-semibold uppercase tracking-wider">
 					O que observar agora
 				</h3>
-				<p className="app-section-muted text-xs">
-					Nenhum item para observar agora.
-				</p>
+				<p className="app-section-muted text-xs">Nenhum item para observar agora.</p>
 			</div>
 		);
 	}
@@ -114,7 +150,11 @@ export default function ActivityTimeline({ workflow, activeFlow, onSelectItem }:
 					<h3 className="app-section-muted text-xs font-semibold uppercase tracking-wider">
 						O que observar agora
 					</h3>
-					<Badge variant={attentionCount > 0 ? "amber" : "info"} tone="soft" className="tabular-nums">
+					<Badge
+						variant={attentionCount > 0 ? "amber" : "info"}
+						tone="soft"
+						className="tabular-nums"
+					>
 						{attentionCount} prioridade{attentionCount === 1 ? "" : "s"}
 					</Badge>
 				</div>
@@ -142,7 +182,9 @@ export default function ActivityTimeline({ workflow, activeFlow, onSelectItem }:
 						description={
 							<span className="grid gap-1">
 								<span className="truncate font-mono">{signal.subtitle}</span>
-								<span className="truncate">{signal.owner} · {signal.actionLabel}</span>
+								<span className="truncate">
+									{signal.owner} · {signal.actionLabel}
+								</span>
 							</span>
 						}
 						action={

@@ -7,7 +7,9 @@ export const Default = () => (
 		{({ setOpen }) => (
 			<>
 				<PopoverTrigger asChild onClick={() => setOpen(true)}>
-					<Button variant="secondary" size="sm">Open popover</Button>
+					<Button variant="secondary" size="sm">
+						Open popover
+					</Button>
 				</PopoverTrigger>
 				<PopoverContent>
 					<div className="mb-[var(--space-1)] text-sm font-medium">Notifications</div>

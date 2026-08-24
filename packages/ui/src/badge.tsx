@@ -45,17 +45,23 @@ function badgeColors(variant: Variant, tone: Tone) {
 		};
 	}
 	return {
-		background: variant === "amber"
-			? tokens.color
-			: `color-mix(in oklch, ${tokens.color} 68%, black)`,
+		background:
+			variant === "amber" ? tokens.color : `color-mix(in oklch, ${tokens.color} 68%, black)`,
 		color: tokens.onColor,
-		borderColor: variant === "amber"
-			? tokens.color
-			: `color-mix(in oklch, ${tokens.color} 68%, black)`,
+		borderColor:
+			variant === "amber" ? tokens.color : `color-mix(in oklch, ${tokens.color} 68%, black)`,
 	};
 }
 
-export function Badge({ variant = "amber", tone = "solid", icon, className, children, style, ...props }: BadgeProps) {
+export function Badge({
+	variant = "amber",
+	tone = "solid",
+	icon,
+	className,
+	children,
+	style,
+	...props
+}: BadgeProps) {
 	const colors = badgeColors(variant, tone);
 	const resolvedIcon = icon ?? variantIcons[variant];
 	return (

@@ -117,7 +117,15 @@ describe("focus command", () => {
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
 			stages: [{ id: "code", name: "Code", order: 0, zone: "doing" }],
-			items: [{ id: "ITEM-1", description: "Auth feature", stage: "code", createdAt: new Date().toISOString(), spec: "auth" }],
+			items: [
+				{
+					id: "ITEM-1",
+					description: "Auth feature",
+					stage: "code",
+					createdAt: new Date().toISOString(),
+					spec: "auth",
+				},
+			],
 		};
 		writeFileSync(join(tmpDir, ".letra", "workflow.json"), JSON.stringify(workflow, null, 2));
 
@@ -142,7 +150,15 @@ describe("focus command", () => {
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
 			stages: [{ id: "code", name: "Code", order: 0, zone: "doing" }],
-			items: [{ id: "ITEM-1", description: "Auth feature", stage: "code", createdAt: new Date().toISOString(), spec: "auth" }],
+			items: [
+				{
+					id: "ITEM-1",
+					description: "Auth feature",
+					stage: "code",
+					createdAt: new Date().toISOString(),
+					spec: "auth",
+				},
+			],
 		};
 		writeFileSync(join(tmpDir, ".letra", "workflow.json"), JSON.stringify(workflow, null, 2));
 

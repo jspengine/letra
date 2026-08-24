@@ -44,12 +44,18 @@ export function Progress({
 			{(label || showValue) && (
 				<div className="flex items-center justify-between">
 					{label && (
-						<span className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
+						<span
+							className="text-caption"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							{label}
 						</span>
 					)}
 					{showValue && (
-						<span className="text-caption tabular-nums" style={{ color: "var(--color-text-secondary)" }}>
+						<span
+							className="text-caption tabular-nums"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							{Math.round(pct)}%
 						</span>
 					)}

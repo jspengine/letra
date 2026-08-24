@@ -24,7 +24,9 @@ describe("HarnessLoader v0.2.0", () => {
 		mkdirSync(join(harnessDir, "gates"), { recursive: true });
 		mkdirSync(join(harnessDir, "flows"), { recursive: true });
 
-		writeFileSync(join(harnessDir, "roles", "analyst.yaml"), `
+		writeFileSync(
+			join(harnessDir, "roles", "analyst.yaml"),
+			`
 id: analyst
 label: Analyst
 description: Analyzes specs
@@ -38,18 +40,24 @@ handoff:
     - implementer
   requireEvidence: true
   ttlMinutes: 30
-`);
+`,
+		);
 
-		writeFileSync(join(harnessDir, "gates", "spec-approved.yaml"), `
+		writeFileSync(
+			join(harnessDir, "gates", "spec-approved.yaml"),
+			`
 id: spec-approved
 name: Spec Approved
 type: human
 blocking: true
 blocksHandoff: true
 description: Human approves spec
-`);
+`,
+		);
 
-		writeFileSync(join(harnessDir, "flows", "flow-main.yaml"), `
+		writeFileSync(
+			join(harnessDir, "flows", "flow-main.yaml"),
+			`
 id: flow-main
 version: "0.2.0"
 name: Main Flow
@@ -64,11 +72,12 @@ stages:
       - analyst
     gate: spec-approved
     preferredExecutor: opencode
-`);
+`,
+		);
 
 		const manifest = loadHarness(harnessDir);
 		expect(manifest).not.toBeNull();
-		expect(manifest!.roles.analyst).toMatchObject({
+		expect(manifest?.roles.analyst).toMatchObject({
 			id: "analyst",
 			handoff: {
 				blocksHandoff: false,
@@ -77,11 +86,11 @@ stages:
 				ttlMinutes: 30,
 			},
 		});
-		expect(manifest!.gates["spec-approved"]).toMatchObject({
+		expect(manifest?.gates["spec-approved"]).toMatchObject({
 			id: "spec-approved",
 			blocksHandoff: true,
 		});
-		expect(manifest!.flows["flow-main"]!.stages[0]).toMatchObject({
+		expect(manifest?.flows["flow-main"]?.stages[0]).toMatchObject({
 			preferredExecutor: "opencode",
 		});
 	});
@@ -94,7 +103,9 @@ stages:
 		mkdirSync(join(harnessDir, "flows"), { recursive: true });
 		mkdirSync(join(harnessDir, "executors"), { recursive: true });
 
-		writeFileSync(join(harnessDir, "executors", "registry.yaml"), `
+		writeFileSync(
+			join(harnessDir, "executors", "registry.yaml"),
+			`
 executors:
   - id: opencode
     label: OpenCode
@@ -124,9 +135,12 @@ stageExecutorPreferences:
   code:
     - opencode
     - cursor
-`);
+`,
+		);
 
-		writeFileSync(join(harnessDir, "roles", "builder.yaml"), `
+		writeFileSync(
+			join(harnessDir, "roles", "builder.yaml"),
+			`
 id: builder
 label: Builder
 description: Builds
@@ -134,17 +148,23 @@ allowedStages:
   - code
 capabilities:
   - code
-`);
+`,
+		);
 
-		writeFileSync(join(harnessDir, "gates", "all-acs-passing.yaml"), `
+		writeFileSync(
+			join(harnessDir, "gates", "all-acs-passing.yaml"),
+			`
 id: all-acs-passing
 name: All ACs Passing
 type: automated
 blocking: true
 description: All ACs must pass
-`);
+`,
+		);
 
-		writeFileSync(join(harnessDir, "flows", "flow-main.yaml"), `
+		writeFileSync(
+			join(harnessDir, "flows", "flow-main.yaml"),
+			`
 id: flow-main
 version: "0.2.0"
 name: Main
@@ -158,18 +178,19 @@ stages:
     agents:
       - builder
     gate: all-acs-passing
-`);
+`,
+		);
 
 		const manifest = loadHarness(harnessDir);
 		expect(manifest).not.toBeNull();
-		expect(manifest!.executors).toBeDefined();
-		expect(manifest!.executors!.executors).toHaveLength(2);
-		expect(manifest!.executors!.executors[0]).toMatchObject({
+		expect(manifest?.executors).toBeDefined();
+		expect(manifest?.executors?.executors).toHaveLength(2);
+		expect(manifest?.executors?.executors[0]).toMatchObject({
 			id: "opencode",
 			heartbeat: true,
 			priority: 1,
 		});
-		expect(manifest!.executors!.stageExecutorPreferences).toMatchObject({
+		expect(manifest?.executors?.stageExecutorPreferences).toMatchObject({
 			design: ["opencode"],
 			code: ["opencode", "cursor"],
 		});
@@ -182,7 +203,9 @@ stages:
 		mkdirSync(join(harnessDir, "gates"), { recursive: true });
 		mkdirSync(join(harnessDir, "flows"), { recursive: true });
 
-		writeFileSync(join(harnessDir, "roles", "builder.yaml"), `
+		writeFileSync(
+			join(harnessDir, "roles", "builder.yaml"),
+			`
 id: builder
 label: Builder
 description: Builds
@@ -190,17 +213,23 @@ allowedStages:
   - code
 capabilities:
   - code
-`);
+`,
+		);
 
-		writeFileSync(join(harnessDir, "gates", "all-acs-passing.yaml"), `
+		writeFileSync(
+			join(harnessDir, "gates", "all-acs-passing.yaml"),
+			`
 id: all-acs-passing
 name: All ACs Passing
 type: automated
 blocking: true
 description: All ACs must pass
-`);
+`,
+		);
 
-		writeFileSync(join(harnessDir, "flows", "flow-main.yaml"), `
+		writeFileSync(
+			join(harnessDir, "flows", "flow-main.yaml"),
+			`
 id: flow-main
 version: "0.2.0"
 name: Main
@@ -214,11 +243,12 @@ stages:
     agents:
       - builder
     gate: all-acs-passing
-`);
+`,
+		);
 
 		const manifest = loadHarness(harnessDir);
 		expect(manifest).not.toBeNull();
-		expect(manifest!.roles.builder.handoff).toBeUndefined();
-		expect(manifest!.gates["all-acs-passing"].blocksHandoff).toBe(false);
+		expect(manifest?.roles.builder.handoff).toBeUndefined();
+		expect(manifest?.gates["all-acs-passing"].blocksHandoff).toBe(false);
 	});
 });

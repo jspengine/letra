@@ -26,12 +26,8 @@ describe("FlowServerEvents", () => {
 			action: "emitted",
 		});
 
-		expect(mockWrite).toHaveBeenCalledWith(
-			expect.stringContaining('event: handoff'),
-		);
-		expect(mockWrite).toHaveBeenCalledWith(
-			expect.stringContaining('"action":"emitted"'),
-		);
+		expect(mockWrite).toHaveBeenCalledWith(expect.stringContaining("event: handoff"));
+		expect(mockWrite).toHaveBeenCalledWith(expect.stringContaining('"action":"emitted"'));
 	});
 
 	it("does not broadcast when no clients connected", () => {
@@ -64,9 +60,7 @@ describe("FlowServerEvents", () => {
 		events.handleSse(mockReq, mockRes);
 
 		// Simulate disconnect
-		const closeCallback = mockReq.on.mock.calls.find(
-			(call: any[]) => call[0] === "close",
-		)?.[1];
+		const closeCallback = mockReq.on.mock.calls.find((call: any[]) => call[0] === "close")?.[1];
 		if (closeCallback) closeCallback();
 
 		// Should not write to disconnected client
@@ -81,8 +75,6 @@ describe("FlowServerEvents", () => {
 			action: "emitted",
 		});
 
-		expect(mockWrite).not.toHaveBeenCalledWith(
-			expect.stringContaining('event: handoff'),
-		);
+		expect(mockWrite).not.toHaveBeenCalledWith(expect.stringContaining("event: handoff"));
 	});
 });

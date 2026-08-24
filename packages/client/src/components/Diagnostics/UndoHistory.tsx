@@ -42,7 +42,10 @@ export default function UndoHistory({ visible, onClose }: UndoHistoryProps) {
 				loadSnapshots();
 				toastWithOptions("Correção reaplicada", { type: "success", duration: 3000 });
 			} else {
-				toastWithOptions("Expirou — o snapshot foi limpo pelo TTL", { type: "error", duration: 5000 });
+				toastWithOptions("Expirou — o snapshot foi limpo pelo TTL", {
+					type: "error",
+					duration: 5000,
+				});
 			}
 		} catch {
 			toastWithOptions("Erro ao refazer correção", { type: "error", duration: 3000 });
@@ -61,7 +64,10 @@ export default function UndoHistory({ visible, onClose }: UndoHistoryProps) {
 					action: { label: "Refazer", onClick: () => handleRedo(snapshotId) },
 				});
 			} else {
-				toastWithOptions("Expirou — o snapshot foi limpo pelo TTL", { type: "error", duration: 5000 });
+				toastWithOptions("Expirou — o snapshot foi limpo pelo TTL", {
+					type: "error",
+					duration: 5000,
+				});
 			}
 		} catch {
 			toastWithOptions("Erro ao desfazer correção", { type: "error", duration: 3000 });

@@ -67,7 +67,20 @@ export function translateAction(action: string): string {
 }
 
 export function actionVariant(action: string): "success" | "amber" | "info" {
-	if (action.includes("move") || action.includes("approve") || action.includes("create") || action.includes("done") || action.includes("complete")) return "success";
-	if (action.includes("reject") || action.includes("fail") || action.includes("error") || action.includes("dismiss")) return "amber";
+	if (
+		action.includes("move") ||
+		action.includes("approve") ||
+		action.includes("create") ||
+		action.includes("done") ||
+		action.includes("complete")
+	)
+		return "success";
+	if (
+		action.includes("reject") ||
+		action.includes("fail") ||
+		action.includes("error") ||
+		action.includes("dismiss")
+	)
+		return "amber";
 	return "info";
 }

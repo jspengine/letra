@@ -12,10 +12,15 @@ export function CommandResult({ command, output, exitCode, className }: CommandR
 
 	return (
 		<div
-			className={cn("rounded-[var(--radius-md)] border-[length:var(--border-thin)] overflow-hidden", className)}
+			className={cn(
+				"rounded-[var(--radius-md)] border-[length:var(--border-thin)] overflow-hidden",
+				className,
+			)}
 			style={{
 				background: "var(--color-bg-sunken)",
-				borderColor: isError ? "color-mix(in srgb, var(--color-danger) 30%, transparent)" : "var(--color-border)",
+				borderColor: isError
+					? "color-mix(in srgb, var(--color-danger) 30%, transparent)"
+					: "var(--color-border)",
 			}}
 		>
 			<div
@@ -32,7 +37,10 @@ export function CommandResult({ command, output, exitCode, className }: CommandR
 					}}
 					aria-hidden="true"
 				/>
-				<span className="text-mono text-xs" style={{ color: isError ? "var(--color-danger)" : "var(--color-primary)" }}>
+				<span
+					className="text-mono text-xs"
+					style={{ color: isError ? "var(--color-danger)" : "var(--color-primary)" }}
+				>
 					$ {command}
 				</span>
 			</div>

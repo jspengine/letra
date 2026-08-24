@@ -57,11 +57,9 @@ Testing.
 	}
 
 	it("should alert when spec A references ITEM-X that maps to spec B updated later", async () => {
-		writeWorkflow([
-			{ id: "ITEM-31", spec: "spec-b" },
-		]);
-		createSpec("spec-a", "2026-06-10", `- [x] **dependsOn**: ITEM-31`);
-		createSpec("spec-b", "2026-06-15", `- [x] **foo**: bar`);
+		writeWorkflow([{ id: "ITEM-31", spec: "spec-b" }]);
+		createSpec("spec-a", "2026-06-10", "- [x] **dependsOn**: ITEM-31");
+		createSpec("spec-b", "2026-06-15", "- [x] **foo**: bar");
 
 		const results = await crossSpecDepDetector.run(tmpDir);
 		expect(results).toHaveLength(1);
@@ -70,19 +68,17 @@ Testing.
 	});
 
 	it("should be silent when spec A references spec B that was NOT updated later", async () => {
-		writeWorkflow([
-			{ id: "ITEM-31", spec: "spec-b" },
-		]);
-		createSpec("spec-a", "2026-06-15", `- [x] **dependsOn**: ITEM-31`);
-		createSpec("spec-b", "2026-06-10", `- [x] **foo**: bar`);
+		writeWorkflow([{ id: "ITEM-31", spec: "spec-b" }]);
+		createSpec("spec-a", "2026-06-15", "- [x] **dependsOn**: ITEM-31");
+		createSpec("spec-b", "2026-06-10", "- [x] **foo**: bar");
 
 		const results = await crossSpecDepDetector.run(tmpDir);
 		expect(results).toHaveLength(0);
 	});
 
 	it("should detect API path references between specs", async () => {
-		createSpec("spec-a", "2026-06-10", `- [x] **consumes**: /api/diagnostics/scan`);
-		createSpec("spec-b", "2026-06-15", `- [x] **exposes**: /api/diagnostics/scan`);
+		createSpec("spec-a", "2026-06-10", "- [x] **consumes**: /api/diagnostics/scan");
+		createSpec("spec-b", "2026-06-15", "- [x] **exposes**: /api/diagnostics/scan");
 
 		const results = await crossSpecDepDetector.run(tmpDir);
 		expect(results).toHaveLength(1);
@@ -91,8 +87,8 @@ Testing.
 	});
 
 	it("should be silent when no cross-spec references exist", async () => {
-		createSpec("spec-a", "2026-06-10", `- [x] **independent**: true`);
-		createSpec("spec-b", "2026-06-15", `- [x] **alsoIndependent**: true`);
+		createSpec("spec-a", "2026-06-10", "- [x] **independent**: true");
+		createSpec("spec-b", "2026-06-15", "- [x] **alsoIndependent**: true");
 
 		const results = await crossSpecDepDetector.run(tmpDir);
 		expect(results).toHaveLength(0);

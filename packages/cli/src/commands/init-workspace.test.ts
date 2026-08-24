@@ -67,11 +67,13 @@ describe("init --workspace", () => {
 		}
 
 		const workflow = JSON.parse(readFileSync(join(dataDir, "workflow.json"), "utf-8"));
-		expect(workflow.locations).toEqual([{
-			id: expect.stringMatching(/^loc-/),
-			path: projectDir.replace(/\\/g, "/"),
-			label: "project-a",
-			adapters: [],
-		}]);
+		expect(workflow.locations).toEqual([
+			{
+				id: expect.stringMatching(/^loc-/),
+				path: projectDir.replace(/\\/g, "/"),
+				label: "project-a",
+				adapters: [],
+			},
+		]);
 	});
 });

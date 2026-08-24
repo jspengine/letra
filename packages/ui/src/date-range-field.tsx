@@ -3,7 +3,10 @@ import type { InputHTMLAttributes } from "react";
 import { Field, FieldDescription, FieldError, FieldLabel } from "./form";
 import { Input } from "./input";
 
-type DateInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "id" | "aria-invalid" | "aria-describedby">;
+type DateInputProps = Omit<
+	InputHTMLAttributes<HTMLInputElement>,
+	"type" | "id" | "aria-invalid" | "aria-describedby"
+>;
 
 interface DateRangeFieldProps {
 	label: string;
@@ -43,7 +46,10 @@ export function DateRangeField({
 				{required ? <span aria-hidden="true">*</span> : null}
 			</FieldLabel>
 			<div data-slot="date-range-field" className="grid gap-[var(--space-3)] sm:grid-cols-2">
-				<label className="flex min-w-0 flex-col gap-[var(--space-2)] text-xs font-medium text-[var(--color-text-secondary)]" htmlFor={startId}>
+				<label
+					className="flex min-w-0 flex-col gap-[var(--space-2)] text-xs font-medium text-[var(--color-text-secondary)]"
+					htmlFor={startId}
+				>
 					{startLabel}
 					<Input
 						id={startId}
@@ -55,7 +61,10 @@ export function DateRangeField({
 						{...startProps}
 					/>
 				</label>
-				<label className="flex min-w-0 flex-col gap-[var(--space-2)] text-xs font-medium text-[var(--color-text-secondary)]" htmlFor={endId}>
+				<label
+					className="flex min-w-0 flex-col gap-[var(--space-2)] text-xs font-medium text-[var(--color-text-secondary)]"
+					htmlFor={endId}
+				>
 					{endLabel}
 					<Input
 						id={endId}
@@ -68,7 +77,9 @@ export function DateRangeField({
 					/>
 				</label>
 			</div>
-			{description ? <FieldDescription id={descriptionId}>{description}</FieldDescription> : null}
+			{description ? (
+				<FieldDescription id={descriptionId}>{description}</FieldDescription>
+			) : null}
 			<FieldError id={errorId}>{error}</FieldError>
 		</Field>
 	);

@@ -1,5 +1,13 @@
 import "./index.css";
-import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuTrigger, NavigationMenuContent, NavigationMenuLink, NavigationMenuViewport } from "./navigation-menu";
+import {
+	NavigationMenu,
+	NavigationMenuList,
+	NavigationMenuItem,
+	NavigationMenuTrigger,
+	NavigationMenuContent,
+	NavigationMenuLink,
+	NavigationMenuViewport,
+} from "./navigation-menu";
 
 export const Default = () => (
 	<NavigationMenu className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] p-[var(--space-1)]">

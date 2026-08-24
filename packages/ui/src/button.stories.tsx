@@ -29,7 +29,13 @@ export default {
 		"x-ds": {
 			category: "primitive",
 			status: "ready",
-			tokens: ["color-primary", "color-primary-hover", "color-danger", "duration-fast", "ease-standard"],
+			tokens: [
+				"color-primary",
+				"color-primary-hover",
+				"color-danger",
+				"duration-fast",
+				"ease-standard",
+			],
 			consumes: ["Icon"],
 			surfaces: ["HomeView", "FlowView", "ExecutionView"],
 			a11y: ["focus-visible", "disabled-state", "loading-disabled"],

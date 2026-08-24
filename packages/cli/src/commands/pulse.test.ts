@@ -6,7 +6,10 @@ import { pathToFileURL } from "node:url";
 import { pulse } from "./pulse.js";
 
 function createTestDir(): string {
-	const dir = join(tmpdir(), `letra-pulse-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+	const dir = join(
+		tmpdir(),
+		`letra-pulse-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+	);
 	mkdirSync(dir, { recursive: true });
 	mkdirSync(join(dir, ".letra"), { recursive: true });
 	return dir;
@@ -67,7 +70,11 @@ function writeSpec(dir: string, name: string, acs: string[]) {
 function writeHealthRecord(dir: string, entries: Record<string, unknown>[]) {
 	writeFileSync(
 		join(dir, ".letra", "health-record.json"),
-		JSON.stringify({ schemaVersion: 1, lastScanAt: new Date().toISOString(), entries }, null, 2),
+		JSON.stringify(
+			{ schemaVersion: 1, lastScanAt: new Date().toISOString(), entries },
+			null,
+			2,
+		),
 	);
 }
 
@@ -91,12 +98,12 @@ describe("pulse", () => {
 		expect(result.dataDir).toBe(join(dir, ".letra"));
 		expect(result.locationPath).toBe(dir);
 		expect(result.currentItem).not.toBeNull();
-		expect(result.currentItem!.id).toBe("ITEM-1");
-		expect(result.currentItem!.description).toBe("Feature X");
-		expect(result.currentItem!.stage).toBe("code");
-		expect(result.currentItem!.stageName).toBe("Code");
-		expect(result.currentItem!.daysInStage).toBe(3);
-		expect(result.currentItem!.spec).toBe("feature-x");
+		expect(result.currentItem?.id).toBe("ITEM-1");
+		expect(result.currentItem?.description).toBe("Feature X");
+		expect(result.currentItem?.stage).toBe("code");
+		expect(result.currentItem?.stageName).toBe("Code");
+		expect(result.currentItem?.daysInStage).toBe(3);
+		expect(result.currentItem?.spec).toBe("feature-x");
 	});
 
 	it("should count ACs from spec", async () => {
@@ -108,14 +115,14 @@ describe("pulse", () => {
 		]);
 		const result = await pulse(dir, { json: true });
 
-		expect(result.currentItem!.acs).toEqual({ pending: 2, done: 1, total: 3 });
+		expect(result.currentItem?.acs).toEqual({ pending: 2, done: 1, total: 3 });
 	});
 
 	it("should return ACs as zero when no spec file", async () => {
 		writeWorkflow(dir);
 		const result = await pulse(dir, { json: true });
 
-		expect(result.currentItem!.acs).toEqual({ pending: 0, done: 0, total: 0 });
+		expect(result.currentItem?.acs).toEqual({ pending: 0, done: 0, total: 0 });
 	});
 
 	it("should include task counts when item has tasks", async () => {
@@ -136,23 +143,71 @@ describe("pulse", () => {
 		});
 		const result = await pulse(dir, { json: true });
 
-		expect(result.currentItem!.tasks).toEqual({ open: 2, done: 1, total: 3 });
+		expect(result.currentItem?.tasks).toEqual({ open: 2, done: 1, total: 3 });
 	});
 
 	it("should return empty tasks when no tasks", async () => {
 		writeWorkflow(dir);
 		const result = await pulse(dir, { json: true });
 
-		expect(result.currentItem!.tasks).toEqual({ open: 0, done: 0, total: 0 });
+		expect(result.currentItem?.tasks).toEqual({ open: 0, done: 0, total: 0 });
 	});
 
 	it("should include health alert counts", async () => {
 		writeWorkflow(dir);
 		writeHealthRecord(dir, [
-			{ id: "a1", status: "novo", severity: "alta", type: "error", title: "Erro grave", source: "test", detectedAt: new Date().toISOString(), resolvedAt: null, dismissedAt: null, dismissReason: null, acknowledgedAt: null },
-			{ id: "a2", status: "novo", severity: "media", type: "warning", title: "Warning", source: "test", detectedAt: new Date().toISOString(), resolvedAt: null, dismissedAt: null, dismissReason: null, acknowledgedAt: null },
-			{ id: "a3", status: "ciente", severity: "baixa", type: "info", title: "Info", source: "test", detectedAt: new Date().toISOString(), resolvedAt: null, dismissedAt: null, dismissReason: null, acknowledgedAt: null },
-			{ id: "a4", status: "resolvido", severity: "media", type: "warning", title: "Fixed", source: "test", detectedAt: new Date().toISOString(), resolvedAt: new Date().toISOString(), dismissedAt: null, dismissReason: null, acknowledgedAt: null },
+			{
+				id: "a1",
+				status: "novo",
+				severity: "alta",
+				type: "error",
+				title: "Erro grave",
+				source: "test",
+				detectedAt: new Date().toISOString(),
+				resolvedAt: null,
+				dismissedAt: null,
+				dismissReason: null,
+				acknowledgedAt: null,
+			},
+			{
+				id: "a2",
+				status: "novo",
+				severity: "media",
+				type: "warning",
+				title: "Warning",
+				source: "test",
+				detectedAt: new Date().toISOString(),
+				resolvedAt: null,
+				dismissedAt: null,
+				dismissReason: null,
+				acknowledgedAt: null,
+			},
+			{
+				id: "a3",
+				status: "ciente",
+				severity: "baixa",
+				type: "info",
+				title: "Info",
+				source: "test",
+				detectedAt: new Date().toISOString(),
+				resolvedAt: null,
+				dismissedAt: null,
+				dismissReason: null,
+				acknowledgedAt: null,
+			},
+			{
+				id: "a4",
+				status: "resolvido",
+				severity: "media",
+				type: "warning",
+				title: "Fixed",
+				source: "test",
+				detectedAt: new Date().toISOString(),
+				resolvedAt: new Date().toISOString(),
+				dismissedAt: null,
+				dismissReason: null,
+				acknowledgedAt: null,
+			},
 		]);
 		const result = await pulse(dir, { json: true });
 
@@ -167,7 +222,13 @@ describe("pulse", () => {
 		writeWorkflow(dir);
 		const result = await pulse(dir, { json: true });
 
-		expect(result.alerts).toEqual({ novo: 0, acknowledged: 0, resolved: 0, dismissed: 0, highSeverity: 0 });
+		expect(result.alerts).toEqual({
+			novo: 0,
+			acknowledged: 0,
+			resolved: 0,
+			dismissed: 0,
+			highSeverity: 0,
+		});
 	});
 
 	it("should show next item from backlog", async () => {
@@ -175,8 +236,8 @@ describe("pulse", () => {
 		const result = await pulse(dir, { json: true });
 
 		expect(result.nextItem).not.toBeNull();
-		expect(result.nextItem!.id).toBe("ITEM-2");
-		expect(result.nextItem!.description).toBe("Bug fix Y");
+		expect(result.nextItem?.id).toBe("ITEM-2");
+		expect(result.nextItem?.description).toBe("Bug fix Y");
 	});
 
 	it("should return null currentItem when no active item", async () => {
@@ -211,7 +272,7 @@ describe("pulse", () => {
 		writeWorkflow(dir);
 		const result = await pulse(dir, { json: true });
 
-		expect(result.currentItem!.spec).toBe("feature-x");
+		expect(result.currentItem?.spec).toBe("feature-x");
 	});
 
 	it("should display clickable file URLs in text output", async () => {
@@ -242,11 +303,16 @@ describe("pulse", () => {
 	it("should return null spec when item has no spec", async () => {
 		writeWorkflow(dir, {
 			items: [
-				{ id: "ITEM-1", description: "Feature X", stage: "code", createdAt: new Date().toISOString() },
+				{
+					id: "ITEM-1",
+					description: "Feature X",
+					stage: "code",
+					createdAt: new Date().toISOString(),
+				},
 			],
 		});
 		const result = await pulse(dir, { json: true });
 
-		expect(result.currentItem!.spec).toBeNull();
+		expect(result.currentItem?.spec).toBeNull();
 	});
 });

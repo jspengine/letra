@@ -1,7 +1,17 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-const AC_SEARCH_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".yaml", ".yml"];
+const AC_SEARCH_EXTENSIONS = [
+	".ts",
+	".tsx",
+	".js",
+	".jsx",
+	".mjs",
+	".cjs",
+	".json",
+	".yaml",
+	".yml",
+];
 
 export function searchInSource(
 	rootDir: string,
@@ -26,9 +36,14 @@ export function searchInSource(
 	return false;
 }
 
-export function buildTargetSearchDirs(workflow: { locations?: Array<{ path: string; projectType?: string }> } | null): { dirs: string[]; isGeneral: boolean } {
+export function buildTargetSearchDirs(
+	workflow: { locations?: Array<{ path: string; projectType?: string }> } | null,
+): { dirs: string[]; isGeneral: boolean } {
 	if (!workflow?.locations || workflow.locations.length === 0) {
-		return { dirs: [".", "packages/cli/src", "packages/client/src", "packages/ui/src"], isGeneral: false };
+		return {
+			dirs: [".", "packages/cli/src", "packages/client/src", "packages/ui/src"],
+			isGeneral: false,
+		};
 	}
 	const isGeneral = workflow.locations.some((location) => location.projectType === "general");
 	return {

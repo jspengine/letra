@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useState, type HTMLAttributes, type ButtonHTMLAttributes, useCallback } from "react";
+import {
+	createContext,
+	useContext,
+	useEffect,
+	useState,
+	type HTMLAttributes,
+	type ButtonHTMLAttributes,
+	useCallback,
+} from "react";
 import { cn } from "./utils";
 
 interface SheetContextValue {
@@ -10,7 +18,9 @@ const SheetContext = createContext<SheetContextValue | null>(null);
 
 // ── Sheet Root ──
 interface SheetProps {
-	children: React.ReactNode | ((props: { open: boolean; setOpen: (v: boolean) => void }) => React.ReactNode);
+	children:
+		| React.ReactNode
+		| ((props: { open: boolean; setOpen: (v: boolean) => void }) => React.ReactNode);
 	open?: boolean;
 	onOpenChange?: (open: boolean) => void;
 }
@@ -20,15 +30,23 @@ export function Sheet({ children, open, onOpenChange }: SheetProps) {
 	const isControlled = open !== undefined;
 	const isOpen = isControlled ? open : internalOpen;
 
-	const setOpen = useCallback((v: boolean) => {
-		if (!isControlled) setInternalOpen(v);
-		onOpenChange?.(v);
-	}, [isControlled, onOpenChange]);
+	const setOpen = useCallback(
+		(v: boolean) => {
+			if (!isControlled) setInternalOpen(v);
+			onOpenChange?.(v);
+		},
+		[isControlled, onOpenChange],
+	);
 
 	return (
 		<SheetContext.Provider value={{ open: isOpen, setOpen }}>
 			{typeof children === "function"
-				? (children as (props: { open: boolean; setOpen: (v: boolean) => void }) => React.ReactNode)({ open: isOpen, setOpen })
+				? (
+						children as (props: {
+							open: boolean;
+							setOpen: (v: boolean) => void;
+						}) => React.ReactNode
+					)({ open: isOpen, setOpen })
 				: children}
 		</SheetContext.Provider>
 	);
@@ -39,7 +57,13 @@ interface SheetTriggerProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 	asChild?: boolean;
 }
 
-export function SheetTrigger({ className, asChild, children, onClick, ...props }: SheetTriggerProps) {
+export function SheetTrigger({
+	className,
+	asChild,
+	children,
+	onClick,
+	...props
+}: SheetTriggerProps) {
 	const sheet = useContext(SheetContext);
 	if (asChild) return <>{children}</>;
 	return (
@@ -66,12 +90,7 @@ interface SheetContentProps extends HTMLAttributes<HTMLDivElement> {
 	side?: "top" | "bottom" | "left" | "right";
 }
 
-export function SheetContent({
-	className,
-	side = "right",
-	children,
-	...props
-}: SheetContentProps) {
+export function SheetContent({ className, side = "right", children, ...props }: SheetContentProps) {
 	const sheet = useContext(SheetContext);
 	useEffect(() => {
 		if (!sheet?.open) return;
@@ -100,7 +119,9 @@ export function SheetContent({
 			<div
 				className={cn(
 					"fixed flex flex-col shadow-xl max-h-full animate-slide-up",
-					side === "left" || side === "right" ? "h-full w-full sm:max-w-lg" : "max-h-[85vh] w-full rounded-t-[var(--radius-lg)]",
+					side === "left" || side === "right"
+						? "h-full w-full sm:max-w-lg"
+						: "max-h-[85vh] w-full rounded-t-[var(--radius-lg)]",
 					sideStyles[side],
 					className,
 				)}
@@ -154,10 +175,7 @@ interface SheetDescriptionProps extends HTMLAttributes<HTMLParagraphElement> {}
 
 export function SheetDescription({ className, children, ...props }: SheetDescriptionProps) {
 	return (
-		<p
-			className={cn("text-body", className)}
-			style={{ color: "var(--color-text-secondary)" }}
-		>
+		<p className={cn("text-body", className)} style={{ color: "var(--color-text-secondary)" }}>
 			{children}
 		</p>
 	);

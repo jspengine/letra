@@ -30,7 +30,14 @@ const workflow: Workflow = {
 	},
 	stages: [
 		{ id: "backlog", name: "Backlog", order: 0, zone: "todo", allow: ["code"] },
-		{ id: "code", name: "Code", order: 1, zone: "doing", allow: ["review"], validate: ["npm run build", "letra validate"] },
+		{
+			id: "code",
+			name: "Code",
+			order: 1,
+			zone: "doing",
+			allow: ["review"],
+			validate: ["npm run build", "letra validate"],
+		},
 		{ id: "review", name: "Review", order: 2, zone: "doing", allow: ["security"] },
 		{ id: "security", name: "Security", order: 3, zone: "doing", allow: ["done"] },
 		{ id: "done", name: "Done", order: 4, zone: "done" },
@@ -57,9 +64,7 @@ const workflow: Workflow = {
 			createdAt: "2026-07-08T09:00:00.000Z",
 			spec: "ux-release-readiness",
 			claimedBy: "opencode",
-			tasks: [
-				{ id: "review", description: "Validar regressao visual", done: false },
-			],
+			tasks: [{ id: "review", description: "Validar regressao visual", done: false }],
 		},
 		{
 			id: "ITEM-63",
@@ -84,7 +89,14 @@ const workflow: Workflow = {
 		},
 	],
 	webhooks: [
-		{ id: "ci", label: "Catalog CI", url: "https://example.invalid/ci", events: ["item.moved"], lastStatus: "ok", lastSentAt: now },
+		{
+			id: "ci",
+			label: "Catalog CI",
+			url: "https://example.invalid/ci",
+			events: ["item.moved"],
+			lastStatus: "ok",
+			lastSentAt: now,
+		},
 	],
 };
 
@@ -95,9 +107,27 @@ const activeFlow: ResolvedFlowDefinition = {
 	templateVersion: "2026-07",
 	name: "Letra SDLC",
 	roles: [
-		{ id: "builder", label: "Builder", description: "Implementa ACs", allowedStages: ["code"], capabilities: ["code", "test"] },
-		{ id: "reviewer", label: "Reviewer", description: "Revisa riscos", allowedStages: ["review"], capabilities: ["review"] },
-		{ id: "security", label: "Security", description: "Valida riscos", allowedStages: ["security"], capabilities: ["security"] },
+		{
+			id: "builder",
+			label: "Builder",
+			description: "Implementa ACs",
+			allowedStages: ["code"],
+			capabilities: ["code", "test"],
+		},
+		{
+			id: "reviewer",
+			label: "Reviewer",
+			description: "Revisa riscos",
+			allowedStages: ["review"],
+			capabilities: ["review"],
+		},
+		{
+			id: "security",
+			label: "Security",
+			description: "Valida riscos",
+			allowedStages: ["security"],
+			capabilities: ["security"],
+		},
 	],
 	warnings: [],
 	stages: workflow.stages.map((stage) => ({
@@ -106,24 +136,57 @@ const activeFlow: ResolvedFlowDefinition = {
 		order: stage.order,
 		zone: stage.zone,
 		description: stage.id === "code" ? "Implementacao orientada por ACs" : undefined,
-		roleIds: stage.id === "code" ? ["builder"] : stage.id === "review" ? ["reviewer"] : stage.id === "security" ? ["security"] : [],
-		roles: stage.id === "code"
-			? [{ id: "builder", label: "Builder", description: "Implementa ACs", allowedStages: ["code"], capabilities: ["code", "test"] }]
-			: stage.id === "review"
-				? [{ id: "reviewer", label: "Reviewer", description: "Revisa riscos", allowedStages: ["review"], capabilities: ["review"] }]
-				: stage.id === "security"
-					? [{ id: "security", label: "Security", description: "Valida riscos", allowedStages: ["security"], capabilities: ["security"] }]
-					: [],
+		roleIds:
+			stage.id === "code"
+				? ["builder"]
+				: stage.id === "review"
+					? ["reviewer"]
+					: stage.id === "security"
+						? ["security"]
+						: [],
+		roles:
+			stage.id === "code"
+				? [
+						{
+							id: "builder",
+							label: "Builder",
+							description: "Implementa ACs",
+							allowedStages: ["code"],
+							capabilities: ["code", "test"],
+						},
+					]
+				: stage.id === "review"
+					? [
+							{
+								id: "reviewer",
+								label: "Reviewer",
+								description: "Revisa riscos",
+								allowedStages: ["review"],
+								capabilities: ["review"],
+							},
+						]
+					: stage.id === "security"
+						? [
+								{
+									id: "security",
+									label: "Security",
+									description: "Valida riscos",
+									allowedStages: ["security"],
+									capabilities: ["security"],
+								},
+							]
+						: [],
 		agents: [],
-		gate: stage.id === "review" || stage.id === "security"
-			? {
-				id: `${stage.id}-gate`,
-				name: stage.name,
-				type: "human",
-				blocking: true,
-				description: "Aguardando decisao humana antes de seguir",
-			}
-			: null,
+		gate:
+			stage.id === "review" || stage.id === "security"
+				? {
+						id: `${stage.id}-gate`,
+						name: stage.name,
+						type: "human",
+						blocking: true,
+						description: "Aguardando decisao humana antes de seguir",
+					}
+				: null,
 		provenance: "harness",
 	})),
 };
@@ -185,8 +248,16 @@ ITEM-76 esta em Code com AC6 em andamento.
 Letra e uma interface de supervisao para times de agentes autonomos.`;
 
 const decisions = [
-	{ name: "2026-07-03-regression-safety-before-expansion.md", content: "# Regression safety before expansion\n\n## Escolha\n\nValidar surfaces antes de expandir o catalogo." },
-	{ name: "2026-07-03-product-truth-and-supervision-navigation.md", content: "# Product truth and supervision navigation\n\n## Escolha\n\nPriorizar supervisao e evidencias." },
+	{
+		name: "2026-07-03-regression-safety-before-expansion.md",
+		content:
+			"# Regression safety before expansion\n\n## Escolha\n\nValidar surfaces antes de expandir o catalogo.",
+	},
+	{
+		name: "2026-07-03-product-truth-and-supervision-navigation.md",
+		content:
+			"# Product truth and supervision navigation\n\n## Escolha\n\nPriorizar supervisao e evidencias.",
+	},
 ];
 
 const workspaces = [
@@ -228,7 +299,8 @@ function textResponse(data: string) {
 
 function createMockFetch() {
 	return async (input: RequestInfo | URL) => {
-		const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+		const url =
+			typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 		const path = new URL(url, "http://storybook.local").pathname;
 		const query = new URL(url, "http://storybook.local").searchParams;
 
@@ -236,16 +308,38 @@ function createMockFetch() {
 		if (path === "/api/health") {
 			return jsonResponse({
 				active: [
-					{ id: "hr-63", title: "Spec link ausente em ITEM-63", source: "health", severity: "low" },
-					{ id: "hr-ds", title: "AC6 em catalogacao", source: "ds-catalog", severity: "medium" },
+					{
+						id: "hr-63",
+						title: "Spec link ausente em ITEM-63",
+						source: "health",
+						severity: "low",
+					},
+					{
+						id: "hr-ds",
+						title: "AC6 em catalogacao",
+						source: "ds-catalog",
+						severity: "medium",
+					},
 				],
 			});
 		}
 		if (path === "/api/log") {
 			return jsonResponse({
 				entries: [
-					{ id: "log-1", timestamp: now, action: "storybook:build", description: "Catalogo visual validado", itemId: "ITEM-76" },
-					{ id: "log-2", timestamp: "2026-07-11T11:30:00.000Z", action: "letra validate", description: "0 falhas, avisos globais", itemId: "ITEM-76" },
+					{
+						id: "log-1",
+						timestamp: now,
+						action: "storybook:build",
+						description: "Catalogo visual validado",
+						itemId: "ITEM-76",
+					},
+					{
+						id: "log-2",
+						timestamp: "2026-07-11T11:30:00.000Z",
+						action: "letra validate",
+						description: "0 falhas, avisos globais",
+						itemId: "ITEM-76",
+					},
 				],
 			});
 		}
@@ -260,22 +354,38 @@ function createMockFetch() {
 		if (path === "/api/context") {
 			const file = query.get("file");
 			if (file === "decisions") return jsonResponse(decisions);
-			if (file === "constitution.md") return textResponse("# Constitution\n\n## Regras\n\nSpecs antes de codigo.");
-			if (file === "glossary.md") return textResponse("# Glossary\n\n## Agent\n\nExecutor supervisionado.");
+			if (file === "constitution.md")
+				return textResponse("# Constitution\n\n## Regras\n\nSpecs antes de codigo.");
+			if (file === "glossary.md")
+				return textResponse("# Glossary\n\n## Agent\n\nExecutor supervisionado.");
 			return textResponse(markdownContext);
 		}
 		if (path === "/api/harness") {
 			return jsonResponse({
 				layers: {
 					l1: [{ path: ".letra/context.md", content: markdownContext }],
-					l2: { focus: { specName: "ds-catalog", content: "# Focus: ds-catalog" }, spec: { path: ".letra/specs/ds-catalog/spec.md", content: specs[0].content } },
-					l3: { alerts: [{ id: "hr-ds", severity: "baixa", message: "AC6 em catalogacao" }], alertCount: 1, sessionEventCount: 4 },
-					l4: { constraintsContent: "# Constraints\n\nUse @letra/ui.", glossaryContent: "# Glossary\n\nDS: Design System." },
+					l2: {
+						focus: { specName: "ds-catalog", content: "# Focus: ds-catalog" },
+						spec: {
+							path: ".letra/specs/ds-catalog/spec.md",
+							content: specs[0].content,
+						},
+					},
+					l3: {
+						alerts: [{ id: "hr-ds", severity: "baixa", message: "AC6 em catalogacao" }],
+						alertCount: 1,
+						sessionEventCount: 4,
+					},
+					l4: {
+						constraintsContent: "# Constraints\n\nUse @letra/ui.",
+						glossaryContent: "# Glossary\n\nDS: Design System.",
+					},
 				},
 			});
 		}
 		if (path === "/api/workspaces") return jsonResponse(workspaces);
-		if (path.startsWith("/api/items") || path === "/api/workflow") return jsonResponse({ ok: true });
+		if (path.startsWith("/api/items") || path === "/api/workflow")
+			return jsonResponse({ ok: true });
 
 		return jsonResponse({});
 	};
@@ -321,7 +431,14 @@ export default {
 		"x-ds": {
 			category: "surface",
 			status: "ready",
-			tokens: ["color-bg-base", "color-bg-surface", "color-text-primary", "color-primary", "border", "radius-lg"],
+			tokens: [
+				"color-bg-base",
+				"color-bg-surface",
+				"color-text-primary",
+				"color-primary",
+				"border",
+				"radius-lg",
+			],
 			consumes: ["Button", "Card", "Badge", "Icon", "Input", "Sheet", "ToastProvider"],
 			surfaces: ["HomeView", "FlowView", "ContextView", "SpecsView", "WorkspacesView"],
 			a11y: ["mocked-api", "keyboard-navigation", "landmarks"],
@@ -343,7 +460,12 @@ export const Home: Story = {
 export const Flow: Story = {
 	render: () => (
 		<SurfaceFrame>
-			<FlowView workflow={workflow} activeFlow={activeFlow} onItemMoved={() => {}} onOpenSpec={() => {}} />
+			<FlowView
+				workflow={workflow}
+				activeFlow={activeFlow}
+				onItemMoved={() => {}}
+				onOpenSpec={() => {}}
+			/>
 		</SurfaceFrame>
 	),
 };

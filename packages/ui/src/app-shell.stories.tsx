@@ -54,7 +54,11 @@ function CatalogSidebar() {
 						<SidebarMenu>
 							{navItems.map((item, index) => (
 								<SidebarMenuItem key={item.id}>
-									<SidebarMenuButton isActive={index === 0} tooltip={item.label} aria-label={item.label}>
+									<SidebarMenuButton
+										isActive={index === 0}
+										tooltip={item.label}
+										aria-label={item.label}
+									>
 										<Icon
 											name={item.icon}
 											size={16}
@@ -75,7 +79,10 @@ function CatalogSidebar() {
 	);
 }
 
-function CatalogHeader({ collapsed = false, light = false }: { collapsed?: boolean; light?: boolean }) {
+function CatalogHeader({
+	collapsed = false,
+	light = false,
+}: { collapsed?: boolean; light?: boolean }) {
 	return (
 		<GlobalHeader
 			sidebarOpen={!collapsed}
@@ -93,20 +100,34 @@ function CatalogHeader({ collapsed = false, light = false }: { collapsed?: boole
 	);
 }
 
-function ShellFrame({ collapsed = false, long = false, light = false }: { collapsed?: boolean; long?: boolean; light?: boolean }) {
+function ShellFrame({
+	collapsed = false,
+	long = false,
+	light = false,
+}: { collapsed?: boolean; long?: boolean; light?: boolean }) {
 	return (
-		<div className={`${light ? "light " : ""}h-[420px] overflow-auto rounded-[var(--radius-md)] border border-[var(--color-border)]`}>
+		<div
+			className={`${light ? "light " : ""}h-[420px] overflow-auto rounded-[var(--radius-md)] border border-[var(--color-border)]`}
+		>
 			<SidebarProvider
 				defaultOpen={!collapsed}
 				className="contents"
-				style={{
-					"--sidebar-width": "var(--layout-sidebar-width)",
-					"--sidebar-width-icon": "var(--layout-sidebar-width-collapsed)",
-				} as CSSProperties}
+				style={
+					{
+						"--sidebar-width": "var(--layout-sidebar-width)",
+						"--sidebar-width-icon": "var(--layout-sidebar-width-collapsed)",
+					} as CSSProperties
+				}
 			>
-				<AppShell sidebar={<CatalogSidebar />} header={<CatalogHeader collapsed={collapsed} light={light} />} sidebarCollapsed={collapsed}>
+				<AppShell
+					sidebar={<CatalogSidebar />}
+					header={<CatalogHeader collapsed={collapsed} light={light} />}
+					sidebarCollapsed={collapsed}
+				>
 					<div className={`${long ? "min-h-[760px]" : ""} p-[var(--space-4)] text-sm`}>
-						{long ? "Content taller than the viewport keeps the sidebar stretched with the shell." : "Content area"}
+						{long
+							? "Content taller than the viewport keeps the sidebar stretched with the shell."
+							: "Content area"}
 					</div>
 				</AppShell>
 			</SidebarProvider>
@@ -135,10 +156,31 @@ export default {
 		"x-ds": {
 			category: "primitive",
 			status: "ready",
-			tokens: ["layout-header-height", "layout-sidebar-width", "layout-sidebar-width-collapsed", "app-sidebar-shadow", "app-sidebar-border", "app-header-bg", "background"],
+			tokens: [
+				"layout-header-height",
+				"layout-sidebar-width",
+				"layout-sidebar-width-collapsed",
+				"app-sidebar-shadow",
+				"app-sidebar-border",
+				"app-header-bg",
+				"background",
+			],
 			consumes: ["AppSidebar", "SidebarProvider", "GlobalHeader", "Button", "Icon"],
-			surfaces: ["HomeView", "FlowView", "ExecutionView", "ContextView", "SpecsView", "WorkspacesView"],
-			a11y: ["landmark-ready-layout", "responsive-frame", "single-context-selector", "collapsed-icon-labels", "collapsed-hover-tooltips"],
+			surfaces: [
+				"HomeView",
+				"FlowView",
+				"ExecutionView",
+				"ContextView",
+				"SpecsView",
+				"WorkspacesView",
+			],
+			a11y: [
+				"landmark-ready-layout",
+				"responsive-frame",
+				"single-context-selector",
+				"collapsed-icon-labels",
+				"collapsed-hover-tooltips",
+			],
 			breakpoints: ["desktop"],
 		},
 	},

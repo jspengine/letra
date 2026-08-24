@@ -70,10 +70,13 @@ function adaptConfig(projectType: string): string {
 
 const adapterTools = supportedAdapterTools();
 const TOOL_MAP: Record<string, string[]> = Object.fromEntries([
-	...adapterTools.flatMap((adapter) => [
-		[adapter.id, [adapter.id]],
-		[adapter.label.toLowerCase(), [adapter.id]],
-	] as Array<[string, string[]]>),
+	...adapterTools.flatMap(
+		(adapter) =>
+			[
+				[adapter.id, [adapter.id]],
+				[adapter.label.toLowerCase(), [adapter.id]],
+			] as Array<[string, string[]]>,
+	),
 	["todos", adapterTools.map((adapter) => adapter.id)],
 ]);
 
@@ -88,14 +91,22 @@ function stableLocationId(path: string): string {
 		hash ^= char.charCodeAt(0);
 		hash = Math.imul(hash, 16777619);
 	}
-	const name = normalized.split("/").filter(Boolean).pop()
-		?.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "")
-		.slice(0, 32) || "project";
+	const name =
+		normalized
+			.split("/")
+			.filter(Boolean)
+			.pop()
+			?.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "")
+			.slice(0, 32) || "project";
 	return `loc-${name}-${(hash >>> 0).toString(36)}`;
 }
 
-function externalWorkspaceWorkflow(workspaceName: string, projectRoot: string, harnessVersion: string): Workflow {
+function externalWorkspaceWorkflow(
+	workspaceName: string,
+	projectRoot: string,
+	harnessVersion: string,
+): Workflow {
 	const now = new Date().toISOString();
 	const locationPath = normalizedPath(projectRoot);
 	return {
@@ -114,16 +125,21 @@ function externalWorkspaceWorkflow(workspaceName: string, projectRoot: string, h
 		tools: [],
 		template: "flow-main",
 		harnessVersion,
-		locations: [{
-			id: stableLocationId(locationPath),
-			path: locationPath,
-			label: basename(projectRoot) || workspaceName,
-			adapters: [],
-		}],
+		locations: [
+			{
+				id: stableLocationId(locationPath),
+				path: locationPath,
+				label: basename(projectRoot) || workspaceName,
+				adapters: [],
+			},
+		],
 	};
 }
 
-export async function init(targetPath?: string, options?: { yes?: boolean; serve?: boolean; workspace?: string; noTui?: boolean }) {
+export async function init(
+	targetPath?: string,
+	options?: { yes?: boolean; serve?: boolean; workspace?: string; noTui?: boolean },
+) {
 	const root = resolve(process.cwd(), targetPath || ".");
 
 	if (options?.workspace) {
@@ -132,8 +148,16 @@ export async function init(targetPath?: string, options?: { yes?: boolean; serve
 			mkdirSync(root, { recursive: true });
 			const { workspaceDir, info } = initWorkspace(options.workspace);
 			ensureDefaultHarness(info.harnessVersion);
-			const workflow = externalWorkspaceWorkflow(options.workspace, root, info.harnessVersion);
-			writeFileSync(join(workspaceDir, "workflow.json"), JSON.stringify(workflow, null, 2), "utf-8");
+			const workflow = externalWorkspaceWorkflow(
+				options.workspace,
+				root,
+				info.harnessVersion,
+			);
+			writeFileSync(
+				join(workspaceDir, "workflow.json"),
+				JSON.stringify(workflow, null, 2),
+				"utf-8",
+			);
 			writeFileSync(join(root, LINK_FILE), `${workspaceDir}\n`, "utf-8");
 			clearWorkspaceCache();
 			spinner.succeed(chalk.green(`Workspace "${options.workspace}" created`));
@@ -207,9 +231,10 @@ export async function init(targetPath?: string, options?: { yes?: boolean; serve
 			? `- **Stack**: ${lang}`
 			: "- Sem stack específica (projeto general)";
 
-		const codeRules = lang === "Node.js"
-			? "- TypeScript estrito (strict: true)\n- Zero dependencies desnecessárias"
-			: "- Código limpo e documentado\n- Seguir convenções do ecossistema";
+		const codeRules =
+			lang === "Node.js"
+				? "- TypeScript estrito (strict: true)\n- Zero dependencies desnecessárias"
+				: "- Código limpo e documentado\n- Seguir convenções do ecossistema";
 
 		const templateFiles: Record<string, string> = {
 			"context.md": `# Context

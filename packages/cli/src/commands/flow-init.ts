@@ -11,7 +11,11 @@ import { DiagnosticEngine } from "../diagnostics/engine.js";
 import { loadHealthRecord, mergeScanResults, saveHealthRecord } from "../health-record.js";
 import { DEFAULT_HARNESS_VERSION, loadHarness, resolveHarnessRoot } from "../harness/loader.js";
 import type { StageDef, StagePhases } from "../harness/types.js";
-import { resolveWorkspaceRoot, getWorkflowPath, type WorkspaceResolution } from "../workspace/resolver.js";
+import {
+	resolveWorkspaceRoot,
+	getWorkflowPath,
+	type WorkspaceResolution,
+} from "../workspace/resolver.js";
 import { getLetraDir } from "./../workspace/resolver.js";
 
 export interface Stage {
@@ -171,14 +175,22 @@ function cloneStagePhases(phases: StagePhases | undefined): StagePhases | undefi
 				phaseId,
 				{
 					...phaseDef,
-					actions: phaseDef.actions ? phaseDef.actions.map((action) => ({ ...action })) : undefined,
-					transitions: phaseDef.transitions ? phaseDef.transitions.map((transition) => ({ ...transition })) : undefined,
+					actions: phaseDef.actions
+						? phaseDef.actions.map((action) => ({ ...action }))
+						: undefined,
+					transitions: phaseDef.transitions
+						? phaseDef.transitions.map((transition) => ({ ...transition }))
+						: undefined,
 					harness: phaseDef.harness
 						? {
-							...phaseDef.harness,
-							tools: phaseDef.harness.tools ? [...phaseDef.harness.tools] : undefined,
-							checks: phaseDef.harness.checks ? [...phaseDef.harness.checks] : undefined,
-						}
+								...phaseDef.harness,
+								tools: phaseDef.harness.tools
+									? [...phaseDef.harness.tools]
+									: undefined,
+								checks: phaseDef.harness.checks
+									? [...phaseDef.harness.checks]
+									: undefined,
+							}
 						: undefined,
 				},
 			]),
@@ -209,7 +221,10 @@ function locationLabel(path: string, fallback: string): string {
 	return name || fallback;
 }
 
-export function migrateTargetsToLocations(workflow: Workflow): { workflow: Workflow; migrated: boolean } {
+export function migrateTargetsToLocations(workflow: Workflow): {
+	workflow: Workflow;
+	migrated: boolean;
+} {
 	let migrated = false;
 	const locations: WorkflowLocation[] = Array.isArray(workflow.locations)
 		? workflow.locations.map((location, index) => ({
@@ -221,11 +236,12 @@ export function migrateTargetsToLocations(workflow: Workflow): { workflow: Workf
 		: [];
 
 	if (Array.isArray(workflow.locations)) {
-		migrated = workflow.locations.some((location, index) => (
-			location.path !== locations[index]?.path ||
-			location.label !== locations[index]?.label ||
-			!Array.isArray(location.adapters)
-		));
+		migrated = workflow.locations.some(
+			(location, index) =>
+				location.path !== locations[index]?.path ||
+				location.label !== locations[index]?.label ||
+				!Array.isArray(location.adapters),
+		);
 	}
 
 	const byPath = new Map(locations.map((location) => [normalizedPath(location.path), location]));
@@ -247,7 +263,7 @@ export function migrateTargetsToLocations(workflow: Workflow): { workflow: Workf
 				byPath.set(targetPath, location);
 			}
 		}
-		delete workflow.targets;
+		workflow.targets = undefined;
 		migrated = true;
 	}
 
@@ -293,7 +309,10 @@ export function saveWorkflow(root: string, workflow: Workflow): void {
 	writeFileSync(filePath, JSON.stringify(workflow, null, 2));
 }
 
-export function loadWorkspaceWorkflow(cwd?: string): { workflow: Workflow | null; resolution: WorkspaceResolution } {
+export function loadWorkspaceWorkflow(cwd?: string): {
+	workflow: Workflow | null;
+	resolution: WorkspaceResolution;
+} {
 	const resolution = resolveWorkspaceRoot(cwd);
 	const workflow = loadWorkflow(resolution.targetDir);
 	return { workflow, resolution };
@@ -352,7 +371,10 @@ const ADAPTER_TARGETS: Record<string, string> = {
 	hermes: ".hermes/instructions.md",
 };
 
-export async function writeWorkflow(root: string, options: WriteWorkflowOptions): Promise<WriteWorkflowResult> {
+export async function writeWorkflow(
+	root: string,
+	options: WriteWorkflowOptions,
+): Promise<WriteWorkflowResult> {
 	const {
 		workflow,
 		source,
@@ -398,7 +420,11 @@ export async function writeWorkflow(root: string, options: WriteWorkflowOptions)
 			if (!quiet) {
 				const totalIssues = diagOutput.fixes.length + diagOutput.suggestions.length;
 				if (totalIssues > 0) {
-					console.log(chalk.gray(`  Diagnóstico: ${totalIssues} issue(s), ${diagOutput.fixes.length} auto-corrigido(s)`));
+					console.log(
+						chalk.gray(
+							`  Diagnóstico: ${totalIssues} issue(s), ${diagOutput.fixes.length} auto-corrigido(s)`,
+						),
+					);
 				}
 			}
 		} catch (e) {
@@ -458,14 +484,21 @@ export async function writeWorkflow(root: string, options: WriteWorkflowOptions)
 	// 5. Log
 	if (!skipLog) {
 		try {
-			logEntry(resolution?.workspaceDir ?? root, "system", `workflow_updated via ${source}` as const);
+			logEntry(
+				resolution?.workspaceDir ?? root,
+				"system",
+				`workflow_updated via ${source}` as const,
+			);
 		} catch {}
 	}
 
 	return { ok: true, filesUpdated };
 }
 
-export async function flowInit(root: string, options?: { quick?: boolean; template?: string }): Promise<Workflow> {
+export async function flowInit(
+	root: string,
+	options?: { quick?: boolean; template?: string },
+): Promise<Workflow> {
 	if (!process.stdin.isTTY && !options?.quick) {
 		console.log(chalk.yellow("Non-TTY: usando defaults. Passe --quick para confirmar."));
 		return flowInitQuick(root);
@@ -491,8 +524,14 @@ export async function flowInit(root: string, options?: { quick?: boolean; templa
 		.filter(Boolean);
 
 	const templateDefault = "none";
-	const templateInput = await askText("Spec template? (web-api/cli-tool/mobile-feature/campanha-marketing/pesquisa/evento/none)", templateDefault);
-	const template = templateInput.trim().toLowerCase() === "none" ? undefined : templateInput.trim().toLowerCase();
+	const templateInput = await askText(
+		"Spec template? (web-api/cli-tool/mobile-feature/campanha-marketing/pesquisa/evento/none)",
+		templateDefault,
+	);
+	const template =
+		templateInput.trim().toLowerCase() === "none"
+			? undefined
+			: templateInput.trim().toLowerCase();
 
 	const locationsInput = await askText("Location paths (comma-separated, or leave empty)?", "");
 	const locations: WorkflowLocation[] = [];
@@ -501,7 +540,11 @@ export async function flowInit(root: string, options?: { quick?: boolean; templa
 			const t = raw.trim();
 			if (!t) continue;
 			locations.push({
-				id: t.replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || `loc-${locations.length + 1}`,
+				id:
+					t
+						.replace(/[^a-z0-9-_]+/gi, "-")
+						.replace(/^-+|-+$/g, "")
+						.toLowerCase() || `loc-${locations.length + 1}`,
 				path: normalizedPath(t),
 				label: locationLabel(t, `Projeto ${locations.length + 1}`),
 				adapters: [],
@@ -531,15 +574,16 @@ async function flowInitQuick(root: string, templateId = "flow-main"): Promise<Wo
 	const harness = loadHarness(resolveHarnessRoot(root));
 	const template = harness?.flows?.[templateId];
 	const templateStages = template?.stages;
-	const stages = templateStages && templateStages.length > 0
-		? templateStages.map(stageFromTemplateStage)
-		: [
-				{ id: "backlog", name: "Backlog", order: 0, zone: "todo" as const },
-				{ id: "design", name: "Design", order: 1, zone: "doing" as const },
-				{ id: "code", name: "Code", order: 2, zone: "doing" as const },
-				{ id: "review", name: "Review", order: 3, zone: "doing" as const },
-				{ id: "done", name: "Done", order: 4, zone: "done" as const },
-		  ];
+	const stages =
+		templateStages && templateStages.length > 0
+			? templateStages.map(stageFromTemplateStage)
+			: [
+					{ id: "backlog", name: "Backlog", order: 0, zone: "todo" as const },
+					{ id: "design", name: "Design", order: 1, zone: "doing" as const },
+					{ id: "code", name: "Code", order: 2, zone: "doing" as const },
+					{ id: "review", name: "Review", order: 3, zone: "doing" as const },
+					{ id: "done", name: "Done", order: 4, zone: "done" as const },
+				];
 	const tools = detectExistingTools(root);
 	if (tools.length === 0) {
 		tools.push("hermes", "opencode");

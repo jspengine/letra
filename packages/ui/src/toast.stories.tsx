@@ -9,7 +9,9 @@ function ToastDemo() {
 			<Button onClick={() => toast("Execution completed", "success")}>Success toast</Button>
 			<Button onClick={() => toast("Pipeline failed", "error")}>Error toast</Button>
 			<Button onClick={() => toast("Telemetry updated", "info")}>Info toast</Button>
-			<Button onClick={() => toast("agent-triage-01 updated context", "agent")}>Agent toast</Button>
+			<Button onClick={() => toast("agent-triage-01 updated context", "agent")}>
+				Agent toast
+			</Button>
 			<Button
 				variant="secondary"
 				onClick={() =>

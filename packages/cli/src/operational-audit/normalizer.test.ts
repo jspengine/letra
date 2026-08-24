@@ -87,7 +87,7 @@ describe("normalizeEntry", () => {
 		const entry = makeEntry({ action: "validate", description: "Validating..." });
 		const result = normalizeEntry(entry);
 		expect(result.legacy).toBeDefined();
-		expect(result.legacy!.action).toBe("validate");
+		expect(result.legacy?.action).toBe("validate");
 	});
 
 	it("should infer reason from details.cause", () => {
@@ -167,7 +167,15 @@ describe("contract compliance", () => {
 		const entry = makeEntry();
 		const result = normalizeEntry(entry);
 		const required: (keyof OperationalAuditEvent)[] = [
-			"id", "timestamp", "kind", "action", "status", "actor", "source", "summary", "details",
+			"id",
+			"timestamp",
+			"kind",
+			"action",
+			"status",
+			"actor",
+			"source",
+			"summary",
+			"details",
 		];
 		for (const field of required) {
 			expect(result[field]).toBeDefined();
@@ -179,7 +187,8 @@ describe("contract compliance", () => {
 			id: "log-zwme-180",
 			timestamp: "2026-07-02T13:41:59.654Z",
 			action: "system",
-			description: "automation:specs-watch | triggered | cause=Mudança em `.letra/specs/**` | effect=Atualiza a visão derivada de specs e emite `workflow-updated`",
+			description:
+				"automation:specs-watch | triggered | cause=Mudança em `.letra/specs/**` | effect=Atualiza a visão derivada de specs e emite `workflow-updated`",
 			itemId: null,
 			acId: null,
 			details: {

@@ -9,7 +9,13 @@ export interface AgenticExecutor {
 }
 
 export interface RichAgenticExecutor extends AgenticExecutor {
-	onHandoff?(handoff: { itemId: string; from: string; to: string; summary: string; evidence: string[] }): Promise<void>;
+	onHandoff?(handoff: {
+		itemId: string;
+		from: string;
+		to: string;
+		summary: string;
+		evidence: string[];
+	}): Promise<void>;
 	collectEvidences?(item: { id: string; spec?: string }): Promise<string[]>;
 	getContext?(item: { id: string; stage: string }): Promise<Record<string, unknown>>;
 	heartbeat?(): Promise<void>;
@@ -55,7 +61,11 @@ export class ExecutorRegistry {
 		const preferred = this.getStagePreference(stageId);
 		for (const id of preferred) {
 			const executor = this.get(id);
-			if (executor && executor.status === "online" && executor.capabilities.includes(capability)) {
+			if (
+				executor &&
+				executor.status === "online" &&
+				executor.capabilities.includes(capability)
+			) {
 				return executor;
 			}
 		}

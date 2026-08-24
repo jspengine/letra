@@ -14,17 +14,23 @@ export const Default = () => (
 		<TableBody>
 			<TableRow>
 				<TableCell>agent-triage-01</TableCell>
-				<TableCell><Badge variant="agent">reasoning</Badge></TableCell>
+				<TableCell>
+					<Badge variant="agent">reasoning</Badge>
+				</TableCell>
 				<TableCell>4h 12m</TableCell>
 			</TableRow>
 			<TableRow>
 				<TableCell>pipeline-onboarding</TableCell>
-				<TableCell><Badge variant="success">complete</Badge></TableCell>
+				<TableCell>
+					<Badge variant="success">complete</Badge>
+				</TableCell>
 				<TableCell>--</TableCell>
 			</TableRow>
 			<TableRow>
 				<TableCell>agent-release-02</TableCell>
-				<TableCell><Badge variant="amber">waiting</Badge></TableCell>
+				<TableCell>
+					<Badge variant="amber">waiting</Badge>
+				</TableCell>
 				<TableCell>2h 08m</TableCell>
 			</TableRow>
 		</TableBody>

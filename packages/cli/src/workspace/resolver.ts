@@ -14,8 +14,8 @@ export interface WorkspaceResolution {
 }
 
 const ENV_KEY = "LETRA_WORKSPACE";
-export const LINK_FILE = '.letra-link';
-export const LETRA_FOLDER = '.letra';
+export const LINK_FILE = ".letra-link";
+export const LETRA_FOLDER = ".letra";
 
 // Caches for filesystem hot paths (keyed by absolute directory path).
 // resolveWorkspaceRoot caches the upward walk; resolveDataDir caches the
@@ -50,7 +50,9 @@ function readLinkTarget(dir: string): { path: string; target: string; dataDir: s
 	}
 	const dataPath = parseLinkTarget(dir, target);
 	if (!existsSync(dataPath)) {
-		throw new Error(`Invalid Letra link at ${linkPath}: data directory does not exist (${dataPath}).`);
+		throw new Error(
+			`Invalid Letra link at ${linkPath}: data directory does not exist (${dataPath}).`,
+		);
 	}
 	const directWorkflow = join(dataPath, "workflow.json");
 	const legacyHarnessDir = join(dataPath, LETRA_FOLDER);
@@ -61,10 +63,16 @@ function readLinkTarget(dir: string): { path: string; target: string; dataDir: s
 	if (existsSync(legacyWorkflow)) {
 		return { path: linkPath, target: dataPath, dataDir: legacyHarnessDir };
 	}
-	throw new Error(`Invalid Letra link at ${linkPath}: target does not contain workflow.json (${dataPath}).`);
+	throw new Error(
+		`Invalid Letra link at ${linkPath}: target does not contain workflow.json (${dataPath}).`,
+	);
 }
 
-function resolution(input: Omit<WorkspaceResolution, "dataDir" | "locationPath" | "projectRoot"> & { projectRoot?: string }): WorkspaceResolution {
+function resolution(
+	input: Omit<WorkspaceResolution, "dataDir" | "locationPath" | "projectRoot"> & {
+		projectRoot?: string;
+	},
+): WorkspaceResolution {
 	return {
 		...input,
 		dataDir: input.workspaceDir,
@@ -108,7 +116,12 @@ export function resolveWorkspaceRoot(cwd?: string): WorkspaceResolution {
 				const wsDir = getWorkspacePath(envWs);
 				if (existsSync(join(wsDir, "workspace.json"))) {
 					const workspaceRoot = dirname(wsDir);
-					return resolution({ workspaceDir: wsDir, targetDir: originalCwd, workspaceRoot, type: "env" });
+					return resolution({
+						workspaceDir: wsDir,
+						targetDir: originalCwd,
+						workspaceRoot,
+						type: "env",
+					});
 				}
 			}
 
@@ -118,13 +131,23 @@ export function resolveWorkspaceRoot(cwd?: string): WorkspaceResolution {
 				const wsDir = getWorkspacePath(flagWs);
 				if (existsSync(join(wsDir, "workspace.json"))) {
 					const workspaceRoot = dirname(wsDir);
-					return resolution({ workspaceDir: wsDir, targetDir: originalCwd, workspaceRoot, type: "flag" });
+					return resolution({
+						workspaceDir: wsDir,
+						targetDir: originalCwd,
+						workspaceRoot,
+						type: "flag",
+					});
 				}
 			}
 
 			// 3. Direct data directory
 			if (existsSync(join(dir, "workflow.json"))) {
-				return resolution({ workspaceDir: dir, targetDir: originalCwd, workspaceRoot: dir, type: "direct" });
+				return resolution({
+					workspaceDir: dir,
+					targetDir: originalCwd,
+					workspaceRoot: dir,
+					type: "direct",
+				});
 			}
 
 			// 4. .letra-link (externalized data)
@@ -142,20 +165,35 @@ export function resolveWorkspaceRoot(cwd?: string): WorkspaceResolution {
 			const manifest = detectManifest(dir);
 			if (manifest) {
 				const workspaceRoot = dirname(manifest.path);
-				return resolution({ workspaceDir: join(workspaceRoot, LETRA_FOLDER), targetDir: originalCwd, workspaceRoot, type: "manifest" });
+				return resolution({
+					workspaceDir: join(workspaceRoot, LETRA_FOLDER),
+					targetDir: originalCwd,
+					workspaceRoot,
+					type: "manifest",
+				});
 			}
 
 			// 6. Local layout: dir contains a .letra/ subfolder
 			const localLetra = join(dir, LETRA_FOLDER);
 			if (existsSync(localLetra) && statSync(localLetra).isDirectory()) {
-				return resolution({ workspaceDir: localLetra, targetDir: originalCwd, workspaceRoot: dir, type: "local" });
+				return resolution({
+					workspaceDir: localLetra,
+					targetDir: originalCwd,
+					workspaceRoot: dir,
+					type: "local",
+				});
 			}
 
 			dir = dirname(dir);
 		}
 
 		// 6. Fallback
-		return resolution({ workspaceDir: join(originalCwd, LETRA_FOLDER), targetDir: originalCwd, workspaceRoot: originalCwd, type: "local" });
+		return resolution({
+			workspaceDir: join(originalCwd, LETRA_FOLDER),
+			targetDir: originalCwd,
+			workspaceRoot: originalCwd,
+			type: "local",
+		});
 	})();
 
 	workspaceRootCache.set(start, result);
@@ -238,8 +276,7 @@ export function getDataRoot(root?: string): string {
 	const dir = resolveDataDir(root ?? process.cwd());
 	if (!dir) {
 		throw new Error(
-			`No Letra workspace found from "${root ?? process.cwd()}". ` +
-				"Ensure you are inside a workspace with a .letra-link or .letra directory, or run 'letra init'.",
+			`No Letra workspace found from "${root ?? process.cwd()}". Ensure you are inside a workspace with a .letra-link or .letra directory, or run 'letra init'.`,
 		);
 	}
 	return dir;
@@ -277,7 +314,12 @@ export function getConfigPath(root: string): string {
 }
 
 export function isWorkspaceMode(resolution: WorkspaceResolution): boolean {
-	return resolution.type === "linked" || resolution.type === "env" || resolution.type === "flag" || resolution.type === "direct";
+	return (
+		resolution.type === "linked" ||
+		resolution.type === "env" ||
+		resolution.type === "flag" ||
+		resolution.type === "direct"
+	);
 }
 
 export function isLinkedMode(resolution: WorkspaceResolution): boolean {

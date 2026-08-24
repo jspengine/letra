@@ -203,7 +203,10 @@ export function adapterInstructionTargets(): Record<string, AdapterInstructionTa
 	);
 }
 
-export function adapterDiagnosticFiles(): Record<string, { path: string; format: InstructionFormat }> {
+export function adapterDiagnosticFiles(): Record<
+	string,
+	{ path: string; format: InstructionFormat }
+> {
 	const instructionTargets = adapterInstructionTargets();
 	return Object.fromEntries(
 		Object.values(ADAPTER_REGISTRY).map((adapter) => {
@@ -220,20 +223,28 @@ export function adapterDiagnosticFiles(): Record<string, { path: string; format:
 	);
 }
 
-export function instructionArtifactsForAdapters(adapterIds: string[]): SelectedInstructionArtifact[] {
+export function instructionArtifactsForAdapters(
+	adapterIds: string[],
+): SelectedInstructionArtifact[] {
 	const selected = new Set(adapterIds.filter((id) => id in ADAPTER_REGISTRY));
 	return Object.values(ADAPTER_ARTIFACTS)
-		.filter((artifact) =>
-			artifact.kind === "instructions"
-			&& artifact.consumers.some((consumer) => selected.has(consumer)))
+		.filter(
+			(artifact) =>
+				artifact.kind === "instructions" &&
+				artifact.consumers.some((consumer) => selected.has(consumer)),
+		)
 		.map((artifact) => {
 			if (artifact.format !== "at" && artifact.format !== "text") {
 				throw new Error(`Artifact "${artifact.id}" is not an instruction format.`);
 			}
-			const selectedConsumers = artifact.consumers.filter((consumer) => selected.has(consumer));
-			const displayName = artifact.id === "agents-md-shared"
-				? "OpenCode + Codex"
-				: ADAPTER_REGISTRY[selectedConsumers[0] as keyof typeof ADAPTER_REGISTRY].displayName;
+			const selectedConsumers = artifact.consumers.filter((consumer) =>
+				selected.has(consumer),
+			);
+			const displayName =
+				artifact.id === "agents-md-shared"
+					? "OpenCode + Codex"
+					: ADAPTER_REGISTRY[selectedConsumers[0] as keyof typeof ADAPTER_REGISTRY]
+							.displayName;
 			return {
 				id: artifact.id,
 				path: artifact.path,

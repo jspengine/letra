@@ -28,7 +28,10 @@ export async function claimItem(root: string, itemId: string): Promise<void> {
 		process.exit(1);
 	}
 
-	if (item.stage === "done" || workflow.stages.find((s) => s.id === item.stage)?.zone === "done") {
+	if (
+		item.stage === "done" ||
+		workflow.stages.find((s) => s.id === item.stage)?.zone === "done"
+	) {
 		console.log(chalk.red(`Cannot claim ${itemId}: item is already completed`));
 		process.exit(1);
 	}
@@ -49,7 +52,12 @@ export async function claimItem(root: string, itemId: string): Promise<void> {
 	item.claimedAt = new Date().toISOString();
 	workflow.updatedAt = new Date().toISOString();
 
-	writeWorkflow(root, { workflow, source: "flow-claim", primaryItemId: item.id, skipSitrep: true });
+	writeWorkflow(root, {
+		workflow,
+		source: "flow-claim",
+		primaryItemId: item.id,
+		skipSitrep: true,
+	});
 	logEntry(root, "item_claim", "claimed by opencode", { itemId: item.id });
 
 	console.log(`  ${chalk.green("✓")} ${itemId} claimed`);
@@ -73,16 +81,23 @@ export async function releaseItem(root: string, options?: { item?: string }): Pr
 			return;
 		}
 		if (item.claimedBy !== "opencode") {
-			const ok = await askYesNo(`${options.item} is claimed by "${item.claimedBy}". Release anyway?`);
+			const ok = await askYesNo(
+				`${options.item} is claimed by "${item.claimedBy}". Release anyway?`,
+			);
 			if (!ok) {
 				console.log(chalk.dim("Release cancelled"));
 				return;
 			}
 		}
-		delete item.claimedBy;
-		delete item.claimedAt;
+		item.claimedBy = undefined;
+		item.claimedAt = undefined;
 		workflow.updatedAt = new Date().toISOString();
-		writeWorkflow(root, { workflow, source: "flow-release", primaryItemId: item.id, skipSitrep: true });
+		writeWorkflow(root, {
+			workflow,
+			source: "flow-release",
+			primaryItemId: item.id,
+			skipSitrep: true,
+		});
 		logEntry(root, "item_release", "released by opencode", { itemId: item.id });
 		console.log(`  ${chalk.green("✓")} ${options.item} released`);
 		return;
@@ -95,8 +110,8 @@ export async function releaseItem(root: string, options?: { item?: string }): Pr
 	}
 
 	for (const item of claimed) {
-		delete item.claimedBy;
-		delete item.claimedAt;
+		item.claimedBy = undefined;
+		item.claimedAt = undefined;
 		logEntry(root, "item_release", "released by opencode (batch)", { itemId: item.id });
 	}
 	workflow.updatedAt = new Date().toISOString();
@@ -110,7 +125,10 @@ export async function claimAction(targetPath: string | undefined, itemId: string
 	await claimItem(root, itemId);
 }
 
-export async function releaseAction(targetPath: string | undefined, options?: { item?: string }): Promise<void> {
+export async function releaseAction(
+	targetPath: string | undefined,
+	options?: { item?: string },
+): Promise<void> {
 	const root = resolve(process.cwd(), targetPath || ".");
 	await releaseItem(root, options);
 }

@@ -50,12 +50,7 @@ function AccordionContent({ className, children, ...props }: AccordionPrimitive.
 			className="overflow-hidden text-sm data-open:animate-accordion-down data-closed:animate-accordion-up"
 			{...props}
 		>
-			<div
-				className={cn(
-					"h-auto px-[var(--space-4)] py-[var(--space-3)]",
-					className,
-				)}
-			>
+			<div className={cn("h-auto px-[var(--space-4)] py-[var(--space-3)]", className)}>
 				{children}
 			</div>
 		</AccordionPrimitive.Panel>

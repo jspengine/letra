@@ -3,13 +3,21 @@ import { DateField } from "./date-field";
 
 export const Default = () => (
 	<div className="w-full max-w-[320px]">
-		<DateField label="Decision date" defaultValue="2026-07-15" description="Use local workspace date." />
+		<DateField
+			label="Decision date"
+			defaultValue="2026-07-15"
+			description="Use local workspace date."
+		/>
 	</div>
 );
 
 export const Invalid = () => (
 	<div className="w-full max-w-[320px]">
-		<DateField label="Decision date" defaultValue="2026-07-10" error="Date must be inside the active release window." />
+		<DateField
+			label="Decision date"
+			defaultValue="2026-07-10"
+			error="Date must be inside the active release window."
+		/>
 	</div>
 );
 
@@ -19,7 +27,8 @@ export default {
 	parameters: {
 		docs: {
 			description: {
-				component: "DS date input composed from Field primitives and Input, with built-in label, description and error wiring.",
+				component:
+					"DS date input composed from Field primitives and Input, with built-in label, description and error wiring.",
 			},
 		},
 		"x-ds": {

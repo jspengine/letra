@@ -196,17 +196,33 @@ export function SidebarHeader({ className, ...props }: HTMLAttributes<HTMLDivEle
 
 export function SidebarContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 	const { open } = useSidebar();
-	return <div className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto", open ? "p-2" : "px-1 py-2", className)} {...props} />;
+	return (
+		<div
+			className={cn(
+				"flex min-h-0 flex-1 flex-col overflow-y-auto",
+				open ? "p-2" : "px-1 py-2",
+				className,
+			)}
+			{...props}
+		/>
+	);
 }
 
 export function SidebarGroup({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 	const { open } = useSidebar();
-	return <div className={cn("grid gap-2 py-2", !open && "justify-items-center", className)} {...props} />;
+	return (
+		<div
+			className={cn("grid gap-2 py-2", !open && "justify-items-center", className)}
+			{...props}
+		/>
+	);
 }
 
 export function SidebarGroupContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 	const { open } = useSidebar();
-	return <div className={cn("grid gap-1", !open && "justify-items-center", className)} {...props} />;
+	return (
+		<div className={cn("grid gap-1", !open && "justify-items-center", className)} {...props} />
+	);
 }
 
 export function SidebarGroupLabel({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
@@ -225,7 +241,9 @@ export function SidebarGroupLabel({ className, ...props }: HTMLAttributes<HTMLDi
 
 export function SidebarMenu({ className, ...props }: HTMLAttributes<HTMLUListElement>) {
 	const { open } = useSidebar();
-	return <ul className={cn("grid gap-1", !open && "justify-items-center", className)} {...props} />;
+	return (
+		<ul className={cn("grid gap-1", !open && "justify-items-center", className)} {...props} />
+	);
 }
 
 export function SidebarMenuItem({ className, ...props }: HTMLAttributes<HTMLLIElement>) {
@@ -254,7 +272,8 @@ export function SidebarMenuButton({
 				"group/sidebar-menu-button flex h-9 w-full min-w-0 items-center gap-2 rounded-[var(--radius-sm)] px-2 text-left text-sm font-medium text-[var(--color-sidebar-foreground)] transition-[background-color,color,border-color,box-shadow,transform] duration-[var(--motion-fast)] ease-[var(--ease-standard)]",
 				"hover:bg-[var(--color-sidebar-accent)] hover:text-[var(--color-sidebar-accent-foreground)] hover:translate-x-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)]",
 				"active:translate-y-px disabled:pointer-events-none disabled:opacity-50",
-				isActive && "bg-[var(--color-sidebar-accent)] text-[var(--color-sidebar-accent-foreground)] border border-[var(--app-sidebar-border,var(--color-sidebar-border))]",
+				isActive &&
+					"bg-[var(--color-sidebar-accent)] text-[var(--color-sidebar-accent-foreground)] border border-[var(--app-sidebar-border,var(--color-sidebar-border))]",
 				!open && "size-9 justify-center px-0",
 				className,
 			)}

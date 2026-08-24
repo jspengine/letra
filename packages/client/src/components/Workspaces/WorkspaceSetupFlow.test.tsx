@@ -8,24 +8,39 @@ function proposal(overrides: Record<string, unknown> = {}) {
 		id: "proposal-1",
 		workspace: { name: "Acme", root: "C:/Workspace/acme", harnessVersion: "1.0.0" },
 		warnings: [],
-		locations: [{
-			id: "frontend",
-			label: "Frontend",
-			path: "C:/Workspace/acme/frontend",
-			stack: ["React", "TypeScript"],
-			evidence: ["package.json"],
-			adapters: [
-				{ tool: "opencode", label: "OpenCode", state: "detected", selected: true, evidence: ["AGENTS.md"] },
-				{ tool: "cursor", label: "Cursor", state: "available", selected: false, evidence: [] },
-			],
-		}],
+		locations: [
+			{
+				id: "frontend",
+				label: "Frontend",
+				path: "C:/Workspace/acme/frontend",
+				stack: ["React", "TypeScript"],
+				evidence: ["package.json"],
+				adapters: [
+					{
+						tool: "opencode",
+						label: "OpenCode",
+						state: "detected",
+						selected: true,
+						evidence: ["AGENTS.md"],
+					},
+					{
+						tool: "cursor",
+						label: "Cursor",
+						state: "available",
+						selected: false,
+						evidence: [],
+					},
+				],
+			},
+		],
 		...overrides,
 	};
 }
 
 describe("WorkspaceSetupFlow", () => {
 	it("analyzes one project folder and keeps adapters in advanced options before planning", async () => {
-		const fetchMock = vi.fn()
+		const fetchMock = vi
+			.fn()
 			.mockResolvedValueOnce({ ok: true, json: async () => proposal() })
 			.mockResolvedValueOnce({
 				ok: true,
@@ -33,7 +48,13 @@ describe("WorkspaceSetupFlow", () => {
 					proposalId: "proposal-1",
 					workspaceRoot: "~/.letra/workspaces/acme",
 					conflictCount: 0,
-					operations: [{ kind: "create", path: "~/.letra/workspaces/acme/workflow.json", reason: "Harness" }],
+					operations: [
+						{
+							kind: "create",
+							path: "~/.letra/workspaces/acme/workflow.json",
+							reason: "Harness",
+						},
+					],
 				}),
 			});
 		vi.stubGlobal("fetch", fetchMock);
@@ -42,7 +63,10 @@ describe("WorkspaceSetupFlow", () => {
 		render(<WorkspaceSetupFlow onComplete={vi.fn()} onCancel={vi.fn()} existingNames={[]} />);
 		await user.type(screen.getByLabelText("Nome do workspace"), "Acme");
 		await user.type(screen.getByLabelText("Pasta/projeto inicial"), "C:/Workspace/acme");
-		expect(screen.getByLabelText("Data directory do workspace")).toHaveProperty("value", "~/.letra/workspaces/acme");
+		expect(screen.getByLabelText("Data directory do workspace")).toHaveProperty(
+			"value",
+			"~/.letra/workspaces/acme",
+		);
 		await user.click(screen.getByRole("button", { name: "Analisar pasta/projeto" }));
 
 		expect(await screen.findByRole("heading", { name: "Proposta do Letra" })).toBeTruthy();
@@ -55,19 +79,21 @@ describe("WorkspaceSetupFlow", () => {
 
 		await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 		const request = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
-		expect(request).toEqual(expect.objectContaining({
-			proposalId: "proposal-1",
-			workspaceRoot: "~/.letra/workspaces/acme",
-			dataDir: "~/.letra/workspaces/acme",
-			locations: [
-				{
-					id: "frontend",
-					label: "Frontend",
-					path: "C:/Workspace/acme/frontend",
-					adapters: ["opencode", "cursor"],
-				},
-			],
-		}));
+		expect(request).toEqual(
+			expect.objectContaining({
+				proposalId: "proposal-1",
+				workspaceRoot: "~/.letra/workspaces/acme",
+				dataDir: "~/.letra/workspaces/acme",
+				locations: [
+					{
+						id: "frontend",
+						label: "Frontend",
+						path: "C:/Workspace/acme/frontend",
+						adapters: ["opencode", "cursor"],
+					},
+				],
+			}),
+		);
 		expect(await screen.findByRole("heading", { name: "Prévia de escrita" })).toBeTruthy();
 		expect(screen.getByText("Criado em ~/.letra/workspaces/acme/workflow.json")).toBeTruthy();
 		expect(screen.getByRole("heading", { name: "Workspace e pastas/projetos" })).toBeTruthy();
@@ -75,22 +101,32 @@ describe("WorkspaceSetupFlow", () => {
 	});
 
 	it("allows the simplified happy path without selecting adapters", async () => {
-		const fetchMock = vi.fn()
+		const fetchMock = vi
+			.fn()
 			.mockResolvedValueOnce({
 				ok: true,
-				json: async () => proposal({
-					id: "proposal-no-adapters",
-					locations: [{
-						id: "backend",
-						label: "Backend",
-						path: "C:/Workspace/acme/backend",
-						stack: ["Node"],
-						evidence: ["package.json"],
-						adapters: [
-							{ tool: "opencode", label: "OpenCode", state: "available", selected: false, evidence: [] },
+				json: async () =>
+					proposal({
+						id: "proposal-no-adapters",
+						locations: [
+							{
+								id: "backend",
+								label: "Backend",
+								path: "C:/Workspace/acme/backend",
+								stack: ["Node"],
+								evidence: ["package.json"],
+								adapters: [
+									{
+										tool: "opencode",
+										label: "OpenCode",
+										state: "available",
+										selected: false,
+										evidence: [],
+									},
+								],
+							},
 						],
-					}],
-				}),
+					}),
 			})
 			.mockResolvedValueOnce({
 				ok: true,
@@ -98,7 +134,13 @@ describe("WorkspaceSetupFlow", () => {
 					proposalId: "proposal-no-adapters",
 					workspaceRoot: "~/.letra/workspaces/acme",
 					conflictCount: 0,
-					operations: [{ kind: "create", path: "~/.letra/workspaces/acme/workflow.json", reason: "Harness" }],
+					operations: [
+						{
+							kind: "create",
+							path: "~/.letra/workspaces/acme/workflow.json",
+							reason: "Harness",
+						},
+					],
 				}),
 			});
 		vi.stubGlobal("fetch", fetchMock);
@@ -112,17 +154,20 @@ describe("WorkspaceSetupFlow", () => {
 
 		await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 		const request = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
-		expect(request.locations).toEqual([{
-			id: "backend",
-			label: "Backend",
-			path: "C:/Workspace/acme/backend",
-			adapters: [],
-		}]);
+		expect(request.locations).toEqual([
+			{
+				id: "backend",
+				label: "Backend",
+				path: "C:/Workspace/acme/backend",
+				adapters: [],
+			},
+		]);
 		expect(await screen.findByText("Nenhum adapter selecionado")).toBeTruthy();
 	});
 
 	it("confirms creation with reviewed project folders and shows link validation checklist", async () => {
-		const fetchMock = vi.fn()
+		const fetchMock = vi
+			.fn()
 			.mockResolvedValueOnce({ ok: true, json: async () => proposal({ id: "proposal-2" }) })
 			.mockResolvedValueOnce({
 				ok: true,
@@ -131,8 +176,16 @@ describe("WorkspaceSetupFlow", () => {
 					workspaceRoot: "~/.letra/workspaces/acme",
 					conflictCount: 0,
 					operations: [
-						{ kind: "create", path: "~/.letra/workspaces/acme/workflow.json", reason: "Harness" },
-						{ kind: "create", path: "C:/Workspace/acme/frontend/.letra-link", reason: "Vinculo" },
+						{
+							kind: "create",
+							path: "~/.letra/workspaces/acme/workflow.json",
+							reason: "Harness",
+						},
+						{
+							kind: "create",
+							path: "C:/Workspace/acme/frontend/.letra-link",
+							reason: "Vinculo",
+						},
 					],
 				}),
 			})
@@ -155,7 +208,9 @@ describe("WorkspaceSetupFlow", () => {
 		const user = userEvent.setup();
 		const onComplete = vi.fn();
 
-		render(<WorkspaceSetupFlow onComplete={onComplete} onCancel={vi.fn()} existingNames={[]} />);
+		render(
+			<WorkspaceSetupFlow onComplete={onComplete} onCancel={vi.fn()} existingNames={[]} />,
+		);
 		await user.type(screen.getByLabelText("Nome do workspace"), "Acme");
 		await user.type(screen.getByLabelText("Descrição opcional"), "Workspace Acme");
 		await user.type(screen.getByLabelText("Pasta/projeto inicial"), "C:/Workspace/acme");
@@ -165,22 +220,26 @@ describe("WorkspaceSetupFlow", () => {
 
 		await waitFor(() => expect(onComplete).toHaveBeenCalledWith({ name: "Acme" }));
 		const request = JSON.parse(String(fetchMock.mock.calls[2][1]?.body));
-		expect(request).toEqual(expect.objectContaining({
-			proposalId: "proposal-2",
-			name: "Acme",
-			description: "Workspace Acme",
-			workspacePath: "~/.letra/workspaces/acme",
-			dataDir: "~/.letra/workspaces/acme",
-			directories: ["C:/Workspace/acme/frontend"],
-			tools: ["opencode"],
-			template: "padrao",
-		}));
-		expect(request.locations).toEqual([{
-			id: "frontend",
-			label: "Frontend",
-			path: "C:/Workspace/acme/frontend",
-			adapters: ["opencode"],
-		}]);
+		expect(request).toEqual(
+			expect.objectContaining({
+				proposalId: "proposal-2",
+				name: "Acme",
+				description: "Workspace Acme",
+				workspacePath: "~/.letra/workspaces/acme",
+				dataDir: "~/.letra/workspaces/acme",
+				directories: ["C:/Workspace/acme/frontend"],
+				tools: ["opencode"],
+				template: "padrao",
+			}),
+		);
+		expect(request.locations).toEqual([
+			{
+				id: "frontend",
+				label: "Frontend",
+				path: "C:/Workspace/acme/frontend",
+				adapters: ["opencode"],
+			},
+		]);
 		expect(await screen.findByRole("heading", { name: "Workspace criado!" })).toBeTruthy();
 		expect(screen.getByText("Validar workflow.json")).toBeTruthy();
 		expect(screen.getByText("Validar .letra-link")).toBeTruthy();
@@ -206,7 +265,9 @@ describe("WorkspaceSetupFlow", () => {
 		await user.tab();
 		expect(document.activeElement).toBe(screen.getByLabelText("Data directory do workspace"));
 
-		expect(container.innerHTML).toContain("lg:grid-cols-[minmax(0,1.12fr)_minmax(340px,0.88fr)]");
+		expect(container.innerHTML).toContain(
+			"lg:grid-cols-[minmax(0,1.12fr)_minmax(340px,0.88fr)]",
+		);
 		expect(container.innerHTML).toContain("sm:grid-cols-[1fr_auto]");
 
 		const { default: axe } = await import("axe-core");

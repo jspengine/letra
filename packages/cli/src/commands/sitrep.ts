@@ -75,7 +75,11 @@ function countItemACs(root: string, specName: string): { pending: number; total:
 
 function findCurrentItem(workflow: Workflow): Item | null {
 	const activeStages = workflow.stages
-		.filter((s) => s.zone === "doing" || (!s.zone && s.order > 0 && s.order < workflow.stages.length - 1))
+		.filter(
+			(s) =>
+				s.zone === "doing" ||
+				(!s.zone && s.order > 0 && s.order < workflow.stages.length - 1),
+		)
 		.map((s) => s.id);
 	const stageSet = new Set(activeStages);
 	if (stageSet.size === 0) {
@@ -85,7 +89,7 @@ function findCurrentItem(workflow: Workflow): Item | null {
 	}
 	const items = workflow.items.filter((i) => stageSet.has(i.stage));
 	if (items.length === 0) return null;
-	return items.reduce((a, b) => new Date(a.createdAt) > new Date(b.createdAt) ? a : b);
+	return items.reduce((a, b) => (new Date(a.createdAt) > new Date(b.createdAt) ? a : b));
 }
 
 function getStageName(stageId: string, workflow?: Workflow | null): string {
@@ -185,7 +189,7 @@ function rewriteContextFile(
 		sections.push(`## Porquês\n\n${porques}`);
 	}
 
-	let result = sections.join("\n\n") + "\n";
+	let result = `${sections.join("\n\n")}\n`;
 
 	if (ignoredContent) {
 		result += `\n${ignoredContent}\n`;
@@ -312,15 +316,16 @@ export async function sitrep(
 }
 
 export default function () {
-	const cmd = new Command("sitrep")
-		.description("Atualizar .letra/context.md com estado real do workspace");
+	const cmd = new Command("sitrep").description(
+		"Atualizar .letra/context.md com estado real do workspace",
+	);
 
-	cmd
-		.option("--dry-run", "Exibir diff sem modificar o arquivo")
-		.action(async (options: { dryRun?: boolean }) => {
+	cmd.option("--dry-run", "Exibir diff sem modificar o arquivo").action(
+		async (options: { dryRun?: boolean }) => {
 			const resolution = resolveWorkspaceRoot(process.cwd());
 			await sitrep(resolution.workspaceRoot, options);
-		});
+		},
+	);
 
 	return cmd;
 }

@@ -42,11 +42,26 @@ function DrawerContent({
 }
 
 function DrawerHeader({ className, ...props }: React.ComponentProps<"div">) {
-	return <div data-slot="drawer-header" className={cn("grid gap-[var(--space-1)] p-[var(--space-4)] text-center sm:text-left", className)} {...props} />;
+	return (
+		<div
+			data-slot="drawer-header"
+			className={cn(
+				"grid gap-[var(--space-1)] p-[var(--space-4)] text-center sm:text-left",
+				className,
+			)}
+			{...props}
+		/>
+	);
 }
 
 function DrawerFooter({ className, ...props }: React.ComponentProps<"div">) {
-	return <div data-slot="drawer-footer" className={cn("mt-auto grid gap-[var(--space-2)] p-[var(--space-4)]", className)} {...props} />;
+	return (
+		<div
+			data-slot="drawer-footer"
+			className={cn("mt-auto grid gap-[var(--space-2)] p-[var(--space-4)]", className)}
+			{...props}
+		/>
+	);
 }
 
 function DrawerTitle({ className, ...props }: DrawerPrimitive.Title.Props) {
@@ -69,4 +84,13 @@ function DrawerDescription({ className, ...props }: DrawerPrimitive.Description.
 	);
 }
 
-export { Drawer, DrawerTrigger, DrawerClose, DrawerContent, DrawerHeader, DrawerFooter, DrawerTitle, DrawerDescription };
+export {
+	Drawer,
+	DrawerTrigger,
+	DrawerClose,
+	DrawerContent,
+	DrawerHeader,
+	DrawerFooter,
+	DrawerTitle,
+	DrawerDescription,
+};

@@ -112,5 +112,3 @@ function loadSpecStages(workflowPath: string): Map<string, string> {
 	} catch {}
 	return map;
 }
-
-

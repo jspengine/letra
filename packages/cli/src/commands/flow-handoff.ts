@@ -15,7 +15,11 @@ export interface HandoffOptions {
 	rollback?: boolean;
 }
 
-export async function handoffItem(root: string, itemId: string, options: HandoffOptions): Promise<void> {
+export async function handoffItem(
+	root: string,
+	itemId: string,
+	options: HandoffOptions,
+): Promise<void> {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
 		console.log(chalk.red("No workflow found"));
@@ -28,7 +32,10 @@ export async function handoffItem(root: string, itemId: string, options: Handoff
 		process.exit(1);
 	}
 
-	if (item.stage === "done" || workflow.stages.find((s) => s.id === item.stage)?.zone === "done") {
+	if (
+		item.stage === "done" ||
+		workflow.stages.find((s) => s.id === item.stage)?.zone === "done"
+	) {
 		console.log(chalk.red(`Cannot handoff ${itemId}: item is already completed`));
 		process.exit(1);
 	}
@@ -41,9 +48,14 @@ export async function handoffItem(root: string, itemId: string, options: Handoff
 		const previousFrom = item.handoff.from;
 		item.claimedBy = previousFrom;
 		item.claimedAt = new Date().toISOString();
-		delete item.handoff;
+		item.handoff = undefined;
 		workflow.updatedAt = new Date().toISOString();
-		writeWorkflow(root, { workflow, source: "flow-handoff-rollback", primaryItemId: item.id, skipSitrep: true });
+		writeWorkflow(root, {
+			workflow,
+			source: "flow-handoff-rollback",
+			primaryItemId: item.id,
+			skipSitrep: true,
+		});
 		logEntry(root, "handoff_rollback", `Handoff rolled back to ${previousFrom}`, {
 			itemId: item.id,
 			to: previousFrom,
@@ -100,7 +112,12 @@ export async function handoffItem(root: string, itemId: string, options: Handoff
 	};
 
 	workflow.updatedAt = now.toISOString();
-	writeWorkflow(root, { workflow, source: "flow-handoff", primaryItemId: item.id, skipSitrep: true });
+	writeWorkflow(root, {
+		workflow,
+		source: "flow-handoff",
+		primaryItemId: item.id,
+		skipSitrep: true,
+	});
 
 	logEntry(root, "handoff", `Handoff from ${item.handoff.from} to ${options.to}`, {
 		itemId: item.id,
@@ -116,7 +133,11 @@ export async function handoffItem(root: string, itemId: string, options: Handoff
 	console.log(`    ${chalk.dim(`Expires at: ${expiresAt.toISOString()}`)}`);
 }
 
-export async function handoffAction(targetPath: string | undefined, itemId: string, options: HandoffOptions): Promise<void> {
+export async function handoffAction(
+	targetPath: string | undefined,
+	itemId: string,
+	options: HandoffOptions,
+): Promise<void> {
 	const root = resolve(process.cwd(), targetPath || ".");
 	await handoffItem(root, itemId, options);
 }

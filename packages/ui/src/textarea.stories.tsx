@@ -1,9 +1,15 @@
 import "./index.css";
 import { Textarea } from "./textarea";
 
-export const Empty = () => <Textarea placeholder="Type your message..." className="max-w-[400px]" />;
-export const WithValue = () => <Textarea defaultValue="This is a sample text." className="max-w-[400px]" />;
-export const Disabled = () => <Textarea disabled value="Disabled content" className="max-w-[400px]" />;
+export const Empty = () => (
+	<Textarea placeholder="Type your message..." className="max-w-[400px]" />
+);
+export const WithValue = () => (
+	<Textarea defaultValue="This is a sample text." className="max-w-[400px]" />
+);
+export const Disabled = () => (
+	<Textarea disabled value="Disabled content" className="max-w-[400px]" />
+);
 
 export default {
 	title: "Components/Textarea",
@@ -18,7 +24,13 @@ export default {
 		"x-ds": {
 			category: "primitive",
 			status: "ready",
-			tokens: ["color-bg-base", "color-border", "color-text-primary", "focus-ring-color", "space-3"],
+			tokens: [
+				"color-bg-base",
+				"color-border",
+				"color-text-primary",
+				"focus-ring-color",
+				"space-3",
+			],
 			consumes: [],
 			surfaces: ["ContextView", "SpecsView", "WorkspacesView"],
 			a11y: ["native-textarea", "disabled-state", "focus-visible"],

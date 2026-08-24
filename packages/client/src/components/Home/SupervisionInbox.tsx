@@ -126,17 +126,53 @@ function eventPresentation(action: string): {
 	label: string;
 } {
 	const normalized = action.toLowerCase();
-	if (normalized.includes("fail") || normalized.includes("erro") || normalized.includes("error")) {
-		return { icon: "circle-x", variant: "error", tagVariant: "danger", tone: "danger", label: "falha" };
+	if (
+		normalized.includes("fail") ||
+		normalized.includes("erro") ||
+		normalized.includes("error")
+	) {
+		return {
+			icon: "circle-x",
+			variant: "error",
+			tagVariant: "danger",
+			tone: "danger",
+			label: "falha",
+		};
 	}
-	if (normalized.includes("validate") || normalized.includes("build") || normalized.includes("test")) {
-		return { icon: "terminal", variant: "amber", tagVariant: "warning", tone: "warning", label: "validacao" };
+	if (
+		normalized.includes("validate") ||
+		normalized.includes("build") ||
+		normalized.includes("test")
+	) {
+		return {
+			icon: "terminal",
+			variant: "amber",
+			tagVariant: "warning",
+			tone: "warning",
+			label: "validacao",
+		};
 	}
-	if (normalized.includes("done") || normalized.includes("complete") || normalized.includes("pass")) {
-		return { icon: "circle-check", variant: "success", tagVariant: "success", tone: "success", label: "concluido" };
+	if (
+		normalized.includes("done") ||
+		normalized.includes("complete") ||
+		normalized.includes("pass")
+	) {
+		return {
+			icon: "circle-check",
+			variant: "success",
+			tagVariant: "success",
+			tone: "success",
+			label: "concluido",
+		};
 	}
 	if (normalized.includes("agent") || normalized.includes("automation")) {
-		return { icon: "bot", variant: "agent", tagVariant: "agent", tone: "info", label: "agente" };
+		return {
+			icon: "bot",
+			variant: "agent",
+			tagVariant: "agent",
+			tone: "info",
+			label: "agente",
+		};
 	}
 	return { icon: "activity", variant: "info", tagVariant: "info", tone: "info", label: "evento" };
 }
@@ -172,7 +208,8 @@ export default function SupervisionInbox({
 				label: "Revisar decisao prioritaria",
 				reason: "Um gate humano impede o fluxo de avancar sem sua decisao.",
 				description: `Responder a solicitacao sobre ${decisions[0].itemId}.`,
-				consequence: "A revisao abre a evidencia do item; nenhuma mudanca ocorre antes da sua decisao.",
+				consequence:
+					"A revisao abre a evidencia do item; nenhuma mudanca ocorre antes da sua decisao.",
 				icon: "shield" as const,
 				tone: "warning" as const,
 				run: () => onReviewDecision(decisions[0].itemId),
@@ -182,7 +219,8 @@ export default function SupervisionInbox({
 					label: "Examinar evidencias",
 					reason: "Ha sinal ativo de saude pedindo investigacao antes de qualquer correcao.",
 					description: "Compreender o impacto e a evidencia do sinal antes de agir.",
-					consequence: "Abre a central de saude; nenhuma correcao e aplicada automaticamente.",
+					consequence:
+						"Abre a central de saude; nenhuma correcao e aplicada automaticamente.",
 					icon: "alert-triangle" as const,
 					tone: "info" as const,
 					run: () => onOpenSignal(signals[0]),
@@ -309,11 +347,16 @@ export default function SupervisionInbox({
 								<div className="min-w-0">
 									<h2 className="font-semibold">Decisoes pendentes</h2>
 									<p className="text-xs text-muted-foreground">
-										Gates humanos que precisam da sua decisao antes do fluxo avancar.
+										Gates humanos que precisam da sua decisao antes do fluxo
+										avancar.
 									</p>
 								</div>
 							</div>
-							<Badge icon={decisions.length > 0 ? "alert-triangle" : "circle"} variant={decisions.length > 0 ? "amber" : "info"} tone="soft">
+							<Badge
+								icon={decisions.length > 0 ? "alert-triangle" : "circle"}
+								variant={decisions.length > 0 ? "amber" : "info"}
+								tone="soft"
+							>
 								{decisions.length}
 							</Badge>
 						</CardHeader>
@@ -342,7 +385,13 @@ export default function SupervisionInbox({
 												</>
 											}
 											action={
-												<Button size="sm" onClick={() => onReviewDecision(decision.itemId)} aria-label={`Revisar ${decision.itemId}`}>
+												<Button
+													size="sm"
+													onClick={() =>
+														onReviewDecision(decision.itemId)
+													}
+													aria-label={`Revisar ${decision.itemId}`}
+												>
 													Revisar
 												</Button>
 											}
@@ -351,9 +400,25 @@ export default function SupervisionInbox({
 											<MetadataRow
 												className="mt-[var(--space-2)]"
 												items={[
-													{ label: "Estagio", value: <Tag variant="info">{decision.stage}</Tag>, icon: <Icon name="circle" size={14} /> },
-													{ label: "Responsavel", value: decision.actor, icon: <Icon name="user" size={14} /> },
-													{ label: "Desde", value: decision.since, icon: <Icon name="clock" size={14} /> },
+													{
+														label: "Estagio",
+														value: (
+															<Tag variant="info">
+																{decision.stage}
+															</Tag>
+														),
+														icon: <Icon name="circle" size={14} />,
+													},
+													{
+														label: "Responsavel",
+														value: decision.actor,
+														icon: <Icon name="user" size={14} />,
+													},
+													{
+														label: "Desde",
+														value: decision.since,
+														icon: <Icon name="clock" size={14} />,
+													},
 												]}
 											/>
 										</ListItem>
@@ -370,17 +435,30 @@ export default function SupervisionInbox({
 								<div className="min-w-0">
 									<h2 className="font-semibold">Saude do workspace</h2>
 									<p className="text-xs text-muted-foreground">
-										Sinais priorizados por impacto, evidencia e proxima acao segura.
+										Sinais priorizados por impacto, evidencia e proxima acao
+										segura.
 									</p>
 								</div>
 							</div>
 							<div className="ds-cluster">
-								<Badge icon={signals.length > 0 ? "alert-triangle" : "circle"} variant={signals.length > 0 ? "amber" : "info"} tone="soft">
+								<Badge
+									icon={signals.length > 0 ? "alert-triangle" : "circle"}
+									variant={signals.length > 0 ? "amber" : "info"}
+									tone="soft"
+								>
 									{signals.length}
 								</Badge>
 								{onScanHealth ? (
-									<Button variant="secondary" size="sm" onClick={onScanHealth} disabled={healthBusy}>
-										<Icon name={healthBusy ? "loader-circle" : "activity"} size={14} />
+									<Button
+										variant="secondary"
+										size="sm"
+										onClick={onScanHealth}
+										disabled={healthBusy}
+									>
+										<Icon
+											name={healthBusy ? "loader-circle" : "activity"}
+											size={14}
+										/>
 										{healthBusy ? "Verificando" : "Verificar agora"}
 									</Button>
 								) : null}
@@ -391,10 +469,26 @@ export default function SupervisionInbox({
 								<MetadataRow
 									className="mb-[var(--space-4)]"
 									items={[
-										{ label: "Novos", value: healthSummary.novo, icon: <Icon name="alert-triangle" size={14} /> },
-										{ label: "Em acompanhamento", value: healthSummary.ciente, icon: <Icon name="clock" size={14} /> },
-										{ label: "Resolvidos", value: healthSummary.resolvido, icon: <Icon name="circle-check" size={14} /> },
-										{ label: "Descartados", value: healthSummary.descartado, icon: <Icon name="circle-x" size={14} /> },
+										{
+											label: "Novos",
+											value: healthSummary.novo,
+											icon: <Icon name="alert-triangle" size={14} />,
+										},
+										{
+											label: "Em acompanhamento",
+											value: healthSummary.ciente,
+											icon: <Icon name="clock" size={14} />,
+										},
+										{
+											label: "Resolvidos",
+											value: healthSummary.resolvido,
+											icon: <Icon name="circle-check" size={14} />,
+										},
+										{
+											label: "Descartados",
+											value: healthSummary.descartado,
+											icon: <Icon name="circle-x" size={14} />,
+										},
 									]}
 								/>
 							) : null}
@@ -419,17 +513,30 @@ export default function SupervisionInbox({
 											key={signal.id}
 											leading={<Icon name="alert-triangle" size={18} />}
 											title={signal.title}
-											description={signal.impact ?? "Pede investigacao antes de qualquer correcao."}
+											description={
+												signal.impact ??
+												"Pede investigacao antes de qualquer correcao."
+											}
 											meta={
 												<>
-													<Badge icon="alert-triangle" variant={severityVariant(signal.severity)} tone="soft">
+													<Badge
+														icon="alert-triangle"
+														variant={severityVariant(signal.severity)}
+														tone="soft"
+													>
 														{signal.impact ?? "pede investigacao"}
 													</Badge>
-													<Tag variant={statusVariant(signal.status)}>{statusLabel(signal.status)}</Tag>
+													<Tag variant={statusVariant(signal.status)}>
+														{statusLabel(signal.status)}
+													</Tag>
 												</>
 											}
 											action={
-												<Button variant="secondary" size="sm" onClick={() => onOpenSignal(signal)}>
+												<Button
+													variant="secondary"
+													size="sm"
+													onClick={() => onOpenSignal(signal)}
+												>
 													Detalhes
 												</Button>
 											}
@@ -438,9 +545,36 @@ export default function SupervisionInbox({
 											<MetadataRow
 												className="mt-[var(--space-2)]"
 												items={[
-													{ label: "Origem", value: signal.source, icon: <Icon name="file-text" size={14} /> },
-													{ label: "Urgencia", value: <Tag variant={signal.severity === "alta" ? "danger" : signal.severity === "baixa" ? "info" : "warning"}>{signal.severity}</Tag>, icon: <Icon name="alert-triangle" size={14} /> },
-													{ label: "Acao segura", value: signal.nextAction ?? "investigar", icon: <Icon name="activity" size={14} /> },
+													{
+														label: "Origem",
+														value: signal.source,
+														icon: <Icon name="file-text" size={14} />,
+													},
+													{
+														label: "Urgencia",
+														value: (
+															<Tag
+																variant={
+																	signal.severity === "alta"
+																		? "danger"
+																		: signal.severity ===
+																				"baixa"
+																			? "info"
+																			: "warning"
+																}
+															>
+																{signal.severity}
+															</Tag>
+														),
+														icon: (
+															<Icon name="alert-triangle" size={14} />
+														),
+													},
+													{
+														label: "Acao segura",
+														value: signal.nextAction ?? "investigar",
+														icon: <Icon name="activity" size={14} />,
+													},
 												]}
 											/>
 										</ListItem>
@@ -458,7 +592,11 @@ export default function SupervisionInbox({
 								<Icon name="box" size={16} />
 								<h2 className="font-semibold">Trabalho em foco</h2>
 							</div>
-							{focusedWork ? <Badge icon="box" variant="info" tone="soft">{focusedWork.id}</Badge> : null}
+							{focusedWork ? (
+								<Badge icon="box" variant="info" tone="soft">
+									{focusedWork.id}
+								</Badge>
+							) : null}
 						</CardHeader>
 						<CardContent>
 							{focusedWork ? (
@@ -466,7 +604,9 @@ export default function SupervisionInbox({
 									<div className="grid gap-[var(--space-1)]">
 										<div className="ds-cluster">
 											<Tag variant="agent">supervisionavel</Tag>
-											{focusedWork.actor ? <Tag>{focusedWork.actor}</Tag> : null}
+											{focusedWork.actor ? (
+												<Tag>{focusedWork.actor}</Tag>
+											) : null}
 										</div>
 										<h3 className="text-body-sm font-semibold text-[var(--color-text-primary)]">
 											{focusedWork.title}
@@ -481,7 +621,11 @@ export default function SupervisionInbox({
 									</div>
 									<MetadataRow items={focusedWorkMetadata} />
 									<div className="flex flex-wrap items-center gap-[var(--layout-toolbar-gap)]">
-										<Button variant="secondary" size="sm" onClick={() => onOpenItem(focusedWork.id)}>
+										<Button
+											variant="secondary"
+											size="sm"
+											onClick={() => onOpenItem(focusedWork.id)}
+										>
 											Abrir item
 										</Button>
 										<Tag variant="info">somente leitura</Tag>
@@ -493,7 +637,11 @@ export default function SupervisionInbox({
 									icon={<Icon name="grid" size={20} />}
 									title="Nenhum trabalho em foco."
 									description="Abra Trabalho para escolher o proximo item a supervisionar."
-									action={<Button variant="secondary" size="sm" onClick={onOpenWork}>Ver trabalho disponivel</Button>}
+									action={
+										<Button variant="secondary" size="sm" onClick={onOpenWork}>
+											Ver trabalho disponivel
+										</Button>
+									}
 								/>
 							)}
 						</CardContent>
@@ -543,16 +691,28 @@ export default function SupervisionInbox({
 										description={eventTime(event.timestamp)}
 										meta={
 											<>
-												<Badge icon={presentation.icon} variant={presentation.variant} tone="soft">
+												<Badge
+													icon={presentation.icon}
+													variant={presentation.variant}
+													tone="soft"
+												>
 													{presentation.label}
 												</Badge>
-												<Tag variant={presentation.tagVariant}>{event.action}</Tag>
+												<Tag variant={presentation.tagVariant}>
+													{event.action}
+												</Tag>
 												{event.itemId ? <Tag>{event.itemId}</Tag> : null}
 											</>
 										}
 										action={
 											event.itemId ? (
-												<Button variant="secondary" size="sm" onClick={() => onOpenItem(event.itemId as string)}>
+												<Button
+													variant="secondary"
+													size="sm"
+													onClick={() =>
+														onOpenItem(event.itemId as string)
+													}
+												>
 													Abrir item
 												</Button>
 											) : null

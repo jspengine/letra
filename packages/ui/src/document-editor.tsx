@@ -67,7 +67,8 @@ export function DocumentEditor({
 				const text = heading.textContent?.trim() ?? "";
 				const idx = labels.indexOf(text);
 				if (idx === -1) continue;
-				const offset = heading.getBoundingClientRect().top - container.getBoundingClientRect().top;
+				const offset =
+					heading.getBoundingClientRect().top - container.getBoundingClientRect().top;
 				if (offset < 200) found = sections[idx]?.id ?? null;
 			}
 			setActiveSection(found);
@@ -137,7 +138,11 @@ export function DocumentEditor({
 			<div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-[var(--color-bg-surface)] px-4 py-3 lg:px-6">
 				<div className="min-w-0 flex-1">
 					<div className="flex min-w-0 items-center gap-2">
-						<Icon name="edit" size={16} className="shrink-0 text-[var(--color-primary)]" />
+						<Icon
+							name="edit"
+							size={16}
+							className="shrink-0 text-[var(--color-primary)]"
+						/>
 						<span className="truncate text-sm font-semibold text-[var(--color-text-primary)]">
 							{title}
 						</span>

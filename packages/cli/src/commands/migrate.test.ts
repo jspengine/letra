@@ -15,7 +15,16 @@ function makeTmp(prefix: string): string {
 	return dir;
 }
 function wf(name: string) {
-	return { version: "1.0", name, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", stages: [], items: [], tools: [], primaryItemId: null };
+	return {
+		version: "1.0",
+		name,
+		createdAt: "2026-01-01T00:00:00.000Z",
+		updatedAt: "2026-01-01T00:00:00.000Z",
+		stages: [],
+		items: [],
+		tools: [],
+		primaryItemId: null,
+	};
 }
 function seed(root: string, name: string) {
 	mkdirSync(join(root, LETRA_FOLDER, "specs"), { recursive: true });
@@ -53,7 +62,9 @@ describe("migrate (externalize workspace, ITEM-79)", () => {
 		}
 		const evidenceFiles = readdirSync(join(target, "operations", "migrations"));
 		expect(evidenceFiles).toHaveLength(1);
-		const evidence = JSON.parse(readFileSync(join(target, "operations", "migrations", evidenceFiles[0]), "utf-8"));
+		const evidence = JSON.parse(
+			readFileSync(join(target, "operations", "migrations", evidenceFiles[0]), "utf-8"),
+		);
 		expect(evidence).toMatchObject({
 			from: join(root, LETRA_FOLDER),
 			to: target,

@@ -10,12 +10,14 @@ export default function gateCommand() {
 	const cmd = new Command("gate");
 	cmd.description("Gerenciar gates do harness");
 
-	cmd
-		.command("approve <id>")
+	cmd.command("approve <id>")
 		.description("Marca um gate como approved")
 		.action((id: string) => {
 			const root = process.cwd();
-			const candidates = [join(root, GATE_DIR, `${id}.yaml`), join(root, GATE_DIR, `${id}.yml`)];
+			const candidates = [
+				join(root, GATE_DIR, `${id}.yaml`),
+				join(root, GATE_DIR, `${id}.yml`),
+			];
 
 			const file = candidates.find((c) => existsSync(c));
 			if (!file) {
@@ -34,7 +36,7 @@ export default function gateCommand() {
 			if (raw.includes("status:")) {
 				raw = raw.replace(/^status:.*$/m, "status: approved");
 			} else {
-				raw = raw.trimEnd() + "\nstatus: approved\n";
+				raw = `${raw.trimEnd()}\nstatus: approved\n`;
 			}
 
 			writeFileSync(file, raw, "utf-8");

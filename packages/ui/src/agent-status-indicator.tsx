@@ -9,10 +9,28 @@ interface AgentStatusIndicatorProps extends HTMLAttributes<HTMLSpanElement> {
 	showLabel?: boolean;
 }
 
-const stateConfig: Record<AgentState, { color: string; label: string; animate: string; glow: boolean }> = {
-	idle: { color: "var(--color-text-disabled)", label: "Ocioso", animate: "animate-agent-breathe", glow: false },
-	thinking: { color: "var(--color-agent)", label: "Raciocinando", animate: "animate-agent-breathe", glow: true },
-	running: { color: "var(--color-agent)", label: "Em execução", animate: "animate-agent-running", glow: true },
+const stateConfig: Record<
+	AgentState,
+	{ color: string; label: string; animate: string; glow: boolean }
+> = {
+	idle: {
+		color: "var(--color-text-disabled)",
+		label: "Ocioso",
+		animate: "animate-agent-breathe",
+		glow: false,
+	},
+	thinking: {
+		color: "var(--color-agent)",
+		label: "Raciocinando",
+		animate: "animate-agent-breathe",
+		glow: true,
+	},
+	running: {
+		color: "var(--color-agent)",
+		label: "Em execução",
+		animate: "animate-agent-running",
+		glow: true,
+	},
 	error: { color: "var(--color-danger)", label: "Erro", animate: "", glow: false },
 	done: { color: "var(--color-success)", label: "Concluído", animate: "", glow: false },
 };

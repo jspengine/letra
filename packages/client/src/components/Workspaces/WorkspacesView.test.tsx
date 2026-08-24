@@ -4,10 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import WorkspacesView from "./WorkspacesView";
 
 function mockWorkspaces(data: unknown[]) {
-	vi.stubGlobal("fetch", vi.fn(async () => ({
-		ok: true,
-		json: async () => data,
-	})));
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async () => ({
+			ok: true,
+			json: async () => data,
+		})),
+	);
 }
 
 describe("WorkspacesView", () => {
@@ -71,7 +74,9 @@ describe("WorkspacesView", () => {
 			const url = String(input);
 			const method = init?.method ?? "GET";
 			if (url === "/api/workspaces" && method === "GET") {
-				const workspaceCalls = fetchMock.mock.calls.filter(([calledUrl]) => calledUrl === "/api/workspaces").length;
+				const workspaceCalls = fetchMock.mock.calls.filter(
+					([calledUrl]) => calledUrl === "/api/workspaces",
+				).length;
 				return {
 					ok: true,
 					json: async () => (workspaceCalls > 1 ? [createdWorkspace] : []),
@@ -82,16 +87,30 @@ describe("WorkspacesView", () => {
 					ok: true,
 					json: async () => ({
 						id: "proposal-1",
-						workspace: { name: "anotei aqui", root: "C:/Workspace/workspace-letra-anotei-aqui", harnessVersion: "1.0.0" },
+						workspace: {
+							name: "anotei aqui",
+							root: "C:/Workspace/workspace-letra-anotei-aqui",
+							harnessVersion: "1.0.0",
+						},
 						warnings: [],
-						locations: [{
-							id: "root",
-							label: "Raiz",
-							path: "C:/Workspace/workspace-letra-anotei-aqui",
-							stack: ["TypeScript"],
-							evidence: ["package.json"],
-							adapters: [{ tool: "opencode", label: "OpenCode", state: "detected", selected: true, evidence: ["AGENTS.md"] }],
-						}],
+						locations: [
+							{
+								id: "root",
+								label: "Raiz",
+								path: "C:/Workspace/workspace-letra-anotei-aqui",
+								stack: ["TypeScript"],
+								evidence: ["package.json"],
+								adapters: [
+									{
+										tool: "opencode",
+										label: "OpenCode",
+										state: "detected",
+										selected: true,
+										evidence: ["AGENTS.md"],
+									},
+								],
+							},
+						],
 					}),
 				};
 			}
@@ -102,7 +121,13 @@ describe("WorkspacesView", () => {
 						proposalId: "proposal-1",
 						workspaceRoot: "C:/Workspace/workspace-letra-anotei-aqui",
 						conflictCount: 0,
-						operations: [{ kind: "create", path: "C:/Workspace/workspace-letra-anotei-aqui/.letra/workflow.json", reason: "Harness" }],
+						operations: [
+							{
+								kind: "create",
+								path: "C:/Workspace/workspace-letra-anotei-aqui/.letra/workflow.json",
+								reason: "Harness",
+							},
+						],
 					}),
 				};
 			}
@@ -116,10 +141,19 @@ describe("WorkspacesView", () => {
 		});
 		vi.stubGlobal("fetch", fetchMock);
 
-		render(<WorkspacesView onSelect={onSelect} onWorkspacesLoaded={onWorkspacesLoaded} startCreating />);
+		render(
+			<WorkspacesView
+				onSelect={onSelect}
+				onWorkspacesLoaded={onWorkspacesLoaded}
+				startCreating
+			/>,
+		);
 
 		await user.type(await screen.findByLabelText("Nome da solução"), "anotei aqui");
-		await user.type(screen.getByLabelText("Pasta inicial"), "C:/Workspace/workspace-letra-anotei-aqui");
+		await user.type(
+			screen.getByLabelText("Pasta inicial"),
+			"C:/Workspace/workspace-letra-anotei-aqui",
+		);
 		await user.click(screen.getByRole("button", { name: "Analisar pasta" }));
 		await user.click(await screen.findByRole("button", { name: "Gerar prévia de escrita" }));
 		await user.click(await screen.findByRole("button", { name: "Criar workspace" }));
@@ -127,7 +161,11 @@ describe("WorkspacesView", () => {
 		expect(await screen.findByText("anotei aqui")).toBeTruthy();
 		expect(await screen.findByText("AnoteiAqui")).toBeTruthy();
 		await waitFor(() => expect(onSelect).toHaveBeenCalledWith(createdWorkspace));
-		await waitFor(() => expect(onWorkspacesLoaded).toHaveBeenLastCalledWith([createdWorkspace]));
-		expect(fetchMock.mock.calls.filter(([url]) => url === "/api/workspaces").length).toBeGreaterThanOrEqual(2);
+		await waitFor(() =>
+			expect(onWorkspacesLoaded).toHaveBeenLastCalledWith([createdWorkspace]),
+		);
+		expect(
+			fetchMock.mock.calls.filter(([url]) => url === "/api/workspaces").length,
+		).toBeGreaterThanOrEqual(2);
 	});
 });

@@ -3,7 +3,11 @@ import { join, isAbsolute, resolve } from "node:path";
 import { Command } from "commander";
 import chalk from "chalk";
 import { resolveWorkspaceRoot, LINK_FILE, clearWorkspaceCache } from "../workspace/resolver.js";
-import { ensureExternalWorkspaceLayout, getWorkspacesDir, slugifyWorkspaceName } from "../workspace/index.js";
+import {
+	ensureExternalWorkspaceLayout,
+	getWorkspacesDir,
+	slugifyWorkspaceName,
+} from "../workspace/index.js";
 import { loadWorkflow } from "./flow-init.js";
 
 const EXTERNAL_ROOT = getWorkspacesDir();
@@ -13,7 +17,13 @@ function workspaceName(root: string): string {
 	return wf?.name || slugifyWorkspaceName(root);
 }
 
-export type MigrateResult = { ok: boolean; from: string; to: string; cleaned: boolean; message: string };
+export type MigrateResult = {
+	ok: boolean;
+	from: string;
+	to: string;
+	cleaned: boolean;
+	message: string;
+};
 
 function copyDirectoryContents(source: string, target: string): void {
 	mkdirSync(target, { recursive: true });
@@ -31,31 +41,62 @@ function copyDirectoryContents(source: string, target: string): void {
  * so that `workflow.json`, `harness/`, `specs/`, etc. live outside the project
  * directory while the project itself stays clean (only the link remains).
  */
-export async function migrateWorkspace(rootPath: string, options?: { to?: string; clean?: boolean; dryRun?: boolean }): Promise<MigrateResult> {
+export async function migrateWorkspace(
+	rootPath: string,
+	options?: { to?: string; clean?: boolean; dryRun?: boolean },
+): Promise<MigrateResult> {
 	const cwd = rootPath ? resolve(process.cwd(), rootPath) : process.cwd();
 	const resolution = resolveWorkspaceRoot(cwd);
 	const source = resolution.workspaceDir;
 	const rootForLink = resolution.workspaceRoot;
 
 	if (!existsSync(source)) {
-		return { ok: false, from: source, to: "", cleaned: false, message: `Source data directory not found at ${source}` };
+		return {
+			ok: false,
+			from: source,
+			to: "",
+			cleaned: false,
+			message: `Source data directory not found at ${source}`,
+		};
 	}
 
 	// Already externalized?
 	if (resolution.type === "linked") {
-		return { ok: false, from: source, to: source, cleaned: false, message: "Workspace is already externalized (linked). Nothing to migrate." };
+		return {
+			ok: false,
+			from: source,
+			to: source,
+			cleaned: false,
+			message: "Workspace is already externalized (linked). Nothing to migrate.",
+		};
 	}
 
 	const name = workspaceName(rootForLink);
 	const slug = slugifyWorkspaceName(name);
-	let target = options?.to ? (isAbsolute(options.to) ? options.to : resolve(cwd, options.to)) : join(EXTERNAL_ROOT, slug);
+	const target = options?.to
+		? isAbsolute(options.to)
+			? options.to
+			: resolve(cwd, options.to)
+		: join(EXTERNAL_ROOT, slug);
 
 	if (existsSync(target) && existsSync(join(target, "workflow.json"))) {
-		return { ok: false, from: source, to: target, cleaned: false, message: `Target already contains a workflow.json (${target}). Move it first or pass --to <path>.` };
+		return {
+			ok: false,
+			from: source,
+			to: target,
+			cleaned: false,
+			message: `Target already contains a workflow.json (${target}). Move it first or pass --to <path>.`,
+		};
 	}
 
 	if (options?.dryRun) {
-		return { ok: true, from: source, to: target, cleaned: false, message: `[dry-run] Would copy ${source} -> ${target} and write ${LINK_FILE} at ${rootForLink}` };
+		return {
+			ok: true,
+			from: source,
+			to: target,
+			cleaned: false,
+			message: `[dry-run] Would copy ${source} -> ${target} and write ${LINK_FILE} at ${rootForLink}`,
+		};
 	}
 
 	// 1. Materialize target
@@ -69,14 +110,22 @@ export async function migrateWorkspace(rootPath: string, options?: { to?: string
 	const rollbackDir = join(target, "operations", "rollbacks", migrationId);
 	const rollbackSnapshotDir = join(rollbackDir, "legacy-letra");
 	copyDirectoryContents(source, rollbackSnapshotDir);
-	writeFileSync(join(rollbackDir, "rollback.json"), JSON.stringify({
-		id: migrationId,
-		source,
-		target,
-		linkPath: join(rootForLink, LINK_FILE),
-		snapshotPath: rollbackSnapshotDir,
-		restore: "Copy snapshotPath back to source and remove .letra-link from linkPath.",
-	}, null, 2), "utf-8");
+	writeFileSync(
+		join(rollbackDir, "rollback.json"),
+		JSON.stringify(
+			{
+				id: migrationId,
+				source,
+				target,
+				linkPath: join(rootForLink, LINK_FILE),
+				snapshotPath: rollbackSnapshotDir,
+				restore: "Copy snapshotPath back to source and remove .letra-link from linkPath.",
+			},
+			null,
+			2,
+		),
+		"utf-8",
+	);
 	// 3. Write link at workspace root and invalidate resolution cache so subsequent
 	//    lookups (e.g. loadWorkflow right after migrate) follow the new link.
 	writeFileSync(join(rootForLink, LINK_FILE), `${target}\n`, "utf-8");
@@ -87,40 +136,61 @@ export async function migrateWorkspace(rootPath: string, options?: { to?: string
 		rmSync(source, { recursive: true, force: true });
 		cleaned = true;
 	}
-	writeFileSync(join(evidenceDir, `${migrationId}.json`), JSON.stringify({
-		id: migrationId,
-		migratedAt: new Date().toISOString(),
+	writeFileSync(
+		join(evidenceDir, `${migrationId}.json`),
+		JSON.stringify(
+			{
+				id: migrationId,
+				migratedAt: new Date().toISOString(),
+				from: source,
+				to: target,
+				linkPath: join(rootForLink, LINK_FILE),
+				cleaned,
+				rollbackSnapshotPath: rollbackSnapshotDir,
+				rollbackManifestPath: join(rollbackDir, "rollback.json"),
+				rollback: cleaned
+					? "Restore by copying rollbackSnapshotPath back to the original path and removing .letra-link."
+					: "Restore by removing .letra-link; the original .letra directory was preserved.",
+			},
+			null,
+			2,
+		),
+		"utf-8",
+	);
+
+	return {
+		ok: true,
 		from: source,
 		to: target,
-		linkPath: join(rootForLink, LINK_FILE),
 		cleaned,
-		rollbackSnapshotPath: rollbackSnapshotDir,
-		rollbackManifestPath: join(rollbackDir, "rollback.json"),
-		rollback: cleaned
-			? "Restore by copying rollbackSnapshotPath back to the original path and removing .letra-link."
-			: "Restore by removing .letra-link; the original .letra directory was preserved.",
-	}, null, 2), "utf-8");
-
-	return { ok: true, from: source, to: target, cleaned, message: `Migrated data to ${target} (${cleaned ? "source removed" : "source kept"}).` };
+		message: `Migrated data to ${target} (${cleaned ? "source removed" : "source kept"}).`,
+	};
 }
 
 export default function migrateCommand() {
 	const cmd = new Command("migrate")
-		.description("Externalize a workspace's .letra directory to ~/.letra/workspaces/{slug}/ and leave a link")
+		.description(
+			"Externalize a workspace's .letra directory to ~/.letra/workspaces/{slug}/ and leave a link",
+		)
 		.argument("[root]", "workspace root (defaults to cwd)")
 		.option("--to <path>", "target data directory (overrides default)")
 		.option("--clean", "remove the original .letra directory after migrating")
 		.option("--dry-run", "print what would happen without writing")
-		.action(async (root: string | undefined, opts: { to?: string; clean?: boolean; dryRun?: boolean }) => {
-			const result = await migrateWorkspace(root ?? ".", opts);
-			if (!result.ok) {
-				console.log(chalk.red(`✗ ${result.message}`));
-				process.exitCode = 1;
-			} else {
-				console.log(chalk.green(`✓ ${result.message}`));
-				console.log(`  from: ${result.from}`);
-				console.log(`  to:   ${result.to}`);
-			}
-		});
+		.action(
+			async (
+				root: string | undefined,
+				opts: { to?: string; clean?: boolean; dryRun?: boolean },
+			) => {
+				const result = await migrateWorkspace(root ?? ".", opts);
+				if (!result.ok) {
+					console.log(chalk.red(`✗ ${result.message}`));
+					process.exitCode = 1;
+				} else {
+					console.log(chalk.green(`✓ ${result.message}`));
+					console.log(`  from: ${result.from}`);
+					console.log(`  to:   ${result.to}`);
+				}
+			},
+		);
 	return cmd;
 }

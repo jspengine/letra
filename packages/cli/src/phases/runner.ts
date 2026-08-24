@@ -32,7 +32,10 @@ export class PhaseActionRunner {
 						});
 						const label = `command: ${action.cmd}`;
 						results.push(label);
-						logEntry(root, "system", `action:${label}`, { itemId: item.id, details: { phase: phaseDef.id } });
+						logEntry(root, "system", `action:${label}`, {
+							itemId: item.id,
+							details: { phase: phaseDef.id },
+						});
 						break;
 					}
 					case "agent-prompt": {
@@ -50,7 +53,10 @@ export class PhaseActionRunner {
 						writeFileSync(join(getLetraDir(root), "phase-prompt.md"), content, "utf-8");
 						const label = `agent-prompt: ${action.prompt}`;
 						results.push(label);
-						logEntry(root, "system", `action:${label}`, { itemId: item.id, details: { phase: phaseDef.id } });
+						logEntry(root, "system", `action:${label}`, {
+							itemId: item.id,
+							details: { phase: phaseDef.id },
+						});
 						break;
 					}
 					case "generate-report": {
@@ -65,7 +71,10 @@ export class PhaseActionRunner {
 						writeFileSync(reportPath, reportContent, "utf-8");
 						const label = `generate-report: ${action.template}`;
 						results.push(label);
-						logEntry(root, "system", `action:${label}`, { itemId: item.id, details: { phase: phaseDef.id } });
+						logEntry(root, "system", `action:${label}`, {
+							itemId: item.id,
+							details: { phase: phaseDef.id },
+						});
 						break;
 					}
 					case "notify-human": {
@@ -87,15 +96,20 @@ export class PhaseActionRunner {
 						const gateId = action.gate ?? "";
 						const gateResult = checker.check(gateId, item);
 						if (!gateResult.allowed) {
-							logEntry(root, "system", `action:wait-human gate "${gateId}" blocking`, {
-								itemId: item.id,
-								details: { gate: gateId, phase: phaseDef.id },
-							});
+							logEntry(
+								root,
+								"system",
+								`action:wait-human gate "${gateId}" blocking`,
+								{
+									itemId: item.id,
+									details: { gate: gateId, phase: phaseDef.id },
+								},
+							);
 							return {
 								ok: false,
 								error: gateResult.reason?.includes("humana")
 									? `Gate "${gateId}" not approved`
-									: gateResult.reason ?? `Gate "${gateId}" not approved`,
+									: (gateResult.reason ?? `Gate "${gateId}" not approved`),
 								actions: results,
 							};
 						}
@@ -106,7 +120,10 @@ export class PhaseActionRunner {
 				}
 			} catch (e: any) {
 				const msg = `Action "${action.type}" failed: ${e.message}`;
-				logEntry(root, "system", `action:error ${msg}`, { itemId: item.id, details: { phase: phaseDef.id } });
+				logEntry(root, "system", `action:error ${msg}`, {
+					itemId: item.id,
+					details: { phase: phaseDef.id },
+				});
 				return { ok: false, error: msg, actions: results };
 			}
 		}
@@ -114,10 +131,16 @@ export class PhaseActionRunner {
 	}
 }
 
-export function loadGate(root: string, gateId: string): { blocking: boolean; status: string } | null {
+export function loadGate(
+	root: string,
+	gateId: string,
+): { blocking: boolean; status: string } | null {
 	const harnessDir = join(getLetraDir(root), "harness");
 	if (!existsSync(harnessDir)) return null;
-	const files = [join(harnessDir, "gates", `${gateId}.yaml`), join(harnessDir, "gates", `${gateId}.yml`)];
+	const files = [
+		join(harnessDir, "gates", `${gateId}.yaml`),
+		join(harnessDir, "gates", `${gateId}.yml`),
+	];
 	for (const f of files) {
 		if (existsSync(f)) {
 			const raw = readFileSync(f, "utf-8");

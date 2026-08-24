@@ -26,12 +26,15 @@ export function SetupWizard({ onComplete, onPersonalizedComplete }: SetupWizardP
 					icon: "cross",
 					stages: Array.isArray(template.stages)
 						? template.stages.map((stage: any) => ({
-							id: String(stage.id),
-							name: String(stage.name ?? stage.id),
-							zone: stage.zone === "todo" || stage.zone === "doing" || stage.zone === "done"
-								? stage.zone
-								: undefined,
-						}))
+								id: String(stage.id),
+								name: String(stage.name ?? stage.id),
+								zone:
+									stage.zone === "todo" ||
+									stage.zone === "doing" ||
+									stage.zone === "done"
+										? stage.zone
+										: undefined,
+							}))
 						: [],
 				}));
 				setTemplates([
@@ -142,9 +145,7 @@ export function SetupWizard({ onComplete, onPersonalizedComplete }: SetupWizardP
 											{t.name}
 										</span>
 										{t.stages.length > 0 && (
-											<Badge variant="info">
-												{t.stages.length} estágios
-											</Badge>
+											<Badge variant="info">{t.stages.length} estágios</Badge>
 										)}
 										{t.id === "personalizado" && (
 											<Badge variant="amber">Do zero</Badge>

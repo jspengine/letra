@@ -25,7 +25,11 @@ export function parseACs(content: string): SpecACs {
 	}
 	const genericPending = content.match(/^- \[ \]\s+AC\d+/gm) || [];
 	const genericDone = content.match(/^- \[[xX]\]\s+AC\d+/gm) || [];
-	return { pending: genericPending.length, done: genericDone.length, total: genericPending.length + genericDone.length };
+	return {
+		pending: genericPending.length,
+		done: genericDone.length,
+		total: genericPending.length + genericDone.length,
+	};
 }
 
 export function countACs(specDir: string): SpecACs {

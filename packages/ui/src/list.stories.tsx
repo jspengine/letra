@@ -19,7 +19,13 @@ const meta: Meta<typeof List> = {
 		"x-ds": {
 			category: "primitive",
 			status: "ready",
-			tokens: ["layout-list-gap", "layout-list-item-padding", "radius-sm", "color-border", "surface-hover"],
+			tokens: [
+				"layout-list-gap",
+				"layout-list-item-padding",
+				"radius-sm",
+				"color-border",
+				"surface-hover",
+			],
 			consumes: ["Badge", "Tag", "Button", "Icon"],
 			surfaces: ["HomeView", "FlowView", "Diagnostics"],
 			a11y: ["semantic-list", "action-per-item", "metadata-not-color-only"],
@@ -42,7 +48,9 @@ export const DecisionQueue: Story = {
 					description="Solicita sua decisão antes de mover o item para Done."
 					meta={
 						<>
-							<Badge variant="info" tone="soft" icon="box">ITEM-74</Badge>
+							<Badge variant="info" tone="soft" icon="box">
+								ITEM-74
+							</Badge>
 							<Tag variant="warning">Review</Tag>
 							<Tag>há 5d</Tag>
 						</>
@@ -54,8 +62,16 @@ export const DecisionQueue: Story = {
 					leading={<Icon name="alert-triangle" size={18} />}
 					title="AC stale detectado"
 					description="O detector encontrou divergência entre marcação do AC e implementação."
-					meta={<Badge variant="amber" tone="soft">health</Badge>}
-					action={<Button variant="secondary" size="sm">Ver evidência</Button>}
+					meta={
+						<Badge variant="amber" tone="soft">
+							health
+						</Badge>
+					}
+					action={
+						<Button variant="secondary" size="sm">
+							Ver evidência
+						</Button>
+					}
 					tone="info"
 				/>
 			</List>

@@ -23,15 +23,31 @@ export function Tooltip({ content, children, position = "top", className }: Tool
 		if (!anchor) return {};
 		const gap = 8;
 		if (position === "right") {
-			return { left: anchor.right + gap, top: anchor.top + anchor.height / 2, transform: "translateY(-50%)" };
+			return {
+				left: anchor.right + gap,
+				top: anchor.top + anchor.height / 2,
+				transform: "translateY(-50%)",
+			};
 		}
 		if (position === "left") {
-			return { left: anchor.left - gap, top: anchor.top + anchor.height / 2, transform: "translate(-100%, -50%)" };
+			return {
+				left: anchor.left - gap,
+				top: anchor.top + anchor.height / 2,
+				transform: "translate(-100%, -50%)",
+			};
 		}
 		if (position === "bottom") {
-			return { left: anchor.left + anchor.width / 2, top: anchor.bottom + gap, transform: "translateX(-50%)" };
+			return {
+				left: anchor.left + anchor.width / 2,
+				top: anchor.bottom + gap,
+				transform: "translateX(-50%)",
+			};
 		}
-		return { left: anchor.left + anchor.width / 2, top: anchor.top - gap, transform: "translate(-50%, -100%)" };
+		return {
+			left: anchor.left + anchor.width / 2,
+			top: anchor.top - gap,
+			transform: "translate(-50%, -100%)",
+		};
 	}
 
 	return (
@@ -44,22 +60,24 @@ export function Tooltip({ content, children, position = "top", className }: Tool
 			onBlur={() => setVisible(false)}
 		>
 			{children}
-			{visible && typeof document !== "undefined" ? createPortal(
-				<div
-					className={cn(
-						"fixed z-[var(--z-tooltip)] px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs whitespace-nowrap pointer-events-none",
-					)}
-					style={{
-						...tooltipStyle(),
-						background: "var(--foreground)",
-						color: "var(--background)",
-					}}
-					role="tooltip"
-				>
-					{content}
-				</div>,
-				document.body,
-			) : null}
+			{visible && typeof document !== "undefined"
+				? createPortal(
+						<div
+							className={cn(
+								"fixed z-[var(--z-tooltip)] px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs whitespace-nowrap pointer-events-none",
+							)}
+							style={{
+								...tooltipStyle(),
+								background: "var(--foreground)",
+								color: "var(--background)",
+							}}
+							role="tooltip"
+						>
+							{content}
+						</div>,
+						document.body,
+					)
+				: null}
 		</div>
 	);
 }

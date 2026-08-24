@@ -32,7 +32,9 @@ interface AgentPromptParams {
 }
 
 const AGENT_PROMPTS: Record<string, (p: AgentPromptParams) => string> = {
-	opencode: (p) => `Você é um arquiteto de software especializado em configurar o Letra (framework SDD — Specification-Driven Development) para novos workspaces.
+	opencode: (
+		p,
+	) => `Você é um arquiteto de software especializado em configurar o Letra (framework SDD — Specification-Driven Development) para novos workspaces.
 
 ## Missão
 Analise profundamente o workspace em **${p.workspacePath}** e seus diretórios monitorados (${p.dirs.join(", ")}) para gerar o harness completo do Letra - conjunto de arquivos de contexto que descrevem a arquitetura, decisões, glossário e fluxo de trabalho.
@@ -104,7 +106,9 @@ Cada adaptador deve conter:
 ## Formato de Saída
 Gere todos os arquivos dentro de ${p.workspacePath}/.letra/. Retorne um resumo do que foi criado.`,
 
-	cursor: (p) => `You are an expert software architect configuring the Letra framework (SDD — Specification-Driven Development) for a workspace.
+	cursor: (
+		p,
+	) => `You are an expert software architect configuring the Letra framework (SDD — Specification-Driven Development) for a workspace.
 
 ## Mission
 Deeply analyze the workspace at **${p.workspacePath}** and its monitored directories (${p.dirs.join(", ")}) to generate the complete Letra harness.
@@ -141,7 +145,9 @@ Generate .cursorrules with context, available commands, active item section, and
 
 Return a summary of everything created.`,
 
-	"claude-code": (p) => `You are configuring the Letra SDD framework for "${p.name}" at ${p.workspacePath}. Deeply analyze the workspace (${p.dirs.join(", ")}) — explore its stack, architecture, code conventions, and test patterns — then generate the complete Letra harness:
+	"claude-code": (
+		p,
+	) => `You are configuring the Letra SDD framework for "${p.name}" at ${p.workspacePath}. Deeply analyze the workspace (${p.dirs.join(", ")}) — explore its stack, architecture, code conventions, and test patterns — then generate the complete Letra harness:
 
 1. **${p.workspacePath}/.letra/constitution.md** — architecture rules, code conventions, security policies
 2. **${p.workspacePath}/.letra/context.md** — workspace intent, domain, tech stack, constraints, decisions
@@ -152,7 +158,9 @@ Return a summary of everything created.`,
 
 For each file, reflect the actual project patterns you discover during exploration. The harness must match the real project profile.`,
 
-	windsurf: (p) => `Configure the Letra SDD framework for "${p.name}" at ${p.workspacePath}. Explore the codebase in ${p.dirs.join(", ")}, identify stack, architecture, patterns, and generate the full Letra harness:
+	windsurf: (
+		p,
+	) => `Configure the Letra SDD framework for "${p.name}" at ${p.workspacePath}. Explore the codebase in ${p.dirs.join(", ")}, identify stack, architecture, patterns, and generate the full Letra harness:
 
 - .letra/constitution.md — rules and conventions
 - .letra/context.md — workspace overview and decisions  
@@ -163,7 +171,9 @@ For each file, reflect the actual project patterns you discover during explorati
 
 Base every file on real project analysis, not generic templates.`,
 
-	hermes: (p) => `Configure Letra for "${p.name}" at ${p.workspacePath}. Analyze ${p.dirs.join(", ")} deeply — stack, architecture, code style, tests — then generate:
+	hermes: (
+		p,
+	) => `Configure Letra for "${p.name}" at ${p.workspacePath}. Analyze ${p.dirs.join(", ")} deeply — stack, architecture, code style, tests — then generate:
 
 - .letra/constitution.md, context.md, glossary.md
 - .letra/workflow.json with SDLC stages
@@ -172,7 +182,9 @@ Base every file on real project analysis, not generic templates.`,
 
 Tailor every file to the actual project profile found during exploration.`,
 
-	vscode: (p) => `Configure Letra SDD for "${p.name}" at ${p.workspacePath}. Explore ${p.dirs.join(", ")}, detect tech stack, architecture, and conventions, then generate:
+	vscode: (
+		p,
+	) => `Configure Letra SDD for "${p.name}" at ${p.workspacePath}. Explore ${p.dirs.join(", ")}, detect tech stack, architecture, and conventions, then generate:
 
 - .letra/constitution.md, context.md, glossary.md
 - .letra/workflow.json
@@ -182,7 +194,9 @@ Tailor every file to the actual project profile found during exploration.`,
 
 All files must reflect real project analysis, not generic templates.`,
 
-	copilot: (p) => `Analyze the workspace "${p.name}" at ${p.workspacePath}. Walk directories ${p.dirs.join(", ")}, identify stack, architecture, patterns, and configure Letra:
+	copilot: (
+		p,
+	) => `Analyze the workspace "${p.name}" at ${p.workspacePath}. Walk directories ${p.dirs.join(", ")}, identify stack, architecture, patterns, and configure Letra:
 
 - .letra/constitution.md — workspace rules
 - .letra/context.md — intent, domain, stack, constraints
@@ -232,7 +246,13 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 	const [customDirs, setCustomDirs] = useState<string[]>([]);
 
 	const [dirTrees, setDirTrees] = useState<DirNode[]>(
-		COMMON_ROOTS.map((r) => ({ name: r.label, path: r.path, expanded: false, loading: false, children: [] })),
+		COMMON_ROOTS.map((r) => ({
+			name: r.label,
+			path: r.path,
+			expanded: false,
+			loading: false,
+			children: [],
+		})),
 	);
 
 	const allDirs = [...selectedDirs, ...customDirs];
@@ -329,12 +349,14 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 				setCreatedWorkflow(data);
 				const primaryTool = selectedTools[0];
 				const prompter = AGENT_PROMPTS[primaryTool] || AGENT_PROMPTS.opencode;
-				setGeneratedPrompt(prompter({
-					dirs: allDirs,
-					name: workspaceName.trim(),
-					description: description.trim(),
-					workspacePath: workspacePath.trim(),
-				}));
+				setGeneratedPrompt(
+					prompter({
+						dirs: allDirs,
+						name: workspaceName.trim(),
+						description: description.trim(),
+						workspacePath: workspacePath.trim(),
+					}),
+				);
 				setStep("done");
 			} else {
 				setSubmitError(data?.error || "Erro desconhecido ao criar workspace");
@@ -382,17 +404,23 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 						/>
 						<Icon name="folder" size={14} className="text-primary shrink-0" />
 						<span className="text-sm truncate">{node.name}</span>
-						<span className="text-xs ml-auto shrink-0" style={{ color: "var(--color-text-secondary)" }}>
+						<span
+							className="text-xs ml-auto shrink-0"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							{node.path}
 						</span>
 					</label>
 				</div>
-				{node.expanded && node.children.length > 0 && renderDirTree(node.children, depth + 1)}
+				{node.expanded &&
+					node.children.length > 0 &&
+					renderDirTree(node.children, depth + 1)}
 			</div>
 		));
 	}
 
-	const btnClass = "transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100";
+	const btnClass =
+		"transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100";
 
 	return (
 		<div className="h-full overflow-y-auto p-6">
@@ -404,25 +432,61 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 							{stepOrder.map((s, i) => (
 								<div key={s} className="flex items-center">
 									<Button
-										onClick={() => { if (i < currentIndex) setStep(s); }}
+										onClick={() => {
+											if (i < currentIndex) setStep(s);
+										}}
 										disabled={i > currentIndex}
-										className={cn("w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-all", i === currentIndex && "ring-2 ring-primary/30", i < currentIndex && "cursor-pointer")}
+										className={cn(
+											"w-8 h-8 rounded-full text-xs font-medium flex items-center justify-center transition-all",
+											i === currentIndex && "ring-2 ring-primary/30",
+											i < currentIndex && "cursor-pointer",
+										)}
 										style={{
-											background: i < currentIndex ? "var(--color-success)" : i === currentIndex ? "var(--color-primary)" : "var(--color-bg-surface)",
-											color: i < currentIndex ? "var(--color-success)" : i === currentIndex ? "var(--color-primary)" : "var(--color-text-secondary)",
+											background:
+												i < currentIndex
+													? "var(--color-success)"
+													: i === currentIndex
+														? "var(--color-primary)"
+														: "var(--color-bg-surface)",
+											color:
+												i < currentIndex
+													? "var(--color-success)"
+													: i === currentIndex
+														? "var(--color-primary)"
+														: "var(--color-text-secondary)",
 										}}
 										aria-label={`Passo ${i + 1}: ${stepLabels[s]}${i < currentIndex ? " (concluído)" : ""}`}
 									>
 										{i < currentIndex ? <Icon name="check" size={14} /> : i + 1}
 									</Button>
-									{i < stepOrder.length - 1 && <div className="w-8 h-0.5 mx-1" style={{ background: i < currentIndex ? "var(--color-success)" : "var(--color-border)" }} />}
+									{i < stepOrder.length - 1 && (
+										<div
+											className="w-8 h-0.5 mx-1"
+											style={{
+												background:
+													i < currentIndex
+														? "var(--color-success)"
+														: "var(--color-border)",
+											}}
+										/>
+									)}
 								</div>
 							))}
 						</div>
-						<div className="flex justify-center gap-0 text-xs -mt-4" style={{ color: "var(--color-text-secondary)" }}>
+						<div
+							className="flex justify-center gap-0 text-xs -mt-4"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							{stepOrder.map((s, i) => (
 								<div key={s} className="flex items-center">
-									<span className={cn("px-1", i === currentIndex && "font-semibold text-primary")}>{stepLabels[s]}</span>
+									<span
+										className={cn(
+											"px-1",
+											i === currentIndex && "font-semibold text-primary",
+										)}
+									>
+										{stepLabels[s]}
+									</span>
 									{i < stepOrder.length - 1 && <span className="w-8" />}
 								</div>
 							))}
@@ -438,30 +502,79 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 						</div>
 						<div>
 							<h1 className="text-3xl font-bold mb-2">Configurar Workspace</h1>
-							<p className="text-muted-foreground text-base max-w-md">Defina o nome, descrição e local do workspace.</p>
+							<p className="text-muted-foreground text-base max-w-md">
+								Defina o nome, descrição e local do workspace.
+							</p>
 						</div>
 						<div className="w-full max-w-sm flex flex-col gap-4">
 							<div className="flex flex-col gap-1.5 text-left">
-								<label className="text-sm font-medium">Nome do workspace <span className="text-red-500">*</span></label>
-								<Input placeholder="Ex: Meu Projeto" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} />
+								<label className="text-sm font-medium">
+									Nome do workspace <span className="text-red-500">*</span>
+								</label>
+								<Input
+									placeholder="Ex: Meu Projeto"
+									value={workspaceName}
+									onChange={(e) => setWorkspaceName(e.target.value)}
+								/>
 							</div>
 							<div className="flex flex-col gap-1.5 text-left">
-								<label className="text-sm font-medium">Descrição <span className="text-red-500">*</span></label>
-								<Textarea className="w-full px-3 py-2 rounded-[var(--radius-sm)] border text-sm resize-none" rows={3} placeholder="Descreva o propósito do workspace (mín. 10 caracteres)" value={description} onChange={(e) => setDescription(e.target.value)} style={{ borderColor: "var(--color-border)", background: "var(--color-bg-base)", color: "var(--color-text-primary)" }} />
-								{description.length > 0 && !descValid && <span className="text-xs text-red-500">Faltam {10 - description.trim().length} caracteres</span>}
+								<label className="text-sm font-medium">
+									Descrição <span className="text-red-500">*</span>
+								</label>
+								<Textarea
+									className="w-full px-3 py-2 rounded-[var(--radius-sm)] border text-sm resize-none"
+									rows={3}
+									placeholder="Descreva o propósito do workspace (mín. 10 caracteres)"
+									value={description}
+									onChange={(e) => setDescription(e.target.value)}
+									style={{
+										borderColor: "var(--color-border)",
+										background: "var(--color-bg-base)",
+										color: "var(--color-text-primary)",
+									}}
+								/>
+								{description.length > 0 && !descValid && (
+									<span className="text-xs text-red-500">
+										Faltam {10 - description.trim().length} caracteres
+									</span>
+								)}
 							</div>
 							<div className="flex flex-col gap-1.5 text-left">
-								<label className="text-sm font-medium">Caminho do workspace <span className="text-red-500">*</span></label>
+								<label className="text-sm font-medium">
+									Caminho do workspace <span className="text-red-500">*</span>
+								</label>
 								<div className="flex gap-2">
-									<Input placeholder="Ex: C:/MeusProjetos/meu-app" value={workspacePath} onChange={(e) => setWorkspacePath(e.target.value)} className="flex-1 font-mono text-xs" />
-									<Input ref={wsBrowseRef} type="file" {...({ webkitdirectory: "" } as any)} style={{ display: "none" }} onChange={handleWsBrowse} />
-									<Button variant="secondary" size="sm" onClick={() => wsBrowseRef.current?.click()}>
+									<Input
+										placeholder="Ex: C:/MeusProjetos/meu-app"
+										value={workspacePath}
+										onChange={(e) => setWorkspacePath(e.target.value)}
+										className="flex-1 font-mono text-xs"
+									/>
+									<Input
+										ref={wsBrowseRef}
+										type="file"
+										{...({ webkitdirectory: "" } as any)}
+										style={{ display: "none" }}
+										onChange={handleWsBrowse}
+									/>
+									<Button
+										variant="secondary"
+										size="sm"
+										onClick={() => wsBrowseRef.current?.click()}
+									>
 										<Icon name="search" size={14} />
 									</Button>
 								</div>
-								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Onde o <code>.letra/</code> será criado</p>
+								<p
+									className="text-xs"
+									style={{ color: "var(--color-text-secondary)" }}
+								>
+									Onde o <code>.letra/</code> será criado
+								</p>
 							</div>
-							<Button className={btnClass} disabled={!step1Valid} onClick={goNext}>Próximo</Button>
+							<Button className={btnClass} disabled={!step1Valid} onClick={goNext}>
+								Próximo
+							</Button>
 						</div>
 					</div>
 				)}
@@ -471,26 +584,60 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 					<div className="flex flex-col gap-4 pt-4 animate-fade-in">
 						<div>
 							<h2 className="text-xl font-bold">Diretórios do Projeto</h2>
-							<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>Navegue e selecione os diretórios que o Letra deve monitorar.</p>
+							<p
+								className="text-sm mt-1"
+								style={{ color: "var(--color-text-secondary)" }}
+							>
+								Navegue e selecione os diretórios que o Letra deve monitorar.
+							</p>
 						</div>
-						<div className="rounded-[var(--radius-md)] border p-2 max-h-64 overflow-y-auto" style={{ borderColor: "var(--color-border)" }}>
+						<div
+							className="rounded-[var(--radius-md)] border p-2 max-h-64 overflow-y-auto"
+							style={{ borderColor: "var(--color-border)" }}
+						>
 							{renderDirTree(dirTrees)}
 						</div>
 						<div className="flex flex-col gap-2">
 							<h3 className="text-sm font-semibold">Adicionar outro diretório</h3>
 							<div className="flex gap-2">
-								<Input placeholder="Ex: D:/Projects" value={customDirInput} onChange={(e) => setCustomDirInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addCustomDir(); }} className="flex-1 font-mono text-xs" />
-								<Button variant="secondary" size="sm" onClick={addCustomDir} disabled={!customDirInput.trim()}>
+								<Input
+									placeholder="Ex: D:/Projects"
+									value={customDirInput}
+									onChange={(e) => setCustomDirInput(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter") addCustomDir();
+									}}
+									className="flex-1 font-mono text-xs"
+								/>
+								<Button
+									variant="secondary"
+									size="sm"
+									onClick={addCustomDir}
+									disabled={!customDirInput.trim()}
+								>
 									<Icon name="plus" size={14} className="mr-1" /> Adicionar
 								</Button>
 							</div>
 							{customDirs.length > 0 && (
 								<div className="flex flex-col gap-1 mt-1">
 									{customDirs.map((d) => (
-										<div key={d} className="flex items-center gap-2 px-3 py-1.5 rounded-[var(--radius-sm)] border text-sm font-mono" style={{ borderColor: "var(--color-border)" }}>
-											<Icon name="folder" size={14} className="text-primary shrink-0" />
+										<div
+											key={d}
+											className="flex items-center gap-2 px-3 py-1.5 rounded-[var(--radius-sm)] border text-sm font-mono"
+											style={{ borderColor: "var(--color-border)" }}
+										>
+											<Icon
+												name="folder"
+												size={14}
+												className="text-primary shrink-0"
+											/>
 											<span className="flex-1">{d}</span>
-											<Button onClick={() => removeCustomDir(d)} className="w-6 h-6 rounded hover:bg-red-500/10 hover:text-red-500" style={{ color: "var(--color-text-secondary)" }} aria-label={`Remover ${d}`}>
+											<Button
+												onClick={() => removeCustomDir(d)}
+												className="w-6 h-6 rounded hover:bg-red-500/10 hover:text-red-500"
+												style={{ color: "var(--color-text-secondary)" }}
+												aria-label={`Remover ${d}`}
+											>
 												<Icon name="x" size={12} />
 											</Button>
 										</div>
@@ -498,10 +645,18 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 								</div>
 							)}
 						</div>
-						{!step2Valid && <p className="text-xs text-red-500">Selecione ou adicione pelo menos 1 diretório</p>}
+						{!step2Valid && (
+							<p className="text-xs text-red-500">
+								Selecione ou adicione pelo menos 1 diretório
+							</p>
+						)}
 						<div className="flex gap-2 justify-between">
-							<Button variant="ghost" onClick={goBack}>Voltar</Button>
-							<Button disabled={!step2Valid} onClick={goNext} className={btnClass}>Próximo</Button>
+							<Button variant="ghost" onClick={goBack}>
+								Voltar
+							</Button>
+							<Button disabled={!step2Valid} onClick={goNext} className={btnClass}>
+								Próximo
+							</Button>
 						</div>
 					</div>
 				)}
@@ -511,7 +666,12 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 					<div className="flex flex-col gap-6 pt-4 animate-fade-in">
 						<div>
 							<h2 className="text-xl font-bold">Template e Ferramentas</h2>
-							<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>Escolha o template de fluxo e as ferramentas agênticas.</p>
+							<p
+								className="text-sm mt-1"
+								style={{ color: "var(--color-text-secondary)" }}
+							>
+								Escolha o template de fluxo e as ferramentas agênticas.
+							</p>
 						</div>
 						<div>
 							<h3 className="text-sm font-semibold mb-2">Template de fluxo</h3>
@@ -522,14 +682,28 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 									</div>
 									<div>
 										<div className="flex items-center gap-2">
-											<span className="font-semibold">SDLC — Desenvolvimento de Software</span>
+											<span className="font-semibold">
+												SDLC — Desenvolvimento de Software
+											</span>
 											<Badge variant="info">5 estágios</Badge>
 										</div>
-										<p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>Fluxo completo: Backlog, Design, Code, Review, Done</p>
+										<p
+											className="text-sm mt-0.5"
+											style={{ color: "var(--color-text-secondary)" }}
+										>
+											Fluxo completo: Backlog, Design, Code, Review, Done
+										</p>
 										<div className="flex gap-1.5 mt-2 flex-wrap">
-											{["Backlog", "Design", "Code", "Review", "Done"].map((s) => (
-												<span key={s} className="text-xs px-2 py-0.5 rounded-full border border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10">{s}</span>
-											))}
+											{["Backlog", "Design", "Code", "Review", "Done"].map(
+												(s) => (
+													<span
+														key={s}
+														className="text-xs px-2 py-0.5 rounded-full border border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10"
+													>
+														{s}
+													</span>
+												),
+											)}
 										</div>
 									</div>
 								</div>
@@ -538,24 +712,51 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 						<div>
 							<div className="flex items-center gap-2 mb-2">
 								<h3 className="text-sm font-semibold">Ferramentas agênticas</h3>
-								{selectedTools.length > 0 && <Badge variant="info">{selectedTools.length} selecionada{selectedTools.length > 1 ? "s" : ""}</Badge>}
+								{selectedTools.length > 0 && (
+									<Badge variant="info">
+										{selectedTools.length} selecionada
+										{selectedTools.length > 1 ? "s" : ""}
+									</Badge>
+								)}
 							</div>
 							<div className="grid grid-cols-2 gap-3">
 								{ADAPTERS.map((tool, i) => (
-									<label key={tool.id} className={cn("flex items-center gap-3 p-4 rounded-[var(--radius-md)] border transition-all duration-200 cursor-pointer hover:scale-[1.02] hover:shadow-sm", selectedTools.includes(tool.id) ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-border hover:border-primary/50")}
-										style={{ animation: `fade-in 0.2s ease-out ${i * 40}ms both` }}
+									<label
+										key={tool.id}
+										className={cn(
+											"flex items-center gap-3 p-4 rounded-[var(--radius-md)] border transition-all duration-200 cursor-pointer hover:scale-[1.02] hover:shadow-sm",
+											selectedTools.includes(tool.id)
+												? "border-primary bg-primary/5 ring-2 ring-primary/20"
+												: "border-border hover:border-primary/50",
+										)}
+										style={{
+											animation: `fade-in 0.2s ease-out ${i * 40}ms both`,
+										}}
 									>
-										<Checkbox checked={selectedTools.includes(tool.id)} onChange={() => toggleTool(tool.id)} />
-										<div className="w-8 h-8 rounded-[var(--radius-sm)] bg-primary/10 flex items-center justify-center shrink-0"><Icon name="code" size={16} className="text-primary" /></div>
+										<Checkbox
+											checked={selectedTools.includes(tool.id)}
+											onChange={() => toggleTool(tool.id)}
+										/>
+										<div className="w-8 h-8 rounded-[var(--radius-sm)] bg-primary/10 flex items-center justify-center shrink-0">
+											<Icon name="code" size={16} className="text-primary" />
+										</div>
 										<span className="font-medium">{tool.label}</span>
 									</label>
 								))}
 							</div>
-							{!step3Valid && <p className="text-xs text-red-500 mt-2">Selecione pelo menos 1 ferramenta</p>}
+							{!step3Valid && (
+								<p className="text-xs text-red-500 mt-2">
+									Selecione pelo menos 1 ferramenta
+								</p>
+							)}
 						</div>
 						<div className="flex gap-2 justify-between">
-							<Button variant="ghost" onClick={goBack}>Voltar</Button>
-							<Button disabled={!step3Valid} onClick={goNext} className={btnClass}>Revisar</Button>
+							<Button variant="ghost" onClick={goBack}>
+								Voltar
+							</Button>
+							<Button disabled={!step3Valid} onClick={goNext} className={btnClass}>
+								Revisar
+							</Button>
 						</div>
 					</div>
 				)}
@@ -565,52 +766,113 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 					<div className="flex flex-col gap-6 pt-4 animate-fade-in">
 						<div>
 							<h2 className="text-xl font-bold">Revisar Configuração</h2>
-							<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>Confira os dados antes de finalizar.</p>
+							<p
+								className="text-sm mt-1"
+								style={{ color: "var(--color-text-secondary)" }}
+							>
+								Confira os dados antes de finalizar.
+							</p>
 						</div>
 
 						<div className="flex flex-col gap-4">
-							<div className="p-4 rounded-[var(--radius-md)]" style={{ background: "var(--color-bg-surface)" }}>
+							<div
+								className="p-4 rounded-[var(--radius-md)]"
+								style={{ background: "var(--color-bg-surface)" }}
+							>
 								<h3 className="text-sm font-semibold mb-2">Workspace</h3>
 								<div className="text-sm space-y-1">
-									<div><span style={{ color: "var(--color-text-secondary)" }}>Nome:</span> <span className="font-medium">{workspaceName}</span></div>
-									<div><span style={{ color: "var(--color-text-secondary)" }}>Descrição:</span> {description}</div>
-									<div><span style={{ color: "var(--color-text-secondary)" }}>Caminho:</span> <span className="font-mono text-xs">{workspacePath}</span></div>
+									<div>
+										<span style={{ color: "var(--color-text-secondary)" }}>
+											Nome:
+										</span>{" "}
+										<span className="font-medium">{workspaceName}</span>
+									</div>
+									<div>
+										<span style={{ color: "var(--color-text-secondary)" }}>
+											Descrição:
+										</span>{" "}
+										{description}
+									</div>
+									<div>
+										<span style={{ color: "var(--color-text-secondary)" }}>
+											Caminho:
+										</span>{" "}
+										<span className="font-mono text-xs">{workspacePath}</span>
+									</div>
 								</div>
 							</div>
-							<div className="p-4 rounded-[var(--radius-md)]" style={{ background: "var(--color-bg-surface)" }}>
-								<h3 className="text-sm font-semibold mb-2">Diretórios monitorados</h3>
+							<div
+								className="p-4 rounded-[var(--radius-md)]"
+								style={{ background: "var(--color-bg-surface)" }}
+							>
+								<h3 className="text-sm font-semibold mb-2">
+									Diretórios monitorados
+								</h3>
 								{allDirs.map((d) => (
-									<div key={d} className="flex items-center gap-2 text-sm font-mono"><Icon name="folder" size={14} className="text-primary shrink-0" /><span>{d}</span></div>
+									<div
+										key={d}
+										className="flex items-center gap-2 text-sm font-mono"
+									>
+										<Icon
+											name="folder"
+											size={14}
+											className="text-primary shrink-0"
+										/>
+										<span>{d}</span>
+									</div>
 								))}
 							</div>
-							<div className="p-4 rounded-[var(--radius-md)]" style={{ background: "var(--color-bg-surface)" }}>
-								<h3 className="text-sm font-semibold mb-2">Template e Ferramentas</h3>
+							<div
+								className="p-4 rounded-[var(--radius-md)]"
+								style={{ background: "var(--color-bg-surface)" }}
+							>
+								<h3 className="text-sm font-semibold mb-2">
+									Template e Ferramentas
+								</h3>
 								<div className="text-sm">SDLC — Desenvolvimento de Software</div>
 								<div className="flex gap-2 flex-wrap mt-2">
 									{selectedTools.map((t) => {
 										const tool = ADAPTERS.find((a) => a.id === t);
-										return tool ? <Badge key={t} variant="info">{tool.label}</Badge> : null;
+										return tool ? (
+											<Badge key={t} variant="info">
+												{tool.label}
+											</Badge>
+										) : null;
 									})}
 								</div>
 							</div>
 						</div>
 
 						{submitError && (
-							<div className="p-3 rounded-[var(--radius-sm)] text-sm text-red-500" style={{ background: "var(--surface-1)", border: "1px solid var(--color-border)" }}>
+							<div
+								className="p-3 rounded-[var(--radius-sm)] text-sm text-red-500"
+								style={{
+									background: "var(--surface-1)",
+									border: "1px solid var(--color-border)",
+								}}
+							>
 								<Icon name="alert-triangle" size={14} className="inline mr-1" />
 								{submitError}
 							</div>
 						)}
 
 						<div className="flex gap-2 justify-between">
-							<Button variant="ghost" onClick={goBack}>Voltar</Button>
-							<Button disabled={submitting} onClick={createWorkflow} className={btnClass}>
+							<Button variant="ghost" onClick={goBack}>
+								Voltar
+							</Button>
+							<Button
+								disabled={submitting}
+								onClick={createWorkflow}
+								className={btnClass}
+							>
 								{submitting ? (
 									<span className="flex items-center gap-2">
 										<span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
 										Criando...
 									</span>
-								) : "Finalizar"}
+								) : (
+									"Finalizar"
+								)}
 							</Button>
 						</div>
 					</div>
@@ -625,39 +887,79 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 							</div>
 							<div>
 								<h2 className="text-2xl font-bold">Workspace criado!</h2>
-								<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
+								<p
+									className="text-sm mt-1"
+									style={{ color: "var(--color-text-secondary)" }}
+								>
 									O workspace <strong>{workspaceName}</strong> foi registrado.
 								</p>
-								<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
-									Agora cole o prompt abaixo na sua ferramenta agêntica para gerar o harness Letra completo.
+								<p
+									className="text-xs"
+									style={{ color: "var(--color-text-secondary)" }}
+								>
+									Agora cole o prompt abaixo na sua ferramenta agêntica para gerar
+									o harness Letra completo.
 								</p>
 							</div>
 							{createdWorkflow ? (
-								<Button onClick={() => onComplete(createdWorkflow)} className="mt-2">
+								<Button
+									onClick={() => onComplete(createdWorkflow)}
+									className="mt-2"
+								>
 									Abrir workspace
 								</Button>
 							) : null}
 						</div>
 
 						{generatedPrompt && (
-							<div className="rounded-[var(--radius-md)] border" style={{ borderColor: "var(--color-border)", background: "var(--surface-1)" }}>
-								<div className="flex items-center justify-between gap-2 p-4 border-b" style={{ borderColor: "var(--color-border)" }}>
+							<div
+								className="rounded-[var(--radius-md)] border"
+								style={{
+									borderColor: "var(--color-border)",
+									background: "var(--surface-1)",
+								}}
+							>
+								<div
+									className="flex items-center justify-between gap-2 p-4 border-b"
+									style={{ borderColor: "var(--color-border)" }}
+								>
 									<div className="flex items-center gap-2">
 										<Icon name="code" size={16} className="text-primary" />
 										<h3 className="text-sm font-semibold">
-											Prompt para {ADAPTERS.find((a) => a.id === selectedTools[0])?.label || selectedTools[0]}
+											Prompt para{" "}
+											{ADAPTERS.find((a) => a.id === selectedTools[0])
+												?.label || selectedTools[0]}
 										</h3>
 									</div>
-									<Button variant="secondary" size="sm" onClick={() => navigator.clipboard.writeText(generatedPrompt)}>
+									<Button
+										variant="secondary"
+										size="sm"
+										onClick={() =>
+											navigator.clipboard.writeText(generatedPrompt)
+										}
+									>
 										<Icon name="copy" size={14} className="mr-1" />
 										Copiar
 									</Button>
 								</div>
 								<div className="p-4">
-									<p className="text-xs mb-3" style={{ color: "var(--color-text-secondary)" }}>
-										Este prompt instrui o agente a analisar profundamente o projeto e configurar o harness Letra.
+									<p
+										className="text-xs mb-3"
+										style={{ color: "var(--color-text-secondary)" }}
+									>
+										Este prompt instrui o agente a analisar profundamente o
+										projeto e configurar o harness Letra.
 									</p>
-									<pre className="text-xs p-4 rounded-[var(--radius-sm)] whitespace-pre-wrap font-code leading-relaxed" style={{ background: "var(--color-bg-surface)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)", maxHeight: "50vh", overflowY: "auto" }}>
+									<pre
+										className="text-xs p-4 rounded-[var(--radius-sm)] whitespace-pre-wrap font-code leading-relaxed"
+										style={{
+											background: "var(--color-bg-surface)",
+											color: "var(--color-text-primary)",
+											border: "1px solid var(--color-border)",
+											maxHeight: "50vh",
+											overflowY: "auto",
+										}}
+									>
 										{generatedPrompt}
 									</pre>
 								</div>
@@ -669,6 +971,3 @@ export default function InlineSetupWizard({ onComplete }: Props) {
 		</div>
 	);
 }
-
-
-

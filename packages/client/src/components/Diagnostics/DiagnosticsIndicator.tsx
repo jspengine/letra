@@ -32,7 +32,8 @@ export default function DiagnosticsIndicator({ suggestions, onApplyFix, onOpenHi
 						>
 							<Icon name="sparkles" size={16} />
 							<span>
-								{suggestions.length} {suggestions.length === 1 ? "correcao" : "correcoes"}
+								{suggestions.length}{" "}
+								{suggestions.length === 1 ? "correcao" : "correcoes"}
 							</span>
 						</Button>
 					</PopoverTrigger>
@@ -40,10 +41,18 @@ export default function DiagnosticsIndicator({ suggestions, onApplyFix, onOpenHi
 						<PopoverContent align="end" className="w-80 p-0">
 							<div
 								className="grid gap-1 border-b px-3 py-2 text-xs"
-								style={{ borderColor: "var(--color-border)", color: "var(--color-text-secondary)" }}
+								style={{
+									borderColor: "var(--color-border)",
+									color: "var(--color-text-secondary)",
+								}}
 							>
-								<strong className="text-sm text-[var(--color-text-primary)]">Correcoes sugeridas pelo diagnostico</strong>
-								<span>Use quando quiser aplicar ajustes automaticos detectados pelo Letra.</span>
+								<strong className="text-sm text-[var(--color-text-primary)]">
+									Correcoes sugeridas pelo diagnostico
+								</strong>
+								<span>
+									Use quando quiser aplicar ajustes automaticos detectados pelo
+									Letra.
+								</span>
 							</div>
 							<div className="max-h-80 overflow-y-auto">
 								{suggestions.map((suggestion) => (
@@ -52,9 +61,15 @@ export default function DiagnosticsIndicator({ suggestions, onApplyFix, onOpenHi
 										className="flex items-start gap-2 border-b px-3 py-2 text-sm"
 										style={{ borderColor: "var(--color-border)" }}
 									>
-										<Icon name="sparkles" size={14} className="mt-0.5 shrink-0 text-[var(--color-primary)]" />
+										<Icon
+											name="sparkles"
+											size={14}
+											className="mt-0.5 shrink-0 text-[var(--color-primary)]"
+										/>
 										<div className="min-w-0 flex-1">
-											<div className="truncate font-medium">{suggestion.title}</div>
+											<div className="truncate font-medium">
+												{suggestion.title}
+											</div>
 											<div
 												className="mt-0.5 text-xs"
 												style={{ color: "var(--color-text-secondary)" }}
@@ -87,7 +102,10 @@ export default function DiagnosticsIndicator({ suggestions, onApplyFix, onOpenHi
 										setOpen(false);
 									}}
 									className="w-full border-t px-3 py-2 text-left text-xs font-medium transition-colors hover:opacity-80"
-									style={{ borderColor: "var(--color-border)", color: "var(--color-text-secondary)" }}
+									style={{
+										borderColor: "var(--color-border)",
+										color: "var(--color-text-secondary)",
+									}}
 								>
 									Abrir log de correcoes aplicadas
 								</Button>

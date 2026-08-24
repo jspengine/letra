@@ -13,7 +13,14 @@ const scopes = [
 ];
 
 const userSlot = (
-	<Button type="button" variant="ghost" size="sm" className="size-8 px-0" aria-label="Conta de Renan" title="Conta">
+	<Button
+		type="button"
+		variant="ghost"
+		size="sm"
+		className="size-8 px-0"
+		aria-label="Conta de Renan"
+		title="Conta"
+	>
 		<span className="inline-flex size-6 items-center justify-center rounded-[var(--radius-full)] bg-[var(--color-bg-sunken)] text-caption font-semibold">
 			R
 		</span>
@@ -97,10 +104,30 @@ export default {
 		"x-ds": {
 			category: "pattern",
 			status: "ready",
-			tokens: ["layout-header-height", "app-header-bg", "color-bg-surface", "color-border", "color-text-primary", "color-primary"],
+			tokens: [
+				"layout-header-height",
+				"app-header-bg",
+				"color-bg-surface",
+				"color-border",
+				"color-text-primary",
+				"color-primary",
+			],
 			consumes: ["Button", "Badge", "Select", "Icon"],
-			surfaces: ["HomeView", "FlowView", "ExecutionView", "ContextView", "SpecsView", "WorkspacesView"],
-			a11y: ["header-landmark", "sidebar-toggle-first", "single-context-selector", "named-actionable-signals", "future-user-slot"],
+			surfaces: [
+				"HomeView",
+				"FlowView",
+				"ExecutionView",
+				"ContextView",
+				"SpecsView",
+				"WorkspacesView",
+			],
+			a11y: [
+				"header-landmark",
+				"sidebar-toggle-first",
+				"single-context-selector",
+				"named-actionable-signals",
+				"future-user-slot",
+			],
 			breakpoints: ["mobile", "desktop"],
 			props: [
 				"workspaces",

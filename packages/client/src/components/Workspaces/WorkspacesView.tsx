@@ -26,7 +26,11 @@ interface Props {
 
 function formatDate(iso: string) {
 	try {
-		return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+		return new Date(iso).toLocaleDateString("pt-BR", {
+			day: "2-digit",
+			month: "2-digit",
+			year: "numeric",
+		});
 	} catch {
 		return iso;
 	}
@@ -48,7 +52,15 @@ export default function WorkspacesView({ onSelect, activeSlug, gateMode, activeD
 	}, []);
 
 	function handleCreate(data: { name: string }) {
-		setWorkspaces((prev) => [...prev, { id: crypto.randomUUID?.() || `${Date.now()}`, name: data.name, slug: data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), createdAt: new Date().toISOString() }]);
+		setWorkspaces((prev) => [
+			...prev,
+			{
+				id: crypto.randomUUID?.() || `${Date.now()}`,
+				name: data.name,
+				slug: data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+				createdAt: new Date().toISOString(),
+			},
+		]);
 		setCreating(false);
 	}
 
@@ -81,7 +93,9 @@ export default function WorkspacesView({ onSelect, activeSlug, gateMode, activeD
 				<div>
 					<h1 className="text-2xl font-bold">Meus Workspaces</h1>
 					<p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
-						{gateMode ? "Selecione ou crie um workspace para começar" : "Gerencie seus espaços de trabalho"}
+						{gateMode
+							? "Selecione ou crie um workspace para começar"
+							: "Gerencie seus espaços de trabalho"}
 					</p>
 				</div>
 				<Button onClick={() => setCreating(true)}>
@@ -92,7 +106,9 @@ export default function WorkspacesView({ onSelect, activeSlug, gateMode, activeD
 
 			{loading ? (
 				<div className="flex-1 flex items-center justify-center">
-					<p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>Carregando...</p>
+					<p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+						Carregando...
+					</p>
 				</div>
 			) : workspaces.length === 0 ? (
 				<div className="flex-1 flex items-center justify-center">
@@ -119,31 +135,71 @@ export default function WorkspacesView({ onSelect, activeSlug, gateMode, activeD
 								<div className="flex items-start gap-2 min-w-0">
 									<div
 										className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center shrink-0"
-										style={{ background: activeSlug === ws.slug ? "var(--color-primary)" : "var(--color-bg-surface)", color: activeSlug === ws.slug ? "var(--color-primary)" : "var(--color-text-secondary)" }}
+										style={{
+											background:
+												activeSlug === ws.slug
+													? "var(--color-primary)"
+													: "var(--color-bg-surface)",
+											color:
+												activeSlug === ws.slug
+													? "var(--color-primary)"
+													: "var(--color-text-secondary)",
+										}}
 									>
-										<Icon name={activeSlug === ws.slug ? "check" : "box"} size={16} />
+										<Icon
+											name={activeSlug === ws.slug ? "check" : "box"}
+											size={16}
+										/>
 									</div>
 									<div className="min-w-0">
-										<h3 className="text-sm font-semibold truncate">{ws.name}</h3>
+										<h3 className="text-sm font-semibold truncate">
+											{ws.name}
+										</h3>
 										{ws.description && (
-											<p className="text-xs mt-0.5 truncate" style={{ color: "var(--color-text-secondary)" }}>{ws.description}</p>
+											<p
+												className="text-xs mt-0.5 truncate"
+												style={{ color: "var(--color-text-secondary)" }}
+											>
+												{ws.description}
+											</p>
 										)}
-										<span className="text-[11px]" style={{ color: "var(--color-text-secondary)" }}>
+										<span
+											className="text-[11px]"
+											style={{ color: "var(--color-text-secondary)" }}
+										>
 											Criado em {formatDate(ws.createdAt)}
 										</span>
 									</div>
 								</div>
 								{ws.directories && ws.directories.length > 0 && (
-									<div className="flex flex-col gap-1 pt-1 border-t" style={{ borderColor: "var(--color-border)" }}>
-										<span className="text-caption uppercase tracking-wider font-semibold" style={{ color: "var(--color-text-secondary)" }}>
+									<div
+										className="flex flex-col gap-1 pt-1 border-t"
+										style={{ borderColor: "var(--color-border)" }}
+									>
+										<span
+											className="text-caption uppercase tracking-wider font-semibold"
+											style={{ color: "var(--color-text-secondary)" }}
+										>
 											Pastas gerenciadas
 										</span>
 										{ws.directories.map((dir) => {
-											const isActive = activeSlug === ws.slug && activeDirectory === dir;
+											const isActive =
+												activeSlug === ws.slug && activeDirectory === dir;
 											const label = dir.split(/[/\\]/).pop() || dir;
 											return (
-												<div key={dir} className="flex items-center gap-1.5 text-xs" style={{ color: isActive ? "var(--color-primary)" : "var(--color-text-secondary)" }}>
-													<Icon name={isActive ? "check" : "folder"} size={12} />
+												<div
+													key={dir}
+													className="flex items-center gap-1.5 text-xs"
+													style={{
+														color: isActive
+															? "var(--color-primary)"
+															: "var(--color-text-secondary)",
+													}}
+												>
+													<Icon
+														name={isActive ? "check" : "folder"}
+														size={12}
+													/>
 													<span className="truncate">{label}</span>
 												</div>
 											);

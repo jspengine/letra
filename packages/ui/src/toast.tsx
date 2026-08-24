@@ -108,7 +108,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 							borderColor: `color-mix(in srgb, var(--${toastTokenMap[toast.type]}) 35%, var(--color-border))`,
 						}}
 					>
-						<Icon name={toastIconMap[toast.type]} size={18} style={{ color: `var(--${toastTokenMap[toast.type]})` }} />
+						<Icon
+							name={toastIconMap[toast.type]}
+							size={18}
+							style={{ color: `var(--${toastTokenMap[toast.type]})` }}
+						/>
 						<span className="flex-1">{toast.message}</span>
 						{toast.action && (
 							<Button

@@ -61,15 +61,55 @@ export const Gallery = () => (
 );
 
 const domainIcons: Array<{ concept: string; icons: IconName[]; color: string; token: string }> = [
-	{ concept: "Agente / raciocínio de IA", icons: ["bot", "sparkles"], color: "var(--color-agent)", token: "color-agent" },
-	{ concept: "Execução ativa", icons: ["activity", "zap"], color: "var(--color-primary)", token: "color-primary" },
-	{ concept: "Pipeline / orquestração", icons: ["workflow", "git-branch"], color: "var(--color-info)", token: "color-info" },
-	{ concept: "Logs / terminal", icons: ["terminal", "scroll-text"], color: "var(--color-text-secondary)", token: "color-text-secondary" },
-	{ concept: "Sucesso", icons: ["circle-check"], color: "var(--color-success)", token: "color-success" },
-	{ concept: "Erro / bloqueio", icons: ["circle-x", "octagon-alert"], color: "var(--color-danger)", token: "color-danger" },
-	{ concept: "Aprovação pendente", icons: ["clock", "hourglass"], color: "var(--color-primary)", token: "color-primary" },
+	{
+		concept: "Agente / raciocínio de IA",
+		icons: ["bot", "sparkles"],
+		color: "var(--color-agent)",
+		token: "color-agent",
+	},
+	{
+		concept: "Execução ativa",
+		icons: ["activity", "zap"],
+		color: "var(--color-primary)",
+		token: "color-primary",
+	},
+	{
+		concept: "Pipeline / orquestração",
+		icons: ["workflow", "git-branch"],
+		color: "var(--color-info)",
+		token: "color-info",
+	},
+	{
+		concept: "Logs / terminal",
+		icons: ["terminal", "scroll-text"],
+		color: "var(--color-text-secondary)",
+		token: "color-text-secondary",
+	},
+	{
+		concept: "Sucesso",
+		icons: ["circle-check"],
+		color: "var(--color-success)",
+		token: "color-success",
+	},
+	{
+		concept: "Erro / bloqueio",
+		icons: ["circle-x", "octagon-alert"],
+		color: "var(--color-danger)",
+		token: "color-danger",
+	},
+	{
+		concept: "Aprovação pendente",
+		icons: ["clock", "hourglass"],
+		color: "var(--color-primary)",
+		token: "color-primary",
+	},
 	{ concept: "Conector / MCP", icons: ["plug"], color: "var(--color-info)", token: "color-info" },
-	{ concept: "Configuração", icons: ["settings-2", "sliders-horizontal"], color: "var(--color-text-secondary)", token: "color-text-secondary" },
+	{
+		concept: "Configuração",
+		icons: ["settings-2", "sliders-horizontal"],
+		color: "var(--color-text-secondary)",
+		token: "color-text-secondary",
+	},
 ];
 
 export const DomainMapping = () => (
@@ -79,13 +119,20 @@ export const DomainMapping = () => (
 				key={entry.concept}
 				className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-[var(--space-3)] rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg-surface)] px-[var(--space-3)] py-[var(--space-2)]"
 			>
-				<span className="text-body-sm font-medium text-[var(--color-text-primary)]">{entry.concept}</span>
-				<span className="flex items-center gap-[var(--space-2)]" style={{ color: entry.color }}>
+				<span className="text-body-sm font-medium text-[var(--color-text-primary)]">
+					{entry.concept}
+				</span>
+				<span
+					className="flex items-center gap-[var(--space-2)]"
+					style={{ color: entry.color }}
+				>
 					{entry.icons.map((name) => (
 						<Icon key={name} name={name} size={18} />
 					))}
 				</span>
-				<span className="text-caption text-[var(--color-text-secondary)]">{entry.token}</span>
+				<span className="text-caption text-[var(--color-text-secondary)]">
+					{entry.token}
+				</span>
 			</div>
 		))}
 	</div>
@@ -113,7 +160,18 @@ export default {
 		"x-ds": {
 			category: "primitive",
 			status: "ready",
-			tokens: ["icon-xs", "icon-sm", "icon-md", "icon-lg", "color-primary", "color-agent", "color-info", "color-success", "color-danger", "color-text-secondary"],
+			tokens: [
+				"icon-xs",
+				"icon-sm",
+				"icon-md",
+				"icon-lg",
+				"color-primary",
+				"color-agent",
+				"color-info",
+				"color-success",
+				"color-danger",
+				"color-text-secondary",
+			],
 			consumes: [],
 			surfaces: ["HomeView", "FlowView", "ExecutionView", "SpecsView"],
 			a11y: ["decorative-by-default", "pair-with-label-for-actions"],

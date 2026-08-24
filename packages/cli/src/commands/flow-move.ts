@@ -26,7 +26,12 @@ function resolveStage(
 	return null;
 }
 
-export async function flowMove(root: string, itemId: string, targetStageInput: string, options?: { auto?: boolean; force?: boolean }): Promise<void> {
+export async function flowMove(
+	root: string,
+	itemId: string,
+	targetStageInput: string,
+	options?: { auto?: boolean; force?: boolean },
+): Promise<void> {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
 		console.log(chalk.red("No workflow found. Run 'letra flow init --quick' first"));
@@ -53,7 +58,9 @@ export async function flowMove(root: string, itemId: string, targetStageInput: s
 			.filter((s) => s.order > currentStage.order)
 			.sort((a, b) => a.order - b.order)[0];
 		if (!nextStage) {
-			console.log(chalk.yellow(`Item ${itemId} is already at the last stage (${currentStage.name})`));
+			console.log(
+				chalk.yellow(`Item ${itemId} is already at the last stage (${currentStage.name})`),
+			);
 			return;
 		}
 		targetStageInput = nextStage.id;
@@ -64,16 +71,28 @@ export async function flowMove(root: string, itemId: string, targetStageInput: s
 				const content = readFileSync(specFile, "utf-8");
 				const pendingACs = content.match(/^- \[ \]/gm) || [];
 				if (pendingACs.length > 0) {
-					console.log(chalk.yellow(`⚠ Item ${itemId} has ${pendingACs.length} pending AC(s) in "${item.spec}"`));
-					console.log(chalk.yellow("  Use --force to move anyway, or complete ACs first."));
+					console.log(
+						chalk.yellow(
+							`⚠ Item ${itemId} has ${pendingACs.length} pending AC(s) in "${item.spec}"`,
+						),
+					);
+					console.log(
+						chalk.yellow("  Use --force to move anyway, or complete ACs first."),
+					);
 					return;
 				}
 				const doneACs = content.match(/^- \[[xX]\]/gm) || [];
 				if (doneACs.length > 0) {
 					const acLogEntries = queryLog(root, { itemId, action: "ac_done", limit: 999 });
 					if (acLogEntries.length < doneACs.length) {
-						console.log(chalk.yellow(`⚠ ${doneACs.length - acLogEntries.length} AC(s) marked [x] without "ac done" log entry.`));
-						console.log(chalk.yellow("  Run letra ac done <ID> for each completed AC."));
+						console.log(
+							chalk.yellow(
+								`⚠ ${doneACs.length - acLogEntries.length} AC(s) marked [x] without "ac done" log entry.`,
+							),
+						);
+						console.log(
+							chalk.yellow("  Run letra ac done <ID> for each completed AC."),
+						);
 					}
 				}
 			}
@@ -86,7 +105,11 @@ export async function flowMove(root: string, itemId: string, targetStageInput: s
 			const content = readFileSync(specFile, "utf-8");
 			const pendingACs = content.match(/^- \[ \]/gm) || [];
 			if (pendingACs.length > 0) {
-				console.log(chalk.yellow(`⚠ Item ${itemId} has ${pendingACs.length} pending AC(s) in "${item.spec}"`));
+				console.log(
+					chalk.yellow(
+						`⚠ Item ${itemId} has ${pendingACs.length} pending AC(s) in "${item.spec}"`,
+					),
+				);
 				console.log(chalk.yellow("  Use --force to move anyway, or complete ACs first."));
 				return;
 			}
@@ -94,7 +117,11 @@ export async function flowMove(root: string, itemId: string, targetStageInput: s
 			if (doneACs.length > 0) {
 				const acLogEntries = queryLog(root, { itemId, action: "ac_done", limit: 999 });
 				if (acLogEntries.length < doneACs.length) {
-					console.log(chalk.yellow(`⚠ ${doneACs.length - acLogEntries.length} AC(s) marked [x] without "ac done" log entry.`));
+					console.log(
+						chalk.yellow(
+							`⚠ ${doneACs.length - acLogEntries.length} AC(s) marked [x] without "ac done" log entry.`,
+						),
+					);
 					console.log(chalk.yellow("  Run letra ac done <ID> for each completed AC."));
 				}
 			}
@@ -110,19 +137,29 @@ export async function flowMove(root: string, itemId: string, targetStageInput: s
 				if (options?.force) {
 					console.log(chalk.yellow(`  Gate "${gate.name}" bypassado via --force`));
 				} else {
-					const resolvedTarget = resolveStage(workflow, targetStageInput) || targetStageInput;
+					const resolvedTarget =
+						resolveStage(workflow, targetStageInput) || targetStageInput;
 					console.log(chalk.red(`Gate bloqueante: ${gate.name}`));
-					console.log(chalk.yellow(`  Aprovação humana necessária para entrar em "${resolvedTarget}".`));
+					console.log(
+						chalk.yellow(
+							`  Aprovação humana necessária para entrar em "${resolvedTarget}".`,
+						),
+					);
 					return;
 				}
 			} else {
 				const checker = new GateChecker(root);
 				const result = checker.check(gate.id, item);
 				if (!result.allowed) {
-					const resolvedTarget = resolveStage(workflow, targetStageInput) || targetStageInput;
+					const resolvedTarget =
+						resolveStage(workflow, targetStageInput) || targetStageInput;
 					console.log(chalk.red(`Gate bloqueante: ${gate.name}`));
 					console.log(chalk.yellow(`  ${result.reason}`));
-					console.log(chalk.yellow(`  Aprovação humana necessária para entrar em "${resolvedTarget}".`));
+					console.log(
+						chalk.yellow(
+							`  Aprovação humana necessária para entrar em "${resolvedTarget}".`,
+						),
+					);
 					return;
 				}
 			}
@@ -152,22 +189,30 @@ export async function flowMove(root: string, itemId: string, targetStageInput: s
 	workflow.updatedAt = now();
 
 	if (phaseResult.ok && item.currentPhase && canAutopilot(workflow, item)) {
-		console.log(`  ${chalk.cyan("⏩")} Auto-pilot disponível para ${item.id} (fase inicial tem auto-transition)`);
+		console.log(
+			`  ${chalk.cyan("⏩")} Auto-pilot disponível para ${item.id} (fase inicial tem auto-transition)`,
+		);
 		const pilotResult = await autopilotRun(root, workflow, item);
 		if (pilotResult.ok) {
-			console.log(`  ${chalk.green("✓")} Auto-pilot: ${pilotResult.transitionsApplied} transição(ões) — parou em "${pilotResult.finalPhase || "__EXIT__"}"`);
+			console.log(
+				`  ${chalk.green("✓")} Auto-pilot: ${pilotResult.transitionsApplied} transição(ões) — parou em "${pilotResult.finalPhase || "__EXIT__"}"`,
+			);
 		} else {
-			console.log(`  ${chalk.yellow("⏸")} Auto-pilot: ${pilotResult.error} — parou em "${pilotResult.finalPhase}"`);
+			console.log(
+				`  ${chalk.yellow("⏸")} Auto-pilot: ${pilotResult.error} — parou em "${pilotResult.finalPhase}"`,
+			);
 		}
 	}
 
 	const targetStageIsDone = workflow.stages.find((s) => s.id === targetStageId)?.zone === "done";
 	if (targetStageIsDone && item.claimedBy) {
 		if (item.claimedBy === "opencode") {
-			console.log(`  ${chalk.gray("Release automático:")} ${itemId} não está mais sob responsabilidade do agente`);
+			console.log(
+				`  ${chalk.gray("Release automático:")} ${itemId} não está mais sob responsabilidade do agente`,
+			);
 		}
-		delete item.claimedBy;
-		delete item.claimedAt;
+		item.claimedBy = undefined;
+		item.claimedAt = undefined;
 	}
 
 	const result = await writeWorkflow(root, {

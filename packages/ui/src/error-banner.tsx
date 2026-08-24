@@ -15,7 +15,10 @@ export function ErrorBanner({ title, children, details, onRetry, className }: Er
 
 	return (
 		<div
-			className={cn("rounded-[var(--radius-md)] border-[length:var(--border-thin)] text-body", className)}
+			className={cn(
+				"rounded-[var(--radius-md)] border-[length:var(--border-thin)] text-body",
+				className,
+			)}
 			style={{
 				background: "color-mix(in srgb, var(--color-danger) 10%, transparent)",
 				borderColor: "var(--color-danger)",
@@ -23,7 +26,13 @@ export function ErrorBanner({ title, children, details, onRetry, className }: Er
 			role="alert"
 		>
 			<div className="flex items-start gap-[var(--space-2)] p-[var(--space-3)]">
-				<Icon name="x-circle" width="var(--icon-md)" height="var(--icon-md)" className="shrink-0 mt-0.5" style={{ color: "var(--color-danger)" }} />
+				<Icon
+					name="x-circle"
+					width="var(--icon-md)"
+					height="var(--icon-md)"
+					className="shrink-0 mt-0.5"
+					style={{ color: "var(--color-danger)" }}
+				/>
 				<div className="flex-1 min-w-0" style={{ color: "var(--color-text-primary)" }}>
 					{title && <strong className="block font-semibold mb-0.5">{title}</strong>}
 					<div>{children}</div>
@@ -33,7 +42,11 @@ export function ErrorBanner({ title, children, details, onRetry, className }: Er
 						<button
 							onClick={onRetry}
 							className="text-caption font-medium px-[var(--space-2)] py-[var(--space-1)] rounded transition-colors hover:opacity-80"
-							style={{ background: "color-mix(in srgb, var(--color-danger) 15%, transparent)", color: "var(--color-danger)" }}
+							style={{
+								background:
+									"color-mix(in srgb, var(--color-danger) 15%, transparent)",
+								color: "var(--color-danger)",
+							}}
 						>
 							Tentar novamente
 						</button>
@@ -46,7 +59,11 @@ export function ErrorBanner({ title, children, details, onRetry, className }: Er
 							aria-label={expanded ? "Recolher detalhes" : "Expandir detalhes"}
 							aria-expanded={expanded}
 						>
-							<Icon name={expanded ? "chevron-up" : "chevron-down"} width="var(--icon-sm)" height="var(--icon-sm)" />
+							<Icon
+								name={expanded ? "chevron-up" : "chevron-down"}
+								width="var(--icon-sm)"
+								height="var(--icon-sm)"
+							/>
 						</button>
 					)}
 				</div>
@@ -58,7 +75,11 @@ export function ErrorBanner({ title, children, details, onRetry, className }: Er
 				>
 					<pre
 						className="p-[var(--space-2)] rounded whitespace-pre-wrap break-words max-h-48 overflow-y-auto"
-						style={{ background: "color-mix(in srgb, var(--color-bg-sunken) 50%, transparent)", fontFamily: "var(--font-code)" }}
+						style={{
+							background:
+								"color-mix(in srgb, var(--color-bg-sunken) 50%, transparent)",
+							fontFamily: "var(--font-code)",
+						}}
 					>
 						{details}
 					</pre>

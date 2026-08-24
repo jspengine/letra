@@ -72,13 +72,13 @@ function makeReviewPhases(): StagePhases {
 				id: "auto-review",
 				label: "Auto Review",
 				description: "Agente revisa o diff e encontra issues",
-				actions: [{ type: "agent-prompt", prompt: "Revise o diff e liste issues encontradas" }],
-				transitions: [
-					{ target: "code-fix", auto: true },
-					{ target: "human-review" },
+				actions: [
+					{ type: "agent-prompt", prompt: "Revise o diff e liste issues encontradas" },
 				],
+				transitions: [{ target: "code-fix", auto: true }, { target: "human-review" }],
 				harness: {
-					instructions: "Foque em encontrar bugs, violações de spec e problemas de segurança",
+					instructions:
+						"Foque em encontrar bugs, violações de spec e problemas de segurança",
 					checks: ["diff contra spec", "testes passando", "code style"],
 				},
 			},
@@ -94,10 +94,7 @@ function makeReviewPhases(): StagePhases {
 				label: "Re-Review",
 				description: "Agente verifica se correções foram aplicadas",
 				actions: [{ type: "generate-report", template: "review-report" }],
-				transitions: [
-					{ target: "auto-review" },
-					{ target: "human-review", auto: true },
-				],
+				transitions: [{ target: "auto-review" }, { target: "human-review", auto: true }],
 			},
 			"human-review": {
 				id: "human-review",
@@ -107,10 +104,7 @@ function makeReviewPhases(): StagePhases {
 					{ type: "notify-human", message: "Código pronto para revisão humana" },
 					{ type: "wait-human", gate: "human-approved-code" },
 				],
-				transitions: [
-					{ target: "code-fix" },
-					{ target: "__EXIT__" },
-				],
+				transitions: [{ target: "code-fix" }, { target: "__EXIT__" }],
 			},
 		},
 	};
@@ -135,7 +129,12 @@ describe("getStagePhases", () => {
 
 	it("returns stage-specific phases when overridden", () => {
 		const wf = makeWorkflow([
-			{ id: "code-review", name: "CR", order: 0, phases: { initialState: "x", states: {} } as any },
+			{
+				id: "code-review",
+				name: "CR",
+				order: 0,
+				phases: { initialState: "x", states: {} } as any,
+			},
 		]);
 		const result = getStagePhases(wf, "code-review");
 		expect(result).toEqual({ initialState: "x", states: {} });
@@ -181,7 +180,10 @@ describe("enterStage", () => {
 				id: "custom",
 				name: "Custom",
 				order: 0,
-				phases: { initialState: "missing", states: { "other": { id: "other", label: "O", description: "d" } as any } } as any,
+				phases: {
+					initialState: "missing",
+					states: { other: { id: "other", label: "O", description: "d" } as any },
+				} as any,
 			},
 		]);
 		const item = makeItem({ stage: "custom" });

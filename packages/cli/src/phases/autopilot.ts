@@ -29,29 +29,51 @@ export class PhaseAutoPilot {
 		this.transitionsApplied = 0;
 
 		if (!item.currentPhase) {
-			logEntry(root, "system", `autopilot:${item.id} no current phase — nothing to do`, { itemId: item.id });
+			logEntry(root, "system", `autopilot:${item.id} no current phase — nothing to do`, {
+				itemId: item.id,
+			});
 			return { ok: true, finalPhase: undefined, transitionsApplied: 0 };
 		}
 
-		logEntry(root, "system", `autopilot:starting for ${item.id} from phase "${item.currentPhase}"`, { itemId: item.id });
+		logEntry(
+			root,
+			"system",
+			`autopilot:starting for ${item.id} from phase "${item.currentPhase}"`,
+			{ itemId: item.id },
+		);
 
 		while (this.transitionsApplied < MAX_AUTO_TRANSITIONS) {
 			const autoTarget = getAutoTarget(workflow, item);
 			if (!autoTarget) {
-				logEntry(root, "system", `autopilot:${item.id} stopped at phase "${item.currentPhase}" — no auto-transition`, {
-					itemId: item.id,
-				});
-				return { ok: true, finalPhase: item.currentPhase, transitionsApplied: this.transitionsApplied };
+				logEntry(
+					root,
+					"system",
+					`autopilot:${item.id} stopped at phase "${item.currentPhase}" — no auto-transition`,
+					{
+						itemId: item.id,
+					},
+				);
+				return {
+					ok: true,
+					finalPhase: item.currentPhase,
+					transitionsApplied: this.transitionsApplied,
+				};
 			}
 
 			const phases = getStagePhases(workflow, item.stage);
-			const phaseDef = item.currentPhase && phases ? getPhaseDef(phases, item.currentPhase) : null;
+			const phaseDef =
+				item.currentPhase && phases ? getPhaseDef(phases, item.currentPhase) : null;
 			if (phaseDef) {
 				const actionResult = runner.execPhase(root, item, phaseDef);
 				if (!actionResult.ok) {
-					logEntry(root, "system", `autopilot:${item.id} stopped — action failed: ${actionResult.error}`, {
-						itemId: item.id,
-					});
+					logEntry(
+						root,
+						"system",
+						`autopilot:${item.id} stopped — action failed: ${actionResult.error}`,
+						{
+							itemId: item.id,
+						},
+					);
 					return {
 						ok: false,
 						error: actionResult.error,
@@ -64,24 +86,50 @@ export class PhaseAutoPilot {
 			const prevPhase = item.currentPhase;
 			const result = transitionPhase(root, workflow, item, autoTarget);
 			if (!result.ok) {
-				logEntry(root, "system", `autopilot:${item.id} transition failed — ${result.error}`, { itemId: item.id });
-				return { ok: false, error: result.error, finalPhase: prevPhase, transitionsApplied: this.transitionsApplied };
+				logEntry(
+					root,
+					"system",
+					`autopilot:${item.id} transition failed — ${result.error}`,
+					{ itemId: item.id },
+				);
+				return {
+					ok: false,
+					error: result.error,
+					finalPhase: prevPhase,
+					transitionsApplied: this.transitionsApplied,
+				};
 			}
 
 			this.transitionsApplied++;
-			logEntry(root, "system", `autopilot:${item.id} ${prevPhase} → ${item.currentPhase || "__EXIT__"}`, {
-				itemId: item.id,
-			});
+			logEntry(
+				root,
+				"system",
+				`autopilot:${item.id} ${prevPhase} → ${item.currentPhase || "__EXIT__"}`,
+				{
+					itemId: item.id,
+				},
+			);
 
 			if (!item.currentPhase) {
-				logEntry(root, "system", `autopilot:${item.id} exited phase system`, { itemId: item.id });
-				return { ok: true, finalPhase: undefined, transitionsApplied: this.transitionsApplied };
+				logEntry(root, "system", `autopilot:${item.id} exited phase system`, {
+					itemId: item.id,
+				});
+				return {
+					ok: true,
+					finalPhase: undefined,
+					transitionsApplied: this.transitionsApplied,
+				};
 			}
 		}
 
 		const msg = "Auto-loop limit exceeded";
 		logEntry(root, "system", `autopilot:${item.id} ${msg}`, { itemId: item.id });
-		return { ok: false, error: msg, finalPhase: item.currentPhase, transitionsApplied: this.transitionsApplied };
+		return {
+			ok: false,
+			error: msg,
+			finalPhase: item.currentPhase,
+			transitionsApplied: this.transitionsApplied,
+		};
 	}
 }
 

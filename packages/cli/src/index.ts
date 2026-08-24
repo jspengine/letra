@@ -49,7 +49,7 @@ program
 	.option("--port <number>", "Port for the web UI", "3000")
 	.description("Open web UI setup wizard to configure a workspace")
 	.action(async (path, options) => {
-		const port = parseInt(options.port, 10) || 3000;
+		const port = Number.parseInt(options.port, 10) || 3000;
 		const { execSync } = await import("node:child_process");
 		const { createConnection } = await import("node:net");
 		const checkPort = (p: number) =>
@@ -119,7 +119,10 @@ specCmd
 
 program.command("lint [path]").description("Validate spec format and completeness").action(lint);
 
-program.command("check:ds [path]").description("Validate client conformance with Letra Design System").action(checkDs);
+program
+	.command("check:ds [path]")
+	.description("Validate client conformance with Letra Design System")
+	.action(checkDs);
 
 program
 	.command("validate [path]")

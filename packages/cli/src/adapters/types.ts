@@ -73,7 +73,13 @@ export interface HarnessSnapshot {
 		lastDate: string;
 		actionsSummary: string;
 	} | null;
-	alerts?: Array<{ id: string; severity: string; title: string; source: string; detectedAt: string }>;
+	alerts?: Array<{
+		id: string;
+		severity: string;
+		title: string;
+		source: string;
+		detectedAt: string;
+	}>;
 	currentPhase?: {
 		id: string;
 		label: string;

@@ -121,7 +121,10 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 					sendError(res, 404, "No workflow");
 					return true;
 				}
-				if (!data.decision || !["approve", "request-changes", "reject"].includes(data.decision)) {
+				if (
+					!data.decision ||
+					!["approve", "request-changes", "reject"].includes(data.decision)
+				) {
 					sendError(res, 400, "decision must be approve, request-changes, or reject");
 					return true;
 				}
@@ -130,7 +133,9 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 					sendError(res, 400, "reason is required for request-changes and reject");
 					return true;
 				}
-				const item = workflow.items.find((candidate) => candidate.id === gateDecisionItemId);
+				const item = workflow.items.find(
+					(candidate) => candidate.id === gateDecisionItemId,
+				);
 				if (!item) {
 					sendError(res, 404, "Item not found");
 					return true;
@@ -248,7 +253,9 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				const oldStage = item.stage;
 				if (data.stage !== undefined && data.stage !== oldStage) {
 					const resolved = dependencies.resolveActiveFlow(workspaceRoot, workflow);
-					const sourceStage = resolved.flow?.stages.find((stage) => stage.id === oldStage);
+					const sourceStage = resolved.flow?.stages.find(
+						(stage) => stage.id === oldStage,
+					);
 					if (sourceStage?.gate?.type === "human" && sourceStage.gate.blocking) {
 						sendError(
 							res,
@@ -257,7 +264,9 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 						);
 						return true;
 					}
-					const targetStage = resolved.flow?.stages.find((stage) => stage.id === data.stage);
+					const targetStage = resolved.flow?.stages.find(
+						(stage) => stage.id === data.stage,
+					);
 					const gate = targetStage?.gate;
 					if (gate?.type === "human" && gate.blocking) {
 						sendError(
@@ -373,8 +382,8 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				sendError(res, 404, "Item not found");
 				return true;
 			}
-			delete item.claimedBy;
-			delete item.claimedAt;
+			item.claimedBy = undefined;
+			item.claimedAt = undefined;
 			workflow.updatedAt = new Date().toISOString();
 			dependencies.writeWorkflow(workspaceRoot, {
 				workflow,

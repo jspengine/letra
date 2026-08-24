@@ -14,7 +14,7 @@ const MCP_BLOCK = [
 export function mergeCodexProjectConfig(content: string): string {
 	const start = content.indexOf(MANAGED_START);
 	const end = content.indexOf(MANAGED_END);
-	if ((start >= 0) !== (end >= 0) || (start >= 0 && end < start)) {
+	if (start >= 0 !== end >= 0 || (start >= 0 && end < start)) {
 		throw new Error("The Letra-managed Codex MCP section is malformed.");
 	}
 	if (start >= 0 && end >= 0) {
@@ -50,7 +50,7 @@ export function renderLetraHarnessSkill(): string {
 		"## Fallback quando o MCP estiver indisponível",
 		"",
 		"1. Execute `letra direction --json` e trate a resposta como modo degradado.",
-		"2. Use a revisão retornada ao executar `letra operation validate --expected-revision <REVISION> --reason \"<MOTIVO>\"`.",
+		'2. Use a revisão retornada ao executar `letra operation validate --expected-revision <REVISION> --reason "<MOTIVO>"`.',
 		"3. Para concluir ou avançar, use os subcomandos controlados de `letra operation`; nunca contorne o harness.",
 		"4. Execute novamente `letra direction --json` antes de cada mutação.",
 		"",

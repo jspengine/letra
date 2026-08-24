@@ -38,7 +38,11 @@ function safeActiveSpec(root: string, boundary: WorkspaceBoundary): ActiveSpecPa
 	}
 	const specsRoot = resolve(root, ".letra", "specs");
 	const specDir = resolve(specsRoot, name);
-	if (specDir !== specsRoot && !specDir.startsWith(`${specsRoot}\\`) && !specDir.startsWith(`${specsRoot}/`)) {
+	if (
+		specDir !== specsRoot &&
+		!specDir.startsWith(`${specsRoot}\\`) &&
+		!specDir.startsWith(`${specsRoot}/`)
+	) {
 		return { name, path: null, content: null };
 	}
 	const acceptancePath = join(specDir, "acceptance.md");
@@ -51,9 +55,7 @@ function safeActiveSpec(root: string, boundary: WorkspaceBoundary): ActiveSpecPa
 	return {
 		name,
 		path: selectedPath ? boundary.assertPath(selectedPath).replace(/\\/g, "/") : null,
-		content: selectedPath
-			? readFileSync(boundary.assertPath(selectedPath), "utf-8")
-			: null,
+		content: selectedPath ? readFileSync(boundary.assertPath(selectedPath), "utf-8") : null,
 	};
 }
 
@@ -150,7 +152,8 @@ export function createLetraMcpServer(root: string): McpServer {
 	server.registerTool(
 		"get_direction",
 		{
-			description: "Retorna a direção vigente e versionada do harness para o workspace atual.",
+			description:
+				"Retorna a direção vigente e versionada do harness para o workspace atual.",
 			annotations: readOnlyAnnotations,
 		},
 		async () => jsonText(auditRead("direction")),
@@ -187,10 +190,13 @@ export function createLetraMcpServer(root: string): McpServer {
 			},
 			annotations: verificationAnnotations,
 		},
-		async (input) => jsonText(await runValidationOperation(workspaceRoot, {
-			...input,
-			actor: clientIdentity().actor,
-		})),
+		async (input) =>
+			jsonText(
+				await runValidationOperation(workspaceRoot, {
+					...input,
+					actor: clientIdentity().actor,
+				}),
+			),
 	);
 	server.registerTool(
 		"complete_ac",
@@ -204,10 +210,13 @@ export function createLetraMcpServer(root: string): McpServer {
 			},
 			annotations: mutationAnnotations,
 		},
-		async (input) => jsonText(completeAcOperation(workspaceRoot, {
-			...input,
-			actor: clientIdentity().actor,
-		})),
+		async (input) =>
+			jsonText(
+				completeAcOperation(workspaceRoot, {
+					...input,
+					actor: clientIdentity().actor,
+				}),
+			),
 	);
 	server.registerTool(
 		"request_transition",
@@ -221,30 +230,32 @@ export function createLetraMcpServer(root: string): McpServer {
 			},
 			annotations: mutationAnnotations,
 		},
-		async (input) => jsonText(await requestTransitionOperation(workspaceRoot, {
-			...input,
-			actor: clientIdentity().actor,
-		})),
+		async (input) =>
+			jsonText(
+				await requestTransitionOperation(workspaceRoot, {
+					...input,
+					actor: clientIdentity().actor,
+				}),
+			),
 	);
 
 	server.registerResource(
 		"direction",
 		"letra://direction",
 		{ title: "Direção vigente do harness", mimeType: "application/json" },
-		async () => resourceText(
-			"letra://direction",
-			JSON.stringify(auditRead("direction"), null, 2),
-		),
+		async () =>
+			resourceText("letra://direction", JSON.stringify(auditRead("direction"), null, 2)),
 	);
 	server.registerResource(
 		"active-spec",
 		"letra://spec/active",
 		{ title: "Spec ativa", mimeType: "text/markdown" },
-		async () => resourceText(
-			"letra://spec/active",
-			(auditRead("active-spec"), safeActiveSpec(workspaceRoot, boundary).content ?? ""),
-			"text/markdown",
-		),
+		async () =>
+			resourceText(
+				"letra://spec/active",
+				(auditRead("active-spec"), safeActiveSpec(workspaceRoot, boundary).content ?? ""),
+				"text/markdown",
+			),
 	);
 	server.registerResource(
 		"constitution",
@@ -254,7 +265,7 @@ export function createLetraMcpServer(root: string): McpServer {
 			auditRead("constitution");
 			const path = boundary.assertPath(join(getLetraDir(workspaceRoot), "constitution.md"));
 			const content = existsSync(path) ? readFileSync(path, "utf-8") : "";
-			
+
 			// Log constitution_read
 			logEntry(workspaceRoot, "constitution_read", "Constitution read via MCP", {
 				details: {
@@ -264,22 +275,19 @@ export function createLetraMcpServer(root: string): McpServer {
 					version: content.match(/\*\*Version:\*\*\s*(.+)/)?.[1]?.trim() ?? null,
 				},
 			});
-			
-			return resourceText(
-				"letra://constitution",
-				content,
-				"text/markdown",
-			);
+
+			return resourceText("letra://constitution", content, "text/markdown");
 		},
 	);
 	server.registerResource(
 		"health",
 		"letra://health",
 		{ title: "Saúde operacional", mimeType: "application/json" },
-		async () => resourceText(
-			"letra://health",
-			JSON.stringify((auditRead("health"), healthPayload(workspaceRoot)), null, 2),
-		),
+		async () =>
+			resourceText(
+				"letra://health",
+				JSON.stringify((auditRead("health"), healthPayload(workspaceRoot)), null, 2),
+			),
 	);
 
 	const auditHarnessRead = (resource: string) => {
@@ -311,10 +319,7 @@ export function createLetraMcpServer(root: string): McpServer {
 			const workflow = loadWorkflow(workspaceRoot);
 			const harness = loadHarnessForWorkflow(workspaceRoot, workflow);
 			const templateIds = harness ? Object.keys(harness.flows).sort() : [];
-			return resourceText(
-				"letra://harness/templates",
-				JSON.stringify(templateIds, null, 2),
-			);
+			return resourceText("letra://harness/templates", JSON.stringify(templateIds, null, 2));
 		},
 	);
 	server.resource(
@@ -330,7 +335,10 @@ export function createLetraMcpServer(root: string): McpServer {
 			}
 			const template = harness.flows[flowId];
 			if (!template) {
-				return resourceText(uri.href, JSON.stringify({ error: `Template "${flowId}" not found` }));
+				return resourceText(
+					uri.href,
+					JSON.stringify({ error: `Template "${flowId}" not found` }),
+				);
 			}
 			const resolvedStages = template.stages.map((stage) => {
 				const gateId = stage.gate ? gateIdFromRef(stage.gate) : null;
@@ -351,17 +359,24 @@ export function createLetraMcpServer(root: string): McpServer {
 				: null;
 			return resourceText(
 				uri.href,
-				JSON.stringify({
-					id: template.id,
-					version: template.version,
-					name: template.name,
-					description: template.description,
-					defaultPolicy: template.defaultPolicy,
-					stages: resolvedStages,
-					gates: Object.values(harness.gates),
-					roles: Object.values(harness.roles),
-					policy: policyId && harness.policies[policyId] ? harness.policies[policyId] : null,
-				}, null, 2),
+				JSON.stringify(
+					{
+						id: template.id,
+						version: template.version,
+						name: template.name,
+						description: template.description,
+						defaultPolicy: template.defaultPolicy,
+						stages: resolvedStages,
+						gates: Object.values(harness.gates),
+						roles: Object.values(harness.roles),
+						policy:
+							policyId && harness.policies[policyId]
+								? harness.policies[policyId]
+								: null,
+					},
+					null,
+					2,
+				),
 			);
 		},
 	);

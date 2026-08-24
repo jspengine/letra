@@ -23,12 +23,8 @@ describe("workspace boundary", () => {
 		const root = fixture();
 		const boundary = createWorkspaceBoundary(root);
 
-		expect(boundary.assertPath(join(root, ".letra", "constitution.md"))).toContain(
-			".letra",
-		);
-		expect(boundary.assertPath(join(root, ".letra", "future.json"))).toContain(
-			"future.json",
-		);
+		expect(boundary.assertPath(join(root, ".letra", "constitution.md"))).toContain(".letra");
+		expect(boundary.assertPath(join(root, ".letra", "future.json"))).toContain("future.json");
 	});
 
 	it("rejects lexical traversal outside the workspace", () => {

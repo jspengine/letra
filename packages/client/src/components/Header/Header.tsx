@@ -42,9 +42,15 @@ export default function Header({
 		<GlobalHeader
 			sidebarOpen={sidebarOpen}
 			onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-			workspaces={workspaces.map((workspace) => ({ id: workspace.slug, name: workspace.name }))}
+			workspaces={workspaces.map((workspace) => ({
+				id: workspace.slug,
+				name: workspace.name,
+			}))}
 			activeWorkspaceId={activeWorkspace?.slug ?? null}
-			scopes={directories.map((directory) => ({ id: directory, label: directoryLabel(directory) }))}
+			scopes={directories.map((directory) => ({
+				id: directory,
+				label: directoryLabel(directory),
+			}))}
 			activeScopeId={activeDirectory ?? null}
 			onWorkspaceChange={(slug) => {
 				const workspace = workspaces.find((entry) => entry.slug === slug);

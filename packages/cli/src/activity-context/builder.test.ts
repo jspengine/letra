@@ -5,7 +5,10 @@ import { tmpdir } from "node:os";
 import { buildActivityContext } from "./builder.js";
 
 function createTestDir(): string {
-	const dir = join(tmpdir(), `letra-activity-context-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+	const dir = join(
+		tmpdir(),
+		`letra-activity-context-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+	);
 	mkdirSync(join(dir, ".letra", "specs"), { recursive: true });
 	return dir;
 }
@@ -40,174 +43,207 @@ function writeWorkflow(dir: string, overrides?: Record<string, unknown>) {
 }
 
 function writeHarness(dir: string) {
-	const harnessRoot = join(dir, ".letra", "harness", "v0.1.0");
+	const harnessRoot = join(dir, ".letra", "harness", "v0.2.0");
 	mkdirSync(join(harnessRoot, "flows"), { recursive: true });
 	mkdirSync(join(harnessRoot, "gates"), { recursive: true });
 	mkdirSync(join(harnessRoot, "roles"), { recursive: true });
-	writeFileSync(join(harnessRoot, "flows", "test-flow.yaml"), [
-		"id: test-flow",
-		"version: 1.0.0",
-		"name: Test Flow",
-		"description: Flow de teste",
-		"defaultPolicy: policies/test.json",
-		"stages:",
-		"  - id: backlog",
-		"    name: Backlog",
-		"    order: 0",
-		"    zone: todo",
-		"    description: Backlog",
-		"    agents: []",
-		"    gate: null",
-		"  - id: design",
-		"    name: Design",
-		"    order: 1",
-		"    zone: doing",
-		"    description: Design",
-		"    agents: [\"analyst\"]",
-		"    gate: null",
-		"    activity:",
-		"      design:",
-		"        objective: Direção declarada pelo harness",
-		"      diagnose:",
-		"        objective: Diagnóstico declarado sem ocultar sinais",
-		"      gate:",
-		"        label: Aprovação de direção/spec",
-		"        evidence: outcome, constraints, exclusions e decisões em aberto",
-		"        decision: Aprovação de direção/spec",
-		"        signalCode: spec-approval",
-		"  - id: code",
-		"    name: Code",
-		"    order: 2",
-		"    zone: doing",
-		"    description: Code",
-		"    agents: [\"builder\"]",
-		"    gate: null",
-		"  - id: review",
-		"    name: Review",
-		"    order: 3",
-		"    zone: doing",
-		"    description: Review",
-		"    agents: [\"reviewer\"]",
-		"    gate: gates/human-approved-review.yaml",
-		"    activity:",
-		"      gate:",
-		"        label: Aprovação de revisão",
-		"        evidence: issues abertas, aderência à spec, riscos e sinais operacionais",
-		"        decision: Aprovação de revisão",
-		"        signalCode: gate-review",
-		"      review:",
-		"        label: Revisão do item atual",
-		"        emphasis: aderência à spec, riscos e evidências do trabalho entregue",
-		"        riskFocus: Destacar bugs, regressões e violações de processo antes de aprovar.",
-		"        evidencePrompt: Verificar se testes, sinais e logs recentes sustentam a revisão.",
-		"        signalCode: review-stage",
-		"    phases:",
-		"      initialState: auto-review",
-		"      states:",
-		"        auto-review:",
-		"          id: auto-review",
-		"          label: Revisão automática",
-		"          description: Agente revisa o diff",
-		"          transitions:",
-		"            - target: code-fix",
-		"              auto: true",
-		"            - target: human-review",
-		"          harness:",
-		"            instructions: Foque em bugs e regressões",
-		"            activity:",
-		"              review:",
-		"                objective: Revisão da fase declarada",
-		"            checks:",
-		"              - diff contra spec",
-		"              - testes passando",
-		"              - code style",
-		"            review:",
-		"              label: Revisão automática",
-		"              emphasis: diff contra spec, testes passando, code style",
-		"              riskFocus: Confirmar se o diff introduziu bugs, regressões ou violações de processo.",
-		"              evidencePrompt: Verificar se testes, sinais e logs recentes sustentam a revisão automática.",
-		"              signalCode: review-phase-auto-review",
-		"        code-fix:",
-		"          id: code-fix",
-		"          label: Correção",
-		"          description: Corrigir problemas",
-		"          transitions:",
-		"            - target: human-review",
-		"          harness:",
-		"            review:",
-		"              label: Correção",
-		"              emphasis: corrigir os problemas encontrados antes de seguir",
-		"              riskFocus: Confirmar se correções realmente eliminaram os problemas anteriores.",
-		"              evidencePrompt: Verificar se a correção cobre os problemas anteriores com evidências claras.",
-		"              signalCode: review-phase-code-fix",
-		"        human-review:",
-		"          id: human-review",
-		"          label: Revisão humana",
-		"          description: Aprovação humana final",
-		"          transitions:",
-		"            - target: __EXIT__",
-		"          harness:",
-		"            review:",
-		"              label: RevisÃ£o humana",
-		"              emphasis: aprovaÃ§Ã£o final humana baseada em evidÃªncias explÃ­citas",
-		"              riskFocus: Destacar riscos residuais antes da aprovaÃ§Ã£o final humana.",
-		"              evidencePrompt: Verificar se hÃ¡ evidÃªncias suficientes para aprovaÃ§Ã£o final humana.",
-		"              signalCode: review-phase-human-review",
-		"  - id: done",
-		"    name: Done",
-		"    order: 4",
-		"    zone: done",
-		"    description: Done",
-		"    agents: []",
-		"    gate: null",
-	].join("\n"), "utf-8");
-	writeFileSync(join(harnessRoot, "gates", "human-approved-review.yaml"), [
-		"id: human-approved-review",
-		"name: Aprovação de revisão",
-		"type: human",
-		"blocking: true",
-		"description: issues abertas, aderência à spec, riscos e sinais operacionais",
-	].join("\n"), "utf-8");
-	writeFileSync(join(harnessRoot, "roles", "reviewer.yaml"), [
-		"id: reviewer",
-		"label: Reviewer",
-		"description: Reviewer",
-		"allowedStages: [\"review\"]",
-		"capabilities: [\"review\"]",
-	].join("\n"), "utf-8");
+	writeFileSync(
+		join(harnessRoot, "flows", "test-flow.yaml"),
+		[
+			"id: test-flow",
+			"version: 1.0.0",
+			"name: Test Flow",
+			"description: Flow de teste",
+			"defaultPolicy: policies/test.json",
+			"stages:",
+			"  - id: backlog",
+			"    name: Backlog",
+			"    order: 0",
+			"    zone: todo",
+			"    description: Backlog",
+			"    agents: []",
+			"    gate: null",
+			"  - id: design",
+			"    name: Design",
+			"    order: 1",
+			"    zone: doing",
+			"    description: Design",
+			'    agents: ["analyst"]',
+			"    gate: null",
+			"    activity:",
+			"      design:",
+			"        objective: Direção declarada pelo harness",
+			"      diagnose:",
+			"        objective: Diagnóstico declarado sem ocultar sinais",
+			"      gate:",
+			"        label: Aprovação de direção/spec",
+			"        evidence: outcome, constraints, exclusions e decisões em aberto",
+			"        decision: Aprovação de direção/spec",
+			"        signalCode: spec-approval",
+			"  - id: code",
+			"    name: Code",
+			"    order: 2",
+			"    zone: doing",
+			"    description: Code",
+			'    agents: ["builder"]',
+			"    gate: null",
+			"  - id: review",
+			"    name: Review",
+			"    order: 3",
+			"    zone: doing",
+			"    description: Review",
+			'    agents: ["reviewer"]',
+			"    gate: gates/human-approved-review.yaml",
+			"    activity:",
+			"      gate:",
+			"        label: Aprovação de revisão",
+			"        evidence: issues abertas, aderência à spec, riscos e sinais operacionais",
+			"        decision: Aprovação de revisão",
+			"        signalCode: gate-review",
+			"      review:",
+			"        label: Revisão do item atual",
+			"        emphasis: aderência à spec, riscos e evidências do trabalho entregue",
+			"        riskFocus: Destacar bugs, regressões e violações de processo antes de aprovar.",
+			"        evidencePrompt: Verificar se testes, sinais e logs recentes sustentam a revisão.",
+			"        signalCode: review-stage",
+			"    phases:",
+			"      initialState: auto-review",
+			"      states:",
+			"        auto-review:",
+			"          id: auto-review",
+			"          label: Revisão automática",
+			"          description: Agente revisa o diff",
+			"          transitions:",
+			"            - target: code-fix",
+			"              auto: true",
+			"            - target: human-review",
+			"          harness:",
+			"            instructions: Foque em bugs e regressões",
+			"            activity:",
+			"              review:",
+			"                objective: Revisão da fase declarada",
+			"            checks:",
+			"              - diff contra spec",
+			"              - testes passando",
+			"              - code style",
+			"            review:",
+			"              label: Revisão automática",
+			"              emphasis: diff contra spec, testes passando, code style",
+			"              riskFocus: Confirmar se o diff introduziu bugs, regressões ou violações de processo.",
+			"              evidencePrompt: Verificar se testes, sinais e logs recentes sustentam a revisão automática.",
+			"              signalCode: review-phase-auto-review",
+			"        code-fix:",
+			"          id: code-fix",
+			"          label: Correção",
+			"          description: Corrigir problemas",
+			"          transitions:",
+			"            - target: human-review",
+			"          harness:",
+			"            review:",
+			"              label: Correção",
+			"              emphasis: corrigir os problemas encontrados antes de seguir",
+			"              riskFocus: Confirmar se correções realmente eliminaram os problemas anteriores.",
+			"              evidencePrompt: Verificar se a correção cobre os problemas anteriores com evidências claras.",
+			"              signalCode: review-phase-code-fix",
+			"        human-review:",
+			"          id: human-review",
+			"          label: Revisão humana",
+			"          description: Aprovação humana final",
+			"          transitions:",
+			"            - target: __EXIT__",
+			"          harness:",
+			"            review:",
+			"              label: RevisÃ£o humana",
+			"              emphasis: aprovaÃ§Ã£o final humana baseada em evidÃªncias explÃ­citas",
+			"              riskFocus: Destacar riscos residuais antes da aprovaÃ§Ã£o final humana.",
+			"              evidencePrompt: Verificar se hÃ¡ evidÃªncias suficientes para aprovaÃ§Ã£o final humana.",
+			"              signalCode: review-phase-human-review",
+			"  - id: done",
+			"    name: Done",
+			"    order: 4",
+			"    zone: done",
+			"    description: Done",
+			"    agents: []",
+			"    gate: null",
+		].join("\n"),
+		"utf-8",
+	);
+	writeFileSync(
+		join(harnessRoot, "gates", "human-approved-review.yaml"),
+		[
+			"id: human-approved-review",
+			"name: Aprovação de revisão",
+			"type: human",
+			"blocking: true",
+			"description: issues abertas, aderência à spec, riscos e sinais operacionais",
+		].join("\n"),
+		"utf-8",
+	);
+	writeFileSync(
+		join(harnessRoot, "roles", "reviewer.yaml"),
+		[
+			"id: reviewer",
+			"label: Reviewer",
+			"description: Reviewer",
+			'allowedStages: ["review"]',
+			'capabilities: ["review"]',
+		].join("\n"),
+		"utf-8",
+	);
 }
 
 function writeSpec(dir: string, specName: string) {
 	const specDir = join(dir, ".letra", "specs", specName);
 	mkdirSync(specDir, { recursive: true });
-	writeFileSync(join(specDir, "spec.md"), [
-		`# Spec: ${specName}`,
-		"",
-		"## Outcome",
-		"Entregar contexto situacional por atividade.",
-		"",
-		"## Acceptance Criteria",
-		"- [ ] **AC1**: Builder existe",
-		"- [x] **AC2**: Tipos definidos",
-	].join("\n"), "utf-8");
+	writeFileSync(
+		join(specDir, "spec.md"),
+		[
+			`# Spec: ${specName}`,
+			"",
+			"## Outcome",
+			"Entregar contexto situacional por atividade.",
+			"",
+			"## Acceptance Criteria",
+			"- [ ] **AC1**: Builder existe",
+			"- [x] **AC2**: Tipos definidos",
+		].join("\n"),
+		"utf-8",
+	);
 }
 
-function writeFocus(dir: string, specName: string, itemId: string, outcome = "Entregar contexto situacional por atividade.") {
-	writeFileSync(join(dir, ".letra", "focus.md"), [
-		`# Focus: ${specName}`,
-		"",
-		`**Path**: .letra/specs/${specName}/`,
-		`**Item**: ${itemId}`,
-		`**Outcome**: ${outcome}`,
-	].join("\n"), "utf-8");
+function writeFocus(
+	dir: string,
+	specName: string,
+	itemId: string,
+	outcome = "Entregar contexto situacional por atividade.",
+) {
+	writeFileSync(
+		join(dir, ".letra", "focus.md"),
+		[
+			`# Focus: ${specName}`,
+			"",
+			`**Path**: .letra/specs/${specName}/`,
+			`**Item**: ${itemId}`,
+			`**Outcome**: ${outcome}`,
+		].join("\n"),
+		"utf-8",
+	);
 }
 
 function writeHealth(dir: string, entries: Record<string, unknown>[]) {
-	writeFileSync(join(dir, ".letra", "health-record.json"), JSON.stringify({
-		schemaVersion: 1,
-		lastScanAt: new Date().toISOString(),
-		entries,
-	}, null, 2), "utf-8");
+	writeFileSync(
+		join(dir, ".letra", "health-record.json"),
+		JSON.stringify(
+			{
+				schemaVersion: 1,
+				lastScanAt: new Date().toISOString(),
+				entries,
+			},
+			null,
+			2,
+		),
+		"utf-8",
+	);
 }
 
 describe("buildActivityContext", () => {
@@ -235,7 +271,9 @@ describe("buildActivityContext", () => {
 		expect(result.currentItem?.spec).toBe("activity-context");
 		expect(result.currentItem?.acs).toEqual({ pending: 1, done: 1, total: 2 });
 		expect(result.mustRead.map((entry) => entry.path)).toContain(".letra/focus.md");
-		expect(result.mustRead.map((entry) => entry.path)).toContain(".letra/specs/activity-context/spec.md");
+		expect(result.mustRead.map((entry) => entry.path)).toContain(
+			".letra/specs/activity-context/spec.md",
+		);
 	});
 
 	it("uses the explicitly focused item when multiple items are active", () => {
@@ -333,7 +371,9 @@ describe("buildActivityContext", () => {
 
 		expect(result.nextActions.map((action) => action.label)).toContain("Cobrar evidências");
 		expect(result.mustRead.map((entry) => entry.path)).toContain(".letra/session-log.json");
-		expect(result.signals.some((signal) => signal.code === "pending-acceptance-criteria")).toBe(true);
+		expect(result.signals.some((signal) => signal.code === "pending-acceptance-criteria")).toBe(
+			true,
+		);
 	});
 
 	it("specializes review mode for auto-review phase", () => {
@@ -355,7 +395,9 @@ describe("buildActivityContext", () => {
 
 		expect(result.currentItem?.currentPhase).toBe("auto-review");
 		expect(result.objective).toBe("Revisão da fase declarada");
-		expect(result.signals.some((signal) => signal.code === "review-phase-auto-review")).toBe(true);
+		expect(result.signals.some((signal) => signal.code === "review-phase-auto-review")).toBe(
+			true,
+		);
 		expect(result.nextActions[0]?.label).toBe("Comparar com spec");
 	});
 
@@ -397,7 +439,9 @@ describe("buildActivityContext", () => {
 
 		const result = buildActivityContext({ activity: "review", workspaceRoot: dir });
 
-		expect(result.signals.some((signal) => signal.code === "review-phase-human-review")).toBe(true);
+		expect(result.signals.some((signal) => signal.code === "review-phase-human-review")).toBe(
+			true,
+		);
 		expect(result.nextActions[2]?.label).toBe("Cobrar evidências");
 	});
 
@@ -464,71 +508,77 @@ describe("buildActivityContext", () => {
 			],
 		});
 
-		const harnessRoot = join(dir, ".letra", "harness", "v0.1.0");
-		writeFileSync(join(harnessRoot, "flows", "test-flow.yaml"), [
-			"id: test-flow",
-			"version: 1.0.0",
-			"name: Test Flow",
-			"description: Flow de teste",
-			"defaultPolicy: policies/test.json",
-			"stages:",
-			"  - id: todo-box",
-			"    name: Todo",
-			"    order: 0",
-			"    zone: todo",
-			"    description: Todo",
-			"    agents: []",
-			"    gate: null",
-			"  - id: thinking-lane",
-			"    name: Thinking",
-			"    order: 1",
-			"    zone: doing",
-			"    description: Thinking",
-			"    agents: [\"analyst\"]",
-			"    gate: null",
-			"  - id: qa-stop",
-			"    name: QA Stop",
-			"    order: 2",
-			"    zone: doing",
-			"    description: QA Stop",
-			"    agents: [\"reviewer\"]",
-			"    gate: gates/human-approved-review.yaml",
-			"    activity:",
-			"      gate:",
-			"        label: Aprovação de revisão",
-			"        evidence: issues abertas, aderência à spec, riscos e sinais operacionais",
-			"        decision: Aprovação de revisão",
-			"        signalCode: gate-review",
-			"    phases:",
-			"      initialState: human-review",
-			"      states:",
-			"        human-review:",
-			"          id: human-review",
-			"          label: Revisão humana",
-			"          description: Aprovação humana final",
-			"          harness:",
-			"            review:",
-			"              label: Revisão humana",
-			"              emphasis: aprovação final humana baseada em evidências explícitas",
-			"              riskFocus: Destacar riscos residuais antes da aprovação final humana.",
-			"              evidencePrompt: Verificar se há evidências suficientes para aprovação final humana.",
-			"              signalCode: review-phase-human-review",
-			"          transitions:",
-			"            - target: __EXIT__",
-			"  - id: shipped",
-			"    name: Shipped",
-			"    order: 3",
-			"    zone: done",
-			"    description: Shipped",
-			"    agents: []",
-			"    gate: null",
-		].join("\n"), "utf-8");
+	const harnessRoot = join(dir, ".letra", "harness", "v0.2.0");
+		writeFileSync(
+			join(harnessRoot, "flows", "test-flow.yaml"),
+			[
+				"id: test-flow",
+				"version: 1.0.0",
+				"name: Test Flow",
+				"description: Flow de teste",
+				"defaultPolicy: policies/test.json",
+				"stages:",
+				"  - id: todo-box",
+				"    name: Todo",
+				"    order: 0",
+				"    zone: todo",
+				"    description: Todo",
+				"    agents: []",
+				"    gate: null",
+				"  - id: thinking-lane",
+				"    name: Thinking",
+				"    order: 1",
+				"    zone: doing",
+				"    description: Thinking",
+				'    agents: ["analyst"]',
+				"    gate: null",
+				"  - id: qa-stop",
+				"    name: QA Stop",
+				"    order: 2",
+				"    zone: doing",
+				"    description: QA Stop",
+				'    agents: ["reviewer"]',
+				"    gate: gates/human-approved-review.yaml",
+				"    activity:",
+				"      gate:",
+				"        label: Aprovação de revisão",
+				"        evidence: issues abertas, aderência à spec, riscos e sinais operacionais",
+				"        decision: Aprovação de revisão",
+				"        signalCode: gate-review",
+				"    phases:",
+				"      initialState: human-review",
+				"      states:",
+				"        human-review:",
+				"          id: human-review",
+				"          label: Revisão humana",
+				"          description: Aprovação humana final",
+				"          harness:",
+				"            review:",
+				"              label: Revisão humana",
+				"              emphasis: aprovação final humana baseada em evidências explícitas",
+				"              riskFocus: Destacar riscos residuais antes da aprovação final humana.",
+				"              evidencePrompt: Verificar se há evidências suficientes para aprovação final humana.",
+				"              signalCode: review-phase-human-review",
+				"          transitions:",
+				"            - target: __EXIT__",
+				"  - id: shipped",
+				"    name: Shipped",
+				"    order: 3",
+				"    zone: done",
+				"    description: Shipped",
+				"    agents: []",
+				"    gate: null",
+			].join("\n"),
+			"utf-8",
+		);
 		writeSpec(dir, "activity-context");
 
 		const reviewContext = buildActivityContext({ activity: "review", workspaceRoot: dir });
 		const gateContext = buildActivityContext({ activity: "gate", workspaceRoot: dir });
 
-		expect(reviewContext.signals.some((signal) => signal.code === "review-phase-human-review")).toBe(true);
+		expect(
+			reviewContext.signals.some((signal) => signal.code === "review-phase-human-review"),
+		).toBe(true);
 		expect(reviewContext.nextActions[2]?.label).toBe("Cobrar evidências");
 		expect(gateContext.signals.some((signal) => signal.code === "gate-review")).toBe(true);
 		expect(gateContext.nextActions.map((action) => action.label)).toContain("Responder gate");

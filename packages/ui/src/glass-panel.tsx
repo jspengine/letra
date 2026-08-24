@@ -25,9 +25,10 @@ export function GlassPanel({
 				background: "color-mix(in oklch, var(--color-bg-surface) 65%, transparent)",
 				backdropFilter: "blur(12px)",
 				WebkitBackdropFilter: "blur(12px)",
-				borderColor: variant === "agent"
-					? "color-mix(in oklch, var(--color-agent) 50%, transparent)"
-					: "color-mix(in oklch, var(--color-border) 60%, transparent)",
+				borderColor:
+					variant === "agent"
+						? "color-mix(in oklch, var(--color-agent) 50%, transparent)"
+						: "color-mix(in oklch, var(--color-border) 60%, transparent)",
 				...style,
 			}}
 			{...props}

@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, readdirSync, copyFileSync, writeFileSync, readFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	copyFileSync,
+	writeFileSync,
+	readFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -79,34 +86,43 @@ function copyDir(src: string, dest: string): void {
 }
 
 export function slugifyWorkspaceName(input: string): string {
-	return input
-		.toLowerCase()
-		.normalize("NFD")
-		.replace(/[\u0300-\u036f]/g, "")
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "")
-		.slice(0, 64) || "workspace";
+	return (
+		input
+			.toLowerCase()
+			.normalize("NFD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "")
+			.slice(0, 64) || "workspace"
+	);
 }
 
-export function ensureExternalWorkspaceLayout(workspaceDir: string, defaults?: {
-	workspace?: Record<string, unknown>;
-	workflow?: Record<string, unknown>;
-}): void {
+export function ensureExternalWorkspaceLayout(
+	workspaceDir: string,
+	defaults?: {
+		workspace?: Record<string, unknown>;
+		workflow?: Record<string, unknown>;
+	},
+): void {
 	mkdirSync(workspaceDir, { recursive: true });
 	for (const dir of CANONICAL_WORKSPACE_DIRS) {
 		mkdirSync(join(workspaceDir, dir), { recursive: true });
 	}
 
 	const fallbackFiles: Record<string, string> = {
-		"workflow.json": JSON.stringify(defaults?.workflow ?? {
-			version: "1.0",
-			name: "Workspace",
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
-			stages: [],
-			items: [],
-			tools: [],
-		}, null, 2),
+		"workflow.json": JSON.stringify(
+			defaults?.workflow ?? {
+				version: "1.0",
+				name: "Workspace",
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				stages: [],
+				items: [],
+				tools: [],
+			},
+			null,
+			2,
+		),
 		"workspace.json": JSON.stringify(defaults?.workspace ?? {}, null, 2),
 		"context.md": "# Context\n",
 		"focus.md": "# Focus\n",
@@ -165,7 +181,7 @@ export function initWorkspace(name: string): { workspaceDir: string; info: Works
 		templateId,
 		harnessVersion,
 	};
-	ensureExternalWorkspaceLayout(workspaceDir, { workspace: info });
+	ensureExternalWorkspaceLayout(workspaceDir, { workspace: info as unknown as Record<string, unknown> });
 
 	return { workspaceDir, info };
 }
@@ -179,7 +195,7 @@ export function generateManifest(workspaceName: string, projectDir: string): Man
 	const info: WorkspaceInfo = JSON.parse(readFileSync(infoPath, "utf-8"));
 
 	const relativePath = workspaceDir.startsWith(projectDir)
-		? "." + workspaceDir.slice(projectDir.length).replace(/\\/g, "/")
+		? `.${workspaceDir.slice(projectDir.length).replace(/\\/g, "/")}`
 		: workspaceDir.replace(/\\/g, "/");
 
 	const manifest: Manifest = {
@@ -192,15 +208,16 @@ export function generateManifest(workspaceName: string, projectDir: string): Man
 		gates: ["human-approved-spec", "human-approved-code"],
 	};
 
-	writeFileSync(join(projectDir, "letra.manifest.json"), JSON.stringify(manifest, null, 2), "utf-8");
+	writeFileSync(
+		join(projectDir, "letra.manifest.json"),
+		JSON.stringify(manifest, null, 2),
+		"utf-8",
+	);
 	return manifest;
 }
 
 export function detectManifest(cwd: string): { manifest: Manifest; path: string } | null {
-	const candidates = [
-		join(cwd, "letra.manifest.json"),
-		join(cwd, ".letra", "manifest.json"),
-	];
+	const candidates = [join(cwd, "letra.manifest.json"), join(cwd, ".letra", "manifest.json")];
 	for (const p of candidates) {
 		if (existsSync(p)) {
 			try {

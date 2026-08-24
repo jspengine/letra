@@ -7,13 +7,9 @@ const tabs = [
 	{ id: "disabled", label: "Disabled", disabled: true },
 ];
 
-export const Default = () => (
-	<Tabs tabs={tabs} activeTab="active" onChange={() => {}} />
-);
+export const Default = () => <Tabs tabs={tabs} activeTab="active" onChange={() => {}} />;
 
-export const SecondActive = () => (
-	<Tabs tabs={tabs} activeTab="inactive" onChange={() => {}} />
-);
+export const SecondActive = () => <Tabs tabs={tabs} activeTab="inactive" onChange={() => {}} />;
 
 export default {
 	title: "Components/Tabs",

@@ -7,7 +7,12 @@ import type { RouteHandler } from "../router.js";
 import { getLetraDir } from "./../../workspace/resolver.js";
 
 interface AdapterRouteDependencies {
-	logEntry: (workspaceRoot: string, action: string, message: string, meta?: Record<string, unknown>) => void;
+	logEntry: (
+		workspaceRoot: string,
+		action: string,
+		message: string,
+		meta?: Record<string, unknown>,
+	) => void;
 	broadcast: () => void;
 }
 
@@ -46,8 +51,12 @@ function getAdapterStatus(workspaceRoot: string): AdapterStatus[] {
 		const wfMtime = existsSync(wf) ? statSync(wf).mtime.getTime() : 0;
 		const newestArtifact = artifacts
 			.filter((a) => a.exists && a.modifiedAt)
-			.sort((a, b) => new Date(b.modifiedAt!).getTime() - new Date(a.modifiedAt!).getTime())[0];
-		const synced = newestArtifact ? new Date(newestArtifact.modifiedAt!).getTime() >= wfMtime : false;
+			.sort(
+				(a, b) => new Date(b.modifiedAt!).getTime() - new Date(a.modifiedAt!).getTime(),
+			)[0];
+		const synced = newestArtifact
+			? new Date(newestArtifact.modifiedAt!).getTime() >= wfMtime
+			: false;
 		const syncedAt = newestArtifact?.modifiedAt ?? null;
 
 		return {

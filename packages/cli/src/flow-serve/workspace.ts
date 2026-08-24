@@ -25,7 +25,10 @@ import {
 } from "../adapters/generate.js";
 import { DEFAULT_HARNESS_VERSION } from "../harness/loader.js";
 import type { HarnessManifest } from "../harness/types.js";
-import { ensureExternalWorkspaceLayout, getLetraDir as getHomeLetraDir } from "../workspace/index.js";
+import {
+	ensureExternalWorkspaceLayout,
+	getLetraDir as getHomeLetraDir,
+} from "../workspace/index.js";
 
 interface TemplateStage {
 	id: string;
@@ -137,7 +140,10 @@ const TARGET_MARKERS = [
 ];
 
 function hasTargetMarker(path: string): boolean {
-	return TARGET_MARKERS.some((marker) => existsSync(join(path, marker))) || existsSync(join(path, ".git"));
+	return (
+		TARGET_MARKERS.some((marker) => existsSync(join(path, marker))) ||
+		existsSync(join(path, ".git"))
+	);
 }
 
 function detectStack(path: string): { stack: string[]; evidence: string[] } {
@@ -163,7 +169,9 @@ function detectStack(path: string): { stack: string[]; evidence: string[] } {
 	}
 	if (existsSync(join(path, "pyproject.toml")) || existsSync(join(path, "requirements.txt"))) {
 		stack.add("Python");
-		evidence.push(existsSync(join(path, "pyproject.toml")) ? "pyproject.toml" : "requirements.txt");
+		evidence.push(
+			existsSync(join(path, "pyproject.toml")) ? "pyproject.toml" : "requirements.txt",
+		);
 	}
 	if (existsSync(join(path, "go.mod"))) {
 		stack.add("Go");
@@ -203,7 +211,8 @@ function discoverTargetPaths(root: string): string[] {
 	if (hasTargetMarker(root)) candidates.add(root);
 	try {
 		for (const entry of readdirSync(root, { withFileTypes: true })) {
-			if (!entry.isDirectory() || entry.name.startsWith(".") || entry.name === "node_modules") continue;
+			if (!entry.isDirectory() || entry.name.startsWith(".") || entry.name === "node_modules")
+				continue;
 			const child = join(root, entry.name);
 			if (hasTargetMarker(child)) candidates.add(child);
 			if (entry.name === "packages" || entry.name === "apps" || entry.name === "services") {
@@ -221,7 +230,10 @@ function discoverTargetPaths(root: string): string[] {
 	return [...candidates].slice(0, 100);
 }
 
-export function analyzeWorkspaceSetup(input: { name: string; root: string }): WorkspaceSetupProposal {
+export function analyzeWorkspaceSetup(input: {
+	name: string;
+	root: string;
+}): WorkspaceSetupProposal {
 	const root = resolve(input.root);
 	if (!existsSync(root) || !statSync(root).isDirectory()) {
 		throw new Error("A pasta inicial não existe ou não é um diretório.");
@@ -248,10 +260,12 @@ export function analyzeWorkspaceSetup(input: { name: string; root: string }): Wo
 					tool: tool.id,
 					label: tool.label,
 					capabilities: tool.capabilities,
-					state: isDetected ? "detected" as const : "available" as const,
+					state: isDetected ? ("detected" as const) : ("available" as const),
 					selected: isDetected,
 					evidence: isDetected
-						? tool.detectionPaths.filter((adapterPath) => existsSync(join(path, adapterPath)))
+						? tool.detectionPaths.filter((adapterPath) =>
+								existsSync(join(path, adapterPath)),
+							)
 						: [],
 				};
 			}),
@@ -266,7 +280,9 @@ export function analyzeWorkspaceSetup(input: { name: string; root: string }): Wo
 			harnessVersion: DEFAULT_HARNESS_VERSION,
 		},
 		locations,
-		warnings: locations.every((location) => location.adapters.every((adapter) => !adapter.selected))
+		warnings: locations.every((location) =>
+			location.adapters.every((adapter) => !adapter.selected),
+		)
 			? ["Nenhuma ferramenta agêntica foi detectada. Selecione os adapters manualmente."]
 			: [],
 	};
@@ -278,24 +294,30 @@ function buildLineDiff(before: string, after: string): string {
 	const afterLines = after === "" ? [] : after.replace(/\r\n/g, "\n").split("\n");
 	let prefix = 0;
 	while (
-		prefix < beforeLines.length
-		&& prefix < afterLines.length
-		&& beforeLines[prefix] === afterLines[prefix]
-	) prefix += 1;
+		prefix < beforeLines.length &&
+		prefix < afterLines.length &&
+		beforeLines[prefix] === afterLines[prefix]
+	)
+		prefix += 1;
 	let suffix = 0;
 	while (
-		suffix < beforeLines.length - prefix
-		&& suffix < afterLines.length - prefix
-		&& beforeLines[beforeLines.length - 1 - suffix] === afterLines[afterLines.length - 1 - suffix]
-	) suffix += 1;
+		suffix < beforeLines.length - prefix &&
+		suffix < afterLines.length - prefix &&
+		beforeLines[beforeLines.length - 1 - suffix] === afterLines[afterLines.length - 1 - suffix]
+	)
+		suffix += 1;
 
 	const lines = [
 		...beforeLines.slice(Math.max(0, prefix - 2), prefix).map((line) => `  ${line}`),
 		...beforeLines.slice(prefix, beforeLines.length - suffix).map((line) => `- ${line}`),
 		...afterLines.slice(prefix, afterLines.length - suffix).map((line) => `+ ${line}`),
 		...(suffix > 0
-			? afterLines.slice(afterLines.length - suffix, Math.min(afterLines.length, afterLines.length - suffix + 2))
-				.map((line) => `  ${line}`)
+			? afterLines
+					.slice(
+						afterLines.length - suffix,
+						Math.min(afterLines.length, afterLines.length - suffix + 2),
+					)
+					.map((line) => `  ${line}`)
 			: []),
 	];
 	const limit = 240;
@@ -347,7 +369,9 @@ export function planWorkspaceSetup(input: {
 	const normalizedRoot = workspaceRoot.replace(/\\/g, "/");
 	const operations: WorkspaceSetupOperation[] = [];
 	const workflowPath = join(workspaceRoot, "workflow.json");
-	const workflowBefore = existsSync(workflowPath) ? readFileSync(workflowPath, "utf-8") : undefined;
+	const workflowBefore = existsSync(workflowPath)
+		? readFileSync(workflowPath, "utf-8")
+		: undefined;
 	const workflowAfter = input.workflow ? JSON.stringify(input.workflow, null, 2) : undefined;
 	operations.push({
 		kind: workflowBefore ? "conflict" : "create",
@@ -389,19 +413,25 @@ export function planWorkspaceSetup(input: {
 			workspaceDir: workspaceRoot,
 			workflow: input.workflow
 				? {
-					name: input.workflow.name,
-					stages: input.workflow.stages,
-					items: input.workflow.items,
-				}
+						name: input.workflow.name,
+						stages: input.workflow.stages,
+						items: input.workflow.items,
+					}
 				: undefined,
 			activeStageId: input.workflow?.stages[0]?.id ?? "backlog",
 		});
 		for (const adapter of renderedAdapters) {
-			operations.push(operationFor(join(resolvedTarget, adapter.path), {
-				targetId: target.id,
-				tool: adapter.tool,
-				artifactId: adapter.artifactId,
-			}, adapter.content));
+			operations.push(
+				operationFor(
+					join(resolvedTarget, adapter.path),
+					{
+						targetId: target.id,
+						tool: adapter.tool,
+						artifactId: adapter.artifactId,
+					},
+					adapter.content,
+				),
+			);
 		}
 	}
 	return {
@@ -420,12 +450,14 @@ export function createWorkflowFromTemplate(
 ): Workflow {
 	const template = harness?.flows?.[templateId]
 		? {
-			name: harness.flows[templateId].name,
-			stages: harness.flows[templateId].stages.map(stageFromTemplateStage),
-		}
+				name: harness.flows[templateId].name,
+				stages: harness.flows[templateId].stages.map(stageFromTemplateStage),
+			}
 		: LEGACY_BOOTSTRAP_TEMPLATES[templateId];
 	if (!template) {
-		throw new Error(`Template "${templateId}" not found. Available: ${Object.keys(LEGACY_BOOTSTRAP_TEMPLATES).join(", ")}`);
+		throw new Error(
+			`Template "${templateId}" not found. Available: ${Object.keys(LEGACY_BOOTSTRAP_TEMPLATES).join(", ")}`,
+		);
 	}
 
 	const stages = template.stages.map((stage, index) => ({
@@ -458,10 +490,16 @@ export function registerWorkspaceSetup(input: {
 }): { workspace: Record<string, unknown>; workspaceRoot: string; registryFile: string } {
 	const name = input.name.trim();
 	const description = input.description.trim();
-	const workspaceRoot = input.workspacePath ? resolve(input.workspacePath) : resolve(process.cwd());
+	const workspaceRoot = input.workspacePath
+		? resolve(input.workspacePath)
+		: resolve(process.cwd());
 	mkdirSync(workspaceRoot, { recursive: true });
 
-	const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 64);
+	const slug = name
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "")
+		.slice(0, 64);
 	const registryDir = join(getHomeLetraDir(), "workspaces", slug);
 	mkdirSync(registryDir, { recursive: true });
 
@@ -516,18 +554,26 @@ export function writeExternalWorkspaceSetup(
 	workspace: Record<string, unknown>,
 ): void {
 	const root = resolve(workspaceRoot);
-	ensureExternalWorkspaceLayout(root, { workflow, workspace });
+	ensureExternalWorkspaceLayout(root, { workflow: workflow as unknown as Record<string, unknown>, workspace });
 	writeFileSync(join(root, "workflow.json"), JSON.stringify(workflow, null, 2), "utf-8");
 	writeFileSync(join(root, "workspace.json"), JSON.stringify(workspace, null, 2), "utf-8");
 }
 
-export function workflowLocations(targets: WorkspaceSetupTargetInput[], workspaceRoot: string): Array<{ id: string; path: string; label: string; adapters: string[] }> {
-	return targets.map((target) => ({
-		id: target.id,
-		path: target.path.replace(/\\/g, "/"),
-		label: target.label,
-		adapters: [...target.adapters],
-	})).filter((target) => resolve(target.path) !== resolve(workspaceRoot) || target.adapters.length > 0);
+export function workflowLocations(
+	targets: WorkspaceSetupTargetInput[],
+	workspaceRoot: string,
+): Array<{ id: string; path: string; label: string; adapters: string[] }> {
+	return targets
+		.map((target) => ({
+			id: target.id,
+			path: target.path.replace(/\\/g, "/"),
+			label: target.label,
+			adapters: [...target.adapters],
+		}))
+		.filter(
+			(target) =>
+				resolve(target.path) !== resolve(workspaceRoot) || target.adapters.length > 0,
+		);
 }
 
 export function captureWorkspaceSetup(plan: WorkspaceSetupPlan): WorkspaceSetupFileSnapshot[] {
@@ -562,20 +608,30 @@ export function saveWorkspaceSetupManifest(
 	const manifestId = `setup-${Date.now().toString(36)}`;
 	const manifestDir = join(resolve(workspaceRoot), "operations", "setup-manifests");
 	mkdirSync(manifestDir, { recursive: true });
-	writeFileSync(join(manifestDir, `${manifestId}.json`), JSON.stringify({
-		id: manifestId,
-		proposalId,
-		createdAt: new Date().toISOString(),
-		operations,
-		snapshots,
-	}, null, 2), "utf-8");
+	writeFileSync(
+		join(manifestDir, `${manifestId}.json`),
+		JSON.stringify(
+			{
+				id: manifestId,
+				proposalId,
+				createdAt: new Date().toISOString(),
+				operations,
+				snapshots,
+			},
+			null,
+			2,
+		),
+		"utf-8",
+	);
 	return manifestId;
 }
 
 export function rollbackWorkspaceSetup(workspaceRoot: string, manifestId: string): void {
 	if (!/^setup-[a-z0-9]+$/i.test(manifestId)) throw new Error("Manifest de rollback inválido.");
 	const root = resolve(workspaceRoot);
-	const manifestPath = existsSync(join(root, "operations", "setup-manifests", `${manifestId}.json`))
+	const manifestPath = existsSync(
+		join(root, "operations", "setup-manifests", `${manifestId}.json`),
+	)
 		? join(root, "operations", "setup-manifests", `${manifestId}.json`)
 		: join(root, ".letra", "setup-manifests", `${manifestId}.json`);
 	if (!existsSync(manifestPath)) throw new Error("Manifest de rollback não encontrado.");

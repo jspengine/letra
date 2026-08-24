@@ -70,7 +70,9 @@ function startServer() {
 
 		try {
 			const body = await readFile(filePath);
-			response.writeHead(200, { "content-type": mimeTypes.get(path.extname(filePath)) ?? "application/octet-stream" });
+			response.writeHead(200, {
+				"content-type": mimeTypes.get(path.extname(filePath)) ?? "application/octet-stream",
+			});
 			if (request.method === "HEAD") {
 				response.end();
 			} else {
@@ -98,11 +100,18 @@ async function waitForStory(page) {
 async function assertStoryRendered(page, story) {
 	const storybookError = page.getByText("The component failed to render properly").first();
 	if (await storybookError.isVisible().catch(() => false)) {
-		const heading = await page.locator("body").innerText({ timeout: 1000 }).catch(() => "");
+		const heading = await page
+			.locator("body")
+			.innerText({ timeout: 1000 })
+			.catch(() => "");
 		throw new Error(`${story.id} rendered Storybook error: ${heading.split("\n")[0]}`);
 	}
 
-	const rootHtml = await page.locator("#storybook-root, #root").first().innerHTML({ timeout: 1000 }).catch(() => "");
+	const rootHtml = await page
+		.locator("#storybook-root, #root")
+		.first()
+		.innerHTML({ timeout: 1000 })
+		.catch(() => "");
 	if (!rootHtml?.trim()) {
 		throw new Error(`${story.id} rendered an empty Storybook root.`);
 	}
@@ -123,35 +132,38 @@ async function applyTheme(page, theme) {
 }
 
 async function assertTokenStyles(page, story, selector, checks) {
-	const result = await page.evaluate(({ selector: targetSelector, checks: targetChecks }) => {
-		const target = document.querySelector(targetSelector);
-		if (!target) return { ok: false, message: `${targetSelector} not found` };
+	const result = await page.evaluate(
+		({ selector: targetSelector, checks: targetChecks }) => {
+			const target = document.querySelector(targetSelector);
+			if (!target) return { ok: false, message: `${targetSelector} not found` };
 
-		const computed = getComputedStyle(target);
-		const probe = document.createElement("div");
-		document.body.appendChild(probe);
+			const computed = getComputedStyle(target);
+			const probe = document.createElement("div");
+			document.body.appendChild(probe);
 
-		try {
-			for (const check of targetChecks) {
-				probe.style.color = "";
-				probe.style.borderColor = "";
-				probe.style.backgroundColor = "";
-				probe.style[check.property] = `var(${check.token})`;
-				const expected = getComputedStyle(probe)[check.property];
-				const actual = computed[check.property];
-				if (actual !== expected) {
-					return {
-						ok: false,
-						message: `${targetSelector} ${check.property} expected ${check.token} (${expected}) but got ${actual}`,
-					};
+			try {
+				for (const check of targetChecks) {
+					probe.style.color = "";
+					probe.style.borderColor = "";
+					probe.style.backgroundColor = "";
+					probe.style[check.property] = `var(${check.token})`;
+					const expected = getComputedStyle(probe)[check.property];
+					const actual = computed[check.property];
+					if (actual !== expected) {
+						return {
+							ok: false,
+							message: `${targetSelector} ${check.property} expected ${check.token} (${expected}) but got ${actual}`,
+						};
+					}
 				}
+			} finally {
+				probe.remove();
 			}
-		} finally {
-			probe.remove();
-		}
 
-		return { ok: true };
-	}, { selector, checks });
+			return { ok: true };
+		},
+		{ selector, checks },
+	);
 
 	if (!result.ok) {
 		throw new Error(`${story.id}: ${result.message}`);
@@ -232,17 +244,24 @@ try {
 		for (const story of stories) {
 			for (const theme of ["dark", "light"]) {
 				const isMobile = story.name.toLowerCase().includes("mobile");
-				await page.setViewportSize(isMobile ? { width: 390, height: 844 } : { width: 1280, height: 900 });
+				await page.setViewportSize(
+					isMobile ? { width: 390, height: 844 } : { width: 1280, height: 900 },
+				);
 				await page.goto(storyUrl(origin, story), { waitUntil: "domcontentloaded" });
 				await waitForStory(page);
 				await applyTheme(page, theme);
 				await assertStoryRendered(page, story);
 				await validateInteractiveVisual(page, story);
-				await page.screenshot({ path: path.join(outDir, `${story.id}-${theme}.png`), fullPage: true });
+				await page.screenshot({
+					path: path.join(outDir, `${story.id}-${theme}.png`),
+					fullPage: true,
+				});
 			}
 		}
 
-		console.log(`Storybook visual snapshots captured for ${stories.length} critical DS stories in dark and light themes.`);
+		console.log(
+			`Storybook visual snapshots captured for ${stories.length} critical DS stories in dark and light themes.`,
+		);
 	}
 } finally {
 	await browser.close();

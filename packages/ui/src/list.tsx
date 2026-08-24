@@ -30,7 +30,8 @@ export function List({ tone = "default", className, children, ...props }: ListPr
 		<ul
 			className={cn(
 				"grid gap-[var(--layout-list-gap)]",
-				tone === "surface" && "rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-base)] p-[var(--layout-list-gap)]",
+				tone === "surface" &&
+					"rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-base)] p-[var(--layout-list-gap)]",
 				className,
 			)}
 			{...props}
@@ -65,13 +66,19 @@ export function ListItem({
 			{leading ? <div className="flex items-start sm:items-center">{leading}</div> : null}
 			<div className="grid min-w-0 gap-[var(--space-1)]">
 				{meta ? <div className="ds-cluster">{meta}</div> : null}
-				<div className="min-w-0 break-words text-body-sm font-medium text-[var(--color-text-primary)]">{title}</div>
+				<div className="min-w-0 break-words text-body-sm font-medium text-[var(--color-text-primary)]">
+					{title}
+				</div>
 				{description ? (
-					<div className="min-w-0 break-words text-caption text-[var(--color-text-secondary)]">{description}</div>
+					<div className="min-w-0 break-words text-caption text-[var(--color-text-secondary)]">
+						{description}
+					</div>
 				) : null}
 				{children}
 			</div>
-			{action ? <div className="flex min-w-0 flex-wrap items-center sm:justify-end">{action}</div> : null}
+			{action ? (
+				<div className="flex min-w-0 flex-wrap items-center sm:justify-end">{action}</div>
+			) : null}
 		</li>
 	);
 }

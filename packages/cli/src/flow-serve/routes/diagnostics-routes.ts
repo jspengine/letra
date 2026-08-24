@@ -32,9 +32,7 @@ function sendBodyError(error: unknown, res: Parameters<typeof sendError>[0]): vo
 	sendError(res, 400, (error as Error).message);
 }
 
-export function createDiagnosticsRoutes(
-	dependencies: DiagnosticsRouteDependencies,
-): RouteHandler {
+export function createDiagnosticsRoutes(dependencies: DiagnosticsRouteDependencies): RouteHandler {
 	return async ({ method, path, req, res, url, workspaceRoot }) => {
 		const engine = dependencies.engineFor(workspaceRoot);
 
@@ -51,8 +49,8 @@ export function createDiagnosticsRoutes(
 				sendJson(res, 200, { snapshots });
 				return true;
 			}
-			const limit = limitParam ? parseInt(limitParam, 10) : total;
-			const offset = offsetParam ? parseInt(offsetParam, 10) : 0;
+			const limit = limitParam ? Number.parseInt(limitParam, 10) : total;
+			const offset = offsetParam ? Number.parseInt(offsetParam, 10) : 0;
 			snapshots = snapshots.slice(offset, offset + limit);
 			sendJson(res, 200, { snapshots, total, limit, offset });
 			return true;
@@ -109,7 +107,11 @@ export function createDiagnosticsRoutes(
 		}
 		if (path === "/api/health/alerts" && method === "GET") {
 			const record = dependencies.loadHealthRecord(workspaceRoot);
-			sendJson(res, 200, record.entries.filter((entry) => entry.status === "novo"));
+			sendJson(
+				res,
+				200,
+				record.entries.filter((entry) => entry.status === "novo"),
+			);
 			return true;
 		}
 		if (path === "/api/health/scan" && method === "POST") {

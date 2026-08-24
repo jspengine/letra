@@ -26,7 +26,12 @@ function collectFiles(dir: string): string[] {
 	const files: string[] = [];
 	for (const entry of entries) {
 		const full = join(dir, entry.name);
-		if (entry.isDirectory() && entry.name !== "node_modules" && entry.name !== "dist" && !entry.name.startsWith(".")) {
+		if (
+			entry.isDirectory() &&
+			entry.name !== "node_modules" &&
+			entry.name !== "dist" &&
+			!entry.name.startsWith(".")
+		) {
 			files.push(...collectFiles(full));
 		} else if (entry.isFile() && entry.name.endsWith(".tsx")) {
 			files.push(full);

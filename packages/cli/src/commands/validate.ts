@@ -490,9 +490,14 @@ export async function validate(
 		flushResults(allResults, fmt, specGroups, totalPass, totalFail, totalWarning);
 
 		if (options?.log !== false) {
-			logEntry(root, "validate", `Validação executada — ${totalPass} passed, ${totalFail} failed, ${totalWarning} warnings`, {
-				details: { passed: totalPass, failed: totalFail, warnings: totalWarning },
-			});
+			logEntry(
+				root,
+				"validate",
+				`Validação executada — ${totalPass} passed, ${totalFail} failed, ${totalWarning} warnings`,
+				{
+					details: { passed: totalPass, failed: totalFail, warnings: totalWarning },
+				},
+			);
 		}
 
 		return { passed: totalPass, failed: totalFail, warnings: totalWarning };

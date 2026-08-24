@@ -44,11 +44,7 @@ function renderCollapsedSidebar(onTabChange = vi.fn()) {
 		onTabChange,
 		...render(
 			<SidebarProvider defaultOpen={false}>
-				<Sidebar
-					activeTab="supervision"
-					onTabChange={onTabChange}
-					workspaceActive
-				/>
+				<Sidebar activeTab="supervision" onTabChange={onTabChange} workspaceActive />
 			</SidebarProvider>,
 		),
 	};
@@ -141,10 +137,16 @@ describe("Sidebar", () => {
 		expect(supervisionButton?.getAttribute("title")).toBeTruthy();
 		expect(supervisionButton?.getAttribute("class")).toContain("size-9");
 		expect(supervisionButton?.getAttribute("class")).not.toContain("shadow-[inset");
-		expect(container.querySelector('[data-sidebar-label="brand"]')?.getAttribute("class")).toContain("sr-only");
+		expect(
+			container.querySelector('[data-sidebar-label="brand"]')?.getAttribute("class"),
+		).toContain("sr-only");
 
 		for (const destination of PRIMARY_DESTINATIONS) {
-			expect(container.querySelector(`[data-sidebar-label="${destination.id}"]`)?.getAttribute("class")).toContain("sr-only");
+			expect(
+				container
+					.querySelector(`[data-sidebar-label="${destination.id}"]`)
+					?.getAttribute("class"),
+			).toContain("sr-only");
 		}
 	});
 });

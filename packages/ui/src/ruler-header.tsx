@@ -25,7 +25,7 @@ export function RulerHeader({
 }: RulerHeaderProps) {
 	const progPct = Math.round(progress * 100);
 	const activeLabel = activeSection
-		? sections.find((section) => section.id === activeSection)?.label ?? activeSection
+		? (sections.find((section) => section.id === activeSection)?.label ?? activeSection)
 		: sections[0]?.label;
 
 	return (
@@ -84,7 +84,13 @@ export function RulerHeader({
 												: "size-1 shrink-0 rounded-full bg-[var(--color-text-disabled)]"
 										}
 									/>
-									<span className={isActive ? "truncate text-[var(--color-primary)]" : "truncate"}>
+									<span
+										className={
+											isActive
+												? "truncate text-[var(--color-primary)]"
+												: "truncate"
+										}
+									>
 										{section.label}
 									</span>
 								</span>

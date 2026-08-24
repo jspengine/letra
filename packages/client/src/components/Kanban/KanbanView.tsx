@@ -5,7 +5,13 @@ import { Icon, Progress, Button } from "@letra/ui";
 import { cn } from "../../lib/utils";
 import { MarchingBorder } from "./MarchingBorder";
 import type { Item } from "@letra/types";
-import { computeSlug, computeTypeTag, countACs, TYPE_COLORS, type ItemType } from "../../lib/item-utils";
+import {
+	computeSlug,
+	computeTypeTag,
+	countACs,
+	TYPE_COLORS,
+	type ItemType,
+} from "../../lib/item-utils";
 import {
 	humanGateStageIds,
 	orderedStages,
@@ -169,32 +175,35 @@ export default function KanbanView({
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ stage: targetStageId }),
 			});
-			const releaseP = item.claimedBy && humanGateStageIds(workflow, activeFlow).has(targetStageId)
-				? fetch(`/api/items/${itemId}/release`, { method: "POST" })
-				: Promise.resolve();
+			const releaseP =
+				item.claimedBy && humanGateStageIds(workflow, activeFlow).has(targetStageId)
+					? fetch(`/api/items/${itemId}/release`, { method: "POST" })
+					: Promise.resolve();
 			Promise.all([p, releaseP]).then(debouncedMove).catch(console.warn);
 		}
 	}
 
-	return (
-		workflow.items.length === 0 ? (
-			<div className="flex flex-1 items-center justify-center p-6">
-				<div className="flex flex-col items-center gap-3 text-center">
-					<p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
-						Nenhum item no board.
-					</p>
-					<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
-						Adicione seu primeiro item via <code className="px-1 py-0.5 rounded bg-muted">letra flow backlog add &lt;desc&gt;</code>
-					</p>
-					{onAddItem && (
-						<Button size="sm" onClick={onAddItem}>
-							Add Item
-						</Button>
-					)}
-				</div>
+	return workflow.items.length === 0 ? (
+		<div className="flex flex-1 items-center justify-center p-6">
+			<div className="flex flex-col items-center gap-3 text-center">
+				<p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+					Nenhum item no board.
+				</p>
+				<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
+					Adicione seu primeiro item via{" "}
+					<code className="px-1 py-0.5 rounded bg-muted">
+						letra flow backlog add &lt;desc&gt;
+					</code>
+				</p>
+				{onAddItem && (
+					<Button size="sm" onClick={onAddItem}>
+						Add Item
+					</Button>
+				)}
 			</div>
-		) : (
-			<div className="flex flex-1 min-h-0 gap-3 p-3 overflow-x-auto">
+		</div>
+	) : (
+		<div className="flex flex-1 min-h-0 gap-3 p-3 overflow-x-auto">
 			{orderedStages(workflow, activeFlow).map((stage) => {
 				const stageItems = workflow.items.filter((it) => it.stage === stage.id);
 				const stageColor = stagePresentation(stage).color;
@@ -223,7 +232,10 @@ export default function KanbanView({
 						onDrop={(e) => handleDrop(e, stage.id)}
 					>
 						<CardContent className="p-0 flex flex-col flex-1 min-h-0">
-							<div className="shrink-0 p-3 pb-2 border-b" style={{ borderColor: "var(--color-border)" }}>
+							<div
+								className="shrink-0 p-3 pb-2 border-b"
+								style={{ borderColor: "var(--color-border)" }}
+							>
 								<h3 className="text-sm font-semibold flex items-center gap-2">
 									{accentHeader && (
 										<span
@@ -257,11 +269,23 @@ export default function KanbanView({
 									const slug = cachedSlug(it, specs, workflow);
 									const typeTag = cachedType(it);
 									const typeColor = TYPE_COLORS[typeTag];
-									const linkedSpec = it.spec ? specs.find((s) => s.id === it.spec) : null;
-									const acCount = linkedSpec ? countACs(linkedSpec.content) : null;
+									const linkedSpec = it.spec
+										? specs.find((s) => s.id === it.spec)
+										: null;
+									const acCount = linkedSpec
+										? countACs(linkedSpec.content)
+										: null;
 									const hasTasks = it.tasks && it.tasks.length > 0;
-									const progressMax = acCount ? acCount.total : hasTasks ? it.tasks!.length : 0;
-									const progressVal = acCount ? acCount.done : hasTasks ? it.tasks!.filter((t) => t.done).length : 0;
+									const progressMax = acCount
+										? acCount.total
+										: hasTasks
+											? it.tasks?.length
+											: 0;
+									const progressVal = acCount
+										? acCount.done
+										: hasTasks
+											? it.tasks?.filter((t) => t.done).length
+											: 0;
 									return (
 										<div
 											key={it.id}
@@ -278,35 +302,39 @@ export default function KanbanView({
 											}}
 											onDragStart={(e) => handleDragStart(e, it.id)}
 											onDragEnd={handleDragEnd}
-												className={cn(
-													"relative group rounded-[var(--radius-sm)] border text-card-foreground transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-sm hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-													draggingId === it.id && "opacity-70 scale-[1.02] shadow-md",
-													stageColor
-														? "bg-card/90 hover:border-transparent"
-														: "bg-card hover:border-primary/20",
-												)}
-												style={{
-													borderColor: isClaimed
-														? "transparent"
-														: isFocused
-															? "var(--border-focus)"
-															: stageColor
-																? `${stageColor}30`
-																: "var(--color-border)",
-													borderLeft: isFocused && !isClaimed ? "3px solid var(--border-focus)" : undefined,
-													background: stageColor
-														? `color-mix(in srgb, ${stageColor}08, var(--color-bg-surface))`
+											className={cn(
+												"relative group rounded-[var(--radius-sm)] border text-card-foreground transition-all duration-200 cursor-grab active:cursor-grabbing hover:shadow-sm hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+												draggingId === it.id &&
+													"opacity-70 scale-[1.02] shadow-md",
+												stageColor
+													? "bg-card/90 hover:border-transparent"
+													: "bg-card hover:border-primary/20",
+											)}
+											style={{
+												borderColor: isClaimed
+													? "transparent"
+													: isFocused
+														? "var(--border-focus)"
+														: stageColor
+															? `${stageColor}30`
+															: "var(--color-border)",
+												borderLeft:
+													isFocused && !isClaimed
+														? "3px solid var(--border-focus)"
 														: undefined,
+												background: stageColor
+													? `color-mix(in srgb, ${stageColor}08, var(--color-bg-surface))`
+													: undefined,
 												boxShadow: isClaimed
 													? undefined
 													: isFocused
-														? `0 0 8px color-mix(in srgb, var(--border-focus) 30%, transparent)`
+														? "0 0 8px color-mix(in srgb, var(--border-focus) 30%, transparent)"
 														: draggingId === it.id
 															? undefined
 															: stageColor
 																? `0 1px 3px ${stageColor}15`
-																: `0 1px 2px oklch(0 0 0 / 0.08)`,
-												}}
+																: "0 1px 2px oklch(0 0 0 / 0.08)",
+											}}
 										>
 											{isClaimed && <MarchingBorder />}
 											<div className="p-2.5 flex flex-col gap-1">
@@ -316,8 +344,12 @@ export default function KanbanView({
 														title={`${it.id} — ${it.description}`}
 													>
 														{isFocused && (
-															<span className="inline-block w-2 h-2 rounded-full mr-1 align-middle shrink-0"
-																style={{ background: "var(--border-focus)" }}
+															<span
+																className="inline-block w-2 h-2 rounded-full mr-1 align-middle shrink-0"
+																style={{
+																	background:
+																		"var(--border-focus)",
+																}}
 															/>
 														)}
 														{slug}
@@ -331,12 +363,17 @@ export default function KanbanView({
 													>
 														{typeTag}
 													</span>
-													{it.currentPhase && stage.phases?.states?.[it.currentPhase] && (
-														<PhaseBadge phase={{
-															id: it.currentPhase,
-															label: stage.phases.states[it.currentPhase].label,
-														}} />
-													)}
+													{it.currentPhase &&
+														stage.phases?.states?.[it.currentPhase] && (
+															<PhaseBadge
+																phase={{
+																	id: it.currentPhase,
+																	label: stage.phases.states[
+																		it.currentPhase
+																	].label,
+																}}
+															/>
+														)}
 												</div>
 												<div
 													className="truncate text-xs leading-relaxed"
@@ -344,7 +381,7 @@ export default function KanbanView({
 												>
 													{truncate(it.description, 40)}
 												</div>
-												{(progressMax > 0) && (
+												{progressMax > 0 && (
 													<Progress
 														value={progressVal}
 														max={progressMax}
@@ -353,12 +390,18 @@ export default function KanbanView({
 														barColor={stageColor}
 													/>
 												)}
-														<div className="flex items-center justify-between gap-1 mt-0.5">
-													<div className="flex items-center gap-1.5 text-caption"
-														style={{ color: "var(--color-text-secondary)" }}
+												<div className="flex items-center justify-between gap-1 mt-0.5">
+													<div
+														className="flex items-center gap-1.5 text-caption"
+														style={{
+															color: "var(--color-text-secondary)",
+														}}
 													>
 														{itemAlerts[it.id] > 0 && (
-															<span className="text-red-500 font-semibold" title={`${itemAlerts[it.id]} alerta(s)`}>
+															<span
+																className="text-red-500 font-semibold"
+																title={`${itemAlerts[it.id]} alerta(s)`}
+															>
 																⚠{itemAlerts[it.id]}
 															</span>
 														)}
@@ -368,9 +411,12 @@ export default function KanbanView({
 													</div>
 													<div className="flex items-center gap-1.5">
 														{isClaimed && (
-															<span title={`Em andamento por ${it.claimedBy} desde ${it.claimedAt ? new Date(it.claimedAt).toLocaleTimeString() : "?"}`}
+															<span
+																title={`Em andamento por ${it.claimedBy} desde ${it.claimedAt ? new Date(it.claimedAt).toLocaleTimeString() : "?"}`}
 																className="text-xs"
-															>🤖</span>
+															>
+																🤖
+															</span>
 														)}
 														<span
 															className="flex items-center gap-1 text-caption tabular-nums"
@@ -385,65 +431,118 @@ export default function KanbanView({
 													{isFocused ? (
 														<Button
 															className="text-caption px-1.5 py-0.5 rounded"
-															style={{ background: "var(--color-bg-surface)", color: "var(--color-text-secondary)" }}
-															disabled={loadingButtons.has(`focus-${it.id}`)}
+															style={{
+																background:
+																	"var(--color-bg-surface)",
+																color: "var(--color-text-secondary)",
+															}}
+															disabled={loadingButtons.has(
+																`focus-${it.id}`,
+															)}
 															onClick={(e) => {
 																e.stopPropagation();
-																withLoading(`focus-${it.id}`, async () => {
-																	await fetch("/api/focus", { method: "DELETE" });
-																	setFocusItemId(null);
-																	debouncedMove();
-																});
+																withLoading(
+																	`focus-${it.id}`,
+																	async () => {
+																		await fetch("/api/focus", {
+																			method: "DELETE",
+																		});
+																		setFocusItemId(null);
+																		debouncedMove();
+																	},
+																);
 															}}
 														>
-															{loadingButtons.has(`focus-${it.id}`) ? "⏳" : "★ Focus"}
+															{loadingButtons.has(`focus-${it.id}`)
+																? "⏳"
+																: "★ Focus"}
 														</Button>
 													) : (
 														<Button
 															className="text-caption px-1.5 py-0.5 rounded"
-															style={{ background: "var(--border-focus)", color: "var(--color-text-primary)" }}
-															disabled={loadingButtons.has(`focus-${it.id}`)}
+															style={{
+																background: "var(--border-focus)",
+																color: "var(--color-text-primary)",
+															}}
+															disabled={loadingButtons.has(
+																`focus-${it.id}`,
+															)}
 															onClick={(e) => {
 																e.stopPropagation();
-																withLoading(`focus-${it.id}`, async () => {
-																	await fetch(`/api/items/${it.id}/focus`, { method: "POST" });
-																	setFocusItemId(it.id);
-																	debouncedMove();
-																});
+																withLoading(
+																	`focus-${it.id}`,
+																	async () => {
+																		await fetch(
+																			`/api/items/${it.id}/focus`,
+																			{ method: "POST" },
+																		);
+																		setFocusItemId(it.id);
+																		debouncedMove();
+																	},
+																);
 															}}
 														>
-															{loadingButtons.has(`focus-${it.id}`) ? "⏳" : "☆ Focus"}
+															{loadingButtons.has(`focus-${it.id}`)
+																? "⏳"
+																: "☆ Focus"}
 														</Button>
 													)}
 													{isClaimed ? (
 														<Button
 															className="text-caption px-1.5 py-0.5 rounded"
-															style={{ background: "var(--color-bg-surface)", color: "var(--color-text-secondary)" }}
-															disabled={loadingButtons.has(`release-${it.id}`)}
+															style={{
+																background:
+																	"var(--color-bg-surface)",
+																color: "var(--color-text-secondary)",
+															}}
+															disabled={loadingButtons.has(
+																`release-${it.id}`,
+															)}
 															onClick={(e) => {
 																e.stopPropagation();
-																withLoading(`release-${it.id}`, async () => {
-																	await fetch(`/api/items/${it.id}/release`, { method: "POST" });
-																	debouncedMove();
-																});
+																withLoading(
+																	`release-${it.id}`,
+																	async () => {
+																		await fetch(
+																			`/api/items/${it.id}/release`,
+																			{ method: "POST" },
+																		);
+																		debouncedMove();
+																	},
+																);
 															}}
 														>
-															{loadingButtons.has(`release-${it.id}`) ? "⏳" : "Release"}
+															{loadingButtons.has(`release-${it.id}`)
+																? "⏳"
+																: "Release"}
 														</Button>
 													) : (
 														<Button
 															className="text-caption px-1.5 py-0.5 rounded"
-															style={{ background: "var(--color-primary)", color: "var(--color-text-primary)" }}
-															disabled={loadingButtons.has(`claim-${it.id}`)}
+															style={{
+																background: "var(--color-primary)",
+																color: "var(--color-text-primary)",
+															}}
+															disabled={loadingButtons.has(
+																`claim-${it.id}`,
+															)}
 															onClick={(e) => {
 																e.stopPropagation();
-																withLoading(`claim-${it.id}`, async () => {
-																	await fetch(`/api/items/${it.id}/claim`, { method: "POST" });
-																	debouncedMove();
-																});
+																withLoading(
+																	`claim-${it.id}`,
+																	async () => {
+																		await fetch(
+																			`/api/items/${it.id}/claim`,
+																			{ method: "POST" },
+																		);
+																		debouncedMove();
+																	},
+																);
 															}}
 														>
-															{loadingButtons.has(`claim-${it.id}`) ? "⏳" : "Claim"}
+															{loadingButtons.has(`claim-${it.id}`)
+																? "⏳"
+																: "Claim"}
 														</Button>
 													)}
 												</div>
@@ -457,6 +556,5 @@ export default function KanbanView({
 				);
 			})}
 		</div>
-	)
-		);
+	);
 }

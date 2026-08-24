@@ -4,9 +4,16 @@ import { basename, join, relative } from "node:path";
 const packageRoot = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const srcRoot = join(packageRoot, "src");
 
-const ignoredComponentFiles = new Set(["index.ts", "index.css", "utils.ts", "token-components.tsx"]);
-const rawInteractivePattern = /<(button|select|input|textarea|table|dialog|details)\b|<hr\b|role=["']button["']/;
-const hardcodedColorPattern = /#[0-9a-fA-F]{3,8}\b|rgba?\(|\b(?:bg|text|border)-(?:black|white|red|green|blue|yellow|purple|orange|slate|gray|zinc|neutral|stone|emerald|amber|rose|sky|indigo)-/;
+const ignoredComponentFiles = new Set([
+	"index.ts",
+	"index.css",
+	"utils.ts",
+	"token-components.tsx",
+]);
+const rawInteractivePattern =
+	/<(button|select|input|textarea|table|dialog|details)\b|<hr\b|role=["']button["']/;
+const hardcodedColorPattern =
+	/#[0-9a-fA-F]{3,8}\b|rgba?\(|\b(?:bg|text|border)-(?:black|white|red|green|blue|yellow|purple|orange|slate|gray|zinc|neutral|stone|emerald|amber|rose|sky|indigo)-/;
 const layoutSmellPattern = /\bspace-[xy]-|\bz-\d+|\bz-\[/;
 
 function walk(dir, files = []) {
@@ -39,7 +46,11 @@ function hasXds(source) {
 }
 
 function storiesForComponent(component, stories) {
-	return stories.filter((story) => story.key === component.key || story.key === component.key.replace(/^patterns[\\/]/, ""));
+	return stories.filter(
+		(story) =>
+			story.key === component.key ||
+			story.key === component.key.replace(/^patterns[\\/]/, ""),
+	);
 }
 
 function scanSource(source) {
@@ -51,13 +62,7 @@ function scanSource(source) {
 	};
 }
 
-const nativeWrapperAllowlist = new Set([
-	"button",
-	"checkbox",
-	"input",
-	"textarea",
-	"table",
-]);
+const nativeWrapperAllowlist = new Set(["button", "checkbox", "input", "textarea", "table"]);
 
 function normalizeComponentScan(component) {
 	if (nativeWrapperAllowlist.has(component.key)) {
@@ -89,33 +94,37 @@ const stories = storyFiles.map((file) => {
 	};
 });
 
-const components = componentFiles.map((file) => {
-	const source = read(file);
-	const key = componentKey(file);
-	const matchedStories = storiesForComponent({ key }, stories);
-	return {
-		key,
-		path: relative(packageRoot, file).replaceAll("\\", "/"),
-		story: matchedStories.length > 0,
-		xds: matchedStories.some((story) => story.xds),
-		scan: scanSource(source),
-		stories: matchedStories.map((story) => story.path),
-	};
-}).map(normalizeComponentScan);
+const components = componentFiles
+	.map((file) => {
+		const source = read(file);
+		const key = componentKey(file);
+		const matchedStories = storiesForComponent({ key }, stories);
+		return {
+			key,
+			path: relative(packageRoot, file).replaceAll("\\", "/"),
+			story: matchedStories.length > 0,
+			xds: matchedStories.some((story) => story.xds),
+			scan: scanSource(source),
+			stories: matchedStories.map((story) => story.path),
+		};
+	})
+	.map(normalizeComponentScan);
 
 const missingStory = components.filter((component) => !component.story);
 const missingXds = stories.filter((story) => !story.xds);
-const sourceFindings = components.filter((component) =>
-	component.scan.rawInteractive
-	|| component.scan.hardcodedColor
-	|| component.scan.inlineStyle
-	|| component.scan.layoutSmell,
+const sourceFindings = components.filter(
+	(component) =>
+		component.scan.rawInteractive ||
+		component.scan.hardcodedColor ||
+		component.scan.inlineStyle ||
+		component.scan.layoutSmell,
 );
-const storyFindings = stories.filter((story) =>
-	story.scan.rawInteractive
-	|| story.scan.hardcodedColor
-	|| story.scan.inlineStyle
-	|| story.scan.layoutSmell,
+const storyFindings = stories.filter(
+	(story) =>
+		story.scan.rawInteractive ||
+		story.scan.hardcodedColor ||
+		story.scan.inlineStyle ||
+		story.scan.layoutSmell,
 );
 
 const summary = {
@@ -139,14 +148,25 @@ function printSection(title, rows, format) {
 printSection("Components without a Storybook story", missingStory, (row) => row.path);
 printSection("Stories without x-ds metadata", missingXds, (row) => row.path);
 printSection("Component source findings", sourceFindings, (row) => {
-	const flags = Object.entries(row.scan).filter(([, value]) => value).map(([key]) => key).join(", ");
+	const flags = Object.entries(row.scan)
+		.filter(([, value]) => value)
+		.map(([key]) => key)
+		.join(", ");
 	return `${row.path} (${flags})`;
 });
 printSection("Story source findings", storyFindings, (row) => {
-	const flags = Object.entries(row.scan).filter(([, value]) => value).map(([key]) => key).join(", ");
+	const flags = Object.entries(row.scan)
+		.filter(([, value]) => value)
+		.map(([key]) => key)
+		.join(", ");
 	return `${row.path} (${flags})`;
 });
 
-if (missingStory.length > 0 || missingXds.length > 0 || sourceFindings.length > 0 || storyFindings.length > 0) {
+if (
+	missingStory.length > 0 ||
+	missingXds.length > 0 ||
+	sourceFindings.length > 0 ||
+	storyFindings.length > 0
+) {
 	process.exitCode = 1;
 }

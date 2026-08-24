@@ -62,7 +62,12 @@ export default {
 		"x-ds": {
 			category: "navigation",
 			status: "ready",
-			tokens: ["color-text-secondary", "color-text-primary", "color-text-muted", "focus-ring-color"],
+			tokens: [
+				"color-text-secondary",
+				"color-text-primary",
+				"color-text-muted",
+				"focus-ring-color",
+			],
 			consumes: ["Icon"],
 			surfaces: ["ContextView", "SpecsView", "FlowView"],
 			a11y: ["nav-label", "aria-current", "focus-visible"],

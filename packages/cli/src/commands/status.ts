@@ -2,7 +2,12 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import chalk from "chalk";
-import { detectManifest, listWorkspaces, loadWorkspaceInfo, getWorkspacePath } from "../workspace/index.js";
+import {
+	detectManifest,
+	listWorkspaces,
+	loadWorkspaceInfo,
+	getWorkspacePath,
+} from "../workspace/index.js";
 
 export async function status(cwd?: string): Promise<void> {
 	const root = resolve(process.cwd(), cwd || ".");
@@ -26,7 +31,9 @@ export async function status(cwd?: string): Promise<void> {
 		if (existsSync(wsPath)) {
 			const info = loadWorkspaceInfo(m.workspaceId);
 			if (info) {
-				console.log(`\n  ${chalk.gray(`Workspace criado: ${new Date(info.createdAt).toLocaleDateString()}`)}`);
+				console.log(
+					`\n  ${chalk.gray(`Workspace criado: ${new Date(info.createdAt).toLocaleDateString()}`)}`,
+				);
 			}
 		}
 	} else {
@@ -44,7 +51,9 @@ export async function status(cwd?: string): Promise<void> {
 				console.log(`    ID: ${ws.id}`);
 				console.log(`    Template: ${ws.templateId}`);
 				console.log(`    Criado: ${new Date(ws.createdAt).toLocaleDateString()}`);
-				console.log(`    Arquivo: ${pathToFileURL(getWorkspacePath(ws.name) + "/workspace.json").href}`);
+				console.log(
+					`    Arquivo: ${pathToFileURL(`${getWorkspacePath(ws.name)}/workspace.json`).href}`,
+				);
 				console.log();
 			}
 		}

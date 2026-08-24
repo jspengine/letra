@@ -19,13 +19,17 @@ function linkedWorkspace() {
 	const dataDir = join(root, "data");
 	mkdirSync(projectDir, { recursive: true });
 	mkdirSync(dataDir, { recursive: true });
-	writeFileSync(join(dataDir, "workflow.json"), JSON.stringify({
-		version: "1.0",
-		name: "Linked",
-		stages: [],
-		items: [],
-		tools: [],
-	}), "utf-8");
+	writeFileSync(
+		join(dataDir, "workflow.json"),
+		JSON.stringify({
+			version: "1.0",
+			name: "Linked",
+			stages: [],
+			items: [],
+			tools: [],
+		}),
+		"utf-8",
+	);
 	writeFileSync(join(projectDir, ".letra-link"), `${dataDir}\n`, "utf-8");
 	return { projectDir, dataDir };
 }

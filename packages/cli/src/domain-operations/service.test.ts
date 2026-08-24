@@ -16,29 +16,38 @@ function fixture(): string {
 	const root = mkdtempSync(join(tmpdir(), "letra-domain-operation-"));
 	roots.push(root);
 	mkdirSync(join(root, ".letra", "specs", "controlled-operation"), { recursive: true });
-	writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify({
-		version: "1.0",
-		name: "Controlled operations",
-		createdAt: "2026-07-04T00:00:00.000Z",
-		updatedAt: "2026-07-04T00:00:00.000Z",
-		stages: [
-			{ id: "code", name: "Code", order: 0, zone: "doing" },
-			{ id: "review", name: "Review", order: 1, zone: "doing" },
-		],
-		items: [{
-			id: "ITEM-1",
-			description: "Controlled operation",
-			stage: "code",
-			spec: "controlled-operation",
-			createdAt: "2026-07-04T00:00:00.000Z",
-		}],
-		primaryItemId: "ITEM-1",
-		tools: [],
-	}, null, 2));
+	writeFileSync(
+		join(root, ".letra", "workflow.json"),
+		JSON.stringify(
+			{
+				version: "1.0",
+				name: "Controlled operations",
+				createdAt: "2026-07-04T00:00:00.000Z",
+				updatedAt: "2026-07-04T00:00:00.000Z",
+				stages: [
+					{ id: "code", name: "Code", order: 0, zone: "doing" },
+					{ id: "review", name: "Review", order: 1, zone: "doing" },
+				],
+				items: [
+					{
+						id: "ITEM-1",
+						description: "Controlled operation",
+						stage: "code",
+						spec: "controlled-operation",
+						createdAt: "2026-07-04T00:00:00.000Z",
+					},
+				],
+				primaryItemId: "ITEM-1",
+				tools: [],
+			},
+			null,
+			2,
+		),
+	);
 	writeFileSync(
 		join(root, ".letra", "specs", "controlled-operation", "spec.md"),
-		"# Spec\n\n## Outcome\n\nControlled operation with enough detail for validation.\n\n"
-			+ "## Acceptance Criteria\n\n- [ ] **AC1**: operation is controlled\n",
+		"# Spec\n\n## Outcome\n\nControlled operation with enough detail for validation.\n\n" +
+			"## Acceptance Criteria\n\n- [ ] **AC1**: operation is controlled\n",
 	);
 	return root;
 }
@@ -166,30 +175,36 @@ describe("domain operations", () => {
 		mkdirSync(join(harness, "flows"), { recursive: true });
 		mkdirSync(join(harness, "gates"), { recursive: true });
 		mkdirSync(join(harness, "roles"), { recursive: true });
-		writeFileSync(join(harness, "flows", "controlled-flow.yaml"), [
-			"id: controlled-flow",
-			"version: 1.0.0",
-			"name: Controlled Flow",
-			"description: test",
-			"defaultPolicy: default",
-			"stages:",
-			"  - id: code",
-			"    name: Code",
-			"    order: 0",
-			"    zone: doing",
-			"  - id: review",
-			"    name: Review",
-			"    order: 1",
-			"    zone: doing",
-			"    gate: gates/human-review.yaml",
-		].join("\n"));
-		writeFileSync(join(harness, "gates", "human-review.yaml"), [
-			"id: human-review",
-			"name: Human Review",
-			"type: human",
-			"blocking: true",
-			"description: explicit human approval",
-		].join("\n"));
+		writeFileSync(
+			join(harness, "flows", "controlled-flow.yaml"),
+			[
+				"id: controlled-flow",
+				"version: 1.0.0",
+				"name: Controlled Flow",
+				"description: test",
+				"defaultPolicy: default",
+				"stages:",
+				"  - id: code",
+				"    name: Code",
+				"    order: 0",
+				"    zone: doing",
+				"  - id: review",
+				"    name: Review",
+				"    order: 1",
+				"    zone: doing",
+				"    gate: gates/human-review.yaml",
+			].join("\n"),
+		);
+		writeFileSync(
+			join(harness, "gates", "human-review.yaml"),
+			[
+				"id: human-review",
+				"name: Human Review",
+				"type: human",
+				"blocking: true",
+				"description: explicit human approval",
+			].join("\n"),
+		);
 
 		const beforeRequest = resolveAgentDirection(root);
 		const result = await requestTransitionOperation(root, {

@@ -17,14 +17,17 @@ export function Card({ variant = "default", className, children, style, ...props
 				variant === "agent" && "hover:shadow-[var(--card-hover-shadow)]",
 				className,
 			)}
-			style={{
-				background: "var(--color-bg-surface)",
-				borderColor: variant === "agent" ? "var(--color-agent)" : "var(--color-border)",
-				"--card-hover-shadow": variant === "agent"
-					? "0 0 28px color-mix(in oklch, var(--color-agent) 20%, transparent)"
-					: "0 0 24px color-mix(in oklch, var(--color-primary) 12%, transparent)",
-				...style,
-			} as CSSProperties}
+			style={
+				{
+					background: "var(--color-bg-surface)",
+					borderColor: variant === "agent" ? "var(--color-agent)" : "var(--color-border)",
+					"--card-hover-shadow":
+						variant === "agent"
+							? "0 0 28px color-mix(in oklch, var(--color-agent) 20%, transparent)"
+							: "0 0 24px color-mix(in oklch, var(--color-primary) 12%, transparent)",
+					...style,
+				} as CSSProperties
+			}
 			{...props}
 		>
 			{children}

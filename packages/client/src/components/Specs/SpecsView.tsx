@@ -93,7 +93,10 @@ function validateSpecLocally(content: string): SpecValidation {
 		}
 	}
 	if (content.length > 3000) {
-		issues.push({ type: "warning", msg: "Especificação excede 3000 caracteres; considere manter enxuta" });
+		issues.push({
+			type: "warning",
+			msg: "Especificação excede 3000 caracteres; considere manter enxuta",
+		});
 	}
 	return { id: "", issues, valid: issues.filter((i) => i.type === "error").length === 0 };
 }
@@ -132,9 +135,12 @@ function validationTone(validation?: SpecValidation): "danger" | "warning" | "su
 }
 
 function SpecStatusIcon({ tone }: { tone: ReturnType<typeof validationTone> }) {
-	if (tone === "danger") return <Icon name="x" size={14} className="text-[var(--color-danger)]" />;
-	if (tone === "warning") return <Icon name="alert-triangle" size={14} className="text-[var(--color-warning)]" />;
-	if (tone === "success") return <Icon name="check" size={14} className="text-[var(--color-success)]" />;
+	if (tone === "danger")
+		return <Icon name="x" size={14} className="text-[var(--color-danger)]" />;
+	if (tone === "warning")
+		return <Icon name="alert-triangle" size={14} className="text-[var(--color-warning)]" />;
+	if (tone === "success")
+		return <Icon name="check" size={14} className="text-[var(--color-success)]" />;
 	return <Icon name="circle" size={14} className="text-[var(--color-text-secondary)]" />;
 }
 
@@ -198,7 +204,9 @@ function SpecListItem({
 					) : validation ? (
 						<Badge variant="success">Válida</Badge>
 					) : (
-						<Badge variant="info" tone="outline">Não validada</Badge>
+						<Badge variant="info" tone="outline">
+							Não validada
+						</Badge>
 					)}
 					{date ? (
 						<span className="text-caption tabular-nums text-[var(--color-text-secondary)]">
@@ -273,7 +281,8 @@ export default function SpecsView() {
 	const filtered = sorted.filter((s) => {
 		if (search) {
 			const q = search.toLowerCase();
-			if (!s.id.toLowerCase().includes(q) && !s.content.toLowerCase().includes(q)) return false;
+			if (!s.id.toLowerCase().includes(q) && !s.content.toLowerCase().includes(q))
+				return false;
 		}
 		const v = validations.get(s.id);
 		switch (filter) {
@@ -298,7 +307,9 @@ export default function SpecsView() {
 			.then((r) => r.json())
 			.then((data) => {
 				setValidations((prev) => new Map(prev).set(id, data));
-				const errorCount = data.issues.filter((i: { type: string }) => i.type === "error").length;
+				const errorCount = data.issues.filter(
+					(i: { type: string }) => i.type === "error",
+				).length;
 				if (errorCount === 0) {
 					toast("Spec válida", "success");
 				} else {
@@ -376,7 +387,10 @@ export default function SpecsView() {
 					/>
 
 					<div className="overflow-x-auto">
-						<ButtonGroup ariaLabel="Filtrar especificações" className="w-max flex-nowrap lg:w-full">
+						<ButtonGroup
+							ariaLabel="Filtrar especificações"
+							className="w-max flex-nowrap lg:w-full"
+						>
 							{(
 								[
 									{ id: "all" as Filter, label: "Todas" },
@@ -422,7 +436,11 @@ export default function SpecsView() {
 								<Button size="sm" onClick={handleCreate}>
 									Criar
 								</Button>
-								<Button size="sm" variant="ghost" onClick={() => setCreating(false)}>
+								<Button
+									size="sm"
+									variant="ghost"
+									onClick={() => setCreating(false)}
+								>
 									Cancelar
 								</Button>
 							</div>
@@ -444,7 +462,9 @@ export default function SpecsView() {
 
 					{filtered.length === 0 && !creating ? (
 						<p className="px-3 py-4 text-center text-sm text-[var(--color-text-secondary)]">
-							{search ? "Nenhuma especificação encontrada." : "Nenhuma especificação registrada."}
+							{search
+								? "Nenhuma especificação encontrada."
+								: "Nenhuma especificação registrada."}
 						</p>
 					) : null}
 				</div>
@@ -455,11 +475,24 @@ export default function SpecsView() {
 					<>
 						<div className="grid shrink-0 gap-3 border-b border-border px-4 py-3 lg:px-6">
 							<div className="flex flex-wrap items-center gap-2">
-								<Badge variant="info" tone="outline">{selectedAcs.length} critérios</Badge>
-								<Badge variant={completedAcs === selectedAcs.length && selectedAcs.length > 0 ? "success" : "amber"}>
+								<Badge variant="info" tone="outline">
+									{selectedAcs.length} critérios
+								</Badge>
+								<Badge
+									variant={
+										completedAcs === selectedAcs.length &&
+										selectedAcs.length > 0
+											? "success"
+											: "amber"
+									}
+								>
 									{completedAcs}/{selectedAcs.length} concluídos
 								</Badge>
-								<Button size="sm" variant="secondary" onClick={() => handleValidate(selectedSpec.id)}>
+								<Button
+									size="sm"
+									variant="secondary"
+									onClick={() => handleValidate(selectedSpec.id)}
+								>
 									<Icon name="check" size={14} />
 									Validar
 								</Button>
@@ -468,8 +501,13 @@ export default function SpecsView() {
 							{validations.get(selectedSpec.id) ? (
 								<div className="flex flex-wrap gap-2">
 									{validations.get(selectedSpec.id)?.issues.map((issue, i) => (
-										<Badge key={`${issue.msg}-${i}`} variant={issue.type === "error" ? "error" : "amber"} tone="soft">
-											{issue.type === "error" ? "Erro" : "Aviso"} · {issue.msg}
+										<Badge
+											key={`${issue.msg}-${i}`}
+											variant={issue.type === "error" ? "error" : "amber"}
+											tone="soft"
+										>
+											{issue.type === "error" ? "Erro" : "Aviso"} ·{" "}
+											{issue.msg}
 										</Badge>
 									))}
 									{validations.get(selectedSpec.id)?.issues.length === 0 ? (

@@ -21,8 +21,18 @@ function workflow(): Workflow {
 			{ id: "code", name: "Code", order: 1 },
 		],
 		items: [
-			{ id: "ITEM-1", description: "Keep backlog", stage: "backlog", createdAt: "2026-08-01T00:00:00.000Z" },
-			{ id: "ITEM-2", description: "Move from removed stage", stage: "code", createdAt: "2026-08-01T00:00:00.000Z" },
+			{
+				id: "ITEM-1",
+				description: "Keep backlog",
+				stage: "backlog",
+				createdAt: "2026-08-01T00:00:00.000Z",
+			},
+			{
+				id: "ITEM-2",
+				description: "Move from removed stage",
+				stage: "code",
+				createdAt: "2026-08-01T00:00:00.000Z",
+			},
 		],
 		locations: [{ id: "loc-1", path: "C:/Workspace/letra", label: "Letra", adapters: [] }],
 		specLinks: { "ITEM-2": { path: "workspace-settings" } },
@@ -101,7 +111,11 @@ describe("workflow routes", () => {
 			req,
 			res,
 			new URL("http://localhost/api/workflow/template"),
-			{ workspaceRoot: "C:/Workspace/letra", workspaceDir: "C:/Workspace/letra/.letra", workflow: workflow() },
+			{
+				workspaceRoot: "C:/Workspace/letra",
+				workspaceDir: "C:/Workspace/letra/.letra",
+				workflow: workflow(),
+			},
 		);
 
 		await expect(createWorkflowRoutes(deps)(context)).resolves.toBe(true);
@@ -111,7 +125,9 @@ describe("workflow routes", () => {
 			expect.objectContaining({ id: "ITEM-1", stage: "backlog" }),
 			expect.objectContaining({ id: "ITEM-2", stage: "backlog" }),
 		]);
-		expect(persisted.locations).toEqual([{ id: "loc-1", path: "C:/Workspace/letra", label: "Letra", adapters: [] }]);
+		expect(persisted.locations).toEqual([
+			{ id: "loc-1", path: "C:/Workspace/letra", label: "Letra", adapters: [] },
+		]);
 		expect(persisted.specLinks).toEqual({ "ITEM-2": { path: "workspace-settings" } });
 		expect(persisted.tools).toEqual(["opencode"]);
 		expect(res.end).toHaveBeenCalledWith(expect.stringContaining('"stage":"backlog"'));
@@ -129,12 +145,15 @@ describe("workflow routes", () => {
 		const wf = workflow();
 		wf.locations = [];
 		const dependencies = deps();
-		const req = request("POST", JSON.stringify({
-			locations: [
-				{ path: projectA, label: "Project A", adapters: ["opencode"] },
-				{ path: projectB, label: "Project B" },
-			],
-		}));
+		const req = request(
+			"POST",
+			JSON.stringify({
+				locations: [
+					{ path: projectA, label: "Project A", adapters: ["opencode"] },
+					{ path: projectB, label: "Project B" },
+				],
+			}),
+		);
 		const res = response();
 		const context = createRequestContext(
 			req,
@@ -149,8 +168,16 @@ describe("workflow routes", () => {
 		expect(readFileSync(join(projectB, ".letra-link"), "utf-8").trim()).toBe(dataDir);
 		expect(existsSync(join(projectA, "README.md"))).toBe(true);
 		expect(wf.locations).toEqual([
-			expect.objectContaining({ path: projectA.replace(/\\/g, "/"), label: "Project A", adapters: ["opencode"] }),
-			expect.objectContaining({ path: projectB.replace(/\\/g, "/"), label: "Project B", adapters: [] }),
+			expect.objectContaining({
+				path: projectA.replace(/\\/g, "/"),
+				label: "Project A",
+				adapters: ["opencode"],
+			}),
+			expect.objectContaining({
+				path: projectB.replace(/\\/g, "/"),
+				label: "Project B",
+				adapters: [],
+			}),
 		]);
 		expect(payload(res)).toEqual({
 			locations: [
@@ -169,32 +196,49 @@ describe("workflow routes", () => {
 		mkdirSync(projectDir, { recursive: true });
 		writeFileSync(join(projectDir, "package.json"), "{}", "utf-8");
 		const wf = workflow();
-		wf.locations = [{ id: "loc-project", path: projectDir.replace(/\\/g, "/"), label: "Project", adapters: [] }];
+		wf.locations = [
+			{
+				id: "loc-project",
+				path: projectDir.replace(/\\/g, "/"),
+				label: "Project",
+				adapters: [],
+			},
+		];
 		const dependencies = deps();
 
 		const repairReq = request("POST");
 		const repairRes = response();
-		await expect(createWorkflowRoutes(dependencies)(createRequestContext(
-			repairReq,
-			repairRes,
-			new URL("http://localhost/api/workflow/locations/loc-project/repair-link"),
-			{ workspaceRoot: dataDir, workspaceDir: dataDir, workflow: wf },
-		))).resolves.toBe(true);
+		await expect(
+			createWorkflowRoutes(dependencies)(
+				createRequestContext(
+					repairReq,
+					repairRes,
+					new URL("http://localhost/api/workflow/locations/loc-project/repair-link"),
+					{ workspaceRoot: dataDir, workspaceDir: dataDir, workflow: wf },
+				),
+			),
+		).resolves.toBe(true);
 
 		expect(readFileSync(join(projectDir, ".letra-link"), "utf-8").trim()).toBe(dataDir);
-		expect(payload(repairRes)).toEqual(expect.objectContaining({
-			ok: true,
-			dataDir: dataDir.replace(/\\/g, "/"),
-		}));
+		expect(payload(repairRes)).toEqual(
+			expect.objectContaining({
+				ok: true,
+				dataDir: dataDir.replace(/\\/g, "/"),
+			}),
+		);
 
 		const deleteReq = request("DELETE");
 		const deleteRes = response();
-		await expect(createWorkflowRoutes(dependencies)(createRequestContext(
-			deleteReq,
-			deleteRes,
-			new URL("http://localhost/api/workflow/locations/loc-project"),
-			{ workspaceRoot: dataDir, workspaceDir: dataDir, workflow: wf },
-		))).resolves.toBe(true);
+		await expect(
+			createWorkflowRoutes(dependencies)(
+				createRequestContext(
+					deleteReq,
+					deleteRes,
+					new URL("http://localhost/api/workflow/locations/loc-project"),
+					{ workspaceRoot: dataDir, workspaceDir: dataDir, workflow: wf },
+				),
+			),
+		).resolves.toBe(true);
 
 		expect(existsSync(join(projectDir, ".letra-link"))).toBe(false);
 		expect(existsSync(join(projectDir, "package.json"))).toBe(true);

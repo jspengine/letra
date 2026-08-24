@@ -93,7 +93,9 @@ export function Dialog({
 				)}
 				<div
 					className={cn(
-						variant === "fullscreen" ? "flex min-h-0 flex-1 flex-col" : "px-[var(--space-4)] py-[var(--space-3)]",
+						variant === "fullscreen"
+							? "flex min-h-0 flex-1 flex-col"
+							: "px-[var(--space-4)] py-[var(--space-3)]",
 						bodyClassName,
 					)}
 				>
@@ -214,7 +216,10 @@ export function PromptDialog({
 			}
 		>
 			<Label className="flex flex-col items-start gap-[var(--space-2)]">
-				<span className="text-caption font-medium" style={{ color: "var(--color-text-secondary)" }}>
+				<span
+					className="text-caption font-medium"
+					style={{ color: "var(--color-text-secondary)" }}
+				>
 					{label}
 				</span>
 				<Input

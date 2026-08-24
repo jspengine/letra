@@ -16,9 +16,23 @@ function seedWorkspace(root: string, name: string) {
 	mkdirSync(join(root, LETRA_FOLDER, "specs", "demo", ""), { recursive: true });
 	writeFileSync(
 		join(root, LETRA_FOLDER, "workflow.json"),
-		JSON.stringify({ version: "1.0", name, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", stages: [{ id: "todo", name: "Todo", order: 0 }], items: [{ id: "ITEM-1", description: "demo", stage: "todo", type: "feature", spec: "demo" }], tools: [], primaryItemId: null }),
+		JSON.stringify({
+			version: "1.0",
+			name,
+			createdAt: "2026-01-01T00:00:00.000Z",
+			updatedAt: "2026-01-01T00:00:00.000Z",
+			stages: [{ id: "todo", name: "Todo", order: 0 }],
+			items: [
+				{ id: "ITEM-1", description: "demo", stage: "todo", type: "feature", spec: "demo" },
+			],
+			tools: [],
+			primaryItemId: null,
+		}),
 	);
-	writeFileSync(join(root, LETRA_FOLDER, "specs", "demo", "spec.md"), "# Demo\n- [ ] **AC1.1** foo\n");
+	writeFileSync(
+		join(root, LETRA_FOLDER, "specs", "demo", "spec.md"),
+		"# Demo\n- [ ] **AC1.1** foo\n",
+	);
 }
 
 const dirs: string[] = [];
@@ -50,7 +64,11 @@ describe("CLI integration: externalize via `letra migrate` (ITEM-79)", () => {
 		// 1. Run the real CLI: migrate --to <tmp> --clean
 		const run = (args: string[]) => {
 			const [node, entry] = cliPath();
-			return execFileSync(node, [entry, ...args], { cwd: root, encoding: "utf-8", timeout: 15000 });
+			return execFileSync(node, [entry, ...args], {
+				cwd: root,
+				encoding: "utf-8",
+				timeout: 15000,
+			});
 		};
 
 		const legacyPulse = JSON.parse(run(["pulse", "--json"]));

@@ -42,7 +42,9 @@ export const AgentActive = () => (
 					</span>
 				</div>
 			</div>
-			<Badge variant="agent" className="w-fit">reasoning</Badge>
+			<Badge variant="agent" className="w-fit">
+				reasoning
+			</Badge>
 		</CardHeader>
 		<CardContent>
 			<div className="flex flex-col gap-[var(--space-2)] text-body-sm text-[var(--color-text-primary)]">
@@ -56,8 +58,12 @@ export const AgentActive = () => (
 			<div className="flex w-full items-center justify-between">
 				<Badge variant="success">healthy</Badge>
 				<div className="flex gap-[var(--space-2)]">
-					<Button variant="secondary" size="sm">Logs</Button>
-					<Button variant="danger" size="sm">Stop</Button>
+					<Button variant="secondary" size="sm">
+						Logs
+					</Button>
+					<Button variant="danger" size="sm">
+						Stop
+					</Button>
 				</div>
 			</div>
 		</CardFooter>
@@ -74,7 +80,9 @@ export const WithActions = () => (
 		</CardHeader>
 		<CardContent>
 			<div className="flex flex-col gap-[var(--space-2)] text-body-sm text-[var(--color-text-primary)]">
-				<span>This card demonstrates header, body, and footer actions in a single composition.</span>
+				<span>
+					This card demonstrates header, body, and footer actions in a single composition.
+				</span>
 				<span className="text-caption text-[var(--color-text-secondary)]">
 					Use the footer for one primary action and one secondary action.
 				</span>
@@ -84,7 +92,9 @@ export const WithActions = () => (
 			<div className="flex w-full items-center justify-between">
 				<Badge variant="amber">unsaved changes</Badge>
 				<div className="flex gap-[var(--space-2)]">
-					<Button variant="secondary" size="sm">Cancel</Button>
+					<Button variant="secondary" size="sm">
+						Cancel
+					</Button>
 					<Button size="sm">Save</Button>
 				</div>
 			</div>

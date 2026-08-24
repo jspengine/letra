@@ -72,7 +72,14 @@ export const Minimal: Story = {
 			<MetadataRow
 				items={[
 					{ label: "Origem", value: "health" },
-					{ label: "Severidade", value: <Badge variant="amber" tone="soft">media</Badge> },
+					{
+						label: "Severidade",
+						value: (
+							<Badge variant="amber" tone="soft">
+								media
+							</Badge>
+						),
+					},
 				]}
 			/>
 		</div>

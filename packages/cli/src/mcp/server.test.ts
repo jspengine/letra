@@ -13,26 +13,35 @@ function fixture(): string {
 	const root = mkdtempSync(join(tmpdir(), "letra-mcp-"));
 	roots.push(root);
 	mkdirSync(join(root, ".letra", "specs", "live-direction"), { recursive: true });
-	writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify({
-		version: "1.0",
-		name: "MCP fixture",
-		createdAt: "2026-07-04T00:00:00.000Z",
-		updatedAt: "2026-07-04T00:00:00.000Z",
-		template: "missing-template",
-		harnessVersion: "missing-version",
-		stages: [
-			{ id: "build", name: "Build", order: 0, zone: "doing" },
-			{ id: "review", name: "Review", order: 1, zone: "doing" },
-		],
-		items: [{
-			id: "ITEM-1",
-			description: "Live direction",
-			stage: "build",
-			spec: "live-direction",
-			createdAt: "2026-07-04T00:00:00.000Z",
-		}],
-		tools: ["codex"],
-	}, null, 2));
+	writeFileSync(
+		join(root, ".letra", "workflow.json"),
+		JSON.stringify(
+			{
+				version: "1.0",
+				name: "MCP fixture",
+				createdAt: "2026-07-04T00:00:00.000Z",
+				updatedAt: "2026-07-04T00:00:00.000Z",
+				template: "missing-template",
+				harnessVersion: "missing-version",
+				stages: [
+					{ id: "build", name: "Build", order: 0, zone: "doing" },
+					{ id: "review", name: "Review", order: 1, zone: "doing" },
+				],
+				items: [
+					{
+						id: "ITEM-1",
+						description: "Live direction",
+						stage: "build",
+						spec: "live-direction",
+						createdAt: "2026-07-04T00:00:00.000Z",
+					},
+				],
+				tools: ["codex"],
+			},
+			null,
+			2,
+		),
+	);
 	writeFileSync(
 		join(root, ".letra", "specs", "live-direction", "spec.md"),
 		"# Spec\n\n## Acceptance Criteria\n- [ ] **AC1 — Live**: expose current direction\n",
@@ -76,18 +85,27 @@ describe("Letra MCP read-only server", () => {
 				"list_gates",
 				"list_roles",
 			]);
-			expect(tools.tools.filter((tool) => tool.annotations?.readOnlyHint === true).length).toBe(5);
-			expect(tools.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length).toBe(3);
-			expect(tools.tools.filter(
-				(tool) => tool.inputSchema?.additionalProperties === false,
-			).length).toBe(3);
+			expect(
+				tools.tools.filter((tool) => tool.annotations?.readOnlyHint === true).length,
+			).toBe(5);
+			expect(
+				tools.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length,
+			).toBe(3);
+			expect(
+				tools.tools.filter((tool) => tool.inputSchema?.additionalProperties === false)
+					.length,
+			).toBe(3);
 
-			const direction = toolJson(await client.callTool({ name: "get_direction", arguments: {} }));
+			const direction = toolJson(
+				await client.callTool({ name: "get_direction", arguments: {} }),
+			);
 			expect(direction.item).toMatchObject({ id: "ITEM-1", stage: "build" });
 			expect(direction.revision).toMatch(/^sha256:/);
 
-		const spec = toolJson(await client.callTool({ name: "get_active_spec", arguments: {} }));
-		expect(spec).toMatchObject({ name: "live-direction" });
+			const spec = toolJson(
+				await client.callTool({ name: "get_active_spec", arguments: {} }),
+			);
+			expect(spec).toMatchObject({ name: "live-direction" });
 
 			const health = toolJson(await client.callTool({ name: "get_health", arguments: {} }));
 			expect(health).toMatchObject({ active: [] });
@@ -107,21 +125,24 @@ describe("Letra MCP read-only server", () => {
 				"letra://harness/templates/{flowId}",
 			]);
 
-			const rawContent = (await client.readResource({ uri: "letra://harness/gates" })).contents[0];
+			const rawContent = (await client.readResource({ uri: "letra://harness/gates" }))
+				.contents[0];
 			if (!("text" in rawContent) || typeof rawContent.text !== "string") {
 				throw new Error("Expected text content for harness/gates");
 			}
 			const gates = JSON.parse(rawContent.text);
 			expect(gates).toEqual([]);
 
-			const rawRoles = (await client.readResource({ uri: "letra://harness/roles" })).contents[0];
+			const rawRoles = (await client.readResource({ uri: "letra://harness/roles" }))
+				.contents[0];
 			if (!("text" in rawRoles) || typeof rawRoles.text !== "string") {
 				throw new Error("Expected text content for harness/roles");
 			}
 			const roles = JSON.parse(rawRoles.text);
 			expect(roles).toEqual([]);
 
-			const rawTemplates = (await client.readResource({ uri: "letra://harness/templates" })).contents[0];
+			const rawTemplates = (await client.readResource({ uri: "letra://harness/templates" }))
+				.contents[0];
 			if (!("text" in rawTemplates) || typeof rawTemplates.text !== "string") {
 				throw new Error("Expected text content for harness/templates");
 			}
@@ -148,45 +169,53 @@ describe("Letra MCP read-only server", () => {
 		await client.connect(clientTransport);
 
 		try {
-			const direction = toolJson(await client.callTool({ name: "get_direction", arguments: {} }));
-			const rejected = toolJson(await client.callTool({
-				name: "complete_ac",
-				arguments: {
-					acId: "AC1",
-					expectedRevision: direction.revision,
-					evidence: [],
-					reason: "No evidence.",
-				},
-			}));
+			const direction = toolJson(
+				await client.callTool({ name: "get_direction", arguments: {} }),
+			);
+			const rejected = toolJson(
+				await client.callTool({
+					name: "complete_ac",
+					arguments: {
+						acId: "AC1",
+						expectedRevision: direction.revision,
+						evidence: [],
+						reason: "No evidence.",
+					},
+				}),
+			);
 			expect(rejected).toMatchObject({
 				outcome: "rejected",
 				reasonCode: "REGRESSION_EVIDENCE_REQUIRED",
 			});
 
-			const completed = toolJson(await client.callTool({
-				name: "complete_ac",
-				arguments: {
-					acId: "AC1",
-					expectedRevision: direction.revision,
-					evidence: ["MCP contract test passed"],
-					reason: "Criterion verified.",
-				},
-			}));
+			const completed = toolJson(
+				await client.callTool({
+					name: "complete_ac",
+					arguments: {
+						acId: "AC1",
+						expectedRevision: direction.revision,
+						evidence: ["MCP contract test passed"],
+						reason: "Criterion verified.",
+					},
+				}),
+			);
 			expect(completed).toMatchObject({
 				outcome: "accepted",
 				reasonCode: "AC_COMPLETED",
 				auditId: expect.stringMatching(/^log-/),
 			});
 
-			const transitioned = toolJson(await client.callTool({
-				name: "request_transition",
-				arguments: {
-					itemId: "ITEM-1",
-					targetStageId: "review",
-					expectedRevision: completed.afterRevision,
-					reason: "Request review.",
-				},
-			}));
+			const transitioned = toolJson(
+				await client.callTool({
+					name: "request_transition",
+					arguments: {
+						itemId: "ITEM-1",
+						targetStageId: "review",
+						expectedRevision: completed.afterRevision,
+						reason: "Request review.",
+					},
+				}),
+			);
 			expect(transitioned).toMatchObject({
 				outcome: "accepted",
 				reasonCode: "TRANSITION_COMPLETED",
@@ -195,17 +224,21 @@ describe("Letra MCP read-only server", () => {
 				}),
 			});
 			const mutationEntries = loadSessionLog(root).entries.filter(
-				(entry) => entry.action === "agent_ac_completion_requested"
-					|| entry.action === "agent_transition_requested",
+				(entry) =>
+					entry.action === "agent_ac_completion_requested" ||
+					entry.action === "agent_transition_requested",
 			);
 			expect(mutationEntries).toHaveLength(2);
-			expect(mutationEntries.every((entry) => (
-				entry.details.by === "mcp:letra-test"
-					&& entry.details.outcome === "accepted"
-					&& typeof entry.details.reasonCode === "string"
-					&& typeof entry.timestamp === "string"
-					&& entry.description.length > 0
-			))).toBe(true);
+			expect(
+				mutationEntries.every(
+					(entry) =>
+						entry.details.by === "mcp:letra-test" &&
+						entry.details.outcome === "accepted" &&
+						typeof entry.details.reasonCode === "string" &&
+						typeof entry.timestamp === "string" &&
+						entry.description.length > 0,
+				),
+			).toBe(true);
 		} finally {
 			await client.close();
 			await server.close();
@@ -221,7 +254,9 @@ describe("Letra MCP read-only server", () => {
 		await client.connect(clientTransport);
 
 		try {
-			const before = toolJson(await client.callTool({ name: "get_direction", arguments: {} }));
+			const before = toolJson(
+				await client.callTool({ name: "get_direction", arguments: {} }),
+			);
 			const workflowPath = join(root, ".letra", "workflow.json");
 			const workflow = JSON.parse(readFileSync(workflowPath, "utf-8"));
 			workflow.items[0].stage = "review";
@@ -259,11 +294,14 @@ describe("Letra MCP read-only server", () => {
 				"direction",
 				"active-spec",
 			]);
-			expect(reads.every((entry) => (
-				entry.details.by === "mcp:audit-client"
-				&& entry.details.outcome === "accepted"
-				&& typeof entry.details.revision === "string"
-			))).toBe(true);
+			expect(
+				reads.every(
+					(entry) =>
+						entry.details.by === "mcp:audit-client" &&
+						entry.details.outcome === "accepted" &&
+						typeof entry.details.revision === "string",
+				),
+			).toBe(true);
 		} finally {
 			await client.close();
 			await server.close();
@@ -274,23 +312,32 @@ describe("Letra MCP read-only server", () => {
 		const root = mkdtempSync(join(tmpdir(), "letra-mcp-no-constitution-"));
 		roots.push(root);
 		mkdirSync(join(root, ".letra", "specs", "live-direction"), { recursive: true });
-		writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify({
-			version: "1.0",
-			name: "MCP fixture",
-			createdAt: "2026-07-04T00:00:00.000Z",
-			updatedAt: "2026-07-04T00:00:00.000Z",
-			template: "missing-template",
-			harnessVersion: "missing-version",
-			stages: [{ id: "build", name: "Build", order: 0 }],
-			items: [{
-				id: "ITEM-1",
-				description: "Live direction",
-				stage: "build",
-				spec: "live-direction",
-				createdAt: "2026-07-04T00:00:00.000Z",
-			}],
-			tools: ["codex"],
-		}, null, 2));
+		writeFileSync(
+			join(root, ".letra", "workflow.json"),
+			JSON.stringify(
+				{
+					version: "1.0",
+					name: "MCP fixture",
+					createdAt: "2026-07-04T00:00:00.000Z",
+					updatedAt: "2026-07-04T00:00:00.000Z",
+					template: "missing-template",
+					harnessVersion: "missing-version",
+					stages: [{ id: "build", name: "Build", order: 0 }],
+					items: [
+						{
+							id: "ITEM-1",
+							description: "Live direction",
+							stage: "build",
+							spec: "live-direction",
+							createdAt: "2026-07-04T00:00:00.000Z",
+						},
+					],
+					tools: ["codex"],
+				},
+				null,
+				2,
+			),
+		);
 		writeFileSync(
 			join(root, ".letra", "specs", "live-direction", "spec.md"),
 			"# Spec\n\n## Acceptance Criteria\n- [ ] **AC1 — Live**: expose current direction\n",
@@ -343,23 +390,32 @@ describe("Letra MCP read-only server", () => {
 		const root = mkdtempSync(join(tmpdir(), "letra-mcp-version-"));
 		roots.push(root);
 		mkdirSync(join(root, ".letra", "specs", "live-direction"), { recursive: true });
-		writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify({
-			version: "1.0",
-			name: "MCP fixture",
-			createdAt: "2026-07-04T00:00:00.000Z",
-			updatedAt: "2026-07-04T00:00:00.000Z",
-			template: "missing-template",
-			harnessVersion: "missing-version",
-			stages: [{ id: "build", name: "Build", order: 0 }],
-			items: [{
-				id: "ITEM-1",
-				description: "Live direction",
-				stage: "build",
-				spec: "live-direction",
-				createdAt: "2026-07-04T00:00:00.000Z",
-			}],
-			tools: ["codex"],
-		}, null, 2));
+		writeFileSync(
+			join(root, ".letra", "workflow.json"),
+			JSON.stringify(
+				{
+					version: "1.0",
+					name: "MCP fixture",
+					createdAt: "2026-07-04T00:00:00.000Z",
+					updatedAt: "2026-07-04T00:00:00.000Z",
+					template: "missing-template",
+					harnessVersion: "missing-version",
+					stages: [{ id: "build", name: "Build", order: 0 }],
+					items: [
+						{
+							id: "ITEM-1",
+							description: "Live direction",
+							stage: "build",
+							spec: "live-direction",
+							createdAt: "2026-07-04T00:00:00.000Z",
+						},
+					],
+					tools: ["codex"],
+				},
+				null,
+				2,
+			),
+		);
 		writeFileSync(
 			join(root, ".letra", "specs", "live-direction", "spec.md"),
 			"# Spec\n\n## Acceptance Criteria\n- [ ] **AC1 — Live**: expose current direction\n",

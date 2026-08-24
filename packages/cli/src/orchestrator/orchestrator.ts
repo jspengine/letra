@@ -1,7 +1,19 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, readdirSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	writeFileSync,
+	unlinkSync,
+	readdirSync,
+} from "node:fs";
 import { join } from "node:path";
 import type { Item, Workflow } from "../commands/flow-init.js";
-import type { HandoffPayload, ExecutorConfig, HeartbeatInfo, HarnessManifest } from "../harness/types.js";
+import type {
+	HandoffPayload,
+	ExecutorConfig,
+	HeartbeatInfo,
+	HarnessManifest,
+} from "../harness/types.js";
 import type { HandoffEventPayload } from "../flow-serve/events.js";
 import { loadWorkflow, writeWorkflow } from "../commands/flow-init.js";
 import { logEntry } from "../session-log.js";
@@ -67,7 +79,9 @@ export class Orchestrator {
 				priority: entry.priority,
 			});
 		}
-		for (const [stageId, prefs] of Object.entries(this.manifest.executors.stageExecutorPreferences)) {
+		for (const [stageId, prefs] of Object.entries(
+			this.manifest.executors.stageExecutorPreferences,
+		)) {
 			this.stageExecutorPreferences.set(stageId, prefs);
 		}
 	}
@@ -138,7 +152,12 @@ export class Orchestrator {
 		};
 
 		workflow.updatedAt = new Date().toISOString();
-		writeWorkflow(this.root, { workflow, source: "orchestrator", primaryItemId: item.id, skipSitrep: true });
+		writeWorkflow(this.root, {
+			workflow,
+			source: "orchestrator",
+			primaryItemId: item.id,
+			skipSitrep: true,
+		});
 
 		this.writeHandoffFile(item);
 
@@ -195,7 +214,10 @@ export class Orchestrator {
 		}
 
 		if (item.handoff && item.handoff.to !== agentId) {
-			return { success: false, reason: `Item handoff is for ${item.handoff.to}, not ${agentId}` };
+			return {
+				success: false,
+				reason: `Item handoff is for ${item.handoff.to}, not ${agentId}`,
+			};
 		}
 
 		this.writeFileLock(itemId, { executor: executorId, claimedAt: Date.now() });
@@ -203,17 +225,21 @@ export class Orchestrator {
 		item.claimedBy = executorId;
 		item.claimedAt = new Date().toISOString();
 
-		const handoffData = item.handoff && item.handoff.to === agentId
-			? { ...item.handoff }
-			: null;
+		const handoffData =
+			item.handoff && item.handoff.to === agentId ? { ...item.handoff } : null;
 
 		if (item.handoff && item.handoff.to === agentId) {
-			delete item.handoff;
+			item.handoff = undefined;
 			this.removeHandoffFile(itemId);
 		}
 
 		workflow.updatedAt = new Date().toISOString();
-		writeWorkflow(this.root, { workflow, source: "orchestrator", primaryItemId: itemId, skipSitrep: true });
+		writeWorkflow(this.root, {
+			workflow,
+			source: "orchestrator",
+			primaryItemId: itemId,
+			skipSitrep: true,
+		});
 
 		logEntry(this.root, "item_claim", `Claimed by ${executorId}`, {
 			itemId,
@@ -313,8 +339,8 @@ export class Orchestrator {
 			if (age > maxExecTime) {
 				const item = workflow.items.find((i) => i.id === itemId);
 				if (item) {
-					delete item.claimedBy;
-					delete item.claimedAt;
+					item.claimedBy = undefined;
+					item.claimedAt = undefined;
 					reclaimed.push(itemId);
 
 					logEntry(this.root, "item_reclaim", `Item reclaimed (timeout ${age}ms)`, {
@@ -342,7 +368,11 @@ export class Orchestrator {
 
 		if (reclaimed.length > 0) {
 			workflow.updatedAt = new Date().toISOString();
-			writeWorkflow(this.root, { workflow, source: "orchestrator-reclaim", skipSitrep: true });
+			writeWorkflow(this.root, {
+				workflow,
+				source: "orchestrator-reclaim",
+				skipSitrep: true,
+			});
 		}
 
 		return reclaimed;
@@ -421,16 +451,23 @@ export class Orchestrator {
 		const dir = this.getHandoffsDir();
 		mkdirSync(dir, { recursive: true });
 		const filePath = join(dir, `${item.id}.json`);
-		writeFileSync(filePath, JSON.stringify({
-			itemId: item.id,
-			from: item.handoff.from,
-			to: item.handoff.to,
-			summary: item.handoff.summary,
-			evidence: item.handoff.evidence,
-			timestamp: item.handoff.timestamp,
-			expiresAt: item.handoff.expiresAt,
-			executorId: item.handoff.executorId,
-		}, null, 2));
+		writeFileSync(
+			filePath,
+			JSON.stringify(
+				{
+					itemId: item.id,
+					from: item.handoff.from,
+					to: item.handoff.to,
+					summary: item.handoff.summary,
+					evidence: item.handoff.evidence,
+					timestamp: item.handoff.timestamp,
+					expiresAt: item.handoff.expiresAt,
+					executorId: item.handoff.executorId,
+				},
+				null,
+				2,
+			),
+		);
 	}
 
 	private removeHandoffFile(itemId: string): void {
@@ -464,7 +501,8 @@ export class Orchestrator {
 		const summary = item.handoff.summary;
 		const evidence = item.handoff.evidence;
 
-		const manifest = this.manifest ?? loadHarness(resolveHarnessRoot(this.root, DEFAULT_HARNESS_VERSION));
+		const manifest =
+			this.manifest ?? loadHarness(resolveHarnessRoot(this.root, DEFAULT_HARNESS_VERSION));
 		if (!manifest?.executors) {
 			return { success: false, reason: "No executor registry available for retry" };
 		}
@@ -500,17 +538,27 @@ export class Orchestrator {
 		};
 
 		workflow.updatedAt = now.toISOString();
-		writeWorkflow(this.root, { workflow, source: "orchestrator-retry", primaryItemId: itemId, skipSitrep: true });
+		writeWorkflow(this.root, {
+			workflow,
+			source: "orchestrator-retry",
+			primaryItemId: itemId,
+			skipSitrep: true,
+		});
 
 		this.writeHandoffFile(item);
 
-		logEntry(this.root, "handoff_emitted", `Handoff re-emitted to ${previousTo} (retry via ${nextExecutor.id})`, {
-			itemId,
-			from: previousFrom,
-			to: previousTo,
-			executorId: nextExecutor.id,
-			retry: true,
-		});
+		logEntry(
+			this.root,
+			"handoff_emitted",
+			`Handoff re-emitted to ${previousTo} (retry via ${nextExecutor.id})`,
+			{
+				itemId,
+				from: previousFrom,
+				to: previousTo,
+				executorId: nextExecutor.id,
+				retry: true,
+			},
+		);
 
 		if (this.onHandoffEvent) {
 			this.onHandoffEvent({

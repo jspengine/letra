@@ -4,11 +4,22 @@ import { Icon } from "./icon";
 
 export const Default = () => (
 	<Timeline>
-		<TimelineNode title="Spec reviewed" description="Reviewer confirmed AC coverage." status="success" />
-		<TimelineNode title="Agent running" description="Validation command is executing." status="agent" icon={<Icon name="cpu" size={14} />} />
+		<TimelineNode
+			title="Spec reviewed"
+			description="Reviewer confirmed AC coverage."
+			status="success"
+		/>
+		<TimelineNode
+			title="Agent running"
+			description="Validation command is executing."
+			status="agent"
+			icon={<Icon name="cpu" size={14} />}
+		/>
 		<TimelineNode title="Gate pending" description="Human approval required." status="active">
 			<TimelineBranch>
-				<div className="text-caption text-[var(--color-text-secondary)]">Security reviewer assigned.</div>
+				<div className="text-caption text-[var(--color-text-secondary)]">
+					Security reviewer assigned.
+				</div>
 			</TimelineBranch>
 		</TimelineNode>
 		<TimelineNode title="Done" description="Transition completed." last />

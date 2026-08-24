@@ -48,24 +48,16 @@ describe("checkConflicts", () => {
 		expect(results).toHaveLength(1);
 		expect(results[0].passed).toBe(false);
 		expect(results[0].message).toContain('4 ocorrências entre "authentication" e "security"');
+		expect(results[0].message).toContain("User can authenticate with secure email credentials");
 		expect(results[0].message).toContain(
-			'User can authenticate with secure email credentials',
-		);
-		expect(results[0].message).toContain(
-			'Admin can not authenticate with secure email credentials',
+			"Admin can not authenticate with secure email credentials",
 		);
 	});
 
 	it("keeps conflicts from different spec pairs as separate results", () => {
-		writeAcceptance("authentication", [
-			"User can authenticate with secure email credentials",
-		]);
-		writeAcceptance("security", [
-			"User can not authenticate with secure email credentials",
-		]);
-		writeAcceptance("compliance", [
-			"User must not authenticate with secure email credentials",
-		]);
+		writeAcceptance("authentication", ["User can authenticate with secure email credentials"]);
+		writeAcceptance("security", ["User can not authenticate with secure email credentials"]);
+		writeAcceptance("compliance", ["User must not authenticate with secure email credentials"]);
 
 		const results = checkConflicts(specsDir, config);
 

@@ -21,7 +21,10 @@ export function createHandoffRoutes(dependencies: HandoffRouteDependencies): Rou
 		if (context.method !== "GET") return false;
 
 		if (context.path === "/api/handoff/pending") {
-			const url = new URL(context.req.url || "/", `http://${context.req.headers.host || "localhost"}`);
+			const url = new URL(
+				context.req.url || "/",
+				`http://${context.req.headers.host || "localhost"}`,
+			);
 			const agentId = url.searchParams.get("agent") || undefined;
 
 			const handoffs = dependencies.getPendingHandoffs(agentId);

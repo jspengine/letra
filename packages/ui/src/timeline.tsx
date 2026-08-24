@@ -69,11 +69,25 @@ export function TimelineNode({
 				<div className="flex items-start justify-between gap-[var(--layout-inline-gap)]">
 					<div className="min-w-0">
 						<div className="flex items-center gap-[var(--layout-inline-gap)]">
-							{icon && <span className="shrink-0 size-[var(--icon-md)] flex items-center justify-center">{icon}</span>}
-							<span className="text-body font-medium truncate" style={{ color: "var(--color-text-primary)" }}>{title}</span>
+							{icon && (
+								<span className="shrink-0 size-[var(--icon-md)] flex items-center justify-center">
+									{icon}
+								</span>
+							)}
+							<span
+								className="text-body font-medium truncate"
+								style={{ color: "var(--color-text-primary)" }}
+							>
+								{title}
+							</span>
 						</div>
 						{description && (
-							<p className="mt-[var(--space-1)] text-caption" style={{ color: "var(--color-text-secondary)" }}>{description}</p>
+							<p
+								className="mt-[var(--space-1)] text-caption"
+								style={{ color: "var(--color-text-secondary)" }}
+							>
+								{description}
+							</p>
 						)}
 					</div>
 				</div>

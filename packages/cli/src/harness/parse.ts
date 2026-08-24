@@ -23,7 +23,9 @@ export function parseSimpleYaml(text: string): Record<string, unknown> {
 			const containerKey = stack[stack.length - 1].containerKey;
 			if (!containerKey) continue;
 
-			const arr: unknown[] = Array.isArray(parent[containerKey]) ? (parent[containerKey] as unknown[]) : [];
+			const arr: unknown[] = Array.isArray(parent[containerKey])
+				? (parent[containerKey] as unknown[])
+				: [];
 			parent[containerKey] = arr;
 
 			const kv = content.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
@@ -52,7 +54,6 @@ export function parseSimpleYaml(text: string): Record<string, unknown> {
 				parent[key] = parseValue(val);
 				stack[stack.length - 1].containerKey = key;
 			}
-			continue;
 		}
 	}
 
@@ -89,11 +90,16 @@ function parseValue(raw: string): unknown {
 	if (raw === "true") return true;
 	if (raw === "false") return false;
 	if (raw === "null" || raw === "~") return null;
-	if (/^-?\d+$/.test(raw)) return parseInt(raw, 10);
-	if (/^-?\d+\.\d+$/.test(raw)) return parseFloat(raw);
-	if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) return raw.slice(1, -1);
+	if (/^-?\d+$/.test(raw)) return Number.parseInt(raw, 10);
+	if (/^-?\d+\.\d+$/.test(raw)) return Number.parseFloat(raw);
+	if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'")))
+		return raw.slice(1, -1);
 	if ((raw.startsWith("[") && raw.endsWith("]")) || (raw.startsWith("{") && raw.endsWith("}"))) {
-		try { return JSON.parse(raw); } catch { /* fallthrough */ }
+		try {
+			return JSON.parse(raw);
+		} catch {
+			/* fallthrough */
+		}
 	}
 	return raw;
 }

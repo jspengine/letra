@@ -37,9 +37,9 @@ function writeHarness(root: string, version: string, includeReview = true): void
 	mkdirSync(join(harnessRoot, "roles"), { recursive: true });
 	const stages = [
 		"  - id: backlog\n    name: Backlog\n    order: 0\n    zone: todo",
-		"  - id: code\n    name: Code\n    order: 1\n    zone: doing\n    agents: [\"builder\"]",
+		'  - id: code\n    name: Code\n    order: 1\n    zone: doing\n    agents: ["builder"]',
 		includeReview
-			? "  - id: review\n    name: Review\n    order: 2\n    zone: doing\n    agents: [\"reviewer\"]"
+			? '  - id: review\n    name: Review\n    order: 2\n    zone: doing\n    agents: ["reviewer"]'
 			: "",
 		"  - id: done\n    name: Done\n    order: 3\n    zone: done",
 	].filter(Boolean);
@@ -90,7 +90,9 @@ describe("flow-bind", () => {
 		expect(resolved.flow?.source).toBe("workflow-template");
 		expect(resolved.flow?.harnessVersion).toBe("v0.1.1");
 		expect(resolved.flow?.templateVersion).toBe("0.1.1");
-		expect(resolved.flow?.stages.find((stage) => stage.id === "review")?.agents).toEqual(["reviewer"]);
+		expect(resolved.flow?.stages.find((stage) => stage.id === "review")?.agents).toEqual([
+			"reviewer",
+		]);
 	});
 
 	it("rejects a template that does not contain every referenced stage", async () => {

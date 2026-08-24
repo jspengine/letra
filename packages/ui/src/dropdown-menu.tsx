@@ -9,7 +9,9 @@ import {
 import { cn } from "./utils";
 
 interface DropdownMenuProps {
-	children: React.ReactNode | ((props: { open: boolean; setOpen: (v: boolean) => void }) => React.ReactNode);
+	children:
+		| React.ReactNode
+		| ((props: { open: boolean; setOpen: (v: boolean) => void }) => React.ReactNode);
 	open?: boolean;
 	onOpenChange?: (open: boolean) => void;
 }
@@ -27,7 +29,12 @@ export function DropdownMenu({ children, open, onOpenChange }: DropdownMenuProps
 	return (
 		<div className="relative inline-block">
 			{typeof children === "function"
-				? (children as (props: { open: boolean; setOpen: (v: boolean) => void }) => React.ReactNode)({ open: isOpen, setOpen })
+				? (
+						children as (props: {
+							open: boolean;
+							setOpen: (v: boolean) => void;
+						}) => React.ReactNode
+					)({ open: isOpen, setOpen })
 				: children}
 		</div>
 	);
@@ -86,7 +93,11 @@ export function DropdownMenuContent({
 				alignStyles[align],
 				className,
 			)}
-			style={{ top: `calc(100% + ${sideOffset}px)`, borderColor: "var(--border)", background: "var(--card)" }}
+			style={{
+				top: `calc(100% + ${sideOffset}px)`,
+				borderColor: "var(--border)",
+				background: "var(--card)",
+			}}
 			role="menu"
 			{...props}
 		>
@@ -99,12 +110,7 @@ interface DropdownMenuItemProps extends ButtonHTMLAttributes<HTMLButtonElement> 
 	inset?: boolean;
 }
 
-export function DropdownMenuItem({
-	className,
-	inset,
-	children,
-	...props
-}: DropdownMenuItemProps) {
+export function DropdownMenuItem({ className, inset, children, ...props }: DropdownMenuItemProps) {
 	return (
 		<button
 			className={cn(
@@ -121,16 +127,8 @@ export function DropdownMenuItem({
 	);
 }
 
-export function DropdownMenuSeparator({
-	className,
-	...props
-}: HTMLAttributes<HTMLDivElement>) {
-	return (
-		<div
-			className={cn("-mx-1 my-1 h-px bg-border", className)}
-			{...props}
-		/>
-	);
+export function DropdownMenuSeparator({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+	return <div className={cn("-mx-1 my-1 h-px bg-border", className)} {...props} />;
 }
 
 interface DropdownMenuLabelProps extends HTMLAttributes<HTMLDivElement> {
@@ -155,4 +153,4 @@ export function DropdownMenuLabel({
 			{children}
 		</div>
 	);
-}
+}

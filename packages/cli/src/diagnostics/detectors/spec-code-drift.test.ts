@@ -70,7 +70,7 @@ Testing.
 
 	it("should flag AC [x] with no matching source (item in code stage)", async () => {
 		writeWorkflow([{ stage: "code", spec: "my-feature" }]);
-		createSpec("my-feature", ['- [x] **`missingFunc`**']);
+		createSpec("my-feature", ["- [x] **`missingFunc`**"]);
 
 		const results = await specCodeDriftDetector.run(tmpDir);
 		expect(results).toHaveLength(1);
@@ -81,7 +81,7 @@ Testing.
 
 	it("should NOT flag AC [x] with matching source code", async () => {
 		writeWorkflow([{ stage: "code", spec: "my-feature" }]);
-		createSpec("my-feature", ['- [x] **`existingFunc`**']);
+		createSpec("my-feature", ["- [x] **`existingFunc`**"]);
 		createSourceFile("function existingFunc() { return true; }");
 
 		const results = await specCodeDriftDetector.run(tmpDir);
@@ -93,8 +93,8 @@ Testing.
 			{ stage: "design", spec: "design-spec" },
 			{ stage: "backlog", spec: "backlog-spec" },
 		]);
-		createSpec("design-spec", ['- [x] **`missingInDesign`**']);
-		createSpec("backlog-spec", ['- [x] **`missingInBacklog`**']);
+		createSpec("design-spec", ["- [x] **`missingInDesign`**"]);
+		createSpec("backlog-spec", ["- [x] **`missingInBacklog`**"]);
 
 		const results = await specCodeDriftDetector.run(tmpDir);
 		expect(results).toHaveLength(0);
@@ -102,7 +102,7 @@ Testing.
 
 	it("should not flag unchecked ACs ([ ]) in active stages", async () => {
 		writeWorkflow([{ stage: "code", spec: "my-feature" }]);
-		createSpec("my-feature", ['- [ ] **`pendingFunc`**']);
+		createSpec("my-feature", ["- [ ] **`pendingFunc`**"]);
 
 		const results = await specCodeDriftDetector.run(tmpDir);
 		expect(results).toHaveLength(0);

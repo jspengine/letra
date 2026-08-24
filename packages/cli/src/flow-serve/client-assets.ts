@@ -44,10 +44,16 @@ export class ClientAssets {
 		fetch(`http://localhost:5173${req.url}`)
 			.then((proxyRes) => {
 				res.writeHead(proxyRes.status, Object.fromEntries(proxyRes.headers));
-				return proxyRes.body?.pipeTo(new WritableStream({
-					write: (chunk) => { res.write(chunk); },
-					close: () => { res.end(); },
-				}));
+				return proxyRes.body?.pipeTo(
+					new WritableStream({
+						write: (chunk) => {
+							res.write(chunk);
+						},
+						close: () => {
+							res.end();
+						},
+					}),
+				);
 			})
 			.catch(() => {
 				res.writeHead(502, { "Content-Type": "text/plain" });

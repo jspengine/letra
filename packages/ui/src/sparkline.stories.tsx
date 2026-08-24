@@ -2,7 +2,9 @@ import "./index.css";
 import { Sparkline } from "./sparkline";
 
 export const Default = () => <Sparkline data={[8, 12, 9, 16, 14, 22, 19]} />;
-export const Success = () => <Sparkline data={[2, 4, 8, 12, 18, 24]} color="var(--color-success)" />;
+export const Success = () => (
+	<Sparkline data={[2, 4, 8, 12, 18, 24]} color="var(--color-success)" />
+);
 
 export default {
 	title: "Components/Sparkline",

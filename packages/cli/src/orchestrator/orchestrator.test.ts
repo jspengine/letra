@@ -1,4 +1,12 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync, unlinkSync } from "node:fs";
+import {
+	mkdtempSync,
+	mkdirSync,
+	rmSync,
+	writeFileSync,
+	readFileSync,
+	existsSync,
+	unlinkSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -16,7 +24,10 @@ function tempRoot(): string {
 
 function writeHarnessFile(root: string, path: string, content: string) {
 	const fullPath = join(root, ".letra", "harness", path);
-	const dir = fullPath.substring(0, fullPath.lastIndexOf("\\") !== -1 ? fullPath.lastIndexOf("\\") : fullPath.lastIndexOf("/"));
+	const dir = fullPath.substring(
+		0,
+		fullPath.lastIndexOf("\\") !== -1 ? fullPath.lastIndexOf("\\") : fullPath.lastIndexOf("/"),
+	);
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(fullPath, content);
 }
@@ -72,8 +83,8 @@ describe("Orchestrator", () => {
 
 			const status = orchestrator.getExecutorStatus("opencode");
 			expect(status).toBeDefined();
-			expect(status!.executorId).toBe("opencode");
-			expect(status!.isOnline).toBe(true);
+			expect(status?.executorId).toBe("opencode");
+			expect(status?.isOnline).toBe(true);
 		});
 	});
 
@@ -82,7 +93,7 @@ describe("Orchestrator", () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
-			const workflow = loadWorkflow(root);
+			const workflow = loadWorkflow(root)!;
 			const item = workflow.items.find((i) => i.id === "ITEM-1");
 			item!.handoff = {
 				from: "opencode",
@@ -97,15 +108,15 @@ describe("Orchestrator", () => {
 			const orchestrator = new Orchestrator({ root });
 			const pending = orchestrator.detectPendingHandoff("reviewer");
 			expect(pending).not.toBeNull();
-			expect(pending!.item.id).toBe("ITEM-1");
-			expect(pending!.handoff.to).toBe("reviewer");
+			expect(pending?.item.id).toBe("ITEM-1");
+			expect(pending?.handoff.to).toBe("reviewer");
 		});
 
 		it("returns null for expired handoff", () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
-			const workflow = loadWorkflow(root);
+			const workflow = loadWorkflow(root)!;
 			const item = workflow.items.find((i) => i.id === "ITEM-1");
 			item!.handoff = {
 				from: "opencode",
@@ -132,9 +143,9 @@ describe("Orchestrator", () => {
 			const result = orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
 			expect(result.success).toBe(true);
 
-			const workflow = loadWorkflow(root);
+			const workflow = loadWorkflow(root)!;
 			const item = workflow.items.find((i) => i.id === "ITEM-1");
-			expect(item!.claimedBy).toBe("opencode");
+			expect(item?.claimedBy).toBe("opencode");
 		});
 
 		it("rejects claim when already claimed", () => {
@@ -153,7 +164,7 @@ describe("Orchestrator", () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
-			const workflow = loadWorkflow(root);
+			const workflow = loadWorkflow(root)!;
 			const item = workflow.items.find((i) => i.id === "ITEM-1");
 			item!.handoff = {
 				from: "opencode",
@@ -187,9 +198,9 @@ describe("Orchestrator", () => {
 			const reclaimed = orchestrator.reclaimStaleItems();
 			expect(reclaimed).toContain("ITEM-1");
 
-			const workflow = loadWorkflow(root);
+			const workflow = loadWorkflow(root)!;
 			const item = workflow.items.find((i) => i.id === "ITEM-1");
-			expect(item!.claimedBy).toBeUndefined();
+			expect(item?.claimedBy).toBeUndefined();
 		});
 	});
 
@@ -212,8 +223,8 @@ describe("Orchestrator", () => {
 			orchestrator.heartbeat("opencode");
 			const after = orchestrator.getExecutorStatus("opencode");
 
-			expect(after!.isOnline).toBe(true);
-			expect(after!.executorId).toBe("opencode");
+			expect(after?.isOnline).toBe(true);
+			expect(after?.executorId).toBe("opencode");
 		});
 	});
 
@@ -250,30 +261,54 @@ describe("Orchestrator", () => {
 	describe("buildContext", () => {
 		it("includes promptTemplate from manifest role", () => {
 			const root = tempRoot();
-			writeHarnessFile(root, "v0.2.0/gates/code-reviewed.yaml", "id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n");
-			writeHarnessFile(root, "v0.2.0/roles/implementer.yaml", "id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\nprompt-template: roles/prompts/implementer.md\n");
-			writeHarnessFile(root, "v0.2.0/flows/flow-main.yaml", "id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n");
+			writeHarnessFile(
+				root,
+				"v0.2.0/gates/code-reviewed.yaml",
+				"id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/roles/implementer.yaml",
+				"id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\nprompt-template: roles/prompts/implementer.md\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/flows/flow-main.yaml",
+				"id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n",
+			);
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
 			const context = orchestrator.buildContext("ITEM-1", "implementer");
 
 			expect(context).not.toBeNull();
-			expect(context!.promptTemplate).toBe("roles/prompts/implementer.md");
+			expect(context?.promptTemplate).toBe("roles/prompts/implementer.md");
 		});
 
 		it("returns null promptTemplate when no role has template", () => {
 			const root = tempRoot();
-			writeHarnessFile(root, "v0.2.0/gates/code-reviewed.yaml", "id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n");
-			writeHarnessFile(root, "v0.2.0/roles/implementer.yaml", "id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\n");
-			writeHarnessFile(root, "v0.2.0/flows/flow-main.yaml", "id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n");
+			writeHarnessFile(
+				root,
+				"v0.2.0/gates/code-reviewed.yaml",
+				"id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/roles/implementer.yaml",
+				"id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/flows/flow-main.yaml",
+				"id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n",
+			);
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
 			const context = orchestrator.buildContext("ITEM-1", "implementer");
 
 			expect(context).not.toBeNull();
-			expect(context!.promptTemplate).toBeNull();
+			expect(context?.promptTemplate).toBeNull();
 		});
 	});
 
@@ -386,10 +421,24 @@ describe("Orchestrator", () => {
 		it("re-emits expired handoff to next executor", () => {
 			const root = tempRoot();
 			createWorkflow(root);
-			writeHarnessFile(root, "v0.2.0/gates/code-reviewed.yaml", "id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n");
-			writeHarnessFile(root, "v0.2.0/roles/implementer.yaml", "id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\n");
-			writeHarnessFile(root, "v0.2.0/flows/flow-main.yaml", "id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n");
-			writeHarnessFile(root, "v0.2.0/executors/registry.yaml",
+			writeHarnessFile(
+				root,
+				"v0.2.0/gates/code-reviewed.yaml",
+				"id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/roles/implementer.yaml",
+				"id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/flows/flow-main.yaml",
+				"id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/executors/registry.yaml",
 				"executors:\n  - id: opencode\n    label: OpenCode\n    capabilities: [code]\n    notification: [sse]\n    heartbeat: true\n    maxExecutionTime: 1800\n    priority: 1\n  - id: cursor\n    label: Cursor\n    capabilities: [code]\n    notification: [file-watch]\n    heartbeat: false\n    maxExecutionTime: 1800\n    priority: 2\n",
 			);
 
@@ -411,9 +460,9 @@ describe("Orchestrator", () => {
 			expect(result.reEmittedTo).toBeDefined();
 
 			const workflow = loadWorkflow(root);
-			const item = workflow!.items.find((i) => i.id === "ITEM-1");
-			expect(item!.handoff).toBeDefined();
-			expect(item!.handoff!.executorId).not.toBe("opencode");
+			const item = workflow?.items.find((i) => i.id === "ITEM-1");
+			expect(item?.handoff).toBeDefined();
+			expect(item?.handoff?.executorId).not.toBe("opencode");
 		});
 
 		it("fails when handoff has not expired", () => {
@@ -606,10 +655,24 @@ describe("Orchestrator", () => {
 		it("calls onHandoffEvent on retryHandoff", () => {
 			const root = tempRoot();
 			createWorkflow(root);
-			writeHarnessFile(root, "v0.2.0/gates/code-reviewed.yaml", "id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n");
-			writeHarnessFile(root, "v0.2.0/roles/implementer.yaml", "id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\n");
-			writeHarnessFile(root, "v0.2.0/flows/flow-main.yaml", "id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n");
-			writeHarnessFile(root, "v0.2.0/executors/registry.yaml",
+			writeHarnessFile(
+				root,
+				"v0.2.0/gates/code-reviewed.yaml",
+				"id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/roles/implementer.yaml",
+				"id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/flows/flow-main.yaml",
+				"id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/executors/registry.yaml",
 				"executors:\n  - id: opencode\n    label: OpenCode\n    capabilities: [code]\n    notification: [sse]\n    heartbeat: true\n    maxExecutionTime: 1800\n    priority: 1\n  - id: cursor\n    label: Cursor\n    capabilities: [code]\n    notification: [file-watch]\n    heartbeat: false\n    maxExecutionTime: 1800\n    priority: 2\n",
 			);
 
@@ -712,102 +775,138 @@ describe("Orchestrator", () => {
 		it("design -> code -> review -> security -> done", () => {
 			const root = tempRoot();
 
-			writeHarnessFile(root, "v0.2.0/gates/spec-approved.yaml", [
-				"id: spec-approved",
-				"name: Spec Aprovado",
-				"type: human",
-				"blocking: true",
-				"description: Aprovação de spec",
-			].join("\n"));
-			writeHarnessFile(root, "v0.2.0/gates/code-reviewed.yaml", [
-				"id: code-reviewed",
-				"name: Code Revisado",
-				"type: automated",
-				"blocking: true",
-				"status: approved",
-			].join("\n"));
-			writeHarnessFile(root, "v0.2.0/gates/security-clear.yaml", [
-				"id: security-clear",
-				"name: Security Clear",
-				"type: automated",
-				"blocking: true",
-				"status: approved",
-			].join("\n"));
-			writeHarnessFile(root, "v0.2.0/gates/human-approved.yaml", [
-				"id: human-approved",
-				"name: Aprovação Humana",
-				"type: human",
-				"blocking: true",
-			].join("\n"));
+			writeHarnessFile(
+				root,
+				"v0.2.0/gates/spec-approved.yaml",
+				[
+					"id: spec-approved",
+					"name: Spec Aprovado",
+					"type: human",
+					"blocking: true",
+					"description: Aprovação de spec",
+				].join("\n"),
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/gates/code-reviewed.yaml",
+				[
+					"id: code-reviewed",
+					"name: Code Revisado",
+					"type: automated",
+					"blocking: true",
+					"status: approved",
+				].join("\n"),
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/gates/security-clear.yaml",
+				[
+					"id: security-clear",
+					"name: Security Clear",
+					"type: automated",
+					"blocking: true",
+					"status: approved",
+				].join("\n"),
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/gates/human-approved.yaml",
+				[
+					"id: human-approved",
+					"name: Aprovação Humana",
+					"type: human",
+					"blocking: true",
+				].join("\n"),
+			);
 
-			writeHarnessFile(root, "v0.2.0/roles/analyst.yaml", [
-				"id: analyst",
-				"label: Analyst",
-				"allowedStages: [design]",
-				"capabilities: [design]",
-			].join("\n"));
-			writeHarnessFile(root, "v0.2.0/roles/implementer.yaml", [
-				"id: implementer",
-				"label: Implementer",
-				"allowedStages: [code]",
-				"capabilities: [code]",
-			].join("\n"));
-			writeHarnessFile(root, "v0.2.0/roles/reviewer.yaml", [
-				"id: reviewer",
-				"label: Reviewer",
-				"allowedStages: [review]",
-				"capabilities: [review]",
-			].join("\n"));
-			writeHarnessFile(root, "v0.2.0/roles/security.yaml", [
-				"id: security",
-				"label: Security",
-				"allowedStages: [security]",
-				"capabilities: [security]",
-			].join("\n"));
+			writeHarnessFile(
+				root,
+				"v0.2.0/roles/analyst.yaml",
+				[
+					"id: analyst",
+					"label: Analyst",
+					"allowedStages: [design]",
+					"capabilities: [design]",
+				].join("\n"),
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/roles/implementer.yaml",
+				[
+					"id: implementer",
+					"label: Implementer",
+					"allowedStages: [code]",
+					"capabilities: [code]",
+				].join("\n"),
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/roles/reviewer.yaml",
+				[
+					"id: reviewer",
+					"label: Reviewer",
+					"allowedStages: [review]",
+					"capabilities: [review]",
+				].join("\n"),
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/roles/security.yaml",
+				[
+					"id: security",
+					"label: Security",
+					"allowedStages: [security]",
+					"capabilities: [security]",
+				].join("\n"),
+			);
 
-			writeHarnessFile(root, "v0.2.0/flows/flow-main.yaml", [
-				"id: flow-main",
-				"version: 0.2.0",
-				"name: Main Flow",
-				"description: Full SDLC flow",
-				"defaultPolicy: policies/default.json",
-				"stages:",
-				"  - id: design",
-				"    name: Design",
-				"    order: 0",
-				"    zone: doing",
-				"    description: Design phase",
-				"    agents: [analyst]",
-				"    gate: spec-approved",
-				"  - id: code",
-				"    name: Code",
-				"    order: 1",
-				"    zone: doing",
-				"    description: Implementation phase",
-				"    agents: [implementer]",
-				"    gate: code-reviewed",
-				"  - id: review",
-				"    name: Review",
-				"    order: 2",
-				"    zone: doing",
-				"    description: Review phase",
-				"    agents: [reviewer]",
-				"    gate: security-clear",
-				"  - id: security",
-				"    name: Security",
-				"    order: 3",
-				"    zone: doing",
-				"    description: Security review",
-				"    agents: [security]",
-				"    gate: human-approved",
-				"  - id: done",
-				"    name: Done",
-				"    order: 4",
-				"    zone: done",
-				"    description: Completed",
-				"    agents: []",
-				"    gate: null",
-			].join("\n"));
+			writeHarnessFile(
+				root,
+				"v0.2.0/flows/flow-main.yaml",
+				[
+					"id: flow-main",
+					"version: 0.2.0",
+					"name: Main Flow",
+					"description: Full SDLC flow",
+					"defaultPolicy: policies/default.json",
+					"stages:",
+					"  - id: design",
+					"    name: Design",
+					"    order: 0",
+					"    zone: doing",
+					"    description: Design phase",
+					"    agents: [analyst]",
+					"    gate: spec-approved",
+					"  - id: code",
+					"    name: Code",
+					"    order: 1",
+					"    zone: doing",
+					"    description: Implementation phase",
+					"    agents: [implementer]",
+					"    gate: code-reviewed",
+					"  - id: review",
+					"    name: Review",
+					"    order: 2",
+					"    zone: doing",
+					"    description: Review phase",
+					"    agents: [reviewer]",
+					"    gate: security-clear",
+					"  - id: security",
+					"    name: Security",
+					"    order: 3",
+					"    zone: doing",
+					"    description: Security review",
+					"    agents: [security]",
+					"    gate: human-approved",
+					"  - id: done",
+					"    name: Done",
+					"    order: 4",
+					"    zone: done",
+					"    description: Completed",
+					"    agents: []",
+					"    gate: null",
+				].join("\n"),
+			);
 
 			const workflow = {
 				version: "1.0",
@@ -817,10 +916,28 @@ describe("Orchestrator", () => {
 				harnessVersion: "v0.2.0",
 				template: "flow-main",
 				stages: [
-					{ id: "design", name: "Design", order: 0, zone: "doing", gate: "spec-approved" },
+					{
+						id: "design",
+						name: "Design",
+						order: 0,
+						zone: "doing",
+						gate: "spec-approved",
+					},
 					{ id: "code", name: "Code", order: 1, zone: "doing", gate: "code-reviewed" },
-					{ id: "review", name: "Review", order: 2, zone: "doing", gate: "security-clear" },
-					{ id: "security", name: "Security", order: 3, zone: "doing", gate: "human-approved" },
+					{
+						id: "review",
+						name: "Review",
+						order: 2,
+						zone: "doing",
+						gate: "security-clear",
+					},
+					{
+						id: "security",
+						name: "Security",
+						order: 3,
+						zone: "doing",
+						gate: "human-approved",
+					},
 					{ id: "done", name: "Done", order: 4, zone: "done" },
 				],
 				items: [
@@ -836,10 +953,42 @@ describe("Orchestrator", () => {
 			writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify(workflow, null, 2));
 
 			const orch = new Orchestrator({ root });
-			orch.registerExecutor({ id: "analyst", label: "Analyst", capabilities: ["design"], notification: ["sse"], heartbeat: false, maxExecutionTime: 1800, priority: 1 });
-			orch.registerExecutor({ id: "implementer", label: "Implementer", capabilities: ["code"], notification: ["sse"], heartbeat: false, maxExecutionTime: 1800, priority: 1 });
-			orch.registerExecutor({ id: "reviewer", label: "Reviewer", capabilities: ["review"], notification: ["sse"], heartbeat: false, maxExecutionTime: 1800, priority: 1 });
-			orch.registerExecutor({ id: "security", label: "Security", capabilities: ["security"], notification: ["sse"], heartbeat: false, maxExecutionTime: 1800, priority: 1 });
+			orch.registerExecutor({
+				id: "analyst",
+				label: "Analyst",
+				capabilities: ["design"],
+				notification: ["sse"],
+				heartbeat: false,
+				maxExecutionTime: 1800,
+				priority: 1,
+			});
+			orch.registerExecutor({
+				id: "implementer",
+				label: "Implementer",
+				capabilities: ["code"],
+				notification: ["sse"],
+				heartbeat: false,
+				maxExecutionTime: 1800,
+				priority: 1,
+			});
+			orch.registerExecutor({
+				id: "reviewer",
+				label: "Reviewer",
+				capabilities: ["review"],
+				notification: ["sse"],
+				heartbeat: false,
+				maxExecutionTime: 1800,
+				priority: 1,
+			});
+			orch.registerExecutor({
+				id: "security",
+				label: "Security",
+				capabilities: ["security"],
+				notification: ["sse"],
+				heartbeat: false,
+				maxExecutionTime: 1800,
+				priority: 1,
+			});
 
 			// design -> code
 			orch.emitHandoff({
@@ -851,10 +1000,10 @@ describe("Orchestrator", () => {
 				timestamp: new Date().toISOString(),
 				expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
 			});
-			let wf = loadWorkflow(root);
-			expect(wf.items[0].handoff!.to).toBe("implementer");
+			let wf = loadWorkflow(root)!;
+			expect(wf.items[0].handoff?.to).toBe("implementer");
 			orch.autoClaim("ITEM-REG", "implementer", "implementer");
-			wf = loadWorkflow(root);
+			wf = loadWorkflow(root)!;
 			expect(wf.items[0].stage).toBe("design");
 			expect(wf.items[0].claimedBy).toBe("implementer");
 
@@ -875,7 +1024,7 @@ describe("Orchestrator", () => {
 				expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
 			});
 			orch.autoClaim("ITEM-REG", "reviewer", "reviewer");
-			wf = loadWorkflow(root);
+			wf = loadWorkflow(root)!;
 			expect(wf.items[0].stage).toBe("code");
 
 			// move to review
@@ -895,7 +1044,7 @@ describe("Orchestrator", () => {
 				expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
 			});
 			orch.autoClaim("ITEM-REG", "security", "security");
-			wf = loadWorkflow(root);
+			wf = loadWorkflow(root)!;
 			expect(wf.items[0].stage).toBe("review");
 
 			// move to security
@@ -915,13 +1064,13 @@ describe("Orchestrator", () => {
 				expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
 			});
 
-			wf = loadWorkflow(root);
+			wf = loadWorkflow(root)!;
 			wf.items[0].stage = "done";
 			wf.items[0].claimedBy = undefined;
-			delete wf.items[0].handoff;
+			wf.items[0].handoff = undefined;
 			writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify(wf, null, 2));
 
-			wf = loadWorkflow(root);
+			wf = loadWorkflow(root)!;
 			expect(wf.items[0].stage).toBe("done");
 			expect(wf.items[0].handoff).toBeUndefined();
 			expect(wf.items[0].claimedBy).toBeUndefined();
@@ -933,34 +1082,54 @@ describe("Orchestrator", () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
-			writeHarnessFile(root, "v0.2.0/gates/code-reviewed.yaml", "id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n");
-			writeHarnessFile(root, "v0.2.0/roles/implementer.yaml", "id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\n");
-			writeHarnessFile(root, "v0.2.0/roles/reviewer.yaml", "id: reviewer\nlabel: Reviewer\nallowedStages:\n  - review\ncapabilities:\n  - review\n");
-			writeHarnessFile(root, "v0.2.0/flows/flow-main.yaml", "id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n  - id: review\n    name: Review\n    order: 2\n    agents:\n      - reviewer\n    gate: null\n");
-			writeHarnessFile(root, "v0.2.0/executors/registry.yaml", [
-				"executors:",
-				"  - id: opencode",
-				"    label: OpenCode",
-				"    capabilities: [code]",
-				"    notification: [sse]",
-				"    heartbeat: true",
-				"    maxExecutionTime: 1800",
-				"    priority: 1",
-				"  - id: cursor",
-				"    label: Cursor",
-				"    capabilities: [code, review]",
-				"    notification: [file-watch]",
-				"    heartbeat: false",
-				"    maxExecutionTime: 1800",
-				"    priority: 2",
-			].join("\n"));
+			writeHarnessFile(
+				root,
+				"v0.2.0/gates/code-reviewed.yaml",
+				"id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/roles/implementer.yaml",
+				"id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/roles/reviewer.yaml",
+				"id: reviewer\nlabel: Reviewer\nallowedStages:\n  - review\ncapabilities:\n  - review\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/flows/flow-main.yaml",
+				"id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n  - id: review\n    name: Review\n    order: 2\n    agents:\n      - reviewer\n    gate: null\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/executors/registry.yaml",
+				[
+					"executors:",
+					"  - id: opencode",
+					"    label: OpenCode",
+					"    capabilities: [code]",
+					"    notification: [sse]",
+					"    heartbeat: true",
+					"    maxExecutionTime: 1800",
+					"    priority: 1",
+					"  - id: cursor",
+					"    label: Cursor",
+					"    capabilities: [code, review]",
+					"    notification: [file-watch]",
+					"    heartbeat: false",
+					"    maxExecutionTime: 1800",
+					"    priority: 2",
+				].join("\n"),
+			);
 
 			const orch = new Orchestrator({ root });
 			orch.registerFromManifest();
 
 			// opencode claims and works on item
 			orch.autoClaim("ITEM-1", "opencode", "implementer");
-			let wf = loadWorkflow(root);
+			let wf = loadWorkflow(root)!;
 			expect(wf.items[0].claimedBy).toBe("opencode");
 
 			// clear the lock so cursor can claim
@@ -980,63 +1149,79 @@ describe("Orchestrator", () => {
 			});
 			expect(emitResult.success).toBe(true);
 
-			wf = loadWorkflow(root);
+			wf = loadWorkflow(root)!;
 			expect(wf.items[0].handoff).toBeDefined();
-			expect(wf.items[0].handoff!.from).toBe("opencode");
-			expect(wf.items[0].handoff!.to).toBe("reviewer");
-			expect(wf.items[0].handoff!.executorId).toBe("opencode");
-			expect(wf.items[0].handoff!.evidence).toContain("src/auth.ts");
+			expect(wf.items[0].handoff?.from).toBe("opencode");
+			expect(wf.items[0].handoff?.to).toBe("reviewer");
+			expect(wf.items[0].handoff?.executorId).toBe("opencode");
+			expect(wf.items[0].handoff?.evidence).toContain("src/auth.ts");
 
 			// cursor detects and claims the handoff
 			const pending = orch.detectPendingHandoff("reviewer");
 			expect(pending).not.toBeNull();
-			expect(pending!.item.id).toBe("ITEM-1");
+			expect(pending?.item.id).toBe("ITEM-1");
 
 			const claimResult = orch.autoClaim("ITEM-1", "cursor", "reviewer");
 			expect(claimResult.success).toBe(true);
 
-			wf = loadWorkflow(root);
+			wf = loadWorkflow(root)!;
 			expect(wf.items[0].claimedBy).toBe("cursor");
 			expect(wf.items[0].handoff).toBeUndefined();
 
 			// verify context transfer
 			const context = orch.buildContext("ITEM-1", "reviewer");
 			expect(context).not.toBeNull();
-			expect(context!.item.id).toBe("ITEM-1");
-			expect(context!.agent).toBe("reviewer");
+			expect((context as any)?.item.id).toBe("ITEM-1");
+			expect(context?.agent).toBe("reviewer");
 		});
 
 		it("retry handoff falls back to next executor by priority", () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
-			writeHarnessFile(root, "v0.2.0/gates/code-reviewed.yaml", "id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n");
-			writeHarnessFile(root, "v0.2.0/roles/implementer.yaml", "id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\n");
-			writeHarnessFile(root, "v0.2.0/flows/flow-main.yaml", "id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n");
-			writeHarnessFile(root, "v0.2.0/executors/registry.yaml", [
-				"executors:",
-				"  - id: opencode",
-				"    label: OpenCode",
-				"    capabilities: [code]",
-				"    notification: [sse]",
-				"    heartbeat: true",
-				"    maxExecutionTime: 1800",
-				"    priority: 1",
-				"  - id: cursor",
-				"    label: Cursor",
-				"    capabilities: [code]",
-				"    notification: [file-watch]",
-				"    heartbeat: false",
-				"    maxExecutionTime: 1800",
-				"    priority: 2",
-				"  - id: claude",
-				"    label: Claude Code",
-				"    capabilities: [code]",
-				"    notification: [sse]",
-				"    heartbeat: true",
-				"    maxExecutionTime: 1800",
-				"    priority: 3",
-			].join("\n"));
+			writeHarnessFile(
+				root,
+				"v0.2.0/gates/code-reviewed.yaml",
+				"id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/roles/implementer.yaml",
+				"id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - code\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/flows/flow-main.yaml",
+				"id: flow-main\nversion: 0.2.0\nname: Main\nstages:\n  - id: code\n    name: Code\n    order: 1\n    agents:\n      - implementer\n    gate: code-reviewed\n",
+			);
+			writeHarnessFile(
+				root,
+				"v0.2.0/executors/registry.yaml",
+				[
+					"executors:",
+					"  - id: opencode",
+					"    label: OpenCode",
+					"    capabilities: [code]",
+					"    notification: [sse]",
+					"    heartbeat: true",
+					"    maxExecutionTime: 1800",
+					"    priority: 1",
+					"  - id: cursor",
+					"    label: Cursor",
+					"    capabilities: [code]",
+					"    notification: [file-watch]",
+					"    heartbeat: false",
+					"    maxExecutionTime: 1800",
+					"    priority: 2",
+					"  - id: claude",
+					"    label: Claude Code",
+					"    capabilities: [code]",
+					"    notification: [sse]",
+					"    heartbeat: true",
+					"    maxExecutionTime: 1800",
+					"    priority: 3",
+				].join("\n"),
+			);
 
 			const orch = new Orchestrator({ root });
 			orch.registerFromManifest();
@@ -1059,8 +1244,8 @@ describe("Orchestrator", () => {
 			expect(retryResult.success).toBe(true);
 			expect(retryResult.reEmittedTo).toBe("cursor");
 
-			const wf = loadWorkflow(root);
-			expect(wf.items[0].handoff!.executorId).toBe("cursor");
+			const wf = loadWorkflow(root)!;
+			expect(wf.items[0].handoff?.executorId).toBe("cursor");
 		});
 	});
 });

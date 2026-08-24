@@ -10,7 +10,11 @@ import { queryLog } from "../session-log.js";
 import type { LogEntry } from "../session-log.js";
 import { resolveActiveFlow } from "../flow-definition/resolve.js";
 import type { ResolvedFlowPhase, ResolvedFlowStage } from "../flow-definition/types.js";
-import type { GateExpectationConfig, PhaseHarnessConfig, ReviewExpectationConfig } from "../harness/types.js";
+import type {
+	GateExpectationConfig,
+	PhaseHarnessConfig,
+	ReviewExpectationConfig,
+} from "../harness/types.js";
 import { getLetraDir } from "./../workspace/resolver.js";
 
 export interface SpecMeta {
@@ -42,7 +46,11 @@ export function getStageName(workflow: Workflow, stageId: string): string {
 
 export function findCurrentItem(workflow: Workflow): Item | null {
 	const activeStages = workflow.stages
-		.filter((stage) => stage.zone === "doing" || (!stage.zone && stage.order > 0 && stage.order < workflow.stages.length - 1))
+		.filter(
+			(stage) =>
+				stage.zone === "doing" ||
+				(!stage.zone && stage.order > 0 && stage.order < workflow.stages.length - 1),
+		)
 		.map((stage) => stage.id);
 	const stageSet = new Set(activeStages);
 	if (stageSet.size === 0) {
@@ -52,7 +60,9 @@ export function findCurrentItem(workflow: Workflow): Item | null {
 	}
 	const items = workflow.items.filter((item) => stageSet.has(item.stage));
 	if (items.length === 0) return null;
-	return items.reduce((left, right) => new Date(left.createdAt) > new Date(right.createdAt) ? left : right);
+	return items.reduce((left, right) =>
+		new Date(left.createdAt) > new Date(right.createdAt) ? left : right,
+	);
 }
 
 function extractOutcome(content: string): string | null {
@@ -64,11 +74,19 @@ function countSpecACs(content: string): { pending: number; done: number; total: 
 	const boldPending = content.match(/-\s*\[ \]\s*\*\*AC[-]?\d+\*\*/g) || [];
 	const boldDone = content.match(/-\s*\[[xX]\]\s*\*\*AC[-]?\d+\*\*/g) || [];
 	if (boldPending.length > 0 || boldDone.length > 0) {
-		return { pending: boldPending.length, done: boldDone.length, total: boldPending.length + boldDone.length };
+		return {
+			pending: boldPending.length,
+			done: boldDone.length,
+			total: boldPending.length + boldDone.length,
+		};
 	}
 	const genericPending = content.match(/^- \[ \]\s+AC[-]?\d+/gm) || [];
 	const genericDone = content.match(/^- \[[xX]\]\s+AC[-]?\d+/gm) || [];
-	return { pending: genericPending.length, done: genericDone.length, total: genericPending.length + genericDone.length };
+	return {
+		pending: genericPending.length,
+		done: genericDone.length,
+		total: genericPending.length + genericDone.length,
+	};
 }
 
 export function loadSpecMeta(root: string, specName: string | null): SpecMeta | null {
@@ -95,26 +113,30 @@ export function loadActivityContextSources(root: string): ActivityContextSources
 	const workflow = loadWorkflow(root);
 	const flowResolution = resolveActiveFlow(root);
 	const focus = readFocusFile(root);
-	const focusedItem = workflow && focus?.itemId
-		? workflow.items.find((item) => item.id === focus.itemId) ?? null
-		: null;
+	const focusedItem =
+		workflow && focus?.itemId
+			? (workflow.items.find((item) => item.id === focus.itemId) ?? null)
+			: null;
 	const currentItem = focusedItem ?? (workflow ? findCurrentItem(workflow) : null);
 	const currentPhase = currentItem?.currentPhase ?? null;
 	const activeFlowStage = currentItem
-		? flowResolution.flow?.stages.find((stage) => stage.id === currentItem.stage) ?? null
+		? (flowResolution.flow?.stages.find((stage) => stage.id === currentItem.stage) ?? null)
 		: null;
-	const activePhaseDef = currentPhase && activeFlowStage?.phases?.states?.[currentPhase]
-		? activeFlowStage.phases.states[currentPhase]
-		: null;
+	const activePhaseDef =
+		currentPhase && activeFlowStage?.phases?.states?.[currentPhase]
+			? activeFlowStage.phases.states[currentPhase]
+			: null;
 	const activePhaseHarness = activePhaseDef?.harness ?? null;
-	const activeReviewExpectation = activePhaseHarness?.activity?.review
-		?? activePhaseHarness?.review
-		?? activeFlowStage?.activity?.review
-		?? null;
-	const activeGateExpectation = activePhaseHarness?.activity?.gate
-		?? activePhaseHarness?.gate
-		?? activeFlowStage?.activity?.gate
-		?? null;
+	const activeReviewExpectation =
+		activePhaseHarness?.activity?.review ??
+		activePhaseHarness?.review ??
+		activeFlowStage?.activity?.review ??
+		null;
+	const activeGateExpectation =
+		activePhaseHarness?.activity?.gate ??
+		activePhaseHarness?.gate ??
+		activeFlowStage?.activity?.gate ??
+		null;
 	const focusDiverged = !!(focus && currentItem?.spec && focus.specName !== currentItem.spec);
 	const specName = focus?.specName || currentItem?.spec || null;
 	const spec = loadSpecMeta(root, specName);

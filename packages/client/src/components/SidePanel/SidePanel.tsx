@@ -1,6 +1,15 @@
 import type { Item, Workflow } from "@letra/types";
 import { useState } from "react";
-import { Badge, Button, Checkbox, Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@letra/ui";
+import {
+	Badge,
+	Button,
+	Checkbox,
+	Select,
+	SelectTrigger,
+	SelectContent,
+	SelectItem,
+	SelectValue,
+} from "@letra/ui";
 
 interface Props {
 	workflow: Workflow | null;
@@ -93,18 +102,28 @@ function SidePanelContent({ item, workflow }: { item: Item; workflow: Workflow }
 			<div>
 				<h3 className="text-sm font-semibold mb-1">Move</h3>
 				<div className="flex gap-2">
-					<Select value={selectedStage} onValueChange={(value) => setSelectedStage(value)}>
-					<SelectTrigger className="flex-1 rounded px-2 py-1 text-xs" style={{ background: "var(--color-bg-base)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>
-						<SelectValue placeholder="Select stage" />
-					</SelectTrigger>
-					<SelectContent>
-						{workflow.stages.map((s) => (
-							<SelectItem key={s.id} value={s.id}>
-								{s.name}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+					<Select
+						value={selectedStage}
+						onValueChange={(value) => setSelectedStage(value)}
+					>
+						<SelectTrigger
+							className="flex-1 rounded px-2 py-1 text-xs"
+							style={{
+								background: "var(--color-bg-base)",
+								border: "1px solid var(--color-border)",
+								color: "var(--color-text-primary)",
+							}}
+						>
+							<SelectValue placeholder="Select stage" />
+						</SelectTrigger>
+						<SelectContent>
+							{workflow.stages.map((s) => (
+								<SelectItem key={s.id} value={s.id}>
+									{s.name}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 					<Button variant="primary" size="sm" onClick={handleMove}>
 						Move
 					</Button>

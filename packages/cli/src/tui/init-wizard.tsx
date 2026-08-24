@@ -74,7 +74,7 @@ function SelectStep({ title, options, selected, onSelect, onConfirm }: SelectSte
 				</Box>
 			))}
 			<Spacer />
-			<Text dimColor> Setas: navegar  |  Enter: confirmar </Text>
+			<Text dimColor> Setas: navegar | Enter: confirmar </Text>
 		</Box>
 	);
 }
@@ -100,20 +100,27 @@ function PreviewStep({
 			<Text bold> Preview do Setup </Text>
 			<Spacer />
 			<Box flexDirection="column" paddingX={2}>
-				<Text> Tipo de projeto:  <Text bold>{projectType}</Text></Text>
-				<Text> Ferramenta IA:    <Text bold>{TOOL_OPTIONS.find((t) => t.id === tool)?.label || tool}</Text></Text>
+				<Text>
+					{" "}
+					Tipo de projeto: <Text bold>{projectType}</Text>
+				</Text>
+				<Text>
+					{" "}
+					Ferramenta IA:{" "}
+					<Text bold>{TOOL_OPTIONS.find((t) => t.id === tool)?.label || tool}</Text>
+				</Text>
 			</Box>
 			<Spacer />
 			<Box flexDirection="column" paddingX={2}>
 				<Text dimColor> Será criado: </Text>
-				<Text dimColor>   - .letra/  (contexto, constituição, specs) </Text>
-				<Text dimColor>   - Adapters para a ferramenta selecionada </Text>
+				<Text dimColor> - .letra/ (contexto, constituição, specs) </Text>
+				<Text dimColor> - Adapters para a ferramenta selecionada </Text>
 				{tool === "vscode" || tool === "todos" ? (
-					<Text dimColor>   - .vscode/settings.json </Text>
+					<Text dimColor> - .vscode/settings.json </Text>
 				) : null}
 			</Box>
 			<Spacer />
-			<Text dimColor> Enter: criar  |  Esc: voltar </Text>
+			<Text dimColor> Enter: criar | Esc: voltar </Text>
 		</Box>
 	);
 }
@@ -132,10 +139,10 @@ function ProgressStep({ done }: { done: boolean }) {
 
 export async function runInitWizard(): Promise<WizardResult> {
 	return new Promise((resolve, reject) => {
-		const { waitUntilExit } = render(
-			<WizardApp onDone={resolve} />,
-		);
-		waitUntilExit().then(() => {}).catch(reject);
+		const { waitUntilExit } = render(<WizardApp onDone={resolve} />);
+		waitUntilExit()
+			.then(() => {})
+			.catch(reject);
 	});
 }
 

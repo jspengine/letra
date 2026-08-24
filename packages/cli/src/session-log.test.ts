@@ -87,9 +87,23 @@ describe("session-log", () => {
 
 		it("should handle all action types", () => {
 			const actions = [
-				"validate", "diagnose", "health_scan", "health_ack", "health_dismiss",
-				"ac_complete", "ac_done", "item_move", "decision", "sitrep", "focus_set", "manual", "session_end",
-				"handoff", "handoff_emitted", "handoff_rollback", "item_reclaim",
+				"validate",
+				"diagnose",
+				"health_scan",
+				"health_ack",
+				"health_dismiss",
+				"ac_complete",
+				"ac_done",
+				"item_move",
+				"decision",
+				"sitrep",
+				"focus_set",
+				"manual",
+				"session_end",
+				"handoff",
+				"handoff_emitted",
+				"handoff_rollback",
+				"item_reclaim",
 			] as const;
 			for (const action of actions) {
 				const entry = logEntry(tmpDir, action, `${action} entry`);
@@ -188,7 +202,10 @@ describe("session-log", () => {
 	describe("queryLog", () => {
 		beforeEach(() => {
 			logEntry(tmpDir, "validate", "Validation 1", { itemId: "ITEM-1" });
-			logEntry(tmpDir, "item_move", "Move ITEM-1", { itemId: "ITEM-1", details: { from: "backlog", to: "design" } });
+			logEntry(tmpDir, "item_move", "Move ITEM-1", {
+				itemId: "ITEM-1",
+				details: { from: "backlog", to: "design" },
+			});
 			logEntry(tmpDir, "manual", "Working on AC-001", { itemId: "ITEM-1", acId: "AC-001" });
 			logEntry(tmpDir, "decision", "Chose X over Y", { itemId: "ITEM-2" });
 			logEntry(tmpDir, "session_end", "Session over", { itemId: "ITEM-1" });
@@ -208,8 +225,12 @@ describe("session-log", () => {
 			logEntry(tmpDir, "system", "System event", {
 				details: { systemAction: true },
 			});
-			expect(queryLog(tmpDir, { all: true }).map((entry) => entry.action)).not.toContain("system");
-			expect(queryLog(tmpDir, { all: true, debug: true }).map((entry) => entry.action)).toContain("system");
+			expect(queryLog(tmpDir, { all: true }).map((entry) => entry.action)).not.toContain(
+				"system",
+			);
+			expect(
+				queryLog(tmpDir, { all: true, debug: true }).map((entry) => entry.action),
+			).toContain("system");
 		});
 
 		it("should filter by itemId", () => {
@@ -238,8 +259,9 @@ describe("session-log", () => {
 		it("should return entries in reverse chronological order", () => {
 			const entries = queryLog(tmpDir, { all: true });
 			for (let i = 1; i < entries.length; i++) {
-				expect(new Date(entries[i - 1].timestamp).getTime())
-					.toBeGreaterThanOrEqual(new Date(entries[i].timestamp).getTime());
+				expect(new Date(entries[i - 1].timestamp).getTime()).toBeGreaterThanOrEqual(
+					new Date(entries[i].timestamp).getTime(),
+				);
 			}
 		});
 	});
@@ -323,7 +345,10 @@ describe("session-log", () => {
 			});
 			logEntry(tmpDir, "manual", "JSONL entry");
 			const entries = queryLog(tmpDir, { all: true });
-			expect(entries.map((entry) => entry.description)).toEqual(["JSONL entry", "Legacy entry"]);
+			expect(entries.map((entry) => entry.description)).toEqual([
+				"JSONL entry",
+				"Legacy entry",
+			]);
 		});
 
 		it("prunes JSONL files older than the retention window", () => {
@@ -331,24 +356,30 @@ describe("session-log", () => {
 			mkdirSync(oldDir, { recursive: true });
 			const oldFile = join(oldDir, "01.jsonl");
 			const recentFile = join(oldDir, "25.jsonl");
-			writeFileSync(oldFile, JSON.stringify({
-				id: "old",
-				timestamp: "2026-07-01T10:00:00.000Z",
-				action: "manual",
-				description: "Old",
-				itemId: null,
-				acId: null,
-				details: {},
-			}) + "\n");
-			writeFileSync(recentFile, JSON.stringify({
-				id: "recent",
-				timestamp: "2026-07-25T10:00:00.000Z",
-				action: "manual",
-				description: "Recent",
-				itemId: null,
-				acId: null,
-				details: {},
-			}) + "\n");
+			writeFileSync(
+				oldFile,
+				`${JSON.stringify({
+					id: "old",
+					timestamp: "2026-07-01T10:00:00.000Z",
+					action: "manual",
+					description: "Old",
+					itemId: null,
+					acId: null,
+					details: {},
+				})}\n`,
+			);
+			writeFileSync(
+				recentFile,
+				`${JSON.stringify({
+					id: "recent",
+					timestamp: "2026-07-25T10:00:00.000Z",
+					action: "manual",
+					description: "Recent",
+					itemId: null,
+					acId: null,
+					details: {},
+				})}\n`,
+			);
 
 			const removed = pruneSessionLog(tmpDir, 7, new Date("2026-07-25T12:00:00.000Z"));
 			expect(removed).toEqual([oldFile]);

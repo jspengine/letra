@@ -93,7 +93,10 @@ function LayerCard({
 				<Icon name={info.icon as any} size={16} className="text-primary shrink-0" />
 				<div className="flex-1 min-w-0">
 					<div className="font-semibold text-sm">{info.title}</div>
-					<div className="text-xs truncate" style={{ color: "var(--color-text-secondary)" }}>
+					<div
+						className="text-xs truncate"
+						style={{ color: "var(--color-text-secondary)" }}
+					>
 						{info.desc}
 					</div>
 				</div>
@@ -117,8 +120,15 @@ function L1Content({ files }: { files: LayerFile[] }) {
 			{files.map((f) => (
 				<div key={f.path}>
 					<div className="flex items-center gap-1.5 mb-1">
-						<Icon name="file-text" size={12} style={{ color: "var(--color-text-secondary)" }} />
-						<span className="text-xs font-mono" style={{ color: "var(--color-text-secondary)" }}>
+						<Icon
+							name="file-text"
+							size={12}
+							style={{ color: "var(--color-text-secondary)" }}
+						/>
+						<span
+							className="text-xs font-mono"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							{f.path}
 						</span>
 					</div>
@@ -130,7 +140,10 @@ function L1Content({ files }: { files: LayerFile[] }) {
 							<Markdown content={f.content} />
 						</div>
 					) : (
-						<p className="text-xs italic" style={{ color: "var(--color-text-secondary)" }}>
+						<p
+							className="text-xs italic"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							(vazio)
 						</p>
 					)}
@@ -146,14 +159,24 @@ function L2Content({ l2 }: { l2: L2Data }) {
 			{l2.focus && (
 				<div>
 					<div className="flex items-center gap-1.5 mb-1">
-						<Icon name="star" size={12} style={{ color: "var(--color-text-secondary)" }} />
-						<span className="text-xs font-mono" style={{ color: "var(--color-text-secondary)" }}>
+						<Icon
+							name="star"
+							size={12}
+							style={{ color: "var(--color-text-secondary)" }}
+						/>
+						<span
+							className="text-xs font-mono"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							.letra/focus.md
 						</span>
 						{l2.focus.specName && (
 							<span
 								className="text-xs px-1.5 py-0.5 rounded font-medium"
-								style={{ backgroundColor: "var(--color-primary)", color: "var(--color-primary)" }}
+								style={{
+									backgroundColor: "var(--color-primary)",
+									color: "var(--color-primary)",
+								}}
 							>
 								{l2.focus.specName}
 							</span>
@@ -167,7 +190,10 @@ function L2Content({ l2 }: { l2: L2Data }) {
 							<Markdown content={l2.focus.content} />
 						</div>
 					) : (
-						<p className="text-xs italic" style={{ color: "var(--color-text-secondary)" }}>
+						<p
+							className="text-xs italic"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							(sem conteúdo de foco)
 						</p>
 					)}
@@ -176,8 +202,15 @@ function L2Content({ l2 }: { l2: L2Data }) {
 			{l2.spec && (
 				<div>
 					<div className="flex items-center gap-1.5 mb-1">
-						<Icon name="file-text" size={12} style={{ color: "var(--color-text-secondary)" }} />
-						<span className="text-xs font-mono" style={{ color: "var(--color-text-secondary)" }}>
+						<Icon
+							name="file-text"
+							size={12}
+							style={{ color: "var(--color-text-secondary)" }}
+						/>
+						<span
+							className="text-xs font-mono"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							{l2.spec.path}
 						</span>
 					</div>
@@ -213,14 +246,21 @@ function L3Content({ l3 }: { l3: L3Data }) {
 					className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs"
 					style={{ backgroundColor: "var(--color-bg-surface)" }}
 				>
-					<Icon name="activity" size={12} style={{ color: "var(--color-text-secondary)" }} />
+					<Icon
+						name="activity"
+						size={12}
+						style={{ color: "var(--color-text-secondary)" }}
+					/>
 					<span>{l3.sessionEventCount} evento(s) na sessão</span>
 				</div>
 			</div>
 
 			{l3.alerts.length > 0 && (
 				<div>
-					<p className="text-xs font-semibold mb-1.5 uppercase tracking-wider" style={{ color: "var(--color-text-secondary)" }}>
+					<p
+						className="text-xs font-semibold mb-1.5 uppercase tracking-wider"
+						style={{ color: "var(--color-text-secondary)" }}
+					>
 						Alertas recentes
 					</p>
 					<div className="space-y-1">
@@ -230,10 +270,21 @@ function L3Content({ l3 }: { l3: L3Data }) {
 								className="flex items-start gap-2 px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs"
 								style={{ backgroundColor: "var(--color-bg-surface)" }}
 							>
-								<Icon name="alert-circle" size={12} style={{ color: a.severity === "alta" ? "var(--color-danger)" : "var(--color-warning)" }} />
+								<Icon
+									name="alert-circle"
+									size={12}
+									style={{
+										color:
+											a.severity === "alta"
+												? "var(--color-danger)"
+												: "var(--color-warning)",
+									}}
+								/>
 								<div className="min-w-0 flex-1">
 									<div className="font-medium">{a.id}</div>
-									<div style={{ color: "var(--color-text-secondary)" }}>{a.message}</div>
+									<div style={{ color: "var(--color-text-secondary)" }}>
+										{a.message}
+									</div>
 								</div>
 							</div>
 						))}
@@ -250,8 +301,15 @@ function L4Content({ l4 }: { l4: L4Data }) {
 			{l4.constraintsContent && (
 				<div>
 					<div className="flex items-center gap-1.5 mb-1">
-						<Icon name="file-text" size={12} style={{ color: "var(--color-text-secondary)" }} />
-						<span className="text-xs font-mono" style={{ color: "var(--color-text-secondary)" }}>
+						<Icon
+							name="file-text"
+							size={12}
+							style={{ color: "var(--color-text-secondary)" }}
+						/>
+						<span
+							className="text-xs font-mono"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							.letra/constraints.md
 						</span>
 					</div>
@@ -266,8 +324,15 @@ function L4Content({ l4 }: { l4: L4Data }) {
 			{l4.glossaryContent && (
 				<div>
 					<div className="flex items-center gap-1.5 mb-1">
-						<Icon name="file-text" size={12} style={{ color: "var(--color-text-secondary)" }} />
-						<span className="text-xs font-mono" style={{ color: "var(--color-text-secondary)" }}>
+						<Icon
+							name="file-text"
+							size={12}
+							style={{ color: "var(--color-text-secondary)" }}
+						/>
+						<span
+							className="text-xs font-mono"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							.letra/glossary.md
 						</span>
 					</div>
@@ -308,7 +373,10 @@ export default function HarnessViewer() {
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center h-full">
-				<p className="text-sm animate-pulse" style={{ color: "var(--color-text-secondary)" }}>
+				<p
+					className="text-sm animate-pulse"
+					style={{ color: "var(--color-text-secondary)" }}
+				>
 					Carregando...
 				</p>
 			</div>
@@ -327,7 +395,10 @@ export default function HarnessViewer() {
 
 	return (
 		<div className="flex flex-col min-h-0 overflow-hidden">
-			<div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: "var(--color-border)" }}>
+			<div
+				className="flex items-center justify-between px-4 py-3 border-b shrink-0"
+				style={{ borderColor: "var(--color-border)" }}
+			>
 				<div>
 					<h2 className="text-sm font-semibold">Composição da Configuração</h2>
 					<p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>

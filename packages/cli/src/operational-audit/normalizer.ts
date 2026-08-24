@@ -51,7 +51,12 @@ function inferKind(entry: LogEntry): EventKind {
 	if (entry.action === "manual") return "human";
 	if (entry.action === "ac_done" || entry.action === "ac_complete") return "execution";
 	if (entry.action === "validate" || entry.action === "diagnose") return "execution";
-	if (entry.action === "health_scan" || entry.action === "health_ack" || entry.action === "health_dismiss") return "system";
+	if (
+		entry.action === "health_scan" ||
+		entry.action === "health_ack" ||
+		entry.action === "health_dismiss"
+	)
+		return "system";
 	return "flow";
 }
 
@@ -62,10 +67,13 @@ function inferStatus(entry: LogEntry): EventStatus {
 	if (outcome === "triggered" || outcome === "started") return "started";
 	if (outcome === "armed") return "started";
 	if (outcome === "completed") return "succeeded";
-	if (action === "ac_done" || action === "item_move" || action === "item_release") return "succeeded";
-	if (action === "validate" || action === "diagnose" || action === "health_scan") return "succeeded";
+	if (action === "ac_done" || action === "item_move" || action === "item_release")
+		return "succeeded";
+	if (action === "validate" || action === "diagnose" || action === "health_scan")
+		return "succeeded";
 	if (action === "decision" || action === "sitrep") return "succeeded";
-	if (action === "focus_set" || action === "focus_sync" || action === "focus_clear") return "succeeded";
+	if (action === "focus_set" || action === "focus_sync" || action === "focus_clear")
+		return "succeeded";
 	if (action === "session_end") return "succeeded";
 	if (action === "manual") return "succeeded";
 	if (action === "health_ack" || action === "health_dismiss") return "succeeded";

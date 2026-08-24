@@ -85,8 +85,11 @@ export function getRecurringSystemActions(root: string): SystemActionSnapshot[] 
 	return RECURRING_SYSTEM_ACTIONS.map((definition) => {
 		const last = [...entries]
 			.reverse()
-			.find((entry) => entry.action === "system" && entry.details?.actionId === definition.id);
-		const lastOutcome = typeof last?.details?.outcome === "string" ? last.details.outcome : null;
+			.find(
+				(entry) => entry.action === "system" && entry.details?.actionId === definition.id,
+			);
+		const lastOutcome =
+			typeof last?.details?.outcome === "string" ? last.details.outcome : null;
 		const status: SystemActionStatus =
 			lastOutcome === "failed"
 				? "error"

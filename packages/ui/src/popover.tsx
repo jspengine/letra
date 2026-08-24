@@ -2,7 +2,9 @@ import { useState, useRef, useEffect, type HTMLAttributes, type ButtonHTMLAttrib
 import { cn } from "./utils";
 
 interface PopoverProps {
-	children: React.ReactNode | ((props: { open: boolean; setOpen: (v: boolean) => void }) => React.ReactNode);
+	children:
+		| React.ReactNode
+		| ((props: { open: boolean; setOpen: (v: boolean) => void }) => React.ReactNode);
 	open?: boolean;
 	onOpenChange?: (open: boolean) => void;
 }
@@ -89,7 +91,11 @@ export function PopoverContent({
 				alignStyles[align],
 				className,
 			)}
-			style={{ top: `calc(100% + ${sideOffset}px)`, borderColor: "var(--border)", background: "var(--card)" }}
+			style={{
+				top: `calc(100% + ${sideOffset}px)`,
+				borderColor: "var(--border)",
+				background: "var(--card)",
+			}}
 			{...props}
 		>
 			{children}

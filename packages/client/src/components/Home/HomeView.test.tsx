@@ -10,9 +10,7 @@ const workflow: Workflow = {
 	createdAt: "2026-07-01T00:00:00.000Z",
 	updatedAt: "2026-07-25T00:00:00.000Z",
 	tools: [],
-	stages: [
-		{ id: "review", name: "Review", order: 1, zone: "doing" },
-	],
+	stages: [{ id: "review", name: "Review", order: 1, zone: "doing" }],
 	items: [
 		{
 			id: "ITEM-29",
@@ -111,7 +109,10 @@ describe("HomeView diagnostics center", () => {
 
 		await user.click(screen.getByRole("button", { name: "Verificar agora" }));
 		await waitFor(() => {
-			expect(fetchMock).toHaveBeenCalledWith("/api/health/scan", expect.objectContaining({ method: "POST" }));
+			expect(fetchMock).toHaveBeenCalledWith(
+				"/api/health/scan",
+				expect.objectContaining({ method: "POST" }),
+			);
 		});
 
 		await user.click(screen.getByRole("button", { name: "Detalhes" }));

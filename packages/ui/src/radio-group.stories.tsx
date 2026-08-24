@@ -35,7 +35,12 @@ export default {
 			tokens: ["color-primary", "color-border", "color-text-primary", "focus-ring-color"],
 			consumes: ["Label"],
 			surfaces: ["WorkspacesView", "SpecsView"],
-			a11y: ["radiogroup-semantics", "label-associated", "keyboard-navigation", "focus-visible"],
+			a11y: [
+				"radiogroup-semantics",
+				"label-associated",
+				"keyboard-navigation",
+				"focus-visible",
+			],
 			breakpoints: ["mobile", "desktop"],
 		},
 	},

@@ -26,7 +26,9 @@ export async function flowAutopilotAction(itemId: string): Promise<void> {
 
 	if (result.ok) {
 		console.log(`  ${chalk.green("✓")} Auto-pilot complete`);
-		console.log(`  ${chalk.gray("Final phase:")} ${result.finalPhase || chalk.dim("(exited phase system)")}`);
+		console.log(
+			`  ${chalk.gray("Final phase:")} ${result.finalPhase || chalk.dim("(exited phase system)")}`,
+		);
 		console.log(`  ${chalk.gray("Transitions:")} ${result.transitionsApplied}`);
 	} else {
 		console.log(`  ${chalk.red("✗")} Auto-pilot stopped: ${result.error}`);

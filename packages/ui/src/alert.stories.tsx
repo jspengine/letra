@@ -34,7 +34,13 @@ export default {
 		"x-ds": {
 			category: "primitive",
 			status: "ready",
-			tokens: ["color-info", "color-success", "color-warning", "color-danger", "color-text-primary"],
+			tokens: [
+				"color-info",
+				"color-success",
+				"color-warning",
+				"color-danger",
+				"color-text-primary",
+			],
 			consumes: ["Icon"],
 			surfaces: ["HomeView", "FlowView", "WorkspacesView"],
 			a11y: ["semantic-message", "state-not-color-only"],

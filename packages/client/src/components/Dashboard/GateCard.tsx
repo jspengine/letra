@@ -1,7 +1,13 @@
 import { Card, CardContent, Button, Icon } from "@letra/ui";
 import { cn } from "../../lib/utils";
 
-export type GateStatus = "waiting" | "available" | "approved" | "changes-requested" | "rejected" | "expired";
+export type GateStatus =
+	| "waiting"
+	| "available"
+	| "approved"
+	| "changes-requested"
+	| "rejected"
+	| "expired";
 
 export interface GateData {
 	id: string;
@@ -51,7 +57,7 @@ function timeSince(iso: string): string {
 
 export default function GateCard({ gate, onApprove, onChanges, onReject }: Props) {
 	const isActionable = gate.status === "available";
-	const isUrgent = isActionable && (Date.now() - new Date(gate.since).getTime()) > 300000; // >5min
+	const isUrgent = isActionable && Date.now() - new Date(gate.since).getTime() > 300000; // >5min
 
 	return (
 		<Card
@@ -77,12 +83,18 @@ export default function GateCard({ gate, onApprove, onChanges, onReject }: Props
 							>
 								{GATE_LABELS[gate.status]}
 							</span>
-							<span className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
+							<span
+								className="text-caption"
+								style={{ color: "var(--color-text-secondary)" }}
+							>
 								há {timeSince(gate.since)}
 							</span>
 						</div>
 						<h4 className="text-sm font-semibold truncate">{gate.feature}</h4>
-						<p className="text-xs mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
+						<p
+							className="text-xs mt-0.5"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							{gate.stage} · {gate.agent}
 						</p>
 					</div>
@@ -95,7 +107,11 @@ export default function GateCard({ gate, onApprove, onChanges, onReject }: Props
 								<Icon name="x" size={14} />
 								Rejeitar
 							</Button>
-							<Button variant="primary" size="sm" onClick={() => onApprove?.(gate.id)}>
+							<Button
+								variant="primary"
+								size="sm"
+								onClick={() => onApprove?.(gate.id)}
+							>
 								<Icon name="check" size={14} />
 								Aprovar
 							</Button>
@@ -107,7 +123,12 @@ export default function GateCard({ gate, onApprove, onChanges, onReject }: Props
 	);
 }
 
-export function GatePendingList({ gates, onApprove, onChanges, onReject }: {
+export function GatePendingList({
+	gates,
+	onApprove,
+	onChanges,
+	onReject,
+}: {
 	gates: GateData[];
 	onApprove?: (id: string) => void;
 	onChanges?: (id: string) => void;
@@ -117,21 +138,38 @@ export function GatePendingList({ gates, onApprove, onChanges, onReject }: {
 	return (
 		<div className="flex flex-col gap-2">
 			<div className="flex items-center gap-2 mb-1">
-				<Icon name="shield" size={16} style={{ color: actionable.length > 0 ? "var(--color-success)" : "var(--color-text-secondary)" }} />
+				<Icon
+					name="shield"
+					size={16}
+					style={{
+						color:
+							actionable.length > 0
+								? "var(--color-success)"
+								: "var(--color-text-secondary)",
+					}}
+				/>
 				<span className="text-sm font-semibold">
-					{actionable.length > 0 ? `Gate${actionable.length > 1 ? "s" : ""} Pendente${actionable.length > 1 ? "s" : ""}` : "Gates"}
+					{actionable.length > 0
+						? `Gate${actionable.length > 1 ? "s" : ""} Pendente${actionable.length > 1 ? "s" : ""}`
+						: "Gates"}
 				</span>
 				{actionable.length > 0 && (
 					<span
 						className="text-caption font-bold px-1.5 py-0.5 rounded-full"
-						style={{ background: "var(--color-success)", color: "var(--color-text-primary)" }}
+						style={{
+							background: "var(--color-success)",
+							color: "var(--color-text-primary)",
+						}}
 					>
 						{actionable.length}
 					</span>
 				)}
 			</div>
 			{gates.length === 0 ? (
-				<p className="text-sm py-4 text-center" style={{ color: "var(--color-text-secondary)" }}>
+				<p
+					className="text-sm py-4 text-center"
+					style={{ color: "var(--color-text-secondary)" }}
+				>
 					Nenhum gate pendente
 				</p>
 			) : (

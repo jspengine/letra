@@ -54,7 +54,9 @@ export function markAcById(root: string, acId: string, specName?: string): void 
 	}
 
 	if (!spec) {
-		throw new Error("Spec name required. Use --spec <name> or ensure an active item has a linked spec.");
+		throw new Error(
+			"Spec name required. Use --spec <name> or ensure an active item has a linked spec.",
+		);
 	}
 
 	const specFile = join(getLetraDir(root), "specs", spec, "spec.md");
@@ -86,7 +88,9 @@ export function markAcById(root: string, acId: string, specName?: string): void 
 		details: { spec },
 	});
 
-	console.log(`  ${chalk.green("✓")} AC ${chalk.cyan(acId)} marcado como concluído em ${chalk.cyan(spec)}`);
+	console.log(
+		`  ${chalk.green("✓")} AC ${chalk.cyan(acId)} marcado como concluído em ${chalk.cyan(spec)}`,
+	);
 
 	try {
 		validate(root, { format: "text" });
@@ -108,7 +112,11 @@ function listPendingAction(root: string, specName?: string): void {
 	}
 
 	if (!spec) {
-		console.log(chalk.yellow("Nenhum spec ativo. Use --spec <name> ou tenha um item ativo com spec vinculada."));
+		console.log(
+			chalk.yellow(
+				"Nenhum spec ativo. Use --spec <name> ou tenha um item ativo com spec vinculada.",
+			),
+		);
 		return;
 	}
 
@@ -129,16 +137,16 @@ function listPendingAction(root: string, specName?: string): void {
 		for (const ac of pendings) {
 			console.log(`  ${chalk.red("✗")} ${chalk.cyan(ac.id)}: ${ac.text}`);
 		}
-		console.log(chalk.dim(`\nPara marcar um AC: letra ac done <AC-ID>`));
+		console.log(chalk.dim("\nPara marcar um AC: letra ac done <AC-ID>"));
 	}
 }
 
 export default function acCommand() {
-	const cmd = new Command("ac")
-		.description("Gerenciar Acceptance Criteria — marcar como concluído e listar pendentes");
+	const cmd = new Command("ac").description(
+		"Gerenciar Acceptance Criteria — marcar como concluído e listar pendentes",
+	);
 
-	cmd
-		.command("done <ac-id>")
+	cmd.command("done <ac-id>")
 		.option("--spec <name>", "Nome do spec (padrão: spec do item ativo)")
 		.description("Marcar um AC como concluído no spec.md")
 		.action((acId: string, options: { spec?: string }) => {
@@ -146,8 +154,7 @@ export default function acCommand() {
 			markAcById(root, acId, options.spec);
 		});
 
-	cmd
-		.command("list")
+	cmd.command("list")
 		.option("--spec <name>", "Nome do spec (padrão: spec do item ativo)")
 		.description("Listar ACs pendentes de um spec")
 		.action((options: { spec?: string }) => {

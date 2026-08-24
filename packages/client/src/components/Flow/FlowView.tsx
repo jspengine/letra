@@ -51,7 +51,13 @@ interface Props {
 
 type WorkFilter = "all" | "attention" | "running" | "queued" | "done";
 
-export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemMoved, onOpenSpec }: Props) {
+export default function FlowView({
+	workflow,
+	activeFlow,
+	specRefreshKey,
+	onItemMoved,
+	onOpenSpec,
+}: Props) {
 	const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 	const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
 	const [showAddDialog, setShowAddDialog] = useState(false);
@@ -119,7 +125,9 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 
 	const linkedSpec = selectedItem?.spec ? specs.find((s) => s.id === selectedItem.spec) : null;
 
-	const upcomingStageId = selectedItem ? nextStageId(selectedItem.stage, workflow, activeFlow) : null;
+	const upcomingStageId = selectedItem
+		? nextStageId(selectedItem.stage, workflow, activeFlow)
+		: null;
 	const nextStageName = upcomingStageId
 		? resolvedStages.find((stage) => stage.id === upcomingStageId)?.name
 		: null;
@@ -322,7 +330,9 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 	}));
 	const doneItems = itemStates.filter(({ state }) => state === "done").length;
 	const pctComplete = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
-	const activeAgents = workflow.items.filter((it) => it.claimedBy && !doneStages.has(it.stage)).length;
+	const activeAgents = workflow.items.filter(
+		(it) => it.claimedBy && !doneStages.has(it.stage),
+	).length;
 	const waitingHuman = itemStates.filter(({ state }) => state === "waiting").length;
 	const blockedItems = itemStates.filter(({ state }) => state === "blocked").length;
 	const attentionItems = waitingHuman + blockedItems;
@@ -347,7 +357,13 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 			return acc;
 		}, {});
 
-	const AGENT_COLORS = ["var(--color-primary)", "var(--color-warning)", "var(--color-primary)", "var(--color-success)", "var(--color-danger)"];
+	const AGENT_COLORS = [
+		"var(--color-primary)",
+		"var(--color-warning)",
+		"var(--color-primary)",
+		"var(--color-success)",
+		"var(--color-danger)",
+	];
 
 	const filterCounts = {
 		all: totalItems,
@@ -367,7 +383,9 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 	const webhooksEditMode = adminMode === "webhooks";
 	const primaryItem =
 		workflow.items.find((item) => humanGateStages.has(item.stage)) ??
-		workflow.items.find((item) => itemOperationalState(item, workflow, activeFlow) === "blocked") ??
+		workflow.items.find(
+			(item) => itemOperationalState(item, workflow, activeFlow) === "blocked",
+		) ??
 		workflow.items.find((item) => item.claimedBy && !doneStages.has(item.stage)) ??
 		workflow.items.find((item) => !doneStages.has(item.stage)) ??
 		workflow.items[0] ??
@@ -379,14 +397,20 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 		? itemOperationalState(primaryItem, workflow, activeFlow)
 		: null;
 	const primaryTone =
-		primaryState === "blocked" ? "danger"
-			: primaryState === "waiting" ? "warning"
-				: primaryState === "done" ? "success"
+		primaryState === "blocked"
+			? "danger"
+			: primaryState === "waiting"
+				? "warning"
+				: primaryState === "done"
+					? "success"
 					: "info";
 	const primaryActionLabel =
-		primaryState === "blocked" ? "Examinar bloqueio"
-			: primaryState === "waiting" ? "Revisar decisão"
-				: primaryItem ? "Abrir trabalho em foco"
+		primaryState === "blocked"
+			? "Examinar bloqueio"
+			: primaryState === "waiting"
+				? "Revisar decisão"
+				: primaryItem
+					? "Abrir trabalho em foco"
 					: "Criar item";
 	const primaryDescription = primaryItem
 		? `${primaryItem.description || primaryItem.id} está em ${primaryStage?.name ?? primaryItem.stage}. ${primaryItem.claimedBy ? `${primaryItem.claimedBy} está responsável por este trabalho.` : "Nenhum responsável declarado."}`
@@ -404,7 +428,13 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 						<Badge icon="cpu" variant={activeAgents > 0 ? "agent" : "info"} tone="soft">
 							{activeAgents} em andamento
 						</Badge>
-						<Badge icon="shield" variant={attentionItems > 0 ? (blockedItems > 0 ? "error" : "amber") : "info"} tone="soft">
+						<Badge
+							icon="shield"
+							variant={
+								attentionItems > 0 ? (blockedItems > 0 ? "error" : "amber") : "info"
+							}
+							tone="soft"
+						>
 							{attentionItems} atenção
 						</Badge>
 						<Button
@@ -428,13 +458,25 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 									</DropdownMenuTrigger>
 									{open ? (
 										<DropdownMenuContent align="end" className="min-w-48">
-											<DropdownMenuLabel>Operações do fluxo</DropdownMenuLabel>
-											<DropdownMenuItem onClick={() => { setShowAddDialog(true); setOpen(false); }}>
+											<DropdownMenuLabel>
+												Operações do fluxo
+											</DropdownMenuLabel>
+											<DropdownMenuItem
+												onClick={() => {
+													setShowAddDialog(true);
+													setOpen(false);
+												}}
+											>
 												<Icon name="plus" size={12} />
 												Novo item
 											</DropdownMenuItem>
-									<DropdownMenuSeparator />
-											<DropdownMenuItem onClick={() => { setAdminMode("webhooks"); setOpen(false); }}>
+											<DropdownMenuSeparator />
+											<DropdownMenuItem
+												onClick={() => {
+													setAdminMode("webhooks");
+													setOpen(false);
+												}}
+											>
 												<Icon name="activity" size={12} />
 												Configurar webhooks
 											</DropdownMenuItem>
@@ -447,17 +489,35 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 				}
 			/>
 
-		<div className="flex min-w-0 flex-1 overflow-hidden">
+			<div className="flex min-w-0 flex-1 overflow-hidden">
 				{webhooksEditMode ? (
 					<div className="flex-1 overflow-y-auto p-5">
 						<div className="flex flex-col gap-3 max-w-2xl">
-							<p className="app-section-muted text-xs font-medium">Configure webhooks para receber notificações quando itens forem movidos entre estágios.</p>
+							<p className="app-section-muted text-xs font-medium">
+								Configure webhooks para receber notificações quando itens forem
+								movidos entre estágios.
+							</p>
 							{editingWebhooks.map((wh, idx) => (
 								<div key={wh.id} className="app-section-card p-3">
 									<div className="flex flex-col gap-2">
 										<div className="flex items-center gap-2">
-											<Input value={wh.label ?? ""} onChange={(e) => handleUpdateWebhook(idx, "label", e.target.value || undefined)} placeholder="Label" className="app-input-surface flex-1 text-sm px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
-											<Button onClick={() => handleRemoveWebhook(idx)} className="app-danger-button text-xs px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30" aria-label="Remover webhook">
+											<Input
+												value={wh.label ?? ""}
+												onChange={(e) =>
+													handleUpdateWebhook(
+														idx,
+														"label",
+														e.target.value || undefined,
+													)
+												}
+												placeholder="Label"
+												className="app-input-surface flex-1 text-sm px-2 py-1 rounded border-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+											/>
+											<Button
+												onClick={() => handleRemoveWebhook(idx)}
+												className="app-danger-button text-xs px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30"
+												aria-label="Remover webhook"
+											>
 												<Icon name="x" size={12} />
 											</Button>
 										</div>
@@ -465,26 +525,60 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 								</div>
 							))}
 							<div className="flex gap-2">
-								<Button size="sm" variant="secondary" onClick={handleAddWebhook}>Adicionar webhook</Button>
-								<Button size="sm" onClick={handleSaveWebhooks}>Salvar</Button>
-								<Button size="sm" variant="secondary" onClick={() => { setAdminMode(null); setEditingWebhooks(workflow.webhooks ?? []); }}>Voltar</Button>
+								<Button size="sm" variant="secondary" onClick={handleAddWebhook}>
+									Adicionar webhook
+								</Button>
+								<Button size="sm" onClick={handleSaveWebhooks}>
+									Salvar
+								</Button>
+								<Button
+									size="sm"
+									variant="secondary"
+									onClick={() => {
+										setAdminMode(null);
+										setEditingWebhooks(workflow.webhooks ?? []);
+									}}
+								>
+									Voltar
+								</Button>
 							</div>
 						</div>
 					</div>
-			) : (
+				) : (
 					<div className="flex min-w-0 flex-1 overflow-y-hidden">
 						{/* ─── Left Column: Kanban ─── */}
 						<div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4 gap-3">
 							<ActionPanel
 								className="min-w-0"
 								tone={primaryTone}
-								icon={<Icon name={primaryState === "blocked" ? "shield" : primaryState === "waiting" ? "clock" : "grid"} size={20} />}
-								title={primaryItem ? `Próximo trabalho seguro: ${primaryItem.id}` : "Nenhum trabalho em foco"}
+								icon={
+									<Icon
+										name={
+											primaryState === "blocked"
+												? "shield"
+												: primaryState === "waiting"
+													? "clock"
+													: "grid"
+										}
+										size={20}
+									/>
+								}
+								title={
+									primaryItem
+										? `Próximo trabalho seguro: ${primaryItem.id}`
+										: "Nenhum trabalho em foco"
+								}
 								description={primaryDescription}
 								meta={
 									<>
-										{primaryItem ? <Badge variant="info" tone="soft">{primaryStage?.name ?? primaryItem.stage}</Badge> : null}
-										{primaryItem?.claimedBy ? <Tag>{primaryItem.claimedBy}</Tag> : null}
+										{primaryItem ? (
+											<Badge variant="info" tone="soft">
+												{primaryStage?.name ?? primaryItem.stage}
+											</Badge>
+										) : null}
+										{primaryItem?.claimedBy ? (
+											<Tag>{primaryItem.claimedBy}</Tag>
+										) : null}
 									</>
 								}
 								action={
@@ -500,7 +594,11 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 								}
 								secondaryAction={
 									primaryItem ? (
-										<Button size="sm" variant="secondary" onClick={() => setShowAddDialog(true)}>
+										<Button
+											size="sm"
+											variant="secondary"
+											onClick={() => setShowAddDialog(true)}
+										>
 											Novo item
 										</Button>
 									) : null
@@ -509,22 +607,78 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 
 							<div className="grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
 								{[
-									{ label: "Atenção", value: attentionItems, sub: blockedItems > 0 ? `${blockedItems} bloqueado${blockedItems === 1 ? "" : "s"}` : "decisão humana", color: attentionItems > 0 ? "var(--color-warning)" : "var(--color-text-secondary)", icon: "shield", urgent: attentionItems > 0 },
-									{ label: "Em andamento", value: runningItems, sub: `${activeAgents} ator${activeAgents === 1 ? "" : "es"} ativo${activeAgents === 1 ? "" : "s"}`, color: "var(--color-primary)", icon: "cpu", pulse: runningItems > 0 },
-									{ label: "Na fila", value: queuedItems, sub: "sem responsável", color: "var(--color-text-secondary)", icon: "circle" },
-									{ label: "Progresso", value: `${pctComplete}%`, sub: `${doneItems}/${totalItems} concluídos`, color: "var(--color-primary)", icon: "bar-chart" },
+									{
+										label: "Atenção",
+										value: attentionItems,
+										sub:
+											blockedItems > 0
+												? `${blockedItems} bloqueado${blockedItems === 1 ? "" : "s"}`
+												: "decisão humana",
+										color:
+											attentionItems > 0
+												? "var(--color-warning)"
+												: "var(--color-text-secondary)",
+										icon: "shield",
+										urgent: attentionItems > 0,
+									},
+									{
+										label: "Em andamento",
+										value: runningItems,
+										sub: `${activeAgents} ator${activeAgents === 1 ? "" : "es"} ativo${activeAgents === 1 ? "" : "s"}`,
+										color: "var(--color-primary)",
+										icon: "cpu",
+										pulse: runningItems > 0,
+									},
+									{
+										label: "Na fila",
+										value: queuedItems,
+										sub: "sem responsável",
+										color: "var(--color-text-secondary)",
+										icon: "circle",
+									},
+									{
+										label: "Progresso",
+										value: `${pctComplete}%`,
+										sub: `${doneItems}/${totalItems} concluídos`,
+										color: "var(--color-primary)",
+										icon: "bar-chart",
+									},
 								].map((stat) => (
-									<Card key={stat.label} className="app-summary-card hover:shadow-sm" data-urgent={stat.urgent ? "true" : "false"}>
+									<Card
+										key={stat.label}
+										className="app-summary-card hover:shadow-sm"
+										data-urgent={stat.urgent ? "true" : "false"}
+									>
 										<CardContent className="grid gap-0.5 p-2.5">
 											<div className="flex items-center justify-between">
-												<span className="app-section-muted text-caption font-medium uppercase tracking-wider">{stat.label}</span>
-												{stat.icon && <Icon name={stat.icon as any} size={10} style={{ color: stat.color }} />}
+												<span className="app-section-muted text-caption font-medium uppercase tracking-wider">
+													{stat.label}
+												</span>
+												{stat.icon && (
+													<Icon
+														name={stat.icon as any}
+														size={10}
+														style={{ color: stat.color }}
+													/>
+												)}
 											</div>
 											<div className="flex items-baseline gap-1">
-												<span className={cn("text-lg font-bold tabular-nums", stat.pulse && "animate-pulse")} style={{ color: stat.color }}>{stat.value}</span>
-												{stat.pulse && <span className="w-1 h-1 rounded-full bg-[var(--color-primary)] animate-pulse" />}
+												<span
+													className={cn(
+														"text-lg font-bold tabular-nums",
+														stat.pulse && "animate-pulse",
+													)}
+													style={{ color: stat.color }}
+												>
+													{stat.value}
+												</span>
+												{stat.pulse && (
+													<span className="w-1 h-1 rounded-full bg-[var(--color-primary)] animate-pulse" />
+												)}
 											</div>
-											<span className="app-section-muted text-caption">{stat.sub}</span>
+											<span className="app-section-muted text-caption">
+												{stat.sub}
+											</span>
 										</CardContent>
 									</Card>
 								))}
@@ -534,40 +688,77 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 							{Object.keys(agentItems).length > 0 && (
 								<div className="min-w-0 shrink-0">
 									<div className="flex items-center gap-2 mb-2">
-										<span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">Atores em andamento</span>
+										<span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
+											Atores em andamento
+										</span>
 										<div className="app-section-muted flex items-center gap-1 text-caption">
 											<div className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)] animate-pulse" />
-											<span>{activeAgents} ativo{activeAgents !== 1 ? "s" : ""}</span>
+											<span>
+												{activeAgents} ativo{activeAgents !== 1 ? "s" : ""}
+											</span>
 										</div>
 									</div>
 									<div className="flex min-w-0 gap-2 overflow-x-auto pb-1 scrollbar-none">
 										{Object.entries(agentItems).map(([name, items], ai) => {
 											const latestItem = items[0];
-											const resolvedStage = orderedStages(workflow, activeFlow).find((entry) => entry.id === latestItem.stage);
-											const action = resolvedStage ? stageActionLabel(resolvedStage) : "Processando";
+											const resolvedStage = orderedStages(
+												workflow,
+												activeFlow,
+											).find((entry) => entry.id === latestItem.stage);
+											const action = resolvedStage
+												? stageActionLabel(resolvedStage)
+												: "Processando";
 											const totalACs = items.reduce((sum, it) => {
-												if (it.tasks) return sum + it.tasks.filter((t) => t.done).length;
+												if (it.tasks)
+													return (
+														sum + it.tasks.filter((t) => t.done).length
+													);
 												return sum;
 											}, 0);
-											const totalTasks = items.reduce((sum, it) => sum + (it.tasks?.length || 0), 0);
-											const pct = totalTasks > 0 ? Math.round((totalACs / totalTasks) * 100) : null;
-											const isRunning = !humanGateStages.has(latestItem.stage) && !doneStages.has(latestItem.stage);
+											const totalTasks = items.reduce(
+												(sum, it) => sum + (it.tasks?.length || 0),
+												0,
+											);
+											const pct =
+												totalTasks > 0
+													? Math.round((totalACs / totalTasks) * 100)
+													: null;
+											const isRunning =
+												!humanGateStages.has(latestItem.stage) &&
+												!doneStages.has(latestItem.stage);
 											return (
 												<div
 													key={name}
-													className={cn("app-agent-card p-3 min-w-[160px] flex flex-col gap-1.5 shrink-0 transition-all hover:shadow-sm", isRunning && "animate-agent-breathe")}
+													className={cn(
+														"app-agent-card p-3 min-w-[160px] flex flex-col gap-1.5 shrink-0 transition-all hover:shadow-sm",
+														isRunning && "animate-agent-breathe",
+													)}
 													data-running={isRunning ? "true" : "false"}
 												>
 													<div className="flex items-center gap-2">
-														<div className="w-5 h-5 rounded-full flex items-center justify-center text-caption font-bold" style={{ background: `color-mix(in oklch, ${AGENT_COLORS[ai % AGENT_COLORS.length]} 20%, transparent)`, color: AGENT_COLORS[ai % AGENT_COLORS.length] }}>
+														<div
+															className="w-5 h-5 rounded-full flex items-center justify-center text-caption font-bold"
+															style={{
+																background: `color-mix(in oklch, ${AGENT_COLORS[ai % AGENT_COLORS.length]} 20%, transparent)`,
+																color: AGENT_COLORS[
+																	ai % AGENT_COLORS.length
+																],
+															}}
+														>
 															{name.charAt(0).toUpperCase()}
 														</div>
 														<div className="flex-1 min-w-0">
 															<div className="flex items-center gap-1">
-																<span className="text-xs font-semibold truncate">{name}</span>
-																{isRunning && <span className="w-1 h-1 rounded-full bg-[var(--color-primary)] animate-pulse" />}
+																<span className="text-xs font-semibold truncate">
+																	{name}
+																</span>
+																{isRunning && (
+																	<span className="w-1 h-1 rounded-full bg-[var(--color-primary)] animate-pulse" />
+																)}
 															</div>
-															<span className="app-section-muted text-caption">{action}</span>
+															<span className="app-section-muted text-caption">
+																{action}
+															</span>
 														</div>
 													</div>
 													<div className="flex flex-col gap-0.5">
@@ -577,15 +768,30 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 															</span>
 														) : (
 															<div className="flex items-center gap-1">
-																<Progress value={pct} max={100} size="xs" className="flex-1" />
-																<span className="text-caption tabular-nums font-medium text-[var(--color-text-primary)]">{pct}%</span>
+																<Progress
+																	value={pct}
+																	max={100}
+																	size="xs"
+																	className="flex-1"
+																/>
+																<span className="text-caption tabular-nums font-medium text-[var(--color-text-primary)]">
+																	{pct}%
+																</span>
 															</div>
 														)}
 														<span className="app-section-muted text-caption">
-															{items.length} {items.length === 1 ? "item" : "itens"}
+															{items.length}{" "}
+															{items.length === 1 ? "item" : "itens"}
 														</span>
 													</div>
-													<div className={cn("text-caption font-medium px-1.5 py-0.5 rounded-full self-start", isRunning ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "bg-muted text-muted-foreground")}>
+													<div
+														className={cn(
+															"text-caption font-medium px-1.5 py-0.5 rounded-full self-start",
+															isRunning
+																? "bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+																: "bg-muted text-muted-foreground",
+														)}
+													>
 														{isRunning ? "Em andamento" : "Na fila"}
 													</div>
 												</div>
@@ -597,7 +803,10 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 
 							{/* ─── 5. Filter Group ─── */}
 							<div className="flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]">
-								<ButtonGroup ariaLabel="Filtrar trabalho" className="w-max max-w-none flex-nowrap sm:w-auto sm:max-w-full sm:flex-wrap">
+								<ButtonGroup
+									ariaLabel="Filtrar trabalho"
+									className="w-max max-w-none flex-nowrap sm:w-auto sm:max-w-full sm:flex-wrap"
+								>
 									{filterOptions.map(({ key, label }) => (
 										<ButtonGroupItem
 											key={key}
@@ -632,10 +841,14 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 								"app-section-card shrink-0 overflow-y-auto transition-all duration-300 ease-in-out",
 								observationPanelOpen
 									? "w-80 border-l opacity-100"
-									: "w-0 border-l-0 opacity-0 overflow-hidden"
+									: "w-0 border-l-0 opacity-0 overflow-hidden",
 							)}
 						>
-							<ActivityTimeline workflow={workflow} activeFlow={activeFlow} onSelectItem={setSelectedItemId} />
+							<ActivityTimeline
+								workflow={workflow}
+								activeFlow={activeFlow}
+								onSelectItem={setSelectedItemId}
+							/>
 						</div>
 					</div>
 				)}
@@ -725,4 +938,3 @@ export default function FlowView({ workflow, activeFlow, specRefreshKey, onItemM
 		</div>
 	);
 }
-

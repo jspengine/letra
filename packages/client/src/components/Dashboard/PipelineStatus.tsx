@@ -49,22 +49,26 @@ export function StageNode({ stage }: { stage: StageNodeData }) {
 					stage.status === "waiting" && "animate-pulse-gate-waiting",
 				)}
 				style={{
-					background: stage.status === "done"
-						? "var(--color-success)"
-						: stage.status === "failed"
-							? "var(--color-danger)"
-							: stage.status === "blocked"
+					background:
+						stage.status === "done"
+							? "var(--color-success)"
+							: stage.status === "failed"
 								? "var(--color-danger)"
-								: isActive
-									? "var(--color-primary)"
-									: "var(--color-bg-surface)",
+								: stage.status === "blocked"
+									? "var(--color-danger)"
+									: isActive
+										? "var(--color-primary)"
+										: "var(--color-bg-surface)",
 					color: stage.status === "idle" ? "var(--color-text-secondary)" : "white",
 				}}
 			>
 				{STATUS_ICON[stage.status] ? (
 					<Icon name={STATUS_ICON[stage.status]!} size={16} />
 				) : (
-					<div className="w-2 h-2 rounded-full" style={{ background: "var(--color-text-secondary)" }} />
+					<div
+						className="w-2 h-2 rounded-full"
+						style={{ background: "var(--color-text-secondary)" }}
+					/>
 				)}
 			</div>
 			<span
@@ -93,23 +97,34 @@ export default function PipelineStatus({ stages }: Props) {
 			<CardContent className="p-0">
 				<div className="flex items-center justify-between mb-4">
 					<div className="flex items-center gap-2">
-						<Icon name="bar-chart" size={16} style={{ color: "var(--color-primary)" }} />
+						<Icon
+							name="bar-chart"
+							size={16}
+							style={{ color: "var(--color-primary)" }}
+						/>
 						<span className="text-sm font-semibold">Pipeline</span>
 					</div>
-					<div className="flex items-center gap-2 text-xs" style={{ color: "var(--color-text-secondary)" }}>
-						<span>{doneCount}/{totalCount} concluídos</span>
+					<div
+						className="flex items-center gap-2 text-xs"
+						style={{ color: "var(--color-text-secondary)" }}
+					>
+						<span>
+							{doneCount}/{totalCount} concluídos
+						</span>
 						<span
 							className="font-semibold"
-							style={{ color: progressPct === 100 ? "var(--color-success)" : "var(--color-primary)" }}
+							style={{
+								color:
+									progressPct === 100
+										? "var(--color-success)"
+										: "var(--color-primary)",
+							}}
 						>
 							{progressPct}%
 						</span>
 					</div>
 				</div>
-				<div
-					className="flex gap-1 overflow-x-auto pb-2"
-					style={{ scrollbarWidth: "thin" }}
-				>
+				<div className="flex gap-1 overflow-x-auto pb-2" style={{ scrollbarWidth: "thin" }}>
 					{stages.map((stage, idx) => (
 						<div key={stage.id} className="flex items-center gap-1">
 							<StageNode stage={stage} />
@@ -117,11 +132,12 @@ export default function PipelineStatus({ stages }: Props) {
 								<div
 									className="w-4 h-px shrink-0"
 									style={{
-										background: stage.status === "done"
-											? "var(--color-success)"
-											: currentIdx > 0 && idx < currentIdx
+										background:
+											stage.status === "done"
 												? "var(--color-success)"
-												: "var(--color-border)",
+												: currentIdx > 0 && idx < currentIdx
+													? "var(--color-success)"
+													: "var(--color-border)",
 									}}
 								/>
 							)}

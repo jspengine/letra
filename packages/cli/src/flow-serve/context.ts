@@ -2,12 +2,14 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { buildActivityContext } from "../activity-context/index.js";
 
-export function resolveRequestedActivity(value: string | null): "design" | "implement" | "review" | "diagnose" | "gate" {
-	return value === "design"
-		|| value === "implement"
-		|| value === "review"
-		|| value === "diagnose"
-		|| value === "gate"
+export function resolveRequestedActivity(
+	value: string | null,
+): "design" | "implement" | "review" | "diagnose" | "gate" {
+	return value === "design" ||
+		value === "implement" ||
+		value === "review" ||
+		value === "diagnose" ||
+		value === "gate"
 		? value
 		: "implement";
 }
@@ -19,7 +21,11 @@ export function buildRequestedActivityContext(workspaceRoot: string, activityPar
 	});
 }
 
-export function readFocusState(workspaceDir: string): { active: boolean; spec?: string; itemId?: string } {
+export function readFocusState(workspaceDir: string): {
+	active: boolean;
+	spec?: string;
+	itemId?: string;
+} {
 	const focusFile = join(workspaceDir, "focus.md");
 	if (!existsSync(focusFile)) return { active: false };
 	const lines = readFileSync(focusFile, "utf-8").split(/\r?\n/);

@@ -77,7 +77,9 @@ export function GlobalHeader({
 	const workspaceName = activeWorkspace?.name ?? "Escolha um workspace";
 	const activeScope = scopes.find((scope) => scope.id === activeScopeId);
 	const scopeName = activeScope?.label ?? "Todo o workspace";
-	const contextValue = activeScopeId ? `${scopePrefix}${activeScopeId}` : `${scopePrefix}${wholeWorkspaceScope}`;
+	const contextValue = activeScopeId
+		? `${scopePrefix}${activeScopeId}`
+		: `${scopePrefix}${wholeWorkspaceScope}`;
 	const hasPendingDecisions = pendingDecisions > 0;
 	const hasHealthSignals = Boolean(health && health.activeAlerts > 0);
 	const hasSupervisionSignals = hasPendingDecisions || hasHealthSignals;
@@ -125,8 +127,14 @@ export function GlobalHeader({
 						<Icon name="box" size={16} />
 						<span className="truncate">{workspaceName}</span>
 						<span className="text-[var(--color-text-secondary)]">/</span>
-						<Icon name="folder" size={14} className="text-[var(--color-text-secondary)]" />
-						<span className="truncate text-[var(--color-text-secondary)]">{scopeName}</span>
+						<Icon
+							name="folder"
+							size={14}
+							className="text-[var(--color-text-secondary)]"
+						/>
+						<span className="truncate text-[var(--color-text-secondary)]">
+							{scopeName}
+						</span>
 					</div>
 				</SelectTrigger>
 				<SelectContent className="min-w-[280px]">
@@ -139,9 +147,17 @@ export function GlobalHeader({
 						</div>
 					) : (
 						workspaces.map((workspace) => (
-							<SelectItem key={workspace.id} value={`${workspacePrefix}${workspace.id}`}>
+							<SelectItem
+								key={workspace.id}
+								value={`${workspacePrefix}${workspace.id}`}
+							>
 								<div className="flex min-w-0 items-center gap-2">
-									<Icon name={activeWorkspace?.id === workspace.id ? "check" : "box"} size={14} />
+									<Icon
+										name={
+											activeWorkspace?.id === workspace.id ? "check" : "box"
+										}
+										size={14}
+									/>
 									<span className="truncate">{workspace.name}</span>
 								</div>
 							</SelectItem>
@@ -151,7 +167,9 @@ export function GlobalHeader({
 					<div className="px-2 py-1 text-caption font-semibold uppercase text-[var(--color-text-secondary)]">
 						Escopo
 					</div>
-					<SelectItem value={`${scopePrefix}${wholeWorkspaceScope}`}>Todo o workspace</SelectItem>
+					<SelectItem value={`${scopePrefix}${wholeWorkspaceScope}`}>
+						Todo o workspace
+					</SelectItem>
 					{scopes.map((scope) => (
 						<SelectItem key={scope.id} value={`${scopePrefix}${scope.id}`}>
 							{scope.label}
@@ -161,34 +179,34 @@ export function GlobalHeader({
 			</Select>
 
 			<div className="col-start-1 col-end-4 row-start-2 flex min-w-0 flex-wrap items-center gap-2 sm:col-start-3 sm:col-end-4 sm:row-start-1 sm:justify-self-start">
-					{hasSupervisionSignals ? (
-						<Button
-							type="button"
-							variant="secondary"
-							size="sm"
-							aria-label={`Abrir supervisao: ${pendingDecisions} ${plural(pendingDecisions, "decisao pendente", "decisoes pendentes")}, ${activeAlerts} ${plural(activeAlerts, "sinal ativo", "sinais ativos")}, ${criticalAlerts} ${plural(criticalAlerts, "bloqueia conclusao", "bloqueiam conclusao")}`}
-							className="app-status-pill app-status-pill--action whitespace-nowrap"
-							onClick={onOpenHealthCenter}
-						>
-							<Icon name="shield" size={14} />
-							<span>Supervisao</span>
-							{hasPendingDecisions ? (
-								<Badge variant="amber" icon="clock">
-									{pendingDecisions} {plural(pendingDecisions, "decisao", "decisoes")}
-								</Badge>
-							) : null}
-							{hasHealthSignals ? (
-								<Badge variant="amber" icon="octagon-alert">
-									{activeAlerts} {plural(activeAlerts, "sinal", "sinais")}
-								</Badge>
-							) : null}
-							{criticalAlerts > 0 ? (
-								<Badge variant="error" icon="circle-x">
-									{criticalAlerts} {plural(criticalAlerts, "bloqueia", "bloqueiam")}
-								</Badge>
-							) : null}
-						</Button>
-					) : null}
+				{hasSupervisionSignals ? (
+					<Button
+						type="button"
+						variant="secondary"
+						size="sm"
+						aria-label={`Abrir supervisao: ${pendingDecisions} ${plural(pendingDecisions, "decisao pendente", "decisoes pendentes")}, ${activeAlerts} ${plural(activeAlerts, "sinal ativo", "sinais ativos")}, ${criticalAlerts} ${plural(criticalAlerts, "bloqueia conclusao", "bloqueiam conclusao")}`}
+						className="app-status-pill app-status-pill--action whitespace-nowrap"
+						onClick={onOpenHealthCenter}
+					>
+						<Icon name="shield" size={14} />
+						<span>Supervisao</span>
+						{hasPendingDecisions ? (
+							<Badge variant="amber" icon="clock">
+								{pendingDecisions} {plural(pendingDecisions, "decisao", "decisoes")}
+							</Badge>
+						) : null}
+						{hasHealthSignals ? (
+							<Badge variant="amber" icon="octagon-alert">
+								{activeAlerts} {plural(activeAlerts, "sinal", "sinais")}
+							</Badge>
+						) : null}
+						{criticalAlerts > 0 ? (
+							<Badge variant="error" icon="circle-x">
+								{criticalAlerts} {plural(criticalAlerts, "bloqueia", "bloqueiam")}
+							</Badge>
+						) : null}
+					</Button>
+				) : null}
 			</div>
 
 			<div className="col-start-3 row-start-1 flex shrink-0 items-center justify-end gap-2 sm:col-start-4">

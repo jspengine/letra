@@ -68,10 +68,17 @@ export function Select({ children, value, onValueChange, defaultValue }: SelectP
 	}, [open]);
 
 	return (
-		<SelectContext.Provider value={{ value: selectedValue, setValue, open, setOpen, selectedValue }}>
+		<SelectContext.Provider
+			value={{ value: selectedValue, setValue, open, setOpen, selectedValue }}
+		>
 			<div ref={ref} className="relative">
 				{typeof children === "function"
-					? (children as (props: { value: string; setValue: (v: string) => void }) => ReactNode)({ value: selectedValue, setValue })
+					? (
+							children as (props: {
+								value: string;
+								setValue: (v: string) => void;
+							}) => ReactNode
+						)({ value: selectedValue, setValue })
 					: children}
 			</div>
 		</SelectContext.Provider>
@@ -82,12 +89,7 @@ interface SelectTriggerProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 	placeholder?: string;
 }
 
-export function SelectTrigger({
-	className,
-	children,
-	placeholder,
-	...props
-}: SelectTriggerProps) {
+export function SelectTrigger({ className, children, placeholder, ...props }: SelectTriggerProps) {
 	const { open, setOpen } = useSelectContext();
 	return (
 		<button
@@ -100,8 +102,15 @@ export function SelectTrigger({
 			onClick={() => setOpen(!open)}
 			{...props}
 		>
-			{children ?? (placeholder ? <span style={{ color: "var(--color-text-secondary)" }}>{placeholder}</span> : null)}
-			<Icon name="chevron-down" size={16} className={cn("opacity-50 transition-transform", open && "rotate-180")} />
+			{children ??
+				(placeholder ? (
+					<span style={{ color: "var(--color-text-secondary)" }}>{placeholder}</span>
+				) : null)}
+			<Icon
+				name="chevron-down"
+				size={16}
+				className={cn("opacity-50 transition-transform", open && "rotate-180")}
+			/>
 		</button>
 	);
 }
@@ -136,22 +145,17 @@ interface SelectItemProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 	value: string;
 }
 
-export function SelectItem({
-	className,
-	value,
-	children,
-	...props
-}: SelectItemProps) {
+export function SelectItem({ className, value, children, ...props }: SelectItemProps) {
 	const { setValue, selectedValue } = useSelectContext();
 	const isSelected = selectedValue === value;
 	return (
 		<button
 			className={cn(
-						"relative flex w-full cursor-default select-none items-center rounded-[var(--radius-xs)] px-[var(--space-2)] py-[var(--space-1)] text-sm outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:bg-[var(--color-bg-sunken)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-						isSelected && "bg-[var(--color-primary)]/10",
-						className,
-					)}
-					style={{ color: isSelected ? "var(--color-primary)" : "var(--color-text-primary)" }}
+				"relative flex w-full cursor-default select-none items-center rounded-[var(--radius-xs)] px-[var(--space-2)] py-[var(--space-1)] text-sm outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:bg-[var(--color-bg-sunken)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+				isSelected && "bg-[var(--color-primary)]/10",
+				className,
+			)}
+			style={{ color: isSelected ? "var(--color-primary)" : "var(--color-text-primary)" }}
 			type="button"
 			role="option"
 			aria-selected={isSelected}

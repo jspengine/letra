@@ -18,7 +18,7 @@ afterEach(() => {
 	for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-function createWorkflow(root: string, overrides?: Partial<Parameters<typeof handoffItem>[2]>) {
+function createWorkflow(root: string, overrides?: Partial<Parameters<typeof handoffItem>[2]> & { items?: Array<Record<string, unknown>> }) {
 	const workflow = {
 		version: "1.0",
 		name: "Test",
@@ -61,15 +61,15 @@ describe("FlowHandoff", () => {
 			evidence: ["src/test.ts"],
 		});
 
-		const workflow = loadWorkflow(root);
+		const workflow = loadWorkflow(root)!;
 		const item = workflow.items.find((i) => i.id === "ITEM-1");
 		expect(item).toBeDefined();
-		expect(item!.handoff).toBeDefined();
-		expect(item!.handoff!.from).toBe("opencode");
-		expect(item!.handoff!.to).toBe("reviewer");
-		expect(item!.handoff!.summary).toBe("Implementation complete");
-		expect(item!.handoff!.evidence).toEqual(["src/test.ts"]);
-		expect(item!.handoff!.expiresAt).toBeDefined();
+		expect(item?.handoff).toBeDefined();
+		expect(item?.handoff?.from).toBe("opencode");
+		expect(item?.handoff?.to).toBe("reviewer");
+		expect(item?.handoff?.summary).toBe("Implementation complete");
+		expect(item?.handoff?.evidence).toEqual(["src/test.ts"]);
+		expect(item?.handoff?.expiresAt).toBeDefined();
 	});
 
 	it("rolls back handoff", async () => {
@@ -81,7 +81,7 @@ describe("FlowHandoff", () => {
 			summary: "Implementation complete",
 		});
 
-		const workflow1 = loadWorkflow(root);
+		const workflow1 = loadWorkflow(root)!;
 		expect(workflow1.items[0].handoff).toBeDefined();
 
 		await handoffItem(root, "ITEM-1", {
@@ -90,10 +90,10 @@ describe("FlowHandoff", () => {
 			rollback: true,
 		});
 
-		const workflow2 = loadWorkflow(root);
+		const workflow2 = loadWorkflow(root)!;
 		const item = workflow2.items.find((i) => i.id === "ITEM-1");
-		expect(item!.handoff).toBeUndefined();
-		expect(item!.claimedBy).toBe("opencode");
+		expect(item?.handoff).toBeUndefined();
+		expect(item?.claimedBy).toBe("opencode");
 	});
 
 	it("fails for completed item", async () => {
@@ -171,7 +171,7 @@ describe("FlowHandoff", () => {
 			summary: "Test",
 		});
 
-		const workflow = loadWorkflow(root);
+		const workflow = loadWorkflow(root)!;
 		expect(workflow.items[0].handoff).toBeDefined();
 	});
 });

@@ -111,7 +111,9 @@ function normalizeLogEntry(entry: Partial<LogEntry>): LogEntry | null {
 		itemId: typeof entry.itemId === "string" ? entry.itemId : null,
 		acId: typeof entry.acId === "string" ? entry.acId : null,
 		details:
-			typeof entry.details === "object" && entry.details !== null && !Array.isArray(entry.details)
+			typeof entry.details === "object" &&
+			entry.details !== null &&
+			!Array.isArray(entry.details)
 				? entry.details
 				: {},
 		level: entry.level === "debug" ? "debug" : "info",
@@ -161,9 +163,7 @@ function readJsonlEntries(root: string): LogEntry[] {
 			try {
 				const entry = normalizeLogEntry(JSON.parse(line) as Partial<LogEntry>);
 				if (entry) entries.push(entry);
-			} catch {
-				continue;
-			}
+			} catch {}
 		}
 	}
 	return entries;
@@ -254,10 +254,7 @@ export function saveSessionLog(
 		log.entries = log.entries.slice(-MAX_ENTRIES);
 	}
 	const destination = logPath(root);
-	const temporaryFile = join(
-		dir,
-		`.${LOG_FILE}.${process.pid}.${++temporaryFileCounter}.tmp`,
-	);
+	const temporaryFile = join(dir, `.${LOG_FILE}.${process.pid}.${++temporaryFileCounter}.tmp`);
 	try {
 		writeFileSync(temporaryFile, JSON.stringify(log, null, 2), "utf-8");
 		replaceWithRetry(temporaryFile, destination, options);
@@ -427,7 +424,11 @@ export function pruneSessionLog(root: string, keepDays: number, now = new Date()
 	if (!Number.isFinite(keepDays) || keepDays < 1) {
 		throw new Error("--keep must be a positive number of days");
 	}
-	const cutoff = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - keepDays + 1);
+	const cutoff = Date.UTC(
+		now.getUTCFullYear(),
+		now.getUTCMonth(),
+		now.getUTCDate() - keepDays + 1,
+	);
 	const removed: string[] = [];
 	for (const file of listJsonlFiles(logDir(root))) {
 		const match = file.match(/session-log[\\/](\d{4})[\\/](\d{2})[\\/](\d{2})\.jsonl$/);

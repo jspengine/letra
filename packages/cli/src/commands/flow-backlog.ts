@@ -68,7 +68,12 @@ export function backlogAdd(root: string, description: string, spec?: string): vo
 
 	workflow.items.push(item);
 	workflow.updatedAt = now();
-	writeWorkflow(root, { workflow, source: "flow-backlog", primaryItemId: item.id, skipSitrep: true });
+	writeWorkflow(root, {
+		workflow,
+		source: "flow-backlog",
+		primaryItemId: item.id,
+		skipSitrep: true,
+	});
 
 	console.log(
 		`  ${chalk.green("✓")} Item ${chalk.cyan(item.id)} added to ${chalk.cyan(workflow.stages[0].name)}`,
@@ -91,11 +96,11 @@ export function backlogList(root: string): void {
 
 	console.log("");
 	console.log(
-			`  ${chalk.bold("ID")}       ${chalk.bold("Description".padEnd(30))} ${chalk.bold("Stage".padEnd(15))} ${chalk.bold("Age")}`,
-		);
-		console.log(`  ${"─".repeat(75)}`);
+		`  ${chalk.bold("ID")}       ${chalk.bold("Description".padEnd(30))} ${chalk.bold("Stage".padEnd(15))} ${chalk.bold("Age")}`,
+	);
+	console.log(`  ${"─".repeat(75)}`);
 
-		for (const item of workflow.items) {
+	for (const item of workflow.items) {
 		const stageName = stageNames.get(item.stage) || item.stage;
 		const created = new Date(item.createdAt);
 		const age = Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24));
@@ -114,7 +119,11 @@ export function backlogList(root: string): void {
 	console.log("");
 }
 
-export function backlogActionAdd(targetPath: string | undefined, description: string, spec?: string): void {
+export function backlogActionAdd(
+	targetPath: string | undefined,
+	description: string,
+	spec?: string,
+): void {
 	const root = resolve(process.cwd(), targetPath || ".");
 	backlogAdd(root, description, spec);
 }

@@ -146,7 +146,7 @@ Template para campanhas de marketing. Adaptado para o canal e público específi
 - [ ] **Métricas**: Relatório pós-campanha com alcance, engajamento e ROI.
 - [ ] **Lições**: Documentação de aprendizados para próxima campanha.`,
 	},
-	"pesquisa": {
+	pesquisa: {
 		spec: `# Spec: {{name}}
 
 > Updated: {{date}}
@@ -180,7 +180,7 @@ Template para pesquisas de mercado, acadêmicas ou de produto. Adaptado para a m
 - [ ] **Relatório**: Documento final com metodologia, resultados e recomendações.
 - [ ] **Dados**: Base anonimizada arquivada conforme política de retenção.`,
 	},
-	"evento": {
+	evento: {
 		spec: `# Spec: {{name}}
 
 > Updated: {{date}}

@@ -36,13 +36,12 @@ export function resolveHarnessRoot(cwd: string, version = DEFAULT_HARNESS_VERSIO
 
 function unwrapStages(value: unknown): any[] {
 	if (Array.isArray(value)) return value;
-	if (value && typeof value === "object" && Array.isArray((value as any).stages)) return (value as any).stages;
+	if (value && typeof value === "object" && Array.isArray((value as any).stages))
+		return (value as any).stages;
 	return [];
 }
 
-function normalizeGateDecisions(
-	value: unknown,
-): HarnessManifest["gates"][string]["decisions"] {
+function normalizeGateDecisions(value: unknown): HarnessManifest["gates"][string]["decisions"] {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const raw = value as Record<string, unknown>;
 	const decisions: NonNullable<HarnessManifest["gates"][string]["decisions"]> = {};
@@ -89,7 +88,10 @@ function normalizePhaseActions(value: unknown): PhaseAction[] | undefined {
 						: null;
 				case "generate-report":
 					return typeof raw.template === "string"
-						? ({ type: "generate-report", template: raw.template } satisfies PhaseAction)
+						? ({
+								type: "generate-report",
+								template: raw.template,
+							} satisfies PhaseAction)
 						: null;
 				case "notify-human":
 					return typeof raw.message === "string"
@@ -113,12 +115,18 @@ function normalizePhaseHarness(value: unknown): PhaseHarnessConfig | undefined {
 	const checks = Array.isArray(raw.checks)
 		? raw.checks.map(String)
 		: typeof raw.checks === "string"
-			? raw.checks.split(",").map((entry) => entry.trim()).filter(Boolean)
+			? raw.checks
+					.split(",")
+					.map((entry) => entry.trim())
+					.filter(Boolean)
 			: undefined;
 	const tools = Array.isArray(raw.tools)
 		? raw.tools.map(String)
 		: typeof raw.tools === "string"
-			? raw.tools.split(",").map((entry) => entry.trim()).filter(Boolean)
+			? raw.tools
+					.split(",")
+					.map((entry) => entry.trim())
+					.filter(Boolean)
 			: undefined;
 	const config: PhaseHarnessConfig = {};
 	if (typeof raw.instructions === "string") config.instructions = raw.instructions;
@@ -163,20 +171,20 @@ function normalizeCommandHints(value: unknown): ActivityCommandHint[] | undefine
 		if (!entry || typeof entry !== "object") return [];
 		const raw = entry as Record<string, unknown>;
 		return typeof raw.command === "string" && typeof raw.label === "string"
-			? [{
-					command: raw.command,
-					label: raw.label,
-					description: typeof raw.description === "string" ? raw.description : undefined,
-				}]
+			? [
+					{
+						command: raw.command,
+						label: raw.label,
+						description:
+							typeof raw.description === "string" ? raw.description : undefined,
+					},
+				]
 			: [];
 	});
 	return hints;
 }
 
-function applyCommonActivityHints(
-	raw: Record<string, unknown>,
-	config: ActivityHintConfig,
-): void {
+function applyCommonActivityHints(raw: Record<string, unknown>, config: ActivityHintConfig): void {
 	if (typeof raw.objective === "string") config.objective = raw.objective;
 	const mustRead = normalizeReferenceHints(raw.mustRead);
 	if (mustRead !== undefined) config.mustRead = mustRead;
@@ -245,7 +253,9 @@ function normalizeStagePhases(value: unknown): StagePhases | undefined {
 	const initialState = typeof raw.initialState === "string" ? raw.initialState : null;
 	const rawStates = raw.states;
 	if (!initialState || !rawStates || typeof rawStates !== "object") return undefined;
-	const states = Object.entries(rawStates as Record<string, unknown>).reduce<Record<string, PhaseDef>>((acc, [phaseId, entry]) => {
+	const states = Object.entries(rawStates as Record<string, unknown>).reduce<
+		Record<string, PhaseDef>
+	>((acc, [phaseId, entry]) => {
 		if (!entry || typeof entry !== "object") return acc;
 		const rawPhase = entry as Record<string, unknown>;
 		const id = typeof rawPhase.id === "string" ? rawPhase.id : phaseId;
@@ -298,12 +308,14 @@ export function loadHarness(root: string): HarnessManifest | null {
 					agents: Array.isArray(s.agents)
 						? s.agents.map((a: any) => String(a))
 						: typeof s.agents === "string"
-							? s.agents.split(",").map((a: string) => a.trim()).filter(Boolean)
+							? s.agents
+									.split(",")
+									.map((a: string) => a.trim())
+									.filter(Boolean)
 							: [],
 					gate: typeof s.gate === "string" && s.gate.trim() ? s.gate.trim() : null,
-					preferredExecutor: typeof s.preferredExecutor === "string"
-						? s.preferredExecutor
-						: undefined,
+					preferredExecutor:
+						typeof s.preferredExecutor === "string" ? s.preferredExecutor : undefined,
 					phases: normalizeStagePhases(s.phases),
 					activity: normalizeStageActivity(s.activity),
 				})),
@@ -339,23 +351,26 @@ export function loadHarness(root: string): HarnessManifest | null {
 			const capabilities = Array.isArray(raw.capabilities)
 				? raw.capabilities.map(String)
 				: typeof raw.capabilities === "string"
-					? raw.capabilities.split(",").map((a: string) => a.trim()).filter(Boolean)
+					? raw.capabilities
+							.split(",")
+							.map((a: string) => a.trim())
+							.filter(Boolean)
 					: [];
-			const handoff: AgentHandoffConfig | undefined = raw.handoff && typeof raw.handoff === "object"
-				? (() => {
-						const h = raw.handoff as Record<string, unknown>;
-						return {
-							blocksHandoff: h.blocksHandoff === true,
-							allowedTargets: Array.isArray(h.allowedTargets)
-								? (h.allowedTargets as unknown[]).map(String)
-								: [],
-							requireEvidence: h.requireEvidence === true,
-							ttlMinutes: typeof h.ttlMinutes === "number"
-								? h.ttlMinutes
-								: undefined,
-						};
-					})()
-				: undefined;
+			const handoff: AgentHandoffConfig | undefined =
+				raw.handoff && typeof raw.handoff === "object"
+					? (() => {
+							const h = raw.handoff as Record<string, unknown>;
+							return {
+								blocksHandoff: h.blocksHandoff === true,
+								allowedTargets: Array.isArray(h.allowedTargets)
+									? (h.allowedTargets as unknown[]).map(String)
+									: [],
+								requireEvidence: h.requireEvidence === true,
+								ttlMinutes:
+									typeof h.ttlMinutes === "number" ? h.ttlMinutes : undefined,
+							};
+						})()
+					: undefined;
 			roles[String(raw.id)] = {
 				id: String(raw.id),
 				label: String(raw.label ?? raw.id),
@@ -363,13 +378,15 @@ export function loadHarness(root: string): HarnessManifest | null {
 				allowedStages: Array.isArray(raw.allowedStages)
 					? raw.allowedStages.map(String)
 					: typeof raw.allowedStages === "string"
-						? raw.allowedStages.split(",").map((a: string) => a.trim()).filter(Boolean)
+						? raw.allowedStages
+								.split(",")
+								.map((a: string) => a.trim())
+								.filter(Boolean)
 						: [],
 				capabilities,
 				handoff,
-				promptTemplate: typeof raw["prompt-template"] === "string"
-					? raw["prompt-template"]
-					: undefined,
+				promptTemplate:
+					typeof raw["prompt-template"] === "string" ? raw["prompt-template"] : undefined,
 			};
 		}
 	}
@@ -402,25 +419,25 @@ export function loadHarness(root: string): HarnessManifest | null {
 								? e.capabilities.map(String)
 								: [],
 							notification: Array.isArray(e.notification)
-								? e.notification.filter((n: string) => ["sse", "polling", "file-watch"].includes(n))
+								? e.notification.filter((n: string) =>
+										["sse", "polling", "file-watch"].includes(n),
+									)
 								: [],
 							heartbeat: e.heartbeat === true,
-							maxExecutionTime: typeof e.maxExecutionTime === "number"
-								? e.maxExecutionTime
-								: 1800,
+							maxExecutionTime:
+								typeof e.maxExecutionTime === "number" ? e.maxExecutionTime : 1800,
 							priority: typeof e.priority === "number" ? e.priority : 0,
 						}))
 					: [];
-				const stagePreferences = raw.stageExecutorPreferences
-					&& typeof raw.stageExecutorPreferences === "object"
-					? Object.entries(raw.stageExecutorPreferences as Record<string, unknown>).reduce<Record<string, string[]>>(
-							(acc, [stage, value]) => {
+				const stagePreferences =
+					raw.stageExecutorPreferences && typeof raw.stageExecutorPreferences === "object"
+						? Object.entries(
+								raw.stageExecutorPreferences as Record<string, unknown>,
+							).reduce<Record<string, string[]>>((acc, [stage, value]) => {
 								acc[stage] = Array.isArray(value) ? value.map(String) : [];
 								return acc;
-							},
-							{},
-						)
-					: {};
+							}, {})
+						: {};
 				executors = {
 					executors: executorList,
 					stageExecutorPreferences: stagePreferences,

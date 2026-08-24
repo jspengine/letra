@@ -8,7 +8,10 @@ interface ValidatingBarProps {
 export function ValidatingBar({ className, label = "Validating..." }: ValidatingBarProps) {
 	return (
 		<div
-			className={cn("flex items-center gap-[var(--space-3)] overflow-hidden rounded-[var(--radius-md)] border-[length:var(--border-thin)] bg-[var(--color-bg-surface)] px-[var(--space-3)] py-[var(--space-2)]", className)}
+			className={cn(
+				"flex items-center gap-[var(--space-3)] overflow-hidden rounded-[var(--radius-md)] border-[length:var(--border-thin)] bg-[var(--color-bg-surface)] px-[var(--space-3)] py-[var(--space-2)]",
+				className,
+			)}
 			style={{ borderColor: "var(--color-border)" }}
 			aria-live="polite"
 		>
@@ -16,11 +19,17 @@ export function ValidatingBar({ className, label = "Validating..." }: Validating
 				<div
 					className="h-full w-1/3 rounded-full animate-validating-bar"
 					style={{
-						background: "linear-gradient(90deg, transparent, var(--color-primary), transparent)",
+						background:
+							"linear-gradient(90deg, transparent, var(--color-primary), transparent)",
 					}}
 				/>
 			</div>
-			<span className="whitespace-nowrap text-caption font-medium" style={{ color: "var(--color-text-secondary)" }}>{label}</span>
+			<span
+				className="whitespace-nowrap text-caption font-medium"
+				style={{ color: "var(--color-text-secondary)" }}
+			>
+				{label}
+			</span>
 		</div>
 	);
 }

@@ -52,7 +52,11 @@ describe("spec routes", () => {
 			request("POST", '{"id":"auth","content":"# Spec"}'),
 			res,
 			new URL("http://localhost/api/specs"),
-			{ workspaceRoot: "C:\\workspace", workspaceDir: "C:\\workspace\\.letra", workflow: workflow() },
+			{
+				workspaceRoot: "C:\\workspace",
+				workspaceDir: "C:\\workspace\\.letra",
+				workflow: workflow(),
+			},
 		);
 
 		await expect(createSpecRoutes(deps)(context)).resolves.toBe(true);
@@ -70,7 +74,11 @@ describe("spec routes", () => {
 			request("POST"),
 			res,
 			new URL("http://localhost/api/specs/auth/validate"),
-			{ workspaceRoot: "C:\\workspace", workspaceDir: "C:\\workspace\\.letra", workflow: null },
+			{
+				workspaceRoot: "C:\\workspace",
+				workspaceDir: "C:\\workspace\\.letra",
+				workflow: null,
+			},
 		);
 
 		await expect(createSpecRoutes(deps)(context)).resolves.toBe(true);

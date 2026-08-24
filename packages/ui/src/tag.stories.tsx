@@ -25,7 +25,14 @@ export default {
 		"x-ds": {
 			category: "primitive",
 			status: "ready",
-			tokens: ["color-agent", "color-success", "color-info", "color-danger", "color-border", "radius-full"],
+			tokens: [
+				"color-agent",
+				"color-success",
+				"color-info",
+				"color-danger",
+				"color-border",
+				"radius-full",
+			],
 			consumes: [],
 			surfaces: ["FlowView", "ExecutionView", "SpecsView"],
 			a11y: ["text-label", "not-status-only"],

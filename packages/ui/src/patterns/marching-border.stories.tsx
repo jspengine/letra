@@ -9,7 +9,9 @@ export const ActiveAgent = () => (
 			<CardContent>
 				<div className="flex flex-col gap-[var(--space-1)]">
 					<span className="text-body-sm font-medium">agent-triage-01</span>
-					<span className="text-caption text-[var(--color-text-secondary)]">Claimed and running</span>
+					<span className="text-caption text-[var(--color-text-secondary)]">
+						Claimed and running
+					</span>
 				</div>
 			</CardContent>
 		</Card>

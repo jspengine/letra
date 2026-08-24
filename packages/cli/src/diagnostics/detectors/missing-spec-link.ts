@@ -17,7 +17,9 @@ export const missingSpecLinkDetector: Detector = {
 
 		const backlogStageIds = new Set(
 			stages
-				.filter((s: { id: string; zone?: string }) => s.zone === "todo" || s.id === "backlog")
+				.filter(
+					(s: { id: string; zone?: string }) => s.zone === "todo" || s.id === "backlog",
+				)
 				.map((s: { id: string }) => s.id),
 		);
 
@@ -55,31 +57,45 @@ export const missingSpecLinkDetector: Detector = {
 								if (!wf.specLinks) wf.specLinks = {};
 								wf.specLinks[exact] = { path: `.letra/specs/${exact}/spec.md` };
 								wf.updatedAt = new Date().toISOString();
-							return {
-								files: [{ path: ".letra/workflow.json", before, after: JSON.stringify(wf, null, 2) }],
-								snapshotId: "auto-fix",
-							};
+								return {
+									files: [
+										{
+											path: ".letra/workflow.json",
+											before,
+											after: JSON.stringify(wf, null, 2),
+										},
+									],
+									snapshotId: "auto-fix",
+								};
+							}
 						}
-					}
 
-					const partial = specDirs.find((d) => kebab.includes(d) || d.includes(kebab));
-					if (partial) {
-						const before = readFileSync(workflowFile, "utf-8");
-						const wf = JSON.parse(before);
-						const target = wf.items.find((i: { id: string }) => i.id === item.id);
-						if (target) {
-							target.spec = partial;
-							if (!wf.specLinks) wf.specLinks = {};
-							wf.specLinks[partial] = { path: `.letra/specs/${partial}/spec.md` };
-							wf.updatedAt = new Date().toISOString();
-							return {
-								files: [{ path: ".letra/workflow.json", before, after: JSON.stringify(wf, null, 2) }],
-								snapshotId: "auto-fix",
-							};
+						const partial = specDirs.find(
+							(d) => kebab.includes(d) || d.includes(kebab),
+						);
+						if (partial) {
+							const before = readFileSync(workflowFile, "utf-8");
+							const wf = JSON.parse(before);
+							const target = wf.items.find((i: { id: string }) => i.id === item.id);
+							if (target) {
+								target.spec = partial;
+								if (!wf.specLinks) wf.specLinks = {};
+								wf.specLinks[partial] = { path: `.letra/specs/${partial}/spec.md` };
+								wf.updatedAt = new Date().toISOString();
+								return {
+									files: [
+										{
+											path: ".letra/workflow.json",
+											before,
+											after: JSON.stringify(wf, null, 2),
+										},
+									],
+									snapshotId: "auto-fix",
+								};
+							}
 						}
-					}
 
-					return { files: [], snapshotId: "no-op" };
+						return { files: [], snapshotId: "no-op" };
 					},
 				});
 				continue;

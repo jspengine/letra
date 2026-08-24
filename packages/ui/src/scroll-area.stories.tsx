@@ -7,7 +7,10 @@ export const Default = () => (
 			<ScrollAreaViewport>
 				<div className="flex flex-col gap-[var(--space-2)] p-[var(--space-3)] text-[13px]">
 					{Array.from({ length: 20 }, (_, i) => (
-						<div key={i} className="rounded-[var(--radius-xs)] bg-[var(--muted)] p-[var(--space-2)]">
+						<div
+							key={i}
+							className="rounded-[var(--radius-xs)] bg-[var(--muted)] p-[var(--space-2)]"
+						>
 							Item {i + 1}
 						</div>
 					))}

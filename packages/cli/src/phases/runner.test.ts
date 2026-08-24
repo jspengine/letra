@@ -6,12 +6,20 @@ vi.mock("node:child_process", () => ({
 	execSync: vi.fn(() => Buffer.from("ok")),
 }));
 
-vi.mock("node:fs", () => ({
-	existsSync: vi.fn(() => true),
-	mkdirSync: vi.fn(),
-	writeFileSync: vi.fn(),
-	readFileSync: vi.fn(() => ""),
-}));
+vi.mock("node:fs", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("node:fs")>();
+	return {
+		...actual,
+		readdirSync: vi.fn((dir: string) => {
+			if (String(dir).includes("gates")) return ["human-approved-code.yaml"];
+			return [];
+		}),
+		existsSync: vi.fn(() => true),
+		mkdirSync: vi.fn(),
+		writeFileSync: vi.fn(),
+		readFileSync: vi.fn(() => ""),
+	};
+});
 
 vi.mock("../session-log.js", () => ({
 	logEntry: vi.fn(),
@@ -75,7 +83,9 @@ describe("PhaseActionRunner", () => {
 		const result = runner.execPhase("/root", makeItem(), def as any);
 		expect(result.ok).toBe(true);
 		expect(writeFileSync).toHaveBeenCalled();
-		const call = (writeFileSync as any).mock.calls.find((c: string[]) => c[0].includes("phase-prompt.md"));
+		const call = (writeFileSync as any).mock.calls.find((c: string[]) =>
+			c[0].includes("phase-prompt.md"),
+		);
 		expect(call).toBeDefined();
 		expect(call[1]).toContain("Revise o diff");
 		expect(result.actions).toContain("agent-prompt: Revise o diff");
@@ -88,7 +98,9 @@ describe("PhaseActionRunner", () => {
 		});
 		const result = runner.execPhase("/root", makeItem(), def as any);
 		expect(result.ok).toBe(true);
-		const call = (writeFileSync as any).mock.calls.find((c: string[]) => c[0].includes("reports"));
+		const call = (writeFileSync as any).mock.calls.find((c: string[]) =>
+			c[0].includes("reports"),
+		);
 		expect(call).toBeDefined();
 		expect(result.actions).toContain("generate-report: review-report");
 	});
@@ -100,7 +112,9 @@ describe("PhaseActionRunner", () => {
 		});
 		const result = runner.execPhase("/root", makeItem(), def as any);
 		expect(result.ok).toBe(true);
-		const call = (writeFileSync as any).mock.calls.find((c: string[]) => c[0].includes("human-notify.md"));
+		const call = (writeFileSync as any).mock.calls.find((c: string[]) =>
+			c[0].includes("human-notify.md"),
+		);
 		expect(call).toBeDefined();
 		expect(call[1]).toContain("Code ready for review");
 		expect(result.actions).toContain("notify-human: Code ready for review");
@@ -108,7 +122,7 @@ describe("PhaseActionRunner", () => {
 
 	it("AC7: wait-human checks gate and stops if not approved", async () => {
 		const { readFileSync } = await import("node:fs");
-		(readFileSync as any).mockReturnValue("blocking: true\nstatus: pending");
+		(readFileSync as any).mockReturnValue("blocking: true\nstatus: pending\ntype: human\ndecisions:\n  approve: aprovação humana");
 		const def = makePhaseDef({
 			actions: [{ type: "wait-human", gate: "human-approved-code" }],
 		});
@@ -119,7 +133,7 @@ describe("PhaseActionRunner", () => {
 
 	it("AC7b: wait-human passes if gate is approved", async () => {
 		const { readFileSync } = await import("node:fs");
-		(readFileSync as any).mockReturnValue("blocking: true\nstatus: approved");
+		(readFileSync as any).mockReturnValue("blocking: true\nstatus: approved\ntype: human\ndecisions:\n  approve: aprovação humana");
 		const def = makePhaseDef({
 			actions: [{ type: "wait-human", gate: "human-approved-code" }],
 		});
@@ -130,7 +144,9 @@ describe("PhaseActionRunner", () => {
 
 	it("AC9: failed action returns error and logs", async () => {
 		const { execSync } = await import("node:child_process");
-		(execSync as any).mockImplementationOnce(() => { throw new Error("Command failed"); });
+		(execSync as any).mockImplementationOnce(() => {
+			throw new Error("Command failed");
+		});
 		const def = makePhaseDef({
 			actions: [{ type: "command", cmd: "failing-cmd" }],
 		});
@@ -153,7 +169,9 @@ describe("PhaseActionRunner", () => {
 
 	it("AC9: item remains in phase after failure", async () => {
 		const { execSync } = await import("node:child_process");
-		(execSync as any).mockImplementationOnce(() => { throw new Error("fail"); });
+		(execSync as any).mockImplementationOnce(() => {
+			throw new Error("fail");
+		});
 		const item = makeItem({ currentPhase: "auto-review" });
 		const def = makePhaseDef({
 			actions: [{ type: "command", cmd: "fail" }],

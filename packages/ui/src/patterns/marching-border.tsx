@@ -11,7 +11,10 @@ export function MarchingBorder({ children, className, containerClassName }: Marc
 	return (
 		<div className={cn("relative rounded-[var(--radius-md)]", containerClassName)}>
 			<div
-				className={cn("pointer-events-none absolute inset-0 overflow-hidden rounded-[var(--radius-md)]", className)}
+				className={cn(
+					"pointer-events-none absolute inset-0 overflow-hidden rounded-[var(--radius-md)]",
+					className,
+				)}
 				aria-hidden="true"
 			>
 				<svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">

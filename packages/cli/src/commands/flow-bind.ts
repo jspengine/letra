@@ -26,13 +26,19 @@ export async function flowBind(root: string, options: FlowBindOptions): Promise<
 	const harnessRoot = resolveHarnessRoot(root, options.harnessVersion);
 	const harness = loadHarness(harnessRoot);
 	if (!harness) {
-		console.log(chalk.red(`Harness "${options.harnessVersion}" not found or invalid at ${harnessRoot}`));
+		console.log(
+			chalk.red(`Harness "${options.harnessVersion}" not found or invalid at ${harnessRoot}`),
+		);
 		return false;
 	}
 
 	const template = harness.flows[options.template];
 	if (!template) {
-		console.log(chalk.red(`Flow template "${options.template}" not found in harness ${options.harnessVersion}`));
+		console.log(
+			chalk.red(
+				`Flow template "${options.template}" not found in harness ${options.harnessVersion}`,
+			),
+		);
 		return false;
 	}
 
@@ -41,7 +47,11 @@ export async function flowBind(root: string, options: FlowBindOptions): Promise<
 		new Set(template.stages.map((stage) => stage.id)),
 	);
 	if (incompatibleStages.length > 0) {
-		console.log(chalk.red(`Flow template "${options.template}" is incompatible with current stages: ${incompatibleStages.join(", ")}`));
+		console.log(
+			chalk.red(
+				`Flow template "${options.template}" is incompatible with current stages: ${incompatibleStages.join(", ")}`,
+			),
+		);
 		return false;
 	}
 

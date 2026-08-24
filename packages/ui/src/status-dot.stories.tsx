@@ -28,7 +28,14 @@ export default {
 		"x-ds": {
 			category: "primitive",
 			status: "ready",
-			tokens: ["color-primary", "color-success", "color-danger", "color-warning", "color-info", "color-agent"],
+			tokens: [
+				"color-primary",
+				"color-success",
+				"color-danger",
+				"color-warning",
+				"color-info",
+				"color-agent",
+			],
 			consumes: ["Tooltip"],
 			surfaces: ["HomeView", "ExecutionView", "FlowView"],
 			a11y: ["tooltip-label", "state-not-color-only"],

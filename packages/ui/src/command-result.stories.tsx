@@ -2,11 +2,19 @@ import "./index.css";
 import { CommandResult } from "./command-result";
 
 export const Success = () => (
-	<CommandResult command="npm run build" output={"Build completed in 376ms\nGenerated dist/index.js"} exitCode={0} />
+	<CommandResult
+		command="npm run build"
+		output={"Build completed in 376ms\nGenerated dist/index.js"}
+		exitCode={0}
+	/>
 );
 
 export const Error = () => (
-	<CommandResult command="letra validate" output={"Validation failed\nMissing evidence for AC3"} exitCode={1} />
+	<CommandResult
+		command="letra validate"
+		output={"Validation failed\nMissing evidence for AC3"}
+		exitCode={1}
+	/>
 );
 
 export default {
@@ -22,7 +30,13 @@ export default {
 		"x-ds": {
 			category: "primitive",
 			status: "ready",
-			tokens: ["color-bg-sunken", "color-border", "color-success", "color-danger", "font-mono"],
+			tokens: [
+				"color-bg-sunken",
+				"color-border",
+				"color-success",
+				"color-danger",
+				"font-mono",
+			],
 			consumes: [],
 			surfaces: ["ExecutionView", "FlowView"],
 			a11y: ["monospace-output", "status-not-color-only"],

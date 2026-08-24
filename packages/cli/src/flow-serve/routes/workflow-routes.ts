@@ -36,10 +36,14 @@ function stableLocationId(path: string): string {
 		hash ^= char.charCodeAt(0);
 		hash = Math.imul(hash, 16777619);
 	}
-	const name = normalized.split("/").filter(Boolean).pop()
-		?.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "")
-		.slice(0, 32) || "project";
+	const name =
+		normalized
+			.split("/")
+			.filter(Boolean)
+			.pop()
+			?.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "")
+			.slice(0, 32) || "project";
 	return `loc-${name}-${(hash >>> 0).toString(36)}`;
 }
 
@@ -83,7 +87,11 @@ export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): R
 			return true;
 		}
 		if (path === "/api/workflow/active-flow" && method === "GET") {
-			sendJson(res, 200, dependencies.resolveActiveFlow(workspaceRoot, workflow).flow ?? null);
+			sendJson(
+				res,
+				200,
+				dependencies.resolveActiveFlow(workspaceRoot, workflow).flow ?? null,
+			);
 			return true;
 		}
 		if (path === "/api/workflow/template" && method === "POST") {
@@ -92,13 +100,20 @@ export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): R
 					template: string;
 					name?: string;
 					tools?: string[];
-					stages?: Array<{ id: string; name: string; zone?: Workflow["stages"][number]["zone"] }>;
+					stages?: Array<{
+						id: string;
+						name: string;
+						zone?: Workflow["stages"][number]["zone"];
+					}>;
 				}>(req);
 				let next: Workflow;
 				if (data.stages) {
 					next = {
 						version: "1.0",
-						name: data.name ?? dependencies.detectWorkspaceName(workspaceRoot) ?? "Personalizado",
+						name:
+							data.name ??
+							dependencies.detectWorkspaceName(workspaceRoot) ??
+							"Personalizado",
 						language: workflow?.language,
 						createdAt: workflow?.createdAt ?? new Date().toISOString(),
 						updatedAt: new Date().toISOString(),
@@ -118,14 +133,20 @@ export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): R
 					// Preserve existing items across a template change: keep the stage if it still
 					// exists in the new template, otherwise relocate to the first "todo" stage.
 					const nextStages = next.stages ?? [];
-					const fallbackStage = nextStages.find((s) => s.zone === "todo")?.id ?? nextStages[0]?.id ?? "backlog";
+					const fallbackStage =
+						nextStages.find((s) => s.zone === "todo")?.id ??
+						nextStages[0]?.id ??
+						"backlog";
 					const stageIds = new Set(nextStages.map((s) => s.id));
-					next.items = (workflow?.items ?? []).map(
-						(item) => (stageIds.has(item.stage) ? item : { ...item, stage: fallbackStage }),
+					next.items = (workflow?.items ?? []).map((item) =>
+						stageIds.has(item.stage) ? item : { ...item, stage: fallbackStage },
 					);
-					if (!next.locations || (next.locations?.length ?? 0) === 0) next.locations = workflow?.locations;
-					if (!next.specLinks || Object.keys(next.specLinks).length === 0) next.specLinks = workflow?.specLinks;
-					if (!next.tools || (next.tools?.length ?? 0) === 0) next.tools = workflow?.tools;
+					if (!next.locations || (next.locations?.length ?? 0) === 0)
+						next.locations = workflow?.locations;
+					if (!next.specLinks || Object.keys(next.specLinks).length === 0)
+						next.specLinks = workflow?.specLinks;
+					if (!next.tools || (next.tools?.length ?? 0) === 0)
+						next.tools = workflow?.tools ?? [];
 				}
 				dependencies.writeWorkflow(workspaceRoot, {
 					workflow: next,
@@ -142,7 +163,8 @@ export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): R
 		}
 		if (path === "/api/workflow" && method === "PATCH") {
 			try {
-				const data = await readJson<Partial<Pick<Workflow, "stages" | "name" | "description">>>(req);
+				const data =
+					await readJson<Partial<Pick<Workflow, "stages" | "name" | "description">>>(req);
 				if (!workflow) {
 					sendError(res, 404, "No workflow");
 					return true;
@@ -176,7 +198,9 @@ export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): R
 					capabilities: adapter.capabilities,
 					detectionPaths: adapter.detectionPaths,
 					active: activeTools.includes(adapter.id),
-					detected: adapter.detectionPaths.some((p) => existsSync(join(workspaceRoot, p))),
+					detected: adapter.detectionPaths.some((p) =>
+						existsSync(join(workspaceRoot, p)),
+					),
 				}));
 				sendJson(res, 200, adapters);
 			} catch (error) {
@@ -213,16 +237,31 @@ export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): R
 					path?: string;
 					label?: string;
 					adapters?: string[];
-					locations?: Array<{ id?: string; path: string; label?: string; adapters?: string[] }>;
+					locations?: Array<{
+						id?: string;
+						path: string;
+						label?: string;
+						adapters?: string[];
+					}>;
 				}>(req);
 				if (!workflow) {
 					sendError(res, 404, "No workflow");
 					return true;
 				}
 				if (!workflow.locations) workflow.locations = [];
-				const inputs = Array.isArray(data.locations) && data.locations.length > 0
-					? data.locations
-					: data.path ? [{ id: data.id, path: data.path, label: data.label, adapters: data.adapters }] : [];
+				const inputs =
+					Array.isArray(data.locations) && data.locations.length > 0
+						? data.locations
+						: data.path
+							? [
+									{
+										id: data.id,
+										path: data.path,
+										label: data.label,
+										adapters: data.adapters,
+									},
+								]
+							: [];
 				if (inputs.length === 0) throw new Error("Informe ao menos uma pasta de projeto.");
 				const added = inputs.map((input, index) => {
 					const projectPath = normalizedPath(assertProjectDirectory(input.path));
@@ -232,7 +271,11 @@ export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): R
 						label: input.label || labelFromPath(projectPath, `Projeto ${index + 1}`),
 						adapters: Array.isArray(input.adapters) ? [...new Set(input.adapters)] : [],
 					};
-					const existing = workflow.locations?.find((candidate) => candidate.id === location.id || normalizedPath(candidate.path) === location.path);
+					const existing = workflow.locations?.find(
+						(candidate) =>
+							candidate.id === location.id ||
+							normalizedPath(candidate.path) === location.path,
+					);
 					if (existing) {
 						existing.path = location.path;
 						existing.label = location.label;
@@ -305,7 +348,9 @@ export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): R
 					return true;
 				}
 				const [removed] = workflow.locations.splice(index, 1);
-				const linkRemoved = removed ? removeLocationLinkIfOwned(removed.path, workspaceDir) : false;
+				const linkRemoved = removed
+					? removeLocationLinkIfOwned(removed.path, workspaceDir)
+					: false;
 				workflow.updatedAt = new Date().toISOString();
 				dependencies.writeWorkflow(workspaceRoot, {
 					workflow,
@@ -320,7 +365,11 @@ export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): R
 			}
 			return true;
 		}
-		if (path.startsWith("/api/workflow/locations/") && path.endsWith("/repair-link") && method === "POST") {
+		if (
+			path.startsWith("/api/workflow/locations/") &&
+			path.endsWith("/repair-link") &&
+			method === "POST"
+		) {
 			try {
 				const locationId = path.split("/").at(-2);
 				if (!workflow) {
@@ -347,7 +396,9 @@ export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): R
 		if (path === "/api/move") {
 			const itemId = url.searchParams.get("item");
 			const stage = url.searchParams.get("stage");
-			const item = itemId ? workflow?.items.find((candidate) => candidate.id === itemId) : null;
+			const item = itemId
+				? workflow?.items.find((candidate) => candidate.id === itemId)
+				: null;
 			if (item && stage && workflow) {
 				item.stage = stage;
 				workflow.updatedAt = new Date().toISOString();

@@ -29,12 +29,11 @@ describe("diagnostics routes", () => {
 			broadcast: vi.fn(),
 			broadcastDiagnostics: vi.fn(),
 		} as unknown as DiagnosticsRouteDependencies;
-		const context = createRequestContext(
-			req,
-			res,
-			new URL("http://localhost/api/health/ack"),
-			{ workspaceRoot: "C:\\workspace-c", workspaceDir: "C:\\workspace-c\\.letra", workflow: null },
-		);
+		const context = createRequestContext(req, res, new URL("http://localhost/api/health/ack"), {
+			workspaceRoot: "C:\\workspace-c",
+			workspaceDir: "C:\\workspace-c\\.letra",
+			workflow: null,
+		});
 
 		await expect(createDiagnosticsRoutes(dependencies)(context)).resolves.toBe(true);
 		expect(engineFor).toHaveBeenCalledWith("C:\\workspace-c");

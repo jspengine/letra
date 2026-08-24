@@ -48,7 +48,9 @@ describe("ExecutorRegistry", () => {
 			const registry = new ExecutorRegistry();
 			registry.register(createExecutor({ id: "code-executor", capabilities: ["code"] }));
 			registry.register(createExecutor({ id: "review-executor", capabilities: ["review"] }));
-			registry.register(createExecutor({ id: "both-executor", capabilities: ["code", "review"] }));
+			registry.register(
+				createExecutor({ id: "both-executor", capabilities: ["code", "review"] }),
+			);
 
 			const codeExecutors = registry.getByCapability("code");
 			expect(codeExecutors).toHaveLength(2);
@@ -83,7 +85,9 @@ describe("ExecutorRegistry", () => {
 		it("falls back to first capable executor when preferred is offline", () => {
 			const registry = new ExecutorRegistry();
 			registry.register(createExecutor({ id: "opencode", capabilities: ["code"] }));
-			registry.register(createExecutor({ id: "cursor", capabilities: ["code"], status: "offline" }));
+			registry.register(
+				createExecutor({ id: "cursor", capabilities: ["code"], status: "offline" }),
+			);
 			registry.setStagePreference("code", ["cursor", "opencode"]);
 
 			const selected = registry.selectForStage("code", "code");
@@ -111,7 +115,7 @@ describe("ExecutorRegistry", () => {
 
 			const selected = registry.selectForStage("code", "code");
 			expect(selected).not.toBeNull();
-			expect(["executor-1", "executor-2"]).toContain(selected!.id);
+			expect(["executor-1", "executor-2"]).toContain(selected?.id);
 		});
 	});
 });

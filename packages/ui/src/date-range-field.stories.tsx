@@ -29,7 +29,8 @@ export default {
 	parameters: {
 		docs: {
 			description: {
-				component: "Range date field with two DS date inputs, shared labeling and shared validation state.",
+				component:
+					"Range date field with two DS date inputs, shared labeling and shared validation state.",
 			},
 		},
 		"x-ds": {

@@ -4,10 +4,7 @@ import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ResolvedFlowDefinition } from "@letra/types";
 import type { Workflow } from "../commands/flow-init.js";
-import {
-	createAgentDirectionSnapshot,
-	resolveAgentDirection,
-} from "./service.js";
+import { createAgentDirectionSnapshot, resolveAgentDirection } from "./service.js";
 
 const roots: string[] = [];
 
@@ -35,13 +32,15 @@ function workflow(): Workflow {
 			{ id: "build", name: "Build", order: 1 },
 			{ id: "review", name: "Review", order: 2 },
 		],
-		items: [{
-			id: "ITEM-1",
-			description: "Native adapter",
-			stage: "build",
-			spec: "adapter-platform-v2",
-			createdAt: "2026-07-04T00:00:00.000Z",
-		}],
+		items: [
+			{
+				id: "ITEM-1",
+				description: "Native adapter",
+				stage: "build",
+				spec: "adapter-platform-v2",
+				createdAt: "2026-07-04T00:00:00.000Z",
+			},
+		],
 		tools: ["codex"],
 	};
 }
@@ -53,13 +52,15 @@ function flow(): ResolvedFlowDefinition {
 		harnessVersion: "v1",
 		templateVersion: "1",
 		name: "Main",
-		roles: [{
-			id: "builder",
-			label: "Builder",
-			description: "Builds",
-			allowedStages: ["build"],
-			capabilities: ["edit"],
-		}],
+		roles: [
+			{
+				id: "builder",
+				label: "Builder",
+				description: "Builds",
+				allowedStages: ["build"],
+				capabilities: ["edit"],
+			},
+		],
 		warnings: [],
 		stages: [
 			{
@@ -77,13 +78,15 @@ function flow(): ResolvedFlowDefinition {
 				name: "Build",
 				order: 1,
 				roleIds: ["builder"],
-				roles: [{
-					id: "builder",
-					label: "Builder",
-					description: "Builds",
-					allowedStages: ["build"],
-					capabilities: ["edit"],
-				}],
+				roles: [
+					{
+						id: "builder",
+						label: "Builder",
+						description: "Builds",
+						allowedStages: ["build"],
+						capabilities: ["edit"],
+					},
+				],
 				agents: ["builder"],
 				gate: null,
 				activity: {
@@ -91,10 +94,15 @@ function flow(): ResolvedFlowDefinition {
 						objective: "Implement the active criterion.",
 						commands: [
 							{ command: "letra ac done <AC-ID>", label: "Complete AC" },
-							{ command: "letra flow move <ITEM-ID> --to <NEXT-STAGE>", label: "Advance" },
+							{
+								command: "letra flow move <ITEM-ID> --to <NEXT-STAGE>",
+								label: "Advance",
+							},
 						],
 						mustNotDo: ["Do not bypass tests."],
-						nextActions: [{ label: "Implement", description: "Implement with regression tests." }],
+						nextActions: [
+							{ label: "Implement", description: "Implement with regression tests." },
+						],
 					},
 				},
 				provenance: "harness",
@@ -149,11 +157,13 @@ describe("AgentDirectionService", () => {
 			"letra ac done AC2",
 			"letra flow move ITEM-1 --to review",
 		]);
-		expect(snapshot.nextActions).toEqual([{
-			id: "implement",
-			label: "Implement",
-			reason: "Implement with regression tests.",
-		}]);
+		expect(snapshot.nextActions).toEqual([
+			{
+				id: "implement",
+				label: "Implement",
+				reason: "Implement with regression tests.",
+			},
+		]);
 	});
 
 	it("keeps revision stable for the same semantics and changes it when the pending AC changes", () => {
@@ -173,7 +183,8 @@ describe("AgentDirectionService", () => {
 		});
 		const changed = createAgentDirectionSnapshot({
 			...input,
-			specContent: "- [x] **AC2 — Next**: implement direction\n- [ ] **AC3 — Service**: extract",
+			specContent:
+				"- [x] **AC2 — Next**: implement direction\n- [ ] **AC3 — Service**: extract",
 			now: "2026-07-04T13:00:00.000Z",
 		});
 
@@ -190,10 +201,12 @@ describe("AgentDirectionService", () => {
 			specContent: null,
 		});
 		const degradedFlow = flow();
-		degradedFlow.warnings = [{
-			code: "HARNESS_UNAVAILABLE",
-			message: "Harness unavailable.",
-		}];
+		degradedFlow.warnings = [
+			{
+				code: "HARNESS_UNAVAILABLE",
+				message: "Harness unavailable.",
+			},
+		];
 		const degraded = createAgentDirectionSnapshot({
 			workspaceRoot: "C:/workspace",
 			workflow: workflow(),
@@ -228,7 +241,9 @@ describe("AgentDirectionService", () => {
 		expect(snapshot.item?.id).toBe("ITEM-1");
 		expect(snapshot.pendingAC?.id).toBe("AC3");
 		expect(snapshot.mode).toBe("degraded");
-		expect(snapshot.warnings.some((warning) => warning.code === "HARNESS_UNAVAILABLE")).toBe(true);
+		expect(snapshot.warnings.some((warning) => warning.code === "HARNESS_UNAVAILABLE")).toBe(
+			true,
+		);
 	});
 });
 
@@ -251,7 +266,7 @@ describe("Constitution Governance", () => {
 
 		expect(snapshot.governanceReferences).toBeDefined();
 		expect(snapshot.governanceReferences).toHaveLength(1);
-		expect(snapshot.governanceReferences![0]).toMatchObject({
+		expect(snapshot.governanceReferences?.[0]).toMatchObject({
 			path: "constitution.md",
 			version: "1.3.0",
 			available: true,
@@ -274,7 +289,7 @@ describe("Constitution Governance", () => {
 
 		expect(snapshot.governanceReferences).toBeDefined();
 		expect(snapshot.governanceReferences).toHaveLength(1);
-		expect(snapshot.governanceReferences![0]).toMatchObject({
+		expect(snapshot.governanceReferences?.[0]).toMatchObject({
 			path: "constitution.md",
 			version: "unknown",
 			available: false,
@@ -303,7 +318,7 @@ describe("Constitution Governance", () => {
 		});
 
 		expect(snapshot.constitutionVersion).toBe("2.0.0");
-		expect(snapshot.governanceReferences![0].version).toBe("2.0.0");
+		expect(snapshot.governanceReferences?.[0].version).toBe("2.0.0");
 	});
 
 	it("uses provided constitutionVersion when specified", () => {

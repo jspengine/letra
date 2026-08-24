@@ -8,9 +8,24 @@ import { Wizard, WizardActions, WizardPanel, WizardStep, WizardSteps } from "./w
 export const ReviewFlow = () => (
 	<Wizard className="w-full max-w-[760px]">
 		<WizardSteps>
-			<WizardStep step={1} status="complete" title="Scope" description="Release surfaces selected" />
-			<WizardStep step={2} status="current" title="Evidence" description="Collect validation window" />
-			<WizardStep step={3} status="upcoming" title="Decision" description="Human approval required" />
+			<WizardStep
+				step={1}
+				status="complete"
+				title="Scope"
+				description="Release surfaces selected"
+			/>
+			<WizardStep
+				step={2}
+				status="current"
+				title="Evidence"
+				description="Collect validation window"
+			/>
+			<WizardStep
+				step={3}
+				status="upcoming"
+				title="Decision"
+				description="Human approval required"
+			/>
 		</WizardSteps>
 		<WizardPanel>
 			<Form>
@@ -18,7 +33,9 @@ export const ReviewFlow = () => (
 					<Field>
 						<FieldLabel htmlFor="evidence-owner">Evidence owner</FieldLabel>
 						<Input id="evidence-owner" defaultValue="Release reviewer" />
-						<FieldDescription>Person accountable for the final review packet.</FieldDescription>
+						<FieldDescription>
+							Person accountable for the final review packet.
+						</FieldDescription>
 					</Field>
 					<DateRangeField
 						label="Evidence window"
@@ -29,7 +46,9 @@ export const ReviewFlow = () => (
 			</Form>
 		</WizardPanel>
 		<WizardActions>
-			<Button variant="secondary" type="button">Back</Button>
+			<Button variant="secondary" type="button">
+				Back
+			</Button>
 			<Button type="button">Continue</Button>
 		</WizardActions>
 	</Wizard>
@@ -39,7 +58,12 @@ export const WithError = () => (
 	<Wizard className="w-full max-w-[760px]">
 		<WizardSteps>
 			<WizardStep step={1} status="complete" title="Scope" />
-			<WizardStep step={2} status="error" title="Evidence" description="Window needs correction" />
+			<WizardStep
+				step={2}
+				status="error"
+				title="Evidence"
+				description="Window needs correction"
+			/>
 			<WizardStep step={3} status="upcoming" title="Decision" />
 		</WizardSteps>
 		<WizardPanel>

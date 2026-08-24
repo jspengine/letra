@@ -34,7 +34,7 @@ export function syncFocus(
 			cleared = true;
 		} else {
 			const item = workflow.items.find((i) => i.id === focusData.itemId);
-			if (item && item.spec && item.spec !== focusData.specName) {
+			if (item?.spec && item.spec !== focusData.specName) {
 				diverged = true;
 			}
 		}
@@ -58,7 +58,11 @@ export function syncFocus(
 
 function findActiveItem(workflow: Workflow) {
 	const activeStages = workflow.stages
-		.filter((s) => s.zone === "doing" || (!s.zone && s.order > 0 && s.order < workflow.stages.length - 1))
+		.filter(
+			(s) =>
+				s.zone === "doing" ||
+				(!s.zone && s.order > 0 && s.order < workflow.stages.length - 1),
+		)
 		.map((s) => s.id);
 	const stageSet = new Set(activeStages);
 	if (stageSet.size === 0) {
@@ -68,7 +72,7 @@ function findActiveItem(workflow: Workflow) {
 	}
 	const items = workflow.items.filter((i) => stageSet.has(i.stage));
 	if (items.length === 0) return null;
-	return items.reduce((a, b) => new Date(a.createdAt) > new Date(b.createdAt) ? a : b);
+	return items.reduce((a, b) => (new Date(a.createdAt) > new Date(b.createdAt) ? a : b));
 }
 
 export function extractOutcome(rootDir: string, specName: string): string | null {

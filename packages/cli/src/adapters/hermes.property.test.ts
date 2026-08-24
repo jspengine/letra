@@ -9,113 +9,131 @@ import { generateAdapters } from "./generate.js";
 import type { AdapterSource, HarnessSnapshot } from "./types.js";
 
 describe("hermes adapter invariants (property-based)", () => {
-  let tmpDir: string;
+	let tmpDir: string;
 
-  beforeEach(() => {
-    tmpDir = join(tmpdir(), `letra-hermes-prop-${Date.now()}`);
-    mkdirSync(join(tmpDir, ".letra"), { recursive: true });
-  });
+	beforeEach(() => {
+		tmpDir = join(tmpdir(), `letra-hermes-prop-${Date.now()}`);
+		mkdirSync(join(tmpDir, ".letra"), { recursive: true });
+	});
 
-  afterEach(() => {
-    if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true });
-  });
+	afterEach(() => {
+		if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true });
+	});
 
-  it("snapshot always has workflowName when hasWorkflow", () => {
-    fc.assert(
-      fc.property(fc.string({ minLength: 1 }), (name) => {
-        const snapshot = buildHarnessSnapshot(tmpDir, {
-          source: "flow-move",
-          workflow: {
-            name,
-            stages: [{ id: "backlog", name: "Backlog" }],
-            items: [],
-          },
-          activeStageId: "backlog",
-        });
-        expect(snapshot.hasWorkflow).toBe(true);
-        expect(snapshot.workflowName).toBe(name);
-      }),
-    );
-  });
+	it("snapshot always has workflowName when hasWorkflow", () => {
+		fc.assert(
+			fc.property(fc.string({ minLength: 1 }), (name) => {
+				const snapshot = buildHarnessSnapshot(tmpDir, {
+					source: "flow-move",
+					workflow: {
+						name,
+						stages: [{ id: "backlog", name: "Backlog" }],
+						items: [],
+					},
+					activeStageId: "backlog",
+				});
+				expect(snapshot.hasWorkflow).toBe(true);
+				expect(snapshot.workflowName).toBe(name);
+			}),
+		);
+	});
 
-  it("primaryItemId belongs to items in active stage", () => {
-    fc.assert(
-      fc.property(
-        fc.string({ minLength: 1, maxLength: 10 }),
-        fc.string({ minLength: 1, maxLength: 10 }),
-        (itemId, desc) => {
-          const snapshot = buildHarnessSnapshot(tmpDir, {
-            source: "flow-move",
-            workflow: {
-              name: "test",
-              stages: [{ id: "code", name: "Code" }],
-              items: [{ id: itemId, description: desc, stage: "code" }],
-            },
-            activeStageId: "code",
-            primaryItemId: itemId,
-          });
-          if (snapshot.primaryItemId) {
-            const found = snapshot.items.find((i) => i.id === snapshot.primaryItemId);
-            expect(found).toBeDefined();
-            expect(found?.id).toBe(snapshot.primaryItemId);
-          }
-        },
-      ),
-    );
-  });
+	it("primaryItemId belongs to items in active stage", () => {
+		fc.assert(
+			fc.property(
+				fc.string({ minLength: 1, maxLength: 10 }),
+				fc.string({ minLength: 1, maxLength: 10 }),
+				(itemId, desc) => {
+					const snapshot = buildHarnessSnapshot(tmpDir, {
+						source: "flow-move",
+						workflow: {
+							name: "test",
+							stages: [{ id: "code", name: "Code" }],
+							items: [{ id: itemId, description: desc, stage: "code" }],
+						},
+						activeStageId: "code",
+						primaryItemId: itemId,
+					});
+					if (snapshot.primaryItemId) {
+						const found = snapshot.items.find((i) => i.id === snapshot.primaryItemId);
+						expect(found).toBeDefined();
+						expect(found?.id).toBe(snapshot.primaryItemId);
+					}
+				},
+			),
+		);
+	});
 
-  it("alerts only include status novo", () => {
-    writeFileSync(
-      join(tmpDir, ".letra", "health-record.json"),
-      JSON.stringify({
-        version: 1,
-        entries: [
-          { id: "hr-a", severity: "baixa", status: "novo", title: "New", source: "d", detectedAt: new Date().toISOString() },
-          { id: "hr-b", severity: "media", status: "ciente", title: "Seen", source: "d", detectedAt: new Date().toISOString() },
-          { id: "hr-c", severity: "alta", status: "resolvido", title: "Gone", source: "d", detectedAt: new Date().toISOString() },
-        ],
-      }),
-    );
+	it("alerts only include status novo", () => {
+		writeFileSync(
+			join(tmpDir, ".letra", "health-record.json"),
+			JSON.stringify({
+				version: 1,
+				entries: [
+					{
+						id: "hr-a",
+						severity: "baixa",
+						status: "novo",
+						title: "New",
+						source: "d",
+						detectedAt: new Date().toISOString(),
+					},
+					{
+						id: "hr-b",
+						severity: "media",
+						status: "ciente",
+						title: "Seen",
+						source: "d",
+						detectedAt: new Date().toISOString(),
+					},
+					{
+						id: "hr-c",
+						severity: "alta",
+						status: "resolvido",
+						title: "Gone",
+						source: "d",
+						detectedAt: new Date().toISOString(),
+					},
+				],
+			}),
+		);
 
-    const snapshot = buildHarnessSnapshot(tmpDir, {
-      source: "flow-move",
-      workflow: {
-        name: "test",
-        stages: [{ id: "code", name: "Code" }],
-        items: [{ id: "ITEM-1", description: "Task", stage: "code" }],
-      },
-      activeStageId: "code",
-      primaryItemId: "ITEM-1",
-    });
+		const snapshot = buildHarnessSnapshot(tmpDir, {
+			source: "flow-move",
+			workflow: {
+				name: "test",
+				stages: [{ id: "code", name: "Code" }],
+				items: [{ id: "ITEM-1", description: "Task", stage: "code" }],
+			},
+			activeStageId: "code",
+			primaryItemId: "ITEM-1",
+		});
 
-    if (snapshot.alerts) {
-      for (const alert of snapshot.alerts) {
-        if (alert.id === "...") continue;
-        expect(alert.title).not.toBe("Seen");
-        expect(alert.title).not.toBe("Gone");
-      }
-      expect(snapshot.alerts.some((a) => a.title === "New")).toBe(true);
-    }
-  });
+		if (snapshot.alerts) {
+			for (const alert of snapshot.alerts) {
+				if (alert.id === "...") continue;
+				expect(alert.title).not.toBe("Seen");
+				expect(alert.title).not.toBe("Gone");
+			}
+			expect(snapshot.alerts.some((a) => a.title === "New")).toBe(true);
+		}
+	});
 
-  it("generateAdapters header correct by source", () => {
-    const sources: AdapterSource[] = ["init", "flow-move", "focus"];
-    for (const source of sources) {
-      generateAdapters(tmpDir, ["hermes"], { source, quiet: true });
-      const content = readFileSync(
-        join(tmpDir, ".hermes", "instructions.md"),
-        "utf-8",
-      );
+	it("generateAdapters header correct by source", () => {
+		const sources: AdapterSource[] = ["init", "flow-move", "focus"];
+		for (const source of sources) {
+			generateAdapters(tmpDir, ["hermes"], { source, quiet: true });
+			const content = readFileSync(join(tmpDir, ".hermes", "instructions.md"), "utf-8");
 
-      if (source === "init") {
-        expect(content).toContain("Generated by letra init");
-      } else if (source === "flow-move") {
-        expect(content).toContain("Gerado por letra flow move");
-      } else if (source === "focus") {
-        expect(content).toContain("Gerado por letra focus");
-      }
+			if (source === "init") {
+				expect(content).toContain("Generated by letra init");
+			} else if (source === "flow-move") {
+				expect(content).toContain("Gerado por letra flow move");
+			} else if (source === "focus") {
+				expect(content).toContain("Gerado por letra focus");
+			}
 
-      rmSync(join(tmpDir, ".hermes"), { recursive: true, force: true });
-    }
-  });
+			rmSync(join(tmpDir, ".hermes"), { recursive: true, force: true });
+		}
+	});
 });

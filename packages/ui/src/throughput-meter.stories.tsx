@@ -2,7 +2,9 @@ import "./index.css";
 import { ThroughputMeter } from "./throughput-meter";
 
 export const Default = () => <ThroughputMeter value={64} max={100} label="Checks" showValue />;
-export const WithBaseline = () => <ThroughputMeter value={72} max={100} baseline={55} label="Success rate" showValue />;
+export const WithBaseline = () => (
+	<ThroughputMeter value={72} max={100} baseline={55} label="Success rate" showValue />
+);
 
 export default {
 	title: "Components/ThroughputMeter",

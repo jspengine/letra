@@ -16,14 +16,20 @@ export const WithRetry = () => (
 export const WithDetails = () => (
 	<ErrorBanner
 		title="Validation error"
-		details={"Error: ENOENT: no such file or directory, open '.letra/workflow.json'\n    at Object.openSync (node:fs:585:3)\n    at Object.readFileSync (node:fs:453:35)"}
+		details={
+			"Error: ENOENT: no such file or directory, open '.letra/workflow.json'\n    at Object.openSync (node:fs:585:3)\n    at Object.readFileSync (node:fs:453:35)"
+		}
 	>
 		Could not load workflow configuration.
 	</ErrorBanner>
 );
 
 export const Full = () => (
-	<ErrorBanner title="Deployment failed" details={"Exit code: 1\nError: Build failed with 3 errors."} onRetry={() => alert("Retrying...")}>
+	<ErrorBanner
+		title="Deployment failed"
+		details={"Exit code: 1\nError: Build failed with 3 errors."}
+		onRetry={() => alert("Retrying...")}
+	>
 		The build process encountered errors. Review the details below.
 	</ErrorBanner>
 );

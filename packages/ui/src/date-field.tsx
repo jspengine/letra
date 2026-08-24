@@ -9,7 +9,15 @@ interface DateFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "ty
 	error?: string;
 }
 
-export function DateField({ label, description, error, id, required, disabled, ...props }: DateFieldProps) {
+export function DateField({
+	label,
+	description,
+	error,
+	id,
+	required,
+	disabled,
+	...props
+}: DateFieldProps) {
 	const generatedId = useId();
 	const inputId = id ?? generatedId;
 	const descriptionId = description ? `${inputId}-description` : undefined;
@@ -30,7 +38,9 @@ export function DateField({ label, description, error, id, required, disabled, .
 				aria-describedby={[descriptionId, errorId].filter(Boolean).join(" ") || undefined}
 				{...props}
 			/>
-			{description ? <FieldDescription id={descriptionId}>{description}</FieldDescription> : null}
+			{description ? (
+				<FieldDescription id={descriptionId}>{description}</FieldDescription>
+			) : null}
 			<FieldError id={errorId}>{error}</FieldError>
 		</Field>
 	);

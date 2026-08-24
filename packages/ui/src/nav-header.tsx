@@ -22,8 +22,19 @@ export function NavHeader({ title, titleId, description, left, right, className 
 			<div className="flex min-w-0 items-center gap-[var(--layout-cluster-gap)]">
 				{left}
 				<div className="flex min-w-0 flex-col">
-					{title && <h1 id={titleId} className="text-h2">{title}</h1>}
-					{description && <span className="text-caption" style={{ color: "var(--color-text-secondary)" }}>{description}</span>}
+					{title && (
+						<h1 id={titleId} className="text-h2">
+							{title}
+						</h1>
+					)}
+					{description && (
+						<span
+							className="text-caption"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
+							{description}
+						</span>
+					)}
 				</div>
 			</div>
 			<div className="flex shrink-0 flex-wrap items-center gap-[var(--layout-toolbar-gap)] sm:justify-end">

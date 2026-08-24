@@ -180,7 +180,11 @@ describe("GateChecker", () => {
 
 		it("blocks human gate when not approved", () => {
 			const root = fixture();
-			writeGateFile(root, "custom-human", "id: custom-human\ntype: human\nblocking: true\nstatus: pending\n");
+			writeGateFile(
+				root,
+				"custom-human",
+				"id: custom-human\ntype: human\nblocking: true\nstatus: pending\n",
+			);
 			const manifest = makeManifest({
 				"custom-human": {
 					id: "custom-human",
@@ -205,7 +209,11 @@ describe("GateChecker", () => {
 
 		it("allows human gate when approved", () => {
 			const root = fixture();
-			writeGateFile(root, "custom-human", "id: custom-human\ntype: human\nblocking: true\nstatus: approved\n");
+			writeGateFile(
+				root,
+				"custom-human",
+				"id: custom-human\ntype: human\nblocking: true\nstatus: approved\n",
+			);
 			const manifest = makeManifest({
 				"custom-human": {
 					id: "custom-human",
@@ -229,7 +237,11 @@ describe("GateChecker", () => {
 
 		it("blocks automated gate when not approved", () => {
 			const root = fixture();
-			writeGateFile(root, "auto-check", "id: auto-check\ntype: automated\nblocking: true\nstatus: pending\n");
+			writeGateFile(
+				root,
+				"auto-check",
+				"id: auto-check\ntype: automated\nblocking: true\nstatus: pending\n",
+			);
 			const manifest = makeManifest({
 				"auto-check": {
 					id: "auto-check",
@@ -253,7 +265,11 @@ describe("GateChecker", () => {
 
 		it("allows automated gate when approved", () => {
 			const root = fixture();
-			writeGateFile(root, "auto-check", "id: auto-check\ntype: automated\nblocking: true\nstatus: approved\n");
+			writeGateFile(
+				root,
+				"auto-check",
+				"id: auto-check\ntype: automated\nblocking: true\nstatus: approved\n",
+			);
 			const manifest = makeManifest({
 				"auto-check": {
 					id: "auto-check",
@@ -277,7 +293,11 @@ describe("GateChecker", () => {
 
 		it("blocks external gate when not approved", () => {
 			const root = fixture();
-			writeGateFile(root, "ext-gate", "id: ext-gate\ntype: external\nblocking: true\nstatus: pending\n");
+			writeGateFile(
+				root,
+				"ext-gate",
+				"id: ext-gate\ntype: external\nblocking: true\nstatus: pending\n",
+			);
 			const manifest = makeManifest({
 				"ext-gate": {
 					id: "ext-gate",
@@ -302,7 +322,11 @@ describe("GateChecker", () => {
 
 		it("uses custom decision label from gate YAML", () => {
 			const root = fixture();
-			writeGateFile(root, "spec-review", "id: spec-review\ntype: human\nblocking: true\nstatus: pending\ndecisions:\n  approve: \"Spec approved by lead\"\n");
+			writeGateFile(
+				root,
+				"spec-review",
+				'id: spec-review\ntype: human\nblocking: true\nstatus: pending\ndecisions:\n  approve: "Spec approved by lead"\n',
+			);
 			const manifest = makeManifest({
 				"spec-review": {
 					id: "spec-review",
@@ -384,7 +408,11 @@ describe("GateChecker", () => {
 
 		it("falls back to disk when manifest has no gate", () => {
 			const root = fixture();
-			writeGateFile(root, "disk-only", "id: disk-only\ntype: human\nblocking: true\nblocksHandoff: true\nstatus: pending\n");
+			writeGateFile(
+				root,
+				"disk-only",
+				"id: disk-only\ntype: human\nblocking: true\nblocksHandoff: true\nstatus: pending\n",
+			);
 
 			const checker = new GateChecker(root, makeManifest());
 			expect(checker.checkBlocksHandoff("disk-only")).toBe(true);
@@ -420,7 +448,11 @@ describe("GateChecker", () => {
 
 		it("blocks handoff when gate blocksHandoff and is not approved", () => {
 			const root = fixture();
-			writeGateFile(root, "spec-approved", "id: spec-approved\ntype: human\nblocking: true\nblocksHandoff: true\nstatus: pending\n");
+			writeGateFile(
+				root,
+				"spec-approved",
+				"id: spec-approved\ntype: human\nblocking: true\nblocksHandoff: true\nstatus: pending\n",
+			);
 			const manifest = makeManifest({
 				"spec-approved": {
 					id: "spec-approved",
@@ -447,7 +479,11 @@ describe("GateChecker", () => {
 
 		it("allows handoff when gate blocksHandoff but is approved", () => {
 			const root = fixture();
-			writeGateFile(root, "spec-approved", "id: spec-approved\ntype: human\nblocking: true\nblocksHandoff: true\nstatus: approved\n");
+			writeGateFile(
+				root,
+				"spec-approved",
+				"id: spec-approved\ntype: human\nblocking: true\nblocksHandoff: true\nstatus: approved\n",
+			);
 			const manifest = makeManifest({
 				"spec-approved": {
 					id: "spec-approved",
@@ -472,7 +508,11 @@ describe("GateChecker", () => {
 
 		it("allows handoff when gate does not block handoff", () => {
 			const root = fixture();
-			writeGateFile(root, "code-reviewed", "id: code-reviewed\ntype: automated\nblocking: true\nblocksHandoff: false\nstatus: pending\n");
+			writeGateFile(
+				root,
+				"code-reviewed",
+				"id: code-reviewed\ntype: automated\nblocking: true\nblocksHandoff: false\nstatus: pending\n",
+			);
 			const manifest = makeManifest({
 				"code-reviewed": {
 					id: "code-reviewed",

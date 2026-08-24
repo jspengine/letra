@@ -29,7 +29,7 @@ export async function runDiagnosticsAndSyncHealth(
 	engine: DiagnosticEngine,
 	root: string,
 ): Promise<DiagnosticsOutput> {
-	const output = await engine.runAll() as DiagnosticsOutput;
+	const output = (await engine.runAll()) as DiagnosticsOutput;
 	const record = loadHealthRecord(root);
 	mergeScanResults(record, diagnosticSuggestionsFromOutput(output));
 	saveHealthRecord(root, record);

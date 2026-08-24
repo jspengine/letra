@@ -35,8 +35,13 @@ export function flowPhasesAction(itemId: string): void {
 			console.log(`     ${chalk.dim(def.description)}`);
 		}
 		if (isCurrent && def.transitions) {
-			const targets = def.transitions.map((t) => `${t.target}${t.auto ? " (auto)" : ""}${t.gate ? ` [gate: ${t.gate}]` : ""}`).join(", ");
-			console.log(`     ${chalk.dim("→ " + targets)}`);
+			const targets = def.transitions
+				.map(
+					(t) =>
+						`${t.target}${t.auto ? " (auto)" : ""}${t.gate ? ` [gate: ${t.gate}]` : ""}`,
+				)
+				.join(", ");
+			console.log(`     ${chalk.dim(`→ ${targets}`)}`);
 		}
 	}
 	console.log("");

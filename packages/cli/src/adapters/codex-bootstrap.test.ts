@@ -2,10 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-	mergeCodexProjectConfig,
-	renderLetraHarnessSkill,
-} from "./codex-bootstrap.js";
+import { mergeCodexProjectConfig, renderLetraHarnessSkill } from "./codex-bootstrap.js";
 import { generateAdapters, renderAdapterFiles } from "./generate.js";
 
 describe("Codex bootstrap", () => {
@@ -42,10 +39,11 @@ describe("Codex bootstrap", () => {
 	});
 
 	it("refuses to take ownership of an unmanaged Letra MCP table", () => {
-		expect(() => mergeCodexProjectConfig([
-			"[mcp_servers.letra]",
-			'command = "custom-letra-wrapper"',
-		].join("\n"))).toThrow("mcp_servers.letra");
+		expect(() =>
+			mergeCodexProjectConfig(
+				["[mcp_servers.letra]", 'command = "custom-letra-wrapper"'].join("\n"),
+			),
+		).toThrow("mcp_servers.letra");
 	});
 
 	it("renders a static skill that delegates live state to the MCP", () => {
@@ -73,7 +71,9 @@ describe("Codex bootstrap", () => {
 			".agents/skills/letra-harness/SKILL.md",
 		]);
 		expect(files.find((file) => file.path === "AGENTS.md")?.content).toContain("get_direction");
-		expect(files.find((file) => file.path === "AGENTS.md")?.content).toContain("letra direction --json");
+		expect(files.find((file) => file.path === "AGENTS.md")?.content).toContain(
+			"letra direction --json",
+		);
 		expect(files.find((file) => file.path === ".codex/config.toml")?.content).toContain(
 			'model = "gpt-team"',
 		);
@@ -88,9 +88,8 @@ describe("Codex bootstrap", () => {
 		expect(readFileSync(join(root, ".codex", "config.toml"), "utf-8")).toContain(
 			'model = "gpt-team"',
 		);
-		expect(readFileSync(
-			join(root, ".agents", "skills", "letra-harness", "SKILL.md"),
-			"utf-8",
-		)).toContain("get_direction");
+		expect(
+			readFileSync(join(root, ".agents", "skills", "letra-harness", "SKILL.md"), "utf-8"),
+		).toContain("get_direction");
 	});
 });

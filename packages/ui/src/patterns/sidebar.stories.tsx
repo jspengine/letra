@@ -22,7 +22,11 @@ export const Loading = () => (
 export const Error = () => (
 	<Sidebar
 		items={[
-			{ label: "Workspace unavailable", icon: <Icon name="octagon-alert" size={16} />, active: true },
+			{
+				label: "Workspace unavailable",
+				icon: <Icon name="octagon-alert" size={16} />,
+				active: true,
+			},
 			{ label: "Retry sync", icon: <Icon name="activity" size={16} /> },
 		]}
 	/>

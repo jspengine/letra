@@ -3,9 +3,15 @@ import { Input } from "./input";
 import { Textarea } from "./textarea";
 
 export const Default = () => <Input aria-label="Agent name" placeholder="Ex: agent-triage-01" />;
-export const WithValue = () => <Input aria-label="Agent name" value="agent-triage-01" onChange={() => {}} />;
-export const Disabled = () => <Input aria-label="Agent name" value="claude-sonnet-5" disabled onChange={() => {}} />;
-export const Invalid = () => <Input aria-label="Workspace slug" value="missing-workspace" aria-invalid onChange={() => {}} />;
+export const WithValue = () => (
+	<Input aria-label="Agent name" value="agent-triage-01" onChange={() => {}} />
+);
+export const Disabled = () => (
+	<Input aria-label="Agent name" value="claude-sonnet-5" disabled onChange={() => {}} />
+);
+export const Invalid = () => (
+	<Input aria-label="Workspace slug" value="missing-workspace" aria-invalid onChange={() => {}} />
+);
 
 export const TextareaDefault = () => (
 	<Textarea placeholder="Describe the expected agent behavior..." />

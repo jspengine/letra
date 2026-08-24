@@ -57,7 +57,11 @@ function BreadcrumbPage({ className, ...props }: HTMLAttributes<HTMLSpanElement>
 	);
 }
 
-function BreadcrumbSeparator({ className, children, ...props }: HTMLAttributes<HTMLLIElement> & { children?: ReactNode }) {
+function BreadcrumbSeparator({
+	className,
+	children,
+	...props
+}: HTMLAttributes<HTMLLIElement> & { children?: ReactNode }) {
 	return (
 		<li
 			data-slot="breadcrumb-separator"
@@ -75,7 +79,10 @@ function BreadcrumbEllipsis({ className, ...props }: HTMLAttributes<HTMLSpanElem
 		<span
 			data-slot="breadcrumb-ellipsis"
 			aria-label="More pages"
-			className={cn("inline-flex h-6 items-center rounded-[var(--radius-sm)] px-[var(--space-1)] text-[var(--color-text-secondary)]", className)}
+			className={cn(
+				"inline-flex h-6 items-center rounded-[var(--radius-sm)] px-[var(--space-1)] text-[var(--color-text-secondary)]",
+				className,
+			)}
 			{...props}
 		>
 			...

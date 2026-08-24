@@ -1,11 +1,7 @@
 import { resolve } from "node:path";
 import { DiagnosticEngine } from "../diagnostics/engine.js";
 import type { DiagnosticResult } from "../diagnostics/types.js";
-import {
-	loadHealthRecord,
-	saveHealthRecord,
-	mergeScanResults,
-} from "../health-record.js";
+import { loadHealthRecord, saveHealthRecord, mergeScanResults } from "../health-record.js";
 import { logEntry } from "../session-log.js";
 
 export async function diagnose(targetPath?: string): Promise<void> {
@@ -77,7 +73,16 @@ export async function diagnose(targetPath?: string): Promise<void> {
 		console.log();
 	}
 
-	logEntry(root, "diagnose", `Diagnóstico executado — ${output.fixes.length} auto-correção(ões), ${output.suggestions.length} sugestão(ões), ${output.errors.length} erro(s)`, {
-		details: { fixes: output.fixes.length, suggestions: output.suggestions.length, errors: output.errors.length },
-	});
+	logEntry(
+		root,
+		"diagnose",
+		`Diagnóstico executado — ${output.fixes.length} auto-correção(ões), ${output.suggestions.length} sugestão(ões), ${output.errors.length} erro(s)`,
+		{
+			details: {
+				fixes: output.fixes.length,
+				suggestions: output.suggestions.length,
+				errors: output.errors.length,
+			},
+		},
+	);
 }

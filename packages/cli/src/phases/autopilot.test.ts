@@ -1,22 +1,23 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Workflow, Item } from "../commands/flow-init.js";
 import type { StagePhases } from "../harness/types.js";
-import {
-	PhaseAutoPilot,
-	autopilotRun,
-	canAutopilot,
-} from "./autopilot.js";
+import { PhaseAutoPilot, autopilotRun, canAutopilot } from "./autopilot.js";
 
 vi.mock("node:child_process", () => ({
 	execSync: vi.fn(() => Buffer.from("")),
 }));
 
-vi.mock("node:fs", () => ({
-	existsSync: vi.fn(() => true),
-	mkdirSync: vi.fn(),
-	writeFileSync: vi.fn(),
-	readFileSync: vi.fn(() => ""),
-}));
+vi.mock("node:fs", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("node:fs")>();
+	return {
+		...actual,
+		readdirSync: vi.fn(() => []),
+		existsSync: vi.fn(() => true),
+		mkdirSync: vi.fn(),
+		writeFileSync: vi.fn(),
+		readFileSync: vi.fn(() => ""),
+	};
+});
 
 vi.mock("../session-log.js", () => ({
 	logEntry: vi.fn(),
@@ -28,9 +29,7 @@ function makeWorkflow(stages?: Workflow["stages"]): Workflow {
 		name: "test",
 		createdAt: "2026-01-01T00:00:00.000Z",
 		updatedAt: "2026-01-01T00:00:00.000Z",
-		stages: stages ?? [
-			{ id: "phases-stage", name: "Phases", order: 0 },
-		],
+		stages: stages ?? [{ id: "phases-stage", name: "Phases", order: 0 }],
 		items: [],
 		tools: [],
 	};
@@ -228,7 +227,9 @@ describe("PhaseAutoPilot", () => {
 			},
 		};
 		const { execSync } = await import("node:child_process");
-		(execSync as any).mockImplementationOnce(() => { throw new Error("Command failed: exit 1"); });
+		(execSync as any).mockImplementationOnce(() => {
+			throw new Error("Command failed: exit 1");
+		});
 		const wf = makeWorkflow([
 			{ id: "fail-stage", name: "Fail", order: 0, phases: failPhases as any },
 		]);

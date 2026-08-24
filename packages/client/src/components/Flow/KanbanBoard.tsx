@@ -38,11 +38,55 @@ function computeItemState(state: OperationalState): {
 	icon: "check-circle" | "clock" | "chevron-right" | "shield" | "circle";
 	animate: string;
 } {
-	if (state === "done") return { key: state, label: "Concluído", variant: "success", tagVariant: "success", action: "Sem ação pendente", icon: "check-circle", animate: "" };
-	if (state === "waiting") return { key: state, label: "Precisa de atenção", variant: "amber", tagVariant: "warning", action: "Revisar decisão humana", icon: "clock", animate: "animate-timeline-dot" };
-	if (state === "blocked") return { key: state, label: "Bloqueado", variant: "error", tagVariant: "danger", action: "Examinar bloqueio", icon: "shield", animate: "" };
-	if (state === "running") return { key: state, label: "Em andamento", variant: "agent", tagVariant: "agent", action: "Acompanhar trabalho ativo", icon: "chevron-right", animate: "animate-agent-running" };
-	return { key: state, label: "Na fila", variant: "info", tagVariant: "default", action: "Aguardando responsável", icon: "circle", animate: "" };
+	if (state === "done")
+		return {
+			key: state,
+			label: "Concluído",
+			variant: "success",
+			tagVariant: "success",
+			action: "Sem ação pendente",
+			icon: "check-circle",
+			animate: "",
+		};
+	if (state === "waiting")
+		return {
+			key: state,
+			label: "Precisa de atenção",
+			variant: "amber",
+			tagVariant: "warning",
+			action: "Revisar decisão humana",
+			icon: "clock",
+			animate: "animate-timeline-dot",
+		};
+	if (state === "blocked")
+		return {
+			key: state,
+			label: "Bloqueado",
+			variant: "error",
+			tagVariant: "danger",
+			action: "Examinar bloqueio",
+			icon: "shield",
+			animate: "",
+		};
+	if (state === "running")
+		return {
+			key: state,
+			label: "Em andamento",
+			variant: "agent",
+			tagVariant: "agent",
+			action: "Acompanhar trabalho ativo",
+			icon: "chevron-right",
+			animate: "animate-agent-running",
+		};
+	return {
+		key: state,
+		label: "Na fila",
+		variant: "info",
+		tagVariant: "default",
+		action: "Aguardando responsável",
+		icon: "circle",
+		animate: "",
+	};
 }
 
 function emptyStateForFilter(filter: string): { title: string; description: string } {
@@ -61,7 +105,8 @@ function emptyStateForFilter(filter: string): { title: string; description: stri
 	if (filter === "queued") {
 		return {
 			title: "Nenhum trabalho está na fila.",
-			description: "Itens sem responsável declarado aparecerão aqui antes de entrarem em andamento.",
+			description:
+				"Itens sem responsável declarado aparecerão aqui antes de entrarem em andamento.",
 		};
 	}
 	if (filter === "done") {
@@ -99,30 +144,34 @@ function ItemCard({
 	const state = computeItemState(itemOperationalState(item, workflow, activeFlow));
 
 	const linkedSpec = item.spec ? specs.find((s) => s.id === item.spec) : null;
-	const progress = linkedSpec ? (() => {
-		const acDone = (linkedSpec.content.match(/-\s+\[x\]/g) || []).length;
-		const acTotal = (linkedSpec.content.match(/-\s+\[(\s|x)\]/g) || []).length;
-		return {
-			done: acDone,
-			total: acTotal,
-			label: acTotal > 0 ? `${acDone}/${acTotal} critérios` : "Sem critérios",
-			source: "Critérios",
-		};
-	})() : item.tasks && item.tasks.length > 0
-		? {
-			done: item.tasks.filter((task) => task.done).length,
-			total: item.tasks.length,
-			label: `${item.tasks.filter((task) => task.done).length}/${item.tasks.length} tarefas`,
-			source: "Tarefas",
-		}
-		: {
-			done: 0,
-			total: 0,
-			label: "Sem checklist",
-			source: "Evidência",
-		};
+	const progress = linkedSpec
+		? (() => {
+				const acDone = (linkedSpec.content.match(/-\s+\[x\]/g) || []).length;
+				const acTotal = (linkedSpec.content.match(/-\s+\[(\s|x)\]/g) || []).length;
+				return {
+					done: acDone,
+					total: acTotal,
+					label: acTotal > 0 ? `${acDone}/${acTotal} critérios` : "Sem critérios",
+					source: "Critérios",
+				};
+			})()
+		: item.tasks && item.tasks.length > 0
+			? {
+					done: item.tasks.filter((task) => task.done).length,
+					total: item.tasks.length,
+					label: `${item.tasks.filter((task) => task.done).length}/${item.tasks.length} tarefas`,
+					source: "Tarefas",
+				}
+			: {
+					done: 0,
+					total: 0,
+					label: "Sem checklist",
+					source: "Evidência",
+				};
 
-	const resolvedStage = orderedStages(workflow, activeFlow).find((stage) => stage.id === item.stage);
+	const resolvedStage = orderedStages(workflow, activeFlow).find(
+		(stage) => stage.id === item.stage,
+	);
 	const agentName = item.claimedBy ?? resolvedStage?.roles[0]?.label ?? "Não atribuído";
 	const agentAction = resolvedStage ? stageActionLabel(resolvedStage) : "Processando";
 	const isRunning = state.key === "running";
@@ -130,23 +179,34 @@ function ItemCard({
 	const progressValue = progress.total > 0 ? progress.done : 0;
 	const progressMax = progress.total > 0 ? progress.total : 1;
 	const progressState =
-		state.key === "blocked" ? "error"
-			: state.key === "waiting" ? "warning"
-				: state.key === "done" ? "complete"
-					: state.key === "running" ? "agent"
+		state.key === "blocked"
+			? "error"
+			: state.key === "waiting"
+				? "warning"
+				: state.key === "done"
+					? "complete"
+					: state.key === "running"
+						? "agent"
 						: "default";
 	const title = item.description?.trim() || linkedSpec?.id || slug;
 	const ageLabel = daysInStage === 0 ? "Hoje no fluxo" : `${daysInStage}d no fluxo`;
 	const cardBorder =
-		state.key === "blocked" ? "var(--color-danger)"
-			: state.key === "waiting" ? "var(--color-primary)"
-				: isRunning ? "var(--color-agent)"
-					: isHumanGate ? "var(--color-success)"
+		state.key === "blocked"
+			? "var(--color-danger)"
+			: state.key === "waiting"
+				? "var(--color-primary)"
+				: isRunning
+					? "var(--color-agent)"
+					: isHumanGate
+						? "var(--color-success)"
 						: "var(--color-border)";
 	const cardBackground =
-		state.key === "blocked" ? "color-mix(in oklch, var(--color-danger) 5%, var(--color-bg-surface))"
-			: state.key === "waiting" ? "color-mix(in oklch, var(--color-primary) 6%, var(--color-bg-surface))"
-				: isRunning ? "color-mix(in oklch, var(--color-agent) 5%, var(--color-bg-surface))"
+		state.key === "blocked"
+			? "color-mix(in oklch, var(--color-danger) 5%, var(--color-bg-surface))"
+			: state.key === "waiting"
+				? "color-mix(in oklch, var(--color-primary) 6%, var(--color-bg-surface))"
+				: isRunning
+					? "color-mix(in oklch, var(--color-agent) 5%, var(--color-bg-surface))"
 					: "var(--color-bg-surface)";
 
 	return (
@@ -181,7 +241,12 @@ function ItemCard({
 						<span className="min-w-0 truncate font-mono text-[11px] font-medium text-[var(--color-text-tertiary)]">
 							{item.id}
 						</span>
-						<Badge variant={state.variant} tone="soft" className={cn("max-w-full shrink-0", state.animate)} icon={state.icon}>
+						<Badge
+							variant={state.variant}
+							tone="soft"
+							className={cn("max-w-full shrink-0", state.animate)}
+							icon={state.icon}
+						>
 							{state.label}
 						</Badge>
 					</div>
@@ -218,7 +283,12 @@ function ItemCard({
 								{progress.label}
 							</span>
 						</div>
-						<Progress value={progressValue} max={progressMax} size="xs" state={progressState} />
+						<Progress
+							value={progressValue}
+							max={progressMax}
+							size="xs"
+							state={progressState}
+						/>
 					</div>
 				) : null}
 
@@ -272,14 +342,17 @@ export default function KanbanBoard({
 		if (specRefreshKey) loadSpecs();
 	}, [specRefreshKey, loadSpecs]);
 
-	const handleDragStart = useCallback((e: React.DragEvent, itemId: string) => {
-		const item = workflow.items.find((it) => it.id === itemId);
-		if (!item) return;
-		dragItem.current = item;
-		setDraggingId(itemId);
-		e.dataTransfer.setData("text/plain", itemId);
-		e.dataTransfer.dropEffect = "move";
-	}, [workflow.items]);
+	const handleDragStart = useCallback(
+		(e: React.DragEvent, itemId: string) => {
+			const item = workflow.items.find((it) => it.id === itemId);
+			if (!item) return;
+			dragItem.current = item;
+			setDraggingId(itemId);
+			e.dataTransfer.setData("text/plain", itemId);
+			e.dataTransfer.dropEffect = "move";
+		},
+		[workflow.items],
+	);
 
 	const handleDragEnd = useCallback(() => {
 		setDragOver(null);
@@ -300,16 +373,19 @@ export default function KanbanBoard({
 		setDragOver(null);
 	}, []);
 
-	const handleDrop = useCallback((e: React.DragEvent, targetStageId: string) => {
-		e.preventDefault();
-		setDragOver(null);
-		const itemId = e.dataTransfer.getData("text/plain");
-		const item = workflow.items.find((it) => it.id === itemId);
-		if (!item) return;
-		if (item.stage === targetStageId) return;
-		if (allowDrop && !allowDrop(item, targetStageId)) return;
-		onDropItem(itemId, targetStageId);
-	}, [workflow.items, allowDrop, onDropItem]);
+	const handleDrop = useCallback(
+		(e: React.DragEvent, targetStageId: string) => {
+			e.preventDefault();
+			setDragOver(null);
+			const itemId = e.dataTransfer.getData("text/plain");
+			const item = workflow.items.find((it) => it.id === itemId);
+			if (!item) return;
+			if (item.stage === targetStageId) return;
+			if (allowDrop && !allowDrop(item, targetStageId)) return;
+			onDropItem(itemId, targetStageId);
+		},
+		[workflow.items, allowDrop, onDropItem],
+	);
 
 	const gateStages = humanGateStageIds(workflow, activeFlow);
 	const doneStages = doneStageIds(workflow, activeFlow);
@@ -334,29 +410,44 @@ export default function KanbanBoard({
 	const visibleItems = workflow.items.filter(activeFilter);
 	const emptyState = emptyStateForFilter(filter);
 
-	function renderColumn(col: typeof stageCols[0]) {
-		const items = workflow.items
-			.filter((it) => it.stage === col.id)
-			.filter(activeFilter);
+	function renderColumn(col: (typeof stageCols)[0]) {
+		const items = workflow.items.filter((it) => it.stage === col.id).filter(activeFilter);
 		const isOver = dragOver === col.id;
 		const isHumanGate = col.gate;
 		const hasAnyItems = workflow.items.some((it) => it.stage === col.id);
 
 		return (
-			<div key={col.id} className="flex min-h-[200px] w-[18rem] min-w-[18rem] flex-none flex-col gap-2 xl:w-[19.5rem] xl:min-w-[19.5rem]">
-				<div className="app-board-column-header flex items-center justify-between px-1 pb-1" data-gate={isHumanGate && hasAnyItems ? "true" : "false"}>
+			<div
+				key={col.id}
+				className="flex min-h-[200px] w-[18rem] min-w-[18rem] flex-none flex-col gap-2 xl:w-[19.5rem] xl:min-w-[19.5rem]"
+			>
+				<div
+					className="app-board-column-header flex items-center justify-between px-1 pb-1"
+					data-gate={isHumanGate && hasAnyItems ? "true" : "false"}
+				>
 					<div className="flex min-w-0 items-center gap-2">
 						{isHumanGate && hasAnyItems ? (
 							<div className="w-2 h-4 rounded-full bg-[var(--color-success)] animate-timeline-dot" />
 						) : (
-							<div className="w-1.5 h-4 rounded-full" style={{ background: col.color }} />
+							<div
+								className="w-1.5 h-4 rounded-full"
+								style={{ background: col.color }}
+							/>
 						)}
-						<span className={cn("min-w-0 truncate text-xs font-semibold", isHumanGate && hasAnyItems && "text-[var(--color-success)]")}>
+						<span
+							className={cn(
+								"min-w-0 truncate text-xs font-semibold",
+								isHumanGate && hasAnyItems && "text-[var(--color-success)]",
+							)}
+						>
 							{col.label}
 						</span>
 						<Badge
 							variant={isHumanGate && hasAnyItems ? "amber" : "info"}
-							className={cn("shrink-0 text-caption px-1.5", isHumanGate && hasAnyItems && "animate-pulse")}
+							className={cn(
+								"shrink-0 text-caption px-1.5",
+								isHumanGate && hasAnyItems && "animate-pulse",
+							)}
 						>
 							{workflow.items.filter((it) => it.stage === col.id).length}
 						</Badge>
@@ -394,8 +485,15 @@ export default function KanbanBoard({
 					{isHumanGate && hasAnyItems && (
 						<div className="app-board-gate-banner mt-1 pt-2">
 							<div className="flex items-center gap-2 text-caption mb-1.5 px-1">
-								<Icon name="clock" size={10} style={{ color: "var(--color-success)" }} />
-								<span style={{ color: "var(--color-success)" }} className="font-medium">
+								<Icon
+									name="clock"
+									size={10}
+									style={{ color: "var(--color-success)" }}
+								/>
+								<span
+									style={{ color: "var(--color-success)" }}
+									className="font-medium"
+								>
 									Aprovação necessária
 								</span>
 							</div>
@@ -419,11 +517,26 @@ export default function KanbanBoard({
 			{visibleItems.length === 0 ? (
 				<div className="app-board-filter-empty flex min-h-[16rem] flex-1 flex-col items-center justify-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] p-6 text-center">
 					<div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-bg-sunken)] text-[var(--color-text-secondary)]">
-						<Icon name={filter === "attention" ? "shield" : filter === "running" ? "cpu" : filter === "done" ? "check-circle" : "circle"} size={18} />
+						<Icon
+							name={
+								filter === "attention"
+									? "shield"
+									: filter === "running"
+										? "cpu"
+										: filter === "done"
+											? "check-circle"
+											: "circle"
+							}
+							size={18}
+						/>
 					</div>
 					<div className="grid max-w-sm gap-1">
-						<p className="text-body-sm font-semibold text-[var(--color-text-primary)]">{emptyState.title}</p>
-						<p className="text-caption leading-snug text-[var(--color-text-secondary)]">{emptyState.description}</p>
+						<p className="text-body-sm font-semibold text-[var(--color-text-primary)]">
+							{emptyState.title}
+						</p>
+						<p className="text-caption leading-snug text-[var(--color-text-secondary)]">
+							{emptyState.description}
+						</p>
 					</div>
 				</div>
 			) : (

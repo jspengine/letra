@@ -21,13 +21,15 @@ export function resolveBoardStages(
 	for (const item of workflow.items) {
 		if (knownStageIds.has(item.stage)) continue;
 		const workflowStage = workflow.stages.find((stage) => stage.id === item.stage);
-		stages.push(workflowStage
-			? { ...workflowStage }
-			: {
-					id: item.stage,
-					name: item.stage,
-					order: stages.length,
-			  });
+		stages.push(
+			workflowStage
+				? { ...workflowStage }
+				: {
+						id: item.stage,
+						name: item.stage,
+						order: stages.length,
+					},
+		);
 		knownStageIds.add(item.stage);
 	}
 
@@ -58,7 +60,7 @@ export function flowBoard(root: string): void {
 
 	// Load health alerts for badge display
 	const healthPath = join(getLetraDir(root), "health-record.json");
-	let itemAlerts = new Map<string, number>();
+	const itemAlerts = new Map<string, number>();
 	try {
 		if (existsSync(healthPath)) {
 			const health = JSON.parse(readFileSync(healthPath, "utf-8"));
@@ -117,9 +119,11 @@ export function flowBoard(root: string): void {
 				const specLink = workflow.specLinks?.[item.spec];
 				if (specLink) {
 					const specPath = join(root, specLink.path);
-					specInfo = existsSync(specPath) ? chalk.cyan(`📎${item.spec}`) : chalk.red(`⚠spec?`);
+					specInfo = existsSync(specPath)
+						? chalk.cyan(`📎${item.spec}`)
+						: chalk.red("⚠spec?");
 				} else {
-					specInfo = chalk.red(`⚠reg?`);
+					specInfo = chalk.red("⚠reg?");
 				}
 			} else if (!backlogStageIds.has(item.stage)) {
 				specInfo = chalk.yellow("⚠sem");

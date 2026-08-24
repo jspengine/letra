@@ -6,7 +6,11 @@ import { loadWorkflow, writeWorkflow } from "./flow-init.js";
 import { readFocusFile } from "../adapters/focus-sync.js";
 import { getLetraDir } from "./../workspace/resolver.js";
 
-export async function validateFocus(focusSpec: string, items: Array<{ id: string; spec?: string; stage: string; description: string }>, stages: Array<{ id: string }>): Promise<string[]> {
+export async function validateFocus(
+	focusSpec: string,
+	items: Array<{ id: string; spec?: string; stage: string; description: string }>,
+	stages: Array<{ id: string }>,
+): Promise<string[]> {
 	const warnings: string[] = [];
 	const doneIds = new Set(stages.filter((s) => s.id === "done").map((s) => s.id));
 	const matchingItems = items.filter((i) => i.spec === focusSpec);
@@ -16,17 +20,27 @@ export async function validateFocus(focusSpec: string, items: Array<{ id: string
 	} else {
 		for (const item of matchingItems) {
 			if (doneIds.has(item.stage)) {
-				warnings.push(`Focus spec "${focusSpec}" matches ${item.id} which is in "done" stage`);
+				warnings.push(
+					`Focus spec "${focusSpec}" matches ${item.id} which is in "done" stage`,
+				);
 			}
 		}
 	}
 	return warnings;
 }
 
-export async function syncNow(rootPath: string, options?: { dryRun?: boolean; skipSitrep?: boolean }): Promise<{ ok: boolean; filesUpdated: string[]; warnings: string[]; error?: string }> {
+export async function syncNow(
+	rootPath: string,
+	options?: { dryRun?: boolean; skipSitrep?: boolean },
+): Promise<{ ok: boolean; filesUpdated: string[]; warnings: string[]; error?: string }> {
 	const workflowFile = join(getLetraDir(rootPath), "workflow.json");
 	if (!existsSync(workflowFile)) {
-		return { ok: false, filesUpdated: [], warnings: [], error: "No workflow found at .letra/workflow.json" };
+		return {
+			ok: false,
+			filesUpdated: [],
+			warnings: [],
+			error: "No workflow found at .letra/workflow.json",
+		};
 	}
 
 	const workflow = loadWorkflow(rootPath);
@@ -43,19 +57,26 @@ export async function syncNow(rootPath: string, options?: { dryRun?: boolean; sk
 	}
 
 	if (options?.dryRun) {
-		const filesUpdated = [".letra/workflow.json", ...(workflow.tools || []).map((t: string) => t), ".letra/context.md"];
+		const filesUpdated = [
+			".letra/workflow.json",
+			...(workflow.tools || []).map((t: string) => t),
+			".letra/context.md",
+		];
 		return { ok: true, filesUpdated, warnings, error: undefined };
 	}
 
-	const result = await writeWorkflow(rootPath, { workflow, source: "flow-edit", skipSitrep: options?.skipSitrep ?? false });
+	const result = await writeWorkflow(rootPath, {
+		workflow,
+		source: "flow-edit",
+		skipSitrep: options?.skipSitrep ?? false,
+	});
 	return { ...result, warnings };
 }
 
 export default function () {
 	const cmd = new Command("sync").description("Sync workflow state to all adapters");
 
-	cmd
-		.option("--dry-run", "Show what would be done without writing")
+	cmd.option("--dry-run", "Show what would be done without writing")
 		.option("--fix", "Apply reconciliation (default behavior)")
 		.action(async (opts: { dryRun?: boolean; fix?: boolean }) => {
 			const root = resolve(process.cwd());
@@ -63,7 +84,7 @@ export default function () {
 			const result = await syncNow(root, { dryRun: isDryRun });
 
 			if (!result.ok) {
-				console.log(chalk.red("✗ Sync failed: " + (result.error ?? "unknown error")));
+				console.log(chalk.red(`✗ Sync failed: ${result.error ?? "unknown error"}`));
 				process.exit(1);
 			}
 
@@ -75,7 +96,7 @@ export default function () {
 
 			if (isDryRun) {
 				console.log(chalk.bold("\n📋 Simulação — dry-run\n"));
-				console.log(chalk.gray(`  Seriam regenerados:`));
+				console.log(chalk.gray("  Seriam regenerados:"));
 				for (const f of result.filesUpdated) {
 					console.log(`  ${chalk.gray("→")} ${f}`);
 				}

@@ -16,7 +16,14 @@ interface TabsProps {
 	ariaLabel?: string;
 }
 
-export function Tabs({ tabs, activeTab: controlledTab, onChange, children, className, ariaLabel }: TabsProps) {
+export function Tabs({
+	tabs,
+	activeTab: controlledTab,
+	onChange,
+	children,
+	className,
+	ariaLabel,
+}: TabsProps) {
 	const [internalTab, setInternalTab] = useState(tabs[0]?.id || "");
 	const active = controlledTab ?? internalTab;
 
@@ -47,7 +54,10 @@ export function Tabs({ tabs, activeTab: controlledTab, onChange, children, class
 								: "border-transparent",
 						)}
 						style={{
-							color: active === tab.id ? "var(--color-primary)" : "var(--color-text-secondary)",
+							color:
+								active === tab.id
+									? "var(--color-primary)"
+									: "var(--color-text-secondary)",
 						}}
 					>
 						{tab.icon}

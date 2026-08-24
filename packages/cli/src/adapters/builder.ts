@@ -3,14 +3,29 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { readFocusFile } from "./focus-sync.js";
 import { loadHealthRecord } from "../health-record.js";
-import type { GenerateOptions, HarnessItem, HarnessSnapshot, HandoffStep, HarnessDirectionData, HarnessDirectionActivity } from "./types.js";
-import type { StagePhases } from "../harness/types.js";
+import type {
+	GenerateOptions,
+	HarnessItem,
+	HarnessSnapshot,
+	HandoffStep,
+	HarnessDirectionData,
+	HarnessDirectionActivity,
+} from "./types.js";
+import type {
+	StagePhases,
+	StageDef,
+	ActivityCommandHint,
+	ActivityActionHint,
+} from "../harness/types.js";
 import { loadHarness, resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "../harness/loader.js";
 import { loadWorkflow } from "../commands/flow-init.js";
 import { getLetraDir } from "./../workspace/resolver.js";
 import { queryLog } from "../session-log.js";
 
-function countACs(stateDir: string, specName: string | null): { pending: number; total: number; pendingIds: string[] } {
+function countACs(
+	stateDir: string,
+	specName: string | null,
+): { pending: number; total: number; pendingIds: string[] } {
 	if (!specName) return { pending: 0, total: 0, pendingIds: [] };
 	let specDir = join(stateDir, "specs", specName);
 	if (!existsSync(specDir)) {
@@ -51,9 +66,12 @@ function loadLastSession(stateDir: string): { lastDate: string; actionsSummary: 
 		const entries = log.entries || [];
 		if (entries.length === 0) return null;
 		const lastEntry = entries[0];
-		const actions = entries.slice(0, 5).map((e: { action: string; description: string }) =>
-			`${e.action}: ${e.description?.slice(0, 50)}`,
-		);
+		const actions = entries
+			.slice(0, 5)
+			.map(
+				(e: { action: string; description: string }) =>
+					`${e.action}: ${e.description?.slice(0, 50)}`,
+			);
 		return {
 			lastDate: new Date(lastEntry.timestamp).toLocaleString("pt-BR"),
 			actionsSummary: actions.join("\n  • "),
@@ -73,11 +91,11 @@ function loadHarnessDirection(root: string, activeStageId: string): HarnessDirec
 	const templateId = workflow.template ?? "flow-main";
 	const flow = harness.flows?.[templateId];
 	if (!flow) return null;
-	const stageDef = flow.stages?.find((s: any) => s.id === activeStageId);
+	const stageDef = flow.stages?.find((s: StageDef) => s.id === activeStageId);
 	if (!stageDef) return null;
 
 	const activities: HarnessDirectionActivity[] = [];
-	const activityConfig = (stageDef as any).activity as Record<string, any> | undefined;
+	const activityConfig = stageDef.activity;
 	if (activityConfig) {
 		const kinds = ["design", "implement", "review", "diagnose", "gate"] as const;
 		for (const kind of kinds) {
@@ -87,12 +105,12 @@ function loadHarnessDirection(root: string, activeStageId: string): HarnessDirec
 				kind,
 				objective: hint.objective,
 				mustNotDo: hint.mustNotDo,
-				commands: hint.commands?.map((c: any) => ({
+				commands: hint.commands?.map((c: ActivityCommandHint) => ({
 					command: c.command ?? "",
 					label: c.label ?? "",
 					description: c.description,
 				})),
-				nextActions: hint.nextActions?.map((a: any) => ({
+				nextActions: hint.nextActions?.map((a: ActivityActionHint) => ({
 					label: a.label ?? "",
 					description: a.description ?? "",
 				})),
@@ -109,7 +127,7 @@ function loadHarnessDirection(root: string, activeStageId: string): HarnessDirec
 
 export function buildHarnessSnapshot(root: string, options: GenerateOptions): HarnessSnapshot {
 	const isWorkspace = options.workspaceDir !== undefined;
-	const stateDir = isWorkspace ? options.workspaceDir! : root;
+	const stateDir = isWorkspace ? (options.workspaceDir ?? root) : root;
 	const dotLetra = isWorkspace ? stateDir : getLetraDir(stateDir);
 	const hasFocus = existsSync(join(dotLetra, "focus.md"));
 	const buildReferenceLinks = (specName: string | null): HarnessSnapshot["referenceLinks"] => ({
@@ -118,9 +136,7 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 		glossary: pathToFileURL(join(dotLetra, "glossary.md")).href,
 		constraints: pathToFileURL(join(dotLetra, "constraints.md")).href,
 		focus: hasFocus ? pathToFileURL(join(dotLetra, "focus.md")).href : null,
-		spec: specName
-			? pathToFileURL(join(dotLetra, "specs", specName, "spec.md")).href
-			: null,
+		spec: specName ? pathToFileURL(join(dotLetra, "specs", specName, "spec.md")).href : null,
 		workflow: pathToFileURL(join(dotLetra, "workflow.json")).href,
 	});
 
@@ -225,23 +241,53 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 	// Build handoff data
 	let handoff: HarnessSnapshot["handoff"];
 	if (primaryItemId) {
-		const rawHandoff = (workflow as any).handoff;
-		const handoffEnabled = rawHandoff === false ? false : rawHandoff?.enabled !== false;
+		const rawHandoff = (workflow as Record<string, unknown>).handoff as
+			| Record<string, unknown>
+			| boolean
+			| undefined;
+		const handoffEnabled =
+			rawHandoff === false
+				? false
+				: (rawHandoff as Record<string, unknown>)?.enabled !== false;
 		if (handoffEnabled) {
 			const defaultSteps: HandoffStep[] = [
-				{ command: "letra validate", label: "validate", recovery: "letra diagnose — encontrar e corrigir problemas" },
-				{ command: "letra pulse", label: "pulse", recovery: "letra health — checar alertas ativos" },
-				{ command: "letra sitrep", label: "sitrep", recovery: "corrija o erro e tente novamente" },
+				{
+					command: "letra validate",
+					label: "validate",
+					recovery: "letra diagnose — encontrar e corrigir problemas",
+				},
+				{
+					command: "letra pulse",
+					label: "pulse",
+					recovery: "letra health — checar alertas ativos",
+				},
+				{
+					command: "letra sitrep",
+					label: "sitrep",
+					recovery: "corrija o erro e tente novamente",
+				},
 				{
 					command: `letra flow move ${primaryItemId} --to ${nextStage?.id || "proximo_estagio"}`,
 					label: "flow move",
 					recovery: "letra validate — verificar ACs pendentes",
 				},
-				{ command: "npm run build", label: "build", recovery: "corrija erros de compilação" },
+				{
+					command: "npm run build",
+					label: "build",
+					recovery: "corrija erros de compilação",
+				},
 			];
 
-			const skipSteps: string[] = Array.isArray((rawHandoff as any)?.skipSteps) ? (rawHandoff as any).skipSteps : [];
-			const customSteps: HandoffStep[] = Array.isArray((rawHandoff as any)?.customSteps) ? (rawHandoff as any).customSteps : [];
+			const skipSteps: string[] = Array.isArray(
+				(rawHandoff as Record<string, unknown>)?.skipSteps,
+			)
+				? ((rawHandoff as Record<string, unknown>).skipSteps as string[])
+				: [];
+			const customSteps: HandoffStep[] = Array.isArray(
+				(rawHandoff as Record<string, unknown>)?.customSteps,
+			)
+				? ((rawHandoff as Record<string, unknown>).customSteps as HandoffStep[])
+				: [];
 
 			const filtered = defaultSteps.filter((s) => !skipSteps.includes(s.label));
 			const steps = [...filtered, ...customSteps];
@@ -279,9 +325,23 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 		pendingACs: acCounts.pending,
 		totalACs: acCounts.total,
 		lastSession,
-		alerts: novoAlerts.length > 0
-			? [...novoAlerts, ...(totalNovo > 5 ? [{ id: "...", severity: "", title: `e mais ${totalNovo - 5} alertas`, source: "", detectedAt: "" }] : [])]
-			: undefined,
+		alerts:
+			novoAlerts.length > 0
+				? [
+						...novoAlerts,
+						...(totalNovo > 5
+							? [
+									{
+										id: "...",
+										severity: "",
+										title: `e mais ${totalNovo - 5} alertas`,
+										source: "",
+										detectedAt: "",
+									},
+								]
+							: []),
+					]
+				: undefined,
 		currentPhase,
 		handoff,
 		harnessDirection,

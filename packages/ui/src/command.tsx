@@ -25,7 +25,10 @@ function Command({ className, children, ...props }: HTMLAttributes<HTMLDivElemen
 		<CommandContext.Provider value={{ query, setQuery }}>
 			<div
 				data-slot="command"
-				className={cn("flex w-full flex-col overflow-hidden rounded-[var(--radius-lg)] bg-card text-card-foreground", className)}
+				className={cn(
+					"flex w-full flex-col overflow-hidden rounded-[var(--radius-lg)] bg-card text-card-foreground",
+					className,
+				)}
 				{...props}
 			>
 				{children}
@@ -58,14 +61,26 @@ function CommandList({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 		<div
 			data-slot="command-list"
 			role="listbox"
-			className={cn("max-h-72 overflow-y-auto overflow-x-hidden p-[var(--space-2)]", className)}
+			className={cn(
+				"max-h-72 overflow-y-auto overflow-x-hidden p-[var(--space-2)]",
+				className,
+			)}
 			{...props}
 		/>
 	);
 }
 
 function CommandEmpty({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-	return <div data-slot="command-empty" className={cn("py-[var(--space-5)] text-center text-sm text-muted-foreground rounded-[var(--radius-md)]", className)} {...props} />;
+	return (
+		<div
+			data-slot="command-empty"
+			className={cn(
+				"py-[var(--space-5)] text-center text-sm text-muted-foreground rounded-[var(--radius-md)]",
+				className,
+			)}
+			{...props}
+		/>
+	);
 }
 
 function CommandGroup({
@@ -97,7 +112,8 @@ function CommandItem({
 }) {
 	const command = useCommand();
 	const normalizedValue = value ?? (typeof children === "string" ? children : "");
-	const hidden = !!command?.query && !normalizedValue.toLowerCase().includes(command.query.toLowerCase());
+	const hidden =
+		!!command?.query && !normalizedValue.toLowerCase().includes(command.query.toLowerCase());
 	if (hidden) return null;
 	return (
 		<button
@@ -120,11 +136,33 @@ function CommandItem({
 }
 
 function CommandSeparator({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-	return <div data-slot="command-separator" role="separator" className={cn("-mx-1 h-px bg-border", className)} {...props} />;
+	return (
+		<div
+			data-slot="command-separator"
+			role="separator"
+			className={cn("-mx-1 h-px bg-border", className)}
+			{...props}
+		/>
+	);
 }
 
 function CommandShortcut({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {
-	return <span data-slot="command-shortcut" className={cn("ml-auto text-xs tracking-widest text-muted-foreground", className)} {...props} />;
+	return (
+		<span
+			data-slot="command-shortcut"
+			className={cn("ml-auto text-xs tracking-widest text-muted-foreground", className)}
+			{...props}
+		/>
+	);
 }
 
-export { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandSeparator, CommandShortcut };
+export {
+	Command,
+	CommandInput,
+	CommandList,
+	CommandEmpty,
+	CommandGroup,
+	CommandItem,
+	CommandSeparator,
+	CommandShortcut,
+};

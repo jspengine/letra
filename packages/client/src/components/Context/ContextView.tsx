@@ -163,13 +163,13 @@ function KnowledgeSourceButton({
 				)}
 			/>
 			<span className="min-w-0">
-				<span className="block text-sm font-medium leading-tight">
-					{entry.label}
-				</span>
+				<span className="block text-sm font-medium leading-tight">{entry.label}</span>
 				<span
 					className={cn(
 						"mt-1 line-clamp-2 block text-xs font-normal leading-snug",
-						selected ? "text-[var(--color-primary)]" : "text-[var(--color-text-secondary)]",
+						selected
+							? "text-[var(--color-primary)]"
+							: "text-[var(--color-text-secondary)]",
 					)}
 				>
 					{entry.description}
@@ -225,9 +225,7 @@ export default function ContextView({ initialTab = "context.md" }: Props) {
 			});
 	}, [tab]);
 
-	const selectedDecisionData = decisions.find(
-		(decision) => decision.name === selectedDecision,
-	);
+	const selectedDecisionData = decisions.find((decision) => decision.name === selectedDecision);
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
@@ -244,7 +242,10 @@ export default function ContextView({ initialTab = "context.md" }: Props) {
 
 				<div className="flex min-h-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden p-3 md:flex-col md:gap-4 md:overflow-x-hidden md:overflow-y-auto">
 					{SOURCE_GROUPS.map((group) => (
-						<section key={group.title} className="flex min-w-[17rem] flex-col gap-1 md:min-w-0">
+						<section
+							key={group.title}
+							className="flex min-w-[17rem] flex-col gap-1 md:min-w-0"
+						>
 							<h3 className="px-1 text-xs font-semibold uppercase text-[var(--color-text-secondary)]">
 								{group.title}
 							</h3>
@@ -327,16 +328,21 @@ export default function ContextView({ initialTab = "context.md" }: Props) {
 						file={`decisions/${selectedDecisionData.name}`}
 						initialContent={selectedDecisionData.content}
 						onSave={async (newContent) => {
-							await fetch(`/api/context?file=decisions/${selectedDecisionData.name}`, {
-								method: "PUT",
-								headers: { "Content-Type": "application/json" },
-								body: JSON.stringify({ content: newContent }),
-							});
+							await fetch(
+								`/api/context?file=decisions/${selectedDecisionData.name}`,
+								{
+									method: "PUT",
+									headers: { "Content-Type": "application/json" },
+									body: JSON.stringify({ content: newContent }),
+								},
+							);
 							const response = await fetch("/api/context?file=decisions");
 							const data = await response.json();
 							if (Array.isArray(data)) setDecisions(data);
 						}}
-						title={resolveTitle(selectedDecisionData.content) || selectedDecisionData.name}
+						title={
+							resolveTitle(selectedDecisionData.content) || selectedDecisionData.name
+						}
 						description={FILE_INFO.decisions.description}
 					/>
 				) : tab === "decisions" ? (

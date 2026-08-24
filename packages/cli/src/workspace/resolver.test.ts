@@ -2,7 +2,15 @@ import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, afterEach } from "vitest";
-import { clearWorkspaceCache, resolveDataDir, getLetraDir, resolveWorkspaceRoot, isLinkedMode, LINK_FILE, LETRA_FOLDER } from "./resolver.js";
+import {
+	clearWorkspaceCache,
+	resolveDataDir,
+	getLetraDir,
+	resolveWorkspaceRoot,
+	isLinkedMode,
+	LINK_FILE,
+	LETRA_FOLDER,
+} from "./resolver.js";
 import { loadWorkflow } from "../commands/flow-init.js";
 
 function makeTmp(prefix: string): string {
@@ -12,7 +20,16 @@ function makeTmp(prefix: string): string {
 }
 
 function workflow(name: string) {
-	return { version: "1.0", name, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", stages: [], items: [], tools: [], primaryItemId: null };
+	return {
+		version: "1.0",
+		name,
+		createdAt: "2026-01-01T00:00:00.000Z",
+		updatedAt: "2026-01-01T00:00:00.000Z",
+		stages: [],
+		items: [],
+		tools: [],
+		primaryItemId: null,
+	};
 }
 
 const dirs: string[] = [];
@@ -85,7 +102,10 @@ describe("workspace resolution (externalized direct layout, ITEM-79)", () => {
 		dirs.push(dataDir);
 		const specDir = join(dataDir, "specs", "auth");
 		mkdirSync(specDir, { recursive: true });
-		writeFileSync(join(dataDir, "workflow.json"), JSON.stringify(workflow("direct-nested-read")));
+		writeFileSync(
+			join(dataDir, "workflow.json"),
+			JSON.stringify(workflow("direct-nested-read")),
+		);
 
 		expect(getLetraDir(specDir)).toBe(dataDir);
 		expect(existsSync(join(specDir, LETRA_FOLDER))).toBe(false);
@@ -95,7 +115,10 @@ describe("workspace resolution (externalized direct layout, ITEM-79)", () => {
 		const workspaceRoot = makeTmp("letra-legacy");
 		dirs.push(workspaceRoot);
 		mkdirSync(join(workspaceRoot, LETRA_FOLDER, "specs"), { recursive: true });
-		writeFileSync(join(workspaceRoot, LETRA_FOLDER, "workflow.json"), JSON.stringify(workflow("legacy")));
+		writeFileSync(
+			join(workspaceRoot, LETRA_FOLDER, "workflow.json"),
+			JSON.stringify(workflow("legacy")),
+		);
 
 		expect(resolveDataDir(workspaceRoot)).toBe(join(workspaceRoot, LETRA_FOLDER));
 		expect(getLetraDir(workspaceRoot)).toBe(join(workspaceRoot, LETRA_FOLDER));
@@ -110,7 +133,10 @@ describe("workspace resolution (externalized direct layout, ITEM-79)", () => {
 		const workspaceRoot = makeTmp("letra-legacy-no-write");
 		dirs.push(workspaceRoot);
 		mkdirSync(join(workspaceRoot, LETRA_FOLDER), { recursive: true });
-		writeFileSync(join(workspaceRoot, LETRA_FOLDER, "workflow.json"), JSON.stringify(workflow("legacy-no-write")));
+		writeFileSync(
+			join(workspaceRoot, LETRA_FOLDER, "workflow.json"),
+			JSON.stringify(workflow("legacy-no-write")),
+		);
 		const rootEntriesBefore = readdirSync(workspaceRoot).sort();
 		const letraEntriesBefore = readdirSync(join(workspaceRoot, LETRA_FOLDER)).sort();
 
@@ -126,7 +152,10 @@ describe("workspace resolution (externalized direct layout, ITEM-79)", () => {
 		const dataDir = makeTmp("letra-nested");
 		dirs.push(dataDir);
 		mkdirSync(join(dataDir, LETRA_FOLDER), { recursive: true });
-		writeFileSync(join(dataDir, LETRA_FOLDER, "workflow.json"), JSON.stringify(workflow("nested")));
+		writeFileSync(
+			join(dataDir, LETRA_FOLDER, "workflow.json"),
+			JSON.stringify(workflow("nested")),
+		);
 
 		const workspaceRoot = makeTmp("letra-root-nested");
 		dirs.push(workspaceRoot);

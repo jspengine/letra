@@ -5,12 +5,7 @@ interface ScrollAreaProps extends HTMLAttributes<HTMLDivElement> {
 	type?: "always" | "auto" | "hover" | "scroll";
 }
 
-export function ScrollArea({
-	className,
-	type = "auto",
-	children,
-	...props
-}: ScrollAreaProps) {
+export function ScrollArea({ className, type = "auto", children, ...props }: ScrollAreaProps) {
 	return (
 		<div
 			data-slot="scroll-area"
@@ -38,7 +33,8 @@ function ScrollBar({ className, orientation = "vertical", ...props }: ScrollBarP
 			className={cn(
 				"flex touch-none select-none transition-opacity",
 				orientation === "vertical" && "h-full w-2.5 border-l border-l-transparent p-[1px]",
-				orientation === "horizontal" && "h-2.5 flex-col border-t border-t-transparent p-[1px]",
+				orientation === "horizontal" &&
+					"h-2.5 flex-col border-t border-t-transparent p-[1px]",
 				className,
 			)}
 			{...props}
@@ -70,12 +66,6 @@ export function ScrollAreaViewport({
 	);
 }
 
-export function ScrollAreaBar({
-	className,
-	orientation = "vertical",
-	...props
-}: ScrollBarProps) {
-	return (
-		<ScrollBar orientation={orientation} className={className} {...props} />
-	);
+export function ScrollAreaBar({ className, orientation = "vertical", ...props }: ScrollBarProps) {
+	return <ScrollBar orientation={orientation} className={className} {...props} />;
 }

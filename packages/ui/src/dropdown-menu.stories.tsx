@@ -1,7 +1,14 @@
 import "./index.css";
 import { useState } from "react";
 import { Button } from "./button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./dropdown-menu";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "./dropdown-menu";
 
 export const Default = () => {
 	const [open, setOpen] = useState(false);
@@ -15,7 +22,10 @@ export const Default = () => {
 				<DropdownMenuItem onClick={() => alert("Run")}>Run</DropdownMenuItem>
 				<DropdownMenuItem onClick={() => alert("Duplicate")}>Duplicate</DropdownMenuItem>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem className="text-[var(--color-danger)]" onClick={() => alert("Delete")}>
+				<DropdownMenuItem
+					className="text-[var(--color-danger)]"
+					onClick={() => alert("Delete")}
+				>
 					Delete
 				</DropdownMenuItem>
 			</DropdownMenuContent>

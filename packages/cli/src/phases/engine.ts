@@ -28,10 +28,18 @@ export function enterStage(workflow: Workflow, item: Item): PhaseEngineResult {
 	}
 	const initial = phases.initialState;
 	if (!phases.states[initial]) {
-		return { ok: false, error: `Initial phase "${initial}" not defined in stage "${item.stage}"` };
+		return {
+			ok: false,
+			error: `Initial phase "${initial}" not defined in stage "${item.stage}"`,
+		};
 	}
 	item.currentPhase = initial;
-	return { ok: true, phase: initial, triggeredActions: ["enterStage"], triggeredAutoTransition: false };
+	return {
+		ok: true,
+		phase: initial,
+		triggeredActions: ["enterStage"],
+		triggeredAutoTransition: false,
+	};
 }
 
 const _runner = new PhaseActionRunner();
@@ -96,7 +104,7 @@ export function transitionPhase(
 			if (a.type === "generate-report") return `generate-report: ${a.template}`;
 			if (a.type === "notify-human") return `notify-human: ${a.message}`;
 			if (a.type === "wait-human") return `wait-human: ${a.gate}`;
-			return `unknown action`;
+			return "unknown action";
 		});
 	}
 

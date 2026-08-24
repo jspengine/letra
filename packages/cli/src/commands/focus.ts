@@ -31,9 +31,14 @@ export default function () {
 					let releasedCount = 0;
 					for (const item of workflow.items) {
 						if (item.claimedBy) {
-							logEntry(root, "item_release", `Auto-release on focus clear: ${item.id}`, { itemId: item.id });
-							delete item.claimedBy;
-							delete item.claimedAt;
+							logEntry(
+								root,
+								"item_release",
+								`Auto-release on focus clear: ${item.id}`,
+								{ itemId: item.id },
+							);
+							item.claimedBy = undefined;
+							item.claimedAt = undefined;
 							releasedCount++;
 						}
 					}
@@ -69,9 +74,10 @@ export default function () {
 						itemId = itemWithSpec.id;
 						activeStageId = itemWithSpec.stage;
 					} else {
-						const devStage = workflow.stages.find((s) => s.zone === "doing")
-							?? workflow.stages.find((s) => s.order > 0 && s.zone !== "done")
-							?? workflow.stages[0];
+						const devStage =
+							workflow.stages.find((s) => s.zone === "doing") ??
+							workflow.stages.find((s) => s.order > 0 && s.zone !== "done") ??
+							workflow.stages[0];
 						activeStageId = devStage?.id ?? workflow.stages[0]?.id;
 					}
 				}
@@ -81,15 +87,23 @@ export default function () {
 					if (itemWithSpec && itemWithSpec.id === itemId) {
 						for (const other of workflow.items) {
 							if (other.claimedBy === "opencode" && other.id !== itemId) {
-								logEntry(root, "item_release", `Auto-release on refocus: ${other.id}`, { itemId: other.id });
-								delete other.claimedBy;
-								delete other.claimedAt;
+								logEntry(
+									root,
+									"item_release",
+									`Auto-release on refocus: ${other.id}`,
+									{ itemId: other.id },
+								);
+								other.claimedBy = undefined;
+								other.claimedAt = undefined;
 							}
 						}
 						itemWithSpec.claimedBy = "opencode";
 						itemWithSpec.claimedAt = new Date().toISOString();
 						console.log(chalk.gray(`  Claimed ${itemId}.`));
-						logEntry(root, "item_claim", `Auto-claim: ${itemId}`, { itemId, by: "opencode" });
+						logEntry(root, "item_claim", `Auto-claim: ${itemId}`, {
+							itemId,
+							by: "opencode",
+						});
 					}
 				}
 

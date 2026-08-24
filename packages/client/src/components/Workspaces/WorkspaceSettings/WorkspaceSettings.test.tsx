@@ -149,7 +149,11 @@ function mockFetch(options: MockFetchOptions = {}) {
 			return jsonResponse({ ok: true });
 		}
 
-		if (url.startsWith("/api/workflow/locations/") && url.endsWith("/repair-link") && method === "POST") {
+		if (
+			url.startsWith("/api/workflow/locations/") &&
+			url.endsWith("/repair-link") &&
+			method === "POST"
+		) {
 			const id = url.split("/").at(-2);
 			const previous = locations.find((location) => location.id === id);
 			return jsonResponse({
@@ -198,7 +202,9 @@ describe("WorkspaceSettings", () => {
 		renderSettings();
 
 		expect(screen.getByRole("heading", { name: "Configurações do Workspace" })).toBeTruthy();
-		expect(screen.queryByRole("button", { name: "Fechar configurações do workspace" })).toBeNull();
+		expect(
+			screen.queryByRole("button", { name: "Fechar configurações do workspace" }),
+		).toBeNull();
 	});
 
 	it("exposes a New workspace action from the settings page header", async () => {
@@ -214,7 +220,9 @@ describe("WorkspaceSettings", () => {
 	it("adds internal responsive padding around tab content", () => {
 		renderSettings();
 
-		expect(screen.getByTestId("workspace-settings-tab-panel").getAttribute("class")).toContain("px-4 py-5");
+		expect(screen.getByTestId("workspace-settings-tab-panel").getAttribute("class")).toContain(
+			"px-4 py-5",
+		);
 	});
 
 	it("blocks saving workspace identity when the name is shorter than two characters", async () => {
@@ -241,7 +249,9 @@ describe("WorkspaceSettings", () => {
 		renderSettings({ onWorkspaceUpdated });
 
 		const nameInput = screen.getByPlaceholderText("Nome do workspace");
-		const descriptionInput = screen.getByPlaceholderText("Descreva o propósito deste workspace");
+		const descriptionInput = screen.getByPlaceholderText(
+			"Descreva o propósito deste workspace",
+		);
 		await user.clear(nameInput);
 		await user.type(nameInput, "Letra Produto");
 		await user.clear(descriptionInput);
@@ -278,7 +288,10 @@ describe("WorkspaceSettings", () => {
 			}),
 		);
 		expect(nameInput).toHaveProperty("value", "Letra");
-		expect(descriptionInput).toHaveProperty("value", "Controle de entrega assistida por agentes");
+		expect(descriptionInput).toHaveProperty(
+			"value",
+			"Controle de entrega assistida por agentes",
+		);
 		expect(onWorkspaceUpdated).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				name: "Letra",
@@ -347,7 +360,10 @@ describe("WorkspaceSettings", () => {
 
 		await user.click(screen.getByRole("tab", { name: "Pastas/projetos" }));
 
-		expect(await screen.findByLabelText("Data directory do workspace")).toHaveProperty("value", "C:/Users/rnasc/.letra/workspaces/letra");
+		expect(await screen.findByLabelText("Data directory do workspace")).toHaveProperty(
+			"value",
+			"C:/Users/rnasc/.letra/workspaces/letra",
+		);
 		expect(screen.getByText(".letra-link ausente")).toBeTruthy();
 		expect(screen.getByText("Adapters da pasta")).toBeTruthy();
 
@@ -488,7 +504,9 @@ describe("WorkspaceSettings", () => {
 		expect(screen.getByText("Inalterados: Backlog")).toBeTruthy();
 		expect(screen.getByText("Adicionados: Review")).toBeTruthy();
 		expect(screen.getByText("Removidos: Code")).toBeTruthy();
-		expect(screen.getByText("Itens nesses estágios serão preservados no backlog.")).toBeTruthy();
+		expect(
+			screen.getByText("Itens nesses estágios serão preservados no backlog."),
+		).toBeTruthy();
 
 		await user.click(screen.getByRole("button", { name: "Aplicar template" }));
 
@@ -536,7 +554,9 @@ describe("WorkspaceSettings", () => {
 		expect(screen.getByText("Detectado")).toBeTruthy();
 		expect(screen.getAllByText("Instructions").length).toBeGreaterThan(0);
 		expect(screen.getByText("Skills")).toBeTruthy();
-		expect(screen.getByText("Arquivo(s) esperado(s): .opencode/instructions.md, AGENTS.md")).toBeTruthy();
+		expect(
+			screen.getByText("Arquivo(s) esperado(s): .opencode/instructions.md, AGENTS.md"),
+		).toBeTruthy();
 		expect(screen.getByText("Arquivo(s) esperado(s): .cursorrules")).toBeTruthy();
 
 		const cursor = screen.getByRole("button", { name: "Ativar adapter Cursor" });
@@ -566,7 +586,10 @@ describe("WorkspaceSettings", () => {
 		const deleteButton = screen.getByRole("button", { name: "Excluir permanentemente" });
 		expect(deleteButton).toHaveProperty("disabled", true);
 
-		await user.type(screen.getByLabelText("Digite o nome do workspace para confirmar exclusão"), "Letra");
+		await user.type(
+			screen.getByLabelText("Digite o nome do workspace para confirmar exclusão"),
+			"Letra",
+		);
 		expect(deleteButton).toHaveProperty("disabled", false);
 		await user.click(deleteButton);
 

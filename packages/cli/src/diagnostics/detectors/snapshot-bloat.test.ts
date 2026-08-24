@@ -26,9 +26,7 @@ describe("snapshot-bloat detector", () => {
 
 	it("should NOT warn when snapshot payload <= 50KB", async () => {
 		const store = new SnapshotStore(tmpDir);
-		await store.save("test", "test", [
-			{ path: "test.ts", before: "", after: "a".repeat(500) },
-		]);
+		await store.save("test", "test", [{ path: "test.ts", before: "", after: "a".repeat(500) }]);
 
 		const results = await snapshotBloatDetector.run(tmpDir);
 		expect(results).toHaveLength(0);
@@ -83,20 +81,18 @@ describe("snapshot-bloat detector", () => {
 				timestamp: new Date().toISOString(),
 				diagnosticId: "big",
 				diagnosticTitle: "big",
-				files: [
-					{ path: "big.ts", before: "", after: "x".repeat(60 * 1024) },
-				],
+				files: [{ path: "big.ts", before: "", after: "x".repeat(60 * 1024) }],
 			}),
 		);
 
 		const results = await snapshotBloatDetector.run(tmpDir);
 		expect(results).toHaveLength(1);
 
-		const fix = await results[0].autoFix!();
-		expect(fix.files).toHaveLength(1);
-		expect(fix.files[0].path).toBe("packages/cli/src/commands/flow-serve.ts");
-		expect(fix.files[0].after).toContain("Warning");
-		expect(fix.files[0].after).toContain("snapshot-payload-large");
+		const fix = await results[0].autoFix?.();
+		expect(fix!.files).toHaveLength(1);
+		expect(fix!.files[0].path).toBe("packages/cli/src/commands/flow-serve.ts");
+		expect(fix!.files[0].after).toContain("Warning");
+		expect(fix!.files[0].after).toContain("snapshot-payload-large");
 	});
 });
 

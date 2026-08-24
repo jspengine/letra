@@ -60,7 +60,7 @@ function hashResult(result: DiagnosticResult): string {
 	let hash = 0;
 	for (let i = 0; i < key.length; i++) {
 		const char = key.charCodeAt(i);
-		hash = ((hash << 5) - hash) + char;
+		hash = (hash << 5) - hash + char;
 		hash |= 0;
 	}
 	return `hr-${Math.abs(hash).toString(16).padStart(6, "0")}`;

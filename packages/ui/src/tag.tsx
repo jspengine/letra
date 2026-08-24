@@ -5,7 +5,10 @@ interface TagProps extends HTMLAttributes<HTMLSpanElement> {
 	variant?: "default" | "agent" | "success" | "info" | "warning" | "danger";
 }
 
-const variantColors: Record<NonNullable<TagProps["variant"]>, { backgroundColor: string; color: string; borderColor: string }> = {
+const variantColors: Record<
+	NonNullable<TagProps["variant"]>,
+	{ backgroundColor: string; color: string; borderColor: string }
+> = {
 	default: {
 		backgroundColor: "color-mix(in oklch, var(--color-text-secondary) 10%, transparent)",
 		color: "var(--color-text-secondary)",

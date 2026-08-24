@@ -8,9 +8,7 @@ import { getLetraDir } from "./../../workspace/resolver.js";
 const STALE_AC_PATTERN = /-\s\[ \]\s\*\*`([^`]+)`\*\*/g;
 
 function toCamelCase(words: string[]): string {
-	return words
-		.map((w, i) => (i === 0 ? w : w.charAt(0).toUpperCase() + w.slice(1)))
-		.join("");
+	return words.map((w, i) => (i === 0 ? w : w.charAt(0).toUpperCase() + w.slice(1))).join("");
 }
 
 function toPascalCase(words: string[]): string {
@@ -86,5 +84,3 @@ export const acStaleDetector: Detector = {
 		return results;
 	},
 };
-
-

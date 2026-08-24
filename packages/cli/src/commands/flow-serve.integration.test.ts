@@ -77,11 +77,11 @@ async function sseWaitForEvent(
 
 	const ssePromise = fetch(`${baseUrl}/events`, { signal: controller.signal })
 		.then(async (res) => {
-			const reader = res.body!.getReader();
+			const reader = res.body?.getReader();
 			const decoder = new TextDecoder();
 			let buf = "";
 			while (true) {
-				const { done, value } = await reader.read();
+				const { done, value } = await reader!.read();
 				if (done) break;
 				buf += decoder.decode(value, { stream: true });
 				const lines = buf.split("\n");
@@ -250,9 +250,9 @@ describe("FlowServer HTTP API integration", () => {
 			expect(status).toBe(200);
 			const wf = body as { items?: Array<Record<string, unknown>> };
 			expect(wf.items).toBeDefined();
-			const item = wf.items!.find((i) => i.id === "ITEM-1");
+			const item = wf.items?.find((i) => i.id === "ITEM-1");
 			expect(item).toBeDefined();
-			expect(item!.claimedBy).toBe("web-ui");
+			expect(item?.claimedBy).toBe("web-ui");
 		});
 
 		it("should reflect release via GET", async () => {
@@ -261,8 +261,8 @@ describe("FlowServer HTTP API integration", () => {
 
 			const { body } = await api("GET", `${baseUrl}/api/workflow`);
 			const wf = body as { items?: Array<Record<string, unknown>> };
-			const item = wf.items!.find((i) => i.id === "ITEM-1");
-			expect(item!.claimedBy).toBeUndefined();
+			const item = wf.items?.find((i) => i.id === "ITEM-1");
+			expect(item?.claimedBy).toBeUndefined();
 		});
 	});
 
@@ -312,12 +312,14 @@ describe("FlowServer HTTP API integration", () => {
 
 			const { status, body } = await api("GET", `${baseUrl}/api/workflow/active-flow`);
 			expect(status).toBe(200);
-			expect(body).toEqual(expect.objectContaining({
-				id: "dynamic",
-				source: "workflow-template",
-				harnessVersion: "v9.9.9",
-				templateVersion: "9.9.9",
-			}));
+			expect(body).toEqual(
+				expect.objectContaining({
+					id: "dynamic",
+					source: "workflow-template",
+					harnessVersion: "v9.9.9",
+					templateVersion: "9.9.9",
+				}),
+			);
 
 			saveWorkflow(tmpDir, createTestWorkflow());
 		});
@@ -343,12 +345,17 @@ describe("FlowServer HTTP API integration", () => {
 					"    zone: doing",
 				].join("\n"),
 			);
-			saveWorkflow(secondaryRoot, createTestWorkflow({
-				name: "secondary-workspace",
-				template: "secondary",
-				harnessVersion: "v2.0.0",
-				stages: [{ id: "secondary-stage", name: "Instance Stage", order: 0, zone: "doing" }],
-			}));
+			saveWorkflow(
+				secondaryRoot,
+				createTestWorkflow({
+					name: "secondary-workspace",
+					template: "secondary",
+					harnessVersion: "v2.0.0",
+					stages: [
+						{ id: "secondary-stage", name: "Instance Stage", order: 0, zone: "doing" },
+					],
+				}),
+			);
 
 			const { status, body } = await api(
 				"GET",
@@ -356,11 +363,13 @@ describe("FlowServer HTTP API integration", () => {
 			);
 
 			expect(status).toBe(200);
-			expect(body).toEqual(expect.objectContaining({
-				id: "secondary",
-				name: "Secondary Workspace Flow",
-				harnessVersion: "v2.0.0",
-			}));
+			expect(body).toEqual(
+				expect.objectContaining({
+					id: "secondary",
+					name: "Secondary Workspace Flow",
+					harnessVersion: "v2.0.0",
+				}),
+			);
 
 			const update = await api(
 				"PATCH",
@@ -383,7 +392,9 @@ describe("FlowServer HTTP API integration", () => {
 
 	describe("POST /api/workspace/switch", () => {
 		it("should expose workspaceRoot while preserving projectRoot compatibility", async () => {
-			const { status, body } = await api("POST", `${baseUrl}/api/workspace/switch`, { workspaceRoot: tmpDir });
+			const { status, body } = await api("POST", `${baseUrl}/api/workspace/switch`, {
+				workspaceRoot: tmpDir,
+			});
 			expect(status).toBe(200);
 			const data = body as { workspaceRoot?: string; projectRoot?: string };
 			expect(data.workspaceRoot).toBe(tmpDir);
@@ -434,11 +445,16 @@ describe("FlowServer HTTP API integration", () => {
 			};
 			expect(context.activity).toBe("implement");
 			expect(context.currentItem?.id).toBe("ITEM-1");
-			expect(context.mustRead?.some((entry) => entry.path === ".letra/context.md")).toBe(true);
+			expect(context.mustRead?.some((entry) => entry.path === ".letra/context.md")).toBe(
+				true,
+			);
 		});
 
 		it("should return requested activity context", async () => {
-			const { status, body } = await api("GET", `${baseUrl}/api/activity-context?activity=review`);
+			const { status, body } = await api(
+				"GET",
+				`${baseUrl}/api/activity-context?activity=review`,
+			);
 			expect(status).toBe(200);
 			const context = body as {
 				activity?: string;
@@ -489,17 +505,13 @@ describe("CLI integration (AC1.5 — focus)", () => {
 
 	it("focus <spec> without --claim leaves claimedBy unchanged", () => {
 		runCLI(["focus", "auth"], tmpDir);
-		const wf = JSON.parse(
-			readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-		);
+		const wf = JSON.parse(readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"));
 		expect(wf.items[0].claimedBy).toBeUndefined();
 	}, 20000);
 
 	it("focus <spec> --claim populates claimedBy", () => {
 		runCLI(["focus", "auth", "--claim"], tmpDir);
-		const wf = JSON.parse(
-			readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-		);
+		const wf = JSON.parse(readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"));
 		expect(wf.items[0].claimedBy).toBe("opencode");
 		expect(wf.items[0].claimedAt).toEqual(expect.any(String));
 	}, 20000);
@@ -557,9 +569,7 @@ describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
 		expect(content).toContain("**Item**: ITEM-1");
 		expect(content).toContain("# Focus: auth");
 
-		const wf = JSON.parse(
-			readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-		);
+		const wf = JSON.parse(readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"));
 		const item = wf.items.find((i: Item) => i.id === "ITEM-1");
 		expect(item.stage).toBe("review");
 	}, 20000);

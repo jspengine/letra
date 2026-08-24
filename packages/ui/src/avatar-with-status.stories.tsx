@@ -47,7 +47,13 @@ export default {
 		"x-ds": {
 			category: "primitive",
 			status: "ready",
-			tokens: ["color-success", "color-warning", "color-danger", "color-agent", "color-border"],
+			tokens: [
+				"color-success",
+				"color-warning",
+				"color-danger",
+				"color-agent",
+				"color-border",
+			],
 			consumes: ["Avatar", "AvatarImage", "AvatarFallback"],
 			surfaces: ["ExecutionView", "HomeView"],
 			a11y: ["fallback-required", "status-not-color-only"],

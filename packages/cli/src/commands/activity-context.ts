@@ -17,7 +17,9 @@ function renderText(context: ActivityContext): string {
 			lines.push(`Spec: ${context.currentItem.spec}`);
 		}
 		if (context.currentItem.acs.total > 0) {
-			lines.push(`ACs: ${context.currentItem.acs.pending}/${context.currentItem.acs.total} pendentes`);
+			lines.push(
+				`ACs: ${context.currentItem.acs.pending}/${context.currentItem.acs.total} pendentes`,
+			);
 		}
 	} else {
 		lines.push("Item: nenhum item ativo");
@@ -64,7 +66,11 @@ function renderText(context: ActivityContext): string {
 export default function activityContextCommand() {
 	return new Command("activity-context")
 		.description("Build situational context for the current workspace activity")
-		.option("--activity <kind>", "Activity kind: design, implement, review, diagnose, gate", "implement")
+		.option(
+			"--activity <kind>",
+			"Activity kind: design, implement, review, diagnose, gate",
+			"implement",
+		)
 		.option("--format <type>", "Output format: text or json", "text")
 		.action((options: { activity?: string; format?: string }) => {
 			const activity = (options.activity || "implement") as ActivityKind;
@@ -82,4 +88,3 @@ export default function activityContextCommand() {
 }
 
 export { renderText };
-

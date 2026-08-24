@@ -2,17 +2,25 @@ import { Progress } from "./progress";
 
 export const Default = () => <Progress value={45} label="Upload" showValue />;
 
-export const Complete = () => <Progress value={100} state="complete" label="Sincronizado" showValue />;
+export const Complete = () => (
+	<Progress value={100} state="complete" label="Sincronizado" showValue />
+);
 
-export const Warning = () => <Progress value={70} state="warning" label="Armazenamento" showValue />;
+export const Warning = () => (
+	<Progress value={70} state="warning" label="Armazenamento" showValue />
+);
 
 export const Error = () => <Progress value={25} state="error" label="Download" showValue />;
 
 export const Active = () => <Progress value={60} state="active" label="Executando" showValue />;
 
-export const Agent = () => <Progress value={35} state="agent" label="Agente raciocinando" showValue />;
+export const Agent = () => (
+	<Progress value={35} state="agent" label="Agente raciocinando" showValue />
+);
 
-export const Indeterminate = () => <Progress value={100} state="active" label="Validando" indeterminate />;
+export const Indeterminate = () => (
+	<Progress value={100} state="active" label="Validando" indeterminate />
+);
 
 export const Sizes = () => (
 	<div className="flex flex-col gap-[var(--space-2)]">
@@ -35,7 +43,15 @@ export default {
 		"x-ds": {
 			category: "primitive",
 			status: "ready",
-			tokens: ["color-primary", "color-agent", "color-success", "color-warning", "color-danger", "color-bg-sunken", "progress-stripes"],
+			tokens: [
+				"color-primary",
+				"color-agent",
+				"color-success",
+				"color-warning",
+				"color-danger",
+				"color-bg-sunken",
+				"progress-stripes",
+			],
 			consumes: [],
 			surfaces: ["HomeView", "ExecutionView", "WorkspacesView"],
 			a11y: ["progressbar-semantics", "label-visible", "state-not-color-only"],

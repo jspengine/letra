@@ -9,14 +9,14 @@ interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "typ
 export function Checkbox({ className, label, id, ...props }: CheckboxProps) {
 	const inputId = id || label?.replace(/\s+/g, "-").toLowerCase();
 	return (
-		<label htmlFor={inputId} className="group flex cursor-pointer items-center gap-[var(--space-2)]">
+		<label
+			htmlFor={inputId}
+			className="group flex cursor-pointer items-center gap-[var(--space-2)]"
+		>
 			<input
 				type="checkbox"
 				id={inputId}
-				className={cn(
-					"peer sr-only",
-					className,
-				)}
+				className={cn("peer sr-only", className)}
 				{...props}
 			/>
 			<span

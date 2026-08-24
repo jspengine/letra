@@ -175,7 +175,12 @@ export default function WorkspaceSettings({
 			const res = await fetch("/api/workflow");
 			const data = await res.json();
 			setCurrentTemplate(data.template || "");
-			setCurrentStages(data.stages?.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })) || []);
+			setCurrentStages(
+				data.stages?.map((s: { id: string; name: string }) => ({
+					id: s.id,
+					name: s.name,
+				})) || [],
+			);
 		} catch {
 			// ignore
 		}
@@ -295,7 +300,7 @@ export default function WorkspaceSettings({
 			setDirEntries([]);
 			showUndoToast("Local adicionado", () => {
 				setLocations(prevLocations);
-				fetch("/api/workflow/locations/" + id, { method: "DELETE" });
+				fetch(`/api/workflow/locations/${id}`, { method: "DELETE" });
 			});
 		} catch {
 			toast("Erro ao adicionar local", "error");
@@ -317,7 +322,9 @@ export default function WorkspaceSettings({
 			setEditingLocationId(null);
 			if (previousLocation) {
 				showUndoToast("Label atualizado", () => {
-					setLocations((prev) => prev.map((l) => (l.id === locId ? previousLocation : l)));
+					setLocations((prev) =>
+						prev.map((l) => (l.id === locId ? previousLocation : l)),
+					);
 					fetch(`/api/workflow/locations/${locId}`, {
 						method: "PATCH",
 						headers: { "Content-Type": "application/json" },
@@ -357,7 +364,7 @@ export default function WorkspaceSettings({
 		} catch {
 			toast("Erro ao remover local", "error");
 		}
-		}
+	}
 
 	async function handleRepairLocation(locId: string) {
 		const previousLocation = locations.find((location) => location.id === locId);
@@ -368,15 +375,21 @@ export default function WorkspaceSettings({
 			if (!res.ok) throw new Error("Failed to repair link");
 			const data = await res.json();
 			if (data.location) {
-				setLocations((prev) => prev.map((location) => (
-					location.id === locId
-						? { ...location, ...data.location, linkStatus: "ok", linkOk: true }
-						: location
-				)));
+				setLocations((prev) =>
+					prev.map((location) =>
+						location.id === locId
+							? { ...location, ...data.location, linkStatus: "ok", linkOk: true }
+							: location,
+					),
+				);
 			} else if (previousLocation) {
-				setLocations((prev) => prev.map((location) => (
-					location.id === locId ? { ...location, linkStatus: "ok", linkOk: true } : location
-				)));
+				setLocations((prev) =>
+					prev.map((location) =>
+						location.id === locId
+							? { ...location, linkStatus: "ok", linkOk: true }
+							: location,
+					),
+				);
 			}
 			toast("Vínculo reparado", "success");
 		} catch {
@@ -386,18 +399,24 @@ export default function WorkspaceSettings({
 
 	function linkStatusLabel(location: WorkflowLocation) {
 		if (location.linkOk === true || location.linkStatus === "ok") return "Vínculo ok";
-		if (location.linkOk === false || location.linkStatus === "missing") return ".letra-link ausente";
+		if (location.linkOk === false || location.linkStatus === "missing")
+			return ".letra-link ausente";
 		if (location.linkStatus === "broken") return ".letra-link quebrado";
 		return "Vínculo não verificado";
 	}
 
 	function linkStatusTone(location: WorkflowLocation): "success" | "warning" | "info" {
 		if (location.linkOk === true || location.linkStatus === "ok") return "success";
-		if (location.linkOk === false || location.linkStatus === "missing" || location.linkStatus === "broken") return "warning";
+		if (
+			location.linkOk === false ||
+			location.linkStatus === "missing" ||
+			location.linkStatus === "broken"
+		)
+			return "warning";
 		return "info";
 	}
 
-		const ALL_ADAPTERS = [
+	const ALL_ADAPTERS = [
 		{ id: "opencode", label: "OpenCode" },
 		{ id: "cursor", label: "Cursor" },
 		{ id: "codex", label: "Codex" },
@@ -405,9 +424,9 @@ export default function WorkspaceSettings({
 		{ id: "vscode", label: "VS Code" },
 		{ id: "windsurf", label: "Windsurf" },
 		{ id: "hermes", label: "Hermes" },
-		];
+	];
 
-		async function handleToggleLocationAdapter(locId: string, adapterId: string) {
+	async function handleToggleLocationAdapter(locId: string, adapterId: string) {
 		const previous = locationAdapters[locId] || [];
 		const next = previous.includes(adapterId)
 			? previous.filter((id) => id !== adapterId)
@@ -435,7 +454,7 @@ export default function WorkspaceSettings({
 		} finally {
 			setSavingLocationAdapters(false);
 		}
-		}
+	}
 
 	// ── Adapter toggle ──
 
@@ -462,7 +481,9 @@ export default function WorkspaceSettings({
 				fetch("/api/workflow/adapters", {
 					method: "PATCH",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ tools: prevAdapters.filter((a) => a.active).map((a) => a.id) }),
+					body: JSON.stringify({
+						tools: prevAdapters.filter((a) => a.active).map((a) => a.id),
+					}),
 				});
 				onRefreshWorkflow();
 			});
@@ -481,7 +502,9 @@ export default function WorkspaceSettings({
 		const prevTemplate = currentTemplate;
 		const prevStages = [...currentStages];
 		const nextTemplate = templates.find((template) => template.id === selectedTemplate);
-		const removedStages = prevStages.filter((stage) => !nextTemplate?.stages.some((candidate) => candidate.id === stage.id));
+		const removedStages = prevStages.filter(
+			(stage) => !nextTemplate?.stages.some((candidate) => candidate.id === stage.id),
+		);
 		setSwitchingTemplate(true);
 		try {
 			const res = await fetch("/api/workflow/template", {
@@ -492,11 +515,19 @@ export default function WorkspaceSettings({
 			if (!res.ok) throw new Error("Failed to switch template");
 			const data = await res.json();
 			setCurrentTemplate(data.template || selectedTemplate);
-			setCurrentStages(data.stages?.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })) || []);
+			setCurrentStages(
+				data.stages?.map((s: { id: string; name: string }) => ({
+					id: s.id,
+					name: s.name,
+				})) || [],
+			);
 			setSelectedTemplate(null);
 			onRefreshWorkflow();
 			if (removedStages.length > 0) {
-				toast(`${removedStages.length} estágio(s) removido(s); itens preservados no backlog`, "success");
+				toast(
+					`${removedStages.length} estágio(s) removido(s); itens preservados no backlog`,
+					"success",
+				);
 			}
 			showUndoToast("Template atualizado", () => {
 				setCurrentTemplate(prevTemplate);
@@ -601,7 +632,10 @@ export default function WorkspaceSettings({
 				<div className="flex items-center justify-between">
 					<div>
 						<h1 className="text-lg font-semibold">Configurações do Workspace</h1>
-						<p className="text-caption mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
+						<p
+							className="text-caption mt-0.5"
+							style={{ color: "var(--color-text-secondary)" }}
+						>
 							{workspace.name}
 						</p>
 					</div>
@@ -642,12 +676,24 @@ export default function WorkspaceSettings({
 				<Tabs
 					tabs={[
 						{ id: "general", label: "Geral", icon: <Icon name="settings" size={14} /> },
-						{ id: "locations", label: "Pastas/projetos", icon: <Icon name="folder" size={14} /> },
+						{
+							id: "locations",
+							label: "Pastas/projetos",
+							icon: <Icon name="folder" size={14} />,
+						},
 						{ id: "flow", label: "Fluxo", icon: <Icon name="flow" size={14} /> },
 						{ id: "adapters", label: "Adapters", icon: <Icon name="cpu" size={14} /> },
-												{ id: "advanced", label: "Avançado", icon: <Icon name="shield" size={14} /> },
-												{ id: "externalization", label: "Externalização", icon: <Icon name="folder" size={14} /> },
-											]}
+						{
+							id: "advanced",
+							label: "Avançado",
+							icon: <Icon name="shield" size={14} />,
+						},
+						{
+							id: "externalization",
+							label: "Externalização",
+							icon: <Icon name="folder" size={14} />,
+						},
+					]}
 					activeTab={activeTab}
 					onChange={setActiveTab}
 					ariaLabel="Configurações do workspace"
@@ -661,7 +707,10 @@ export default function WorkspaceSettings({
 								<div className="space-y-6">
 									<div className="space-y-4">
 										<Label className="flex flex-col items-start gap-[var(--space-2)]">
-											<span className="text-caption font-medium" style={{ color: "var(--color-text-secondary)" }}>
+											<span
+												className="text-caption font-medium"
+												style={{ color: "var(--color-text-secondary)" }}
+											>
 												Nome
 											</span>
 											<Input
@@ -671,14 +720,20 @@ export default function WorkspaceSettings({
 												autoFocus
 											/>
 											{!nameValid && name.length > 0 && (
-												<span className="text-caption" style={{ color: "var(--color-error)" }}>
+												<span
+													className="text-caption"
+													style={{ color: "var(--color-error)" }}
+												>
 													Mínimo 2 caracteres
 												</span>
 											)}
 										</Label>
 
 										<Label className="flex flex-col items-start gap-[var(--space-2)]">
-											<span className="text-caption font-medium" style={{ color: "var(--color-text-secondary)" }}>
+											<span
+												className="text-caption font-medium"
+												style={{ color: "var(--color-text-secondary)" }}
+											>
 												Descrição
 											</span>
 											<Textarea
@@ -691,11 +746,20 @@ export default function WorkspaceSettings({
 									</div>
 
 									<div className="pt-2">
-										<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
-											Criado em {new Date(workspace.createdAt).toLocaleDateString("pt-BR")}
+										<p
+											className="text-caption"
+											style={{ color: "var(--color-text-secondary)" }}
+										>
+											Criado em{" "}
+											{new Date(workspace.createdAt).toLocaleDateString(
+												"pt-BR",
+											)}
 										</p>
 										{workspace.root && (
-											<p className="text-caption mt-1 font-mono" style={{ color: "var(--color-text-secondary)" }}>
+											<p
+												className="text-caption mt-1 font-mono"
+												style={{ color: "var(--color-text-secondary)" }}
+											>
 												{workspace.root}
 											</p>
 										)}
@@ -706,13 +770,23 @@ export default function WorkspaceSettings({
 							{activeId === "locations" && (
 								<div className="space-y-4">
 									<Label className="flex flex-col items-start gap-[var(--space-2)]">
-										<span className="text-caption font-medium" style={{ color: "var(--color-text-secondary)" }}>
+										<span
+											className="text-caption font-medium"
+											style={{ color: "var(--color-text-secondary)" }}
+										>
 											Data directory do workspace
 										</span>
-										<Input value={workspace.dataDir || workspace.root || ""} readOnly aria-readonly="true" />
+										<Input
+											value={workspace.dataDir || workspace.root || ""}
+											readOnly
+											aria-readonly="true"
+										/>
 									</Label>
 									<div className="flex items-center justify-between">
-										<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
+										<p
+											className="text-caption"
+											style={{ color: "var(--color-text-secondary)" }}
+										>
 											Gerencie as pastas/projetos vinculadas a este workspace.
 										</p>
 										<Button size="sm" onClick={openDirBrowser}>
@@ -723,15 +797,35 @@ export default function WorkspaceSettings({
 
 									{loadingLocations ? (
 										<div className="flex items-center justify-center py-8">
-											<span className="text-caption" style={{ color: "var(--color-text-secondary)" }}>Carregando...</span>
+											<span
+												className="text-caption"
+												style={{ color: "var(--color-text-secondary)" }}
+											>
+												Carregando...
+											</span>
 										</div>
 									) : locations.length === 0 ? (
-										<div className="rounded-[var(--radius-md)] border border-dashed p-6 text-center" style={{ borderColor: "var(--color-border)" }}>
-											<Icon name="folder" size={24} className="mx-auto mb-2" style={{ color: "var(--color-text-secondary)" }} />
-											<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
+										<div
+											className="rounded-[var(--radius-md)] border border-dashed p-6 text-center"
+											style={{ borderColor: "var(--color-border)" }}
+										>
+											<Icon
+												name="folder"
+												size={24}
+												className="mx-auto mb-2"
+												style={{ color: "var(--color-text-secondary)" }}
+											/>
+											<p
+												className="text-caption"
+												style={{ color: "var(--color-text-secondary)" }}
+											>
 												Nenhuma pasta/projeto vinculada
 											</p>
-											<Button size="sm" className="mt-3" onClick={openDirBrowser}>
+											<Button
+												size="sm"
+												className="mt-3"
+												onClick={openDirBrowser}
+											>
 												Adicionar primeira pasta
 											</Button>
 										</div>
@@ -743,26 +837,40 @@ export default function WorkspaceSettings({
 													className="flex items-center gap-3 rounded-[var(--radius-md)] border p-3"
 													style={{ borderColor: "var(--color-border)" }}
 												>
-													<Icon name="folder" size={16} style={{ color: "var(--color-text-secondary)" }} />
+													<Icon
+														name="folder"
+														size={16}
+														style={{
+															color: "var(--color-text-secondary)",
+														}}
+													/>
 													<div className="flex-1 min-w-0">
 														{editingLocationId === loc.id ? (
 															<div className="flex items-center gap-2">
 																<Input
 																	value={editLabel}
-																	onChange={(e) => setEditLabel(e.target.value)}
+																	onChange={(e) =>
+																		setEditLabel(e.target.value)
+																	}
 																	className="h-8"
 																	aria-label={`Label do local ${loc.label}`}
 																	autoFocus
 																	onKeyDown={(e) => {
-																		if (e.key === "Enter") handleSaveLabel(loc.id);
-																		if (e.key === "Escape") setEditingLocationId(null);
+																		if (e.key === "Enter")
+																			handleSaveLabel(loc.id);
+																		if (e.key === "Escape")
+																			setEditingLocationId(
+																				null,
+																			);
 																	}}
 																/>
 																<Button
 																	size="sm"
 																	variant="ghost"
 																	aria-label={`Salvar local ${loc.label}`}
-																	onClick={() => handleSaveLabel(loc.id)}
+																	onClick={() =>
+																		handleSaveLabel(loc.id)
+																	}
 																>
 																	<Icon name="check" size={14} />
 																</Button>
@@ -770,50 +878,98 @@ export default function WorkspaceSettings({
 																	size="sm"
 																	variant="ghost"
 																	aria-label={`Cancelar edição de ${loc.label}`}
-																	onClick={() => setEditingLocationId(null)}
+																	onClick={() =>
+																		setEditingLocationId(null)
+																	}
 																>
 																	<Icon name="x" size={14} />
 																</Button>
 															</div>
 														) : (
 															<>
-																<p className="text-sm font-medium truncate">{loc.label}</p>
-																<p className="text-caption font-mono truncate" style={{ color: "var(--color-text-secondary)" }}>
+																<p className="text-sm font-medium truncate">
+																	{loc.label}
+																</p>
+																<p
+																	className="text-caption font-mono truncate"
+																	style={{
+																		color: "var(--color-text-secondary)",
+																	}}
+																>
 																	{loc.path}
 																</p>
 																<span
 																	className="mt-2 inline-flex rounded-full px-2 py-0.5 text-caption"
 																	style={{
-																		background: linkStatusTone(loc) === "success"
-																			? "var(--color-success-subtle)"
-																			: "var(--color-surface-secondary)",
-																		color: linkStatusTone(loc) === "success"
-																			? "var(--color-success)"
-																			: "var(--color-text-secondary)",
+																		background:
+																			linkStatusTone(loc) ===
+																			"success"
+																				? "var(--color-success-subtle)"
+																				: "var(--color-surface-secondary)",
+																		color:
+																			linkStatusTone(loc) ===
+																			"success"
+																				? "var(--color-success)"
+																				: "var(--color-text-secondary)",
 																	}}
 																>
 																	{linkStatusLabel(loc)}
 																</span>
 																{!savingLocationAdapters && (
-																	<details className="mt-2 rounded-[var(--radius-sm)] border p-2" style={{ borderColor: "var(--color-border)" }}>
-																		<summary className="cursor-pointer text-caption font-medium">Adapters da pasta</summary>
+																	<details
+																		className="mt-2 rounded-[var(--radius-sm)] border p-2"
+																		style={{
+																			borderColor:
+																				"var(--color-border)",
+																		}}
+																	>
+																		<summary className="cursor-pointer text-caption font-medium">
+																			Adapters da pasta
+																		</summary>
 																		<div className="mt-2 flex flex-wrap gap-2">
-																			{ALL_ADAPTERS.map((adapter) => {
-																				const selected = (locationAdapters[loc.id] || []).includes(adapter.id);
-																				return (
-																					<Button
-																						key={adapter.id}
-																						size="sm"
-																						variant={selected ? "secondary" : "ghost"}
-																						className="h-7 px-2"
-																						aria-pressed={selected}
-																						disabled={savingLocationAdapters}
-																						onClick={() => handleToggleLocationAdapter(loc.id, adapter.id)}
-																					>
-																						{adapter.label}
-																					</Button>
-																				);
-																			})}
+																			{ALL_ADAPTERS.map(
+																				(adapter) => {
+																					const selected =
+																						(
+																							locationAdapters[
+																								loc
+																									.id
+																							] || []
+																						).includes(
+																							adapter.id,
+																						);
+																					return (
+																						<Button
+																							key={
+																								adapter.id
+																							}
+																							size="sm"
+																							variant={
+																								selected
+																									? "secondary"
+																									: "ghost"
+																							}
+																							className="h-7 px-2"
+																							aria-pressed={
+																								selected
+																							}
+																							disabled={
+																								savingLocationAdapters
+																							}
+																							onClick={() =>
+																								handleToggleLocationAdapter(
+																									loc.id,
+																									adapter.id,
+																								)
+																							}
+																						>
+																							{
+																								adapter.label
+																							}
+																						</Button>
+																					);
+																				},
+																			)}
 																		</div>
 																	</details>
 																)}
@@ -837,7 +993,9 @@ export default function WorkspaceSettings({
 																size="sm"
 																variant="ghost"
 																aria-label={`Reparar vínculo da pasta ${loc.label}`}
-																onClick={() => handleRepairLocation(loc.id)}
+																onClick={() =>
+																	handleRepairLocation(loc.id)
+																}
 															>
 																<Icon name="activity" size={14} />
 															</Button>
@@ -863,19 +1021,32 @@ export default function WorkspaceSettings({
 
 							{activeId === "flow" && (
 								<div className="space-y-4">
-									<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
-										Altere o template do fluxo de trabalho. Itens em estágios removidos vão para o backlog.
+									<p
+										className="text-caption"
+										style={{ color: "var(--color-text-secondary)" }}
+									>
+										Altere o template do fluxo de trabalho. Itens em estágios
+										removidos vão para o backlog.
 									</p>
 
 									{currentTemplate && (
-										<div className="rounded-[var(--radius-md)] border p-3" style={{ borderColor: "var(--color-border)" }}>
-											<p className="text-caption font-medium">Template atual: {currentTemplate}</p>
+										<div
+											className="rounded-[var(--radius-md)] border p-3"
+											style={{ borderColor: "var(--color-border)" }}
+										>
+											<p className="text-caption font-medium">
+												Template atual: {currentTemplate}
+											</p>
 											<div className="mt-2 flex flex-wrap gap-1">
 												{currentStages.map((s) => (
 													<span
 														key={s.id}
 														className="rounded-full px-2 py-0.5 text-caption"
-														style={{ background: "var(--color-surface-secondary)", color: "var(--color-text-secondary)" }}
+														style={{
+															background:
+																"var(--color-surface-secondary)",
+															color: "var(--color-text-secondary)",
+														}}
 													>
 														{s.name}
 													</span>
@@ -886,10 +1057,18 @@ export default function WorkspaceSettings({
 
 									{loadingTemplates ? (
 										<div className="flex items-center justify-center py-4">
-											<span className="text-caption" style={{ color: "var(--color-text-secondary)" }}>Carregando templates...</span>
+											<span
+												className="text-caption"
+												style={{ color: "var(--color-text-secondary)" }}
+											>
+												Carregando templates...
+											</span>
 										</div>
 									) : templates.length === 0 ? (
-										<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
+										<p
+											className="text-caption"
+											style={{ color: "var(--color-text-secondary)" }}
+										>
 											Nenhum template disponível
 										</p>
 									) : (
@@ -897,9 +1076,16 @@ export default function WorkspaceSettings({
 											{templates.map((tpl) => {
 												const isCurrent = tpl.id === currentTemplate;
 												const isSelected = tpl.id === selectedTemplate;
-												const addedStages = tpl.stages.filter((s) => !currentStages.some((cs) => cs.id === s.id));
-												const removedStages = currentStages.filter((cs) => !tpl.stages.some((s) => s.id === cs.id));
-												const unchangedStages = tpl.stages.filter((s) => currentStages.some((cs) => cs.id === s.id));
+												const addedStages = tpl.stages.filter(
+													(s) =>
+														!currentStages.some((cs) => cs.id === s.id),
+												);
+												const removedStages = currentStages.filter(
+													(cs) => !tpl.stages.some((s) => s.id === cs.id),
+												);
+												const unchangedStages = tpl.stages.filter((s) =>
+													currentStages.some((cs) => cs.id === s.id),
+												);
 
 												return (
 													<Button
@@ -911,29 +1097,60 @@ export default function WorkspaceSettings({
 																? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)]"
 																: "hover:bg-[var(--color-surface-secondary)]"
 														}`}
-														style={{ borderColor: isSelected ? undefined : "var(--color-border)" }}
-														onClick={() => setSelectedTemplate(isCurrent ? null : tpl.id)}
+														style={{
+															borderColor: isSelected
+																? undefined
+																: "var(--color-border)",
+														}}
+														onClick={() =>
+															setSelectedTemplate(
+																isCurrent ? null : tpl.id,
+															)
+														}
 													>
 														<div className="flex items-center justify-between">
 															<span className="text-sm font-medium">
 																{tpl.name}
 																{isCurrent && (
-																	<span className="ml-2 text-caption" style={{ color: "var(--color-text-secondary)" }}>
+																	<span
+																		className="ml-2 text-caption"
+																		style={{
+																			color: "var(--color-text-secondary)",
+																		}}
+																	>
 																		(atual)
 																	</span>
 																)}
 															</span>
-															{isCurrent && <Icon name="check" size={14} style={{ color: "var(--color-primary)" }} />}
+															{isCurrent && (
+																<Icon
+																	name="check"
+																	size={14}
+																	style={{
+																		color: "var(--color-primary)",
+																	}}
+																/>
+															)}
 														</div>
 														{tpl.description && (
-															<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
+															<p
+																className="text-caption"
+																style={{
+																	color: "var(--color-text-secondary)",
+																}}
+															>
 																{tpl.description}
 															</p>
 														)}
 														<div className="flex flex-wrap gap-1">
 															{tpl.stages.map((s) => {
-																const isInCurrent = currentStages.some((cs) => cs.id === s.id);
-																const isAdded = addedStages.some((a) => a.id === s.id);
+																const isInCurrent =
+																	currentStages.some(
+																		(cs) => cs.id === s.id,
+																	);
+																const isAdded = addedStages.some(
+																	(a) => a.id === s.id,
+																);
 																return (
 																	<span
 																		key={s.id}
@@ -942,8 +1159,8 @@ export default function WorkspaceSettings({
 																			background: isAdded
 																				? "var(--color-success-subtle)"
 																				: isInCurrent
-																				? "var(--color-surface-secondary)"
-																				: "var(--color-surface-secondary)",
+																					? "var(--color-surface-secondary)"
+																					: "var(--color-surface-secondary)",
 																			color: isAdded
 																				? "var(--color-success)"
 																				: "var(--color-text-secondary)",
@@ -954,30 +1171,56 @@ export default function WorkspaceSettings({
 																);
 															})}
 														</div>
-														{!isCurrent && (addedStages.length > 0 || removedStages.length > 0) && (
-															<div className="text-caption flex flex-col gap-1" style={{ color: "var(--color-text-secondary)" }}>
-																{unchangedStages.length > 0 && (
-																	<p>
-																		Inalterados: {unchangedStages.map((s) => s.name).join(", ")}
-																	</p>
-																)}
-																{addedStages.length > 0 && (
-																	<p style={{ color: "var(--color-success)" }}>
-																		Adicionados: {addedStages.map((s) => s.name).join(", ")}
-																	</p>
-																)}
-																{removedStages.length > 0 && (
-																	<p style={{ color: "var(--color-error)" }}>
-																		Removidos: {removedStages.map((s) => s.name).join(", ")}
-																	</p>
-																)}
-																{removedStages.length > 0 && (
-																	<p>
-																		Itens nesses estágios serão preservados no backlog.
-																	</p>
-																)}
-															</div>
-														)}
+														{!isCurrent &&
+															(addedStages.length > 0 ||
+																removedStages.length > 0) && (
+																<div
+																	className="text-caption flex flex-col gap-1"
+																	style={{
+																		color: "var(--color-text-secondary)",
+																	}}
+																>
+																	{unchangedStages.length > 0 && (
+																		<p>
+																			Inalterados:{" "}
+																			{unchangedStages
+																				.map((s) => s.name)
+																				.join(", ")}
+																		</p>
+																	)}
+																	{addedStages.length > 0 && (
+																		<p
+																			style={{
+																				color: "var(--color-success)",
+																			}}
+																		>
+																			Adicionados:{" "}
+																			{addedStages
+																				.map((s) => s.name)
+																				.join(", ")}
+																		</p>
+																	)}
+																	{removedStages.length > 0 && (
+																		<p
+																			style={{
+																				color: "var(--color-error)",
+																			}}
+																		>
+																			Removidos:{" "}
+																			{removedStages
+																				.map((s) => s.name)
+																				.join(", ")}
+																		</p>
+																	)}
+																	{removedStages.length > 0 && (
+																		<p>
+																			Itens nesses estágios
+																			serão preservados no
+																			backlog.
+																		</p>
+																	)}
+																</div>
+															)}
 													</Button>
 												);
 											})}
@@ -985,7 +1228,11 @@ export default function WorkspaceSettings({
 									)}
 
 									{selectedTemplate && selectedTemplate !== currentTemplate && (
-										<Button onClick={handleSwitchTemplate} disabled={switchingTemplate} loading={switchingTemplate}>
+										<Button
+											onClick={handleSwitchTemplate}
+											disabled={switchingTemplate}
+											loading={switchingTemplate}
+										>
 											Aplicar template
 										</Button>
 									)}
@@ -994,24 +1241,38 @@ export default function WorkspaceSettings({
 
 							{activeId === "adapters" && (
 								<div className="space-y-4">
-									<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
-										Selecione quais adapters estão ativos. Adapters são regenerados automaticamente.
+									<p
+										className="text-caption"
+										style={{ color: "var(--color-text-secondary)" }}
+									>
+										Selecione quais adapters estão ativos. Adapters são
+										regenerados automaticamente.
 									</p>
 
 									{loadingAdapters ? (
 										<div className="flex items-center justify-center py-4">
-											<span className="text-caption" style={{ color: "var(--color-text-secondary)" }}>Carregando adapters...</span>
+											<span
+												className="text-caption"
+												style={{ color: "var(--color-text-secondary)" }}
+											>
+												Carregando adapters...
+											</span>
 										</div>
 									) : adapters.length === 0 ? (
-										<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
+										<p
+											className="text-caption"
+											style={{ color: "var(--color-text-secondary)" }}
+										>
 											Nenhum adapter disponível
 										</p>
 									) : (
 										<div className="space-y-2">
 											{adapters.map((adapter) => {
 												const caps = [];
-												if (adapter.capabilities.instructions) caps.push("Instructions");
-												if (adapter.capabilities.skills) caps.push("Skills");
+												if (adapter.capabilities.instructions)
+													caps.push("Instructions");
+												if (adapter.capabilities.skills)
+													caps.push("Skills");
 												if (adapter.capabilities.mcp) caps.push("MCP");
 												if (adapter.capabilities.hooks) caps.push("Hooks");
 
@@ -1025,10 +1286,16 @@ export default function WorkspaceSettings({
 																? "border-[var(--color-primary)] bg-[var(--color-primary-subtle)]"
 																: "hover:bg-[var(--color-surface-secondary)]"
 														}`}
-														style={{ borderColor: adapter.active ? undefined : "var(--color-border)" }}
+														style={{
+															borderColor: adapter.active
+																? undefined
+																: "var(--color-border)",
+														}}
 														aria-label={`${adapter.active ? "Desativar" : "Ativar"} adapter ${adapter.displayName}`}
 														aria-pressed={adapter.active}
-														onClick={() => handleToggleAdapter(adapter.id)}
+														onClick={() =>
+															handleToggleAdapter(adapter.id)
+														}
 														disabled={savingAdapters}
 													>
 														<div className="mt-0.5">
@@ -1039,16 +1306,30 @@ export default function WorkspaceSettings({
 																		: "border-[var(--color-border)]"
 																}`}
 															>
-																{adapter.active && <Icon name="check" size={10} style={{ color: "var(--color-text-on-primary)" }} />}
+																{adapter.active && (
+																	<Icon
+																		name="check"
+																		size={10}
+																		style={{
+																			color: "var(--color-text-on-primary)",
+																		}}
+																	/>
+																)}
 															</div>
 														</div>
 														<div className="flex-1 min-w-0">
 															<div className="flex items-center gap-2">
-																<span className="text-sm font-medium">{adapter.displayName}</span>
+																<span className="text-sm font-medium">
+																	{adapter.displayName}
+																</span>
 																{adapter.detected && (
 																	<span
 																		className="rounded-full px-2 py-0.5 text-caption"
-																		style={{ background: "var(--color-success-subtle)", color: "var(--color-success)" }}
+																		style={{
+																			background:
+																				"var(--color-success-subtle)",
+																			color: "var(--color-success)",
+																		}}
 																	>
 																		Detectado
 																	</span>
@@ -1060,15 +1341,25 @@ export default function WorkspaceSettings({
 																		<span
 																			key={cap}
 																			className="rounded-full px-2 py-0.5 text-caption"
-																			style={{ background: "var(--color-surface-secondary)", color: "var(--color-text-secondary)" }}
+																			style={{
+																				background:
+																					"var(--color-surface-secondary)",
+																				color: "var(--color-text-secondary)",
+																			}}
 																		>
 																			{cap}
 																		</span>
 																	))}
 																</div>
 															)}
-															<p className="text-caption mt-1" style={{ color: "var(--color-text-secondary)" }}>
-																Arquivo(s) esperado(s): {adapter.detectionPaths.join(", ")}
+															<p
+																className="text-caption mt-1"
+																style={{
+																	color: "var(--color-text-secondary)",
+																}}
+															>
+																Arquivo(s) esperado(s):{" "}
+																{adapter.detectionPaths.join(", ")}
 															</p>
 														</div>
 													</Button>
@@ -1081,12 +1372,22 @@ export default function WorkspaceSettings({
 
 							{activeId === "advanced" && (
 								<div className="space-y-4">
-									<div className="rounded-[var(--radius-md)] border p-4" style={{ borderColor: "var(--color-error)" }}>
-										<h4 className="text-sm font-semibold" style={{ color: "var(--color-error)" }}>
+									<div
+										className="rounded-[var(--radius-md)] border p-4"
+										style={{ borderColor: "var(--color-error)" }}
+									>
+										<h4
+											className="text-sm font-semibold"
+											style={{ color: "var(--color-error)" }}
+										>
 											Zona de perigo
 										</h4>
-										<p className="text-caption mt-1" style={{ color: "var(--color-text-secondary)" }}>
-											Excluir este workspace remove o registro mas preserva os arquivos no disco.
+										<p
+											className="text-caption mt-1"
+											style={{ color: "var(--color-text-secondary)" }}
+										>
+											Excluir este workspace remove o registro mas preserva os
+											arquivos no disco.
 										</p>
 										<Button
 											variant="danger"
@@ -1101,20 +1402,58 @@ export default function WorkspaceSettings({
 							)}
 							{activeId === "externalization" && (
 								<div className="space-y-6">
-									<h2 className="text-sm font-semibold">Externalização de dados</h2>
-									<p className="text-caption" style={{ color: "var(--color-text-secondary)" }}>
-										Os arquivos do workspace (workflow.json, harness, specs, memories) podem ser externalizados para fora do projeto, mantendo apenas o link .le.etra-link.
+									<h2 className="text-sm font-semibold">
+										Externalização de dados
+									</h2>
+									<p
+										className="text-caption"
+										style={{ color: "var(--color-text-secondary)" }}
+									>
+										Os arquivos do workspace (workflow.json, harness, specs,
+										memories) podem ser externalizados para fora do projeto,
+										mantendo apenas o link .le.etra-link.
 									</p>
 									{workspace.dataDir ? (
-										<div className="text-caption break-all" style={{ color: "var(--color-text-secondary)" }}>{workspace.dataDir}</div>
+										<div
+											className="text-caption break-all"
+											style={{ color: "var(--color-text-secondary)" }}
+										>
+											{workspace.dataDir}
+										</div>
 									) : (
-										<Button size="sm" variant="secondary" onClick={onRefreshWorkflow}>Atualizar localização</Button>
+										<Button
+											size="sm"
+											variant="secondary"
+											onClick={onRefreshWorkflow}
+										>
+											Atualizar localização
+										</Button>
 									)}
 
-									{migrationError && (<p className="text-caption" style={{ color: "var(--color-error)" }}>{migrationError}</p>)}
+									{migrationError && (
+										<p
+											className="text-caption"
+											style={{ color: "var(--color-error)" }}
+										>
+											{migrationError}
+										</p>
+									)}
 									<div className="flex items-center gap-2">
-										<Button size="sm" loading={migrating} onClick={handleMigrate}>Migrar para diretório externo</Button>
-										<Button size="sm" variant="secondary" loading={migrating} onClick={handleCleanMigrate}>Migrar e remover origem</Button>
+										<Button
+											size="sm"
+											loading={migrating}
+											onClick={handleMigrate}
+										>
+											Migrar para diretório externo
+										</Button>
+										<Button
+											size="sm"
+											variant="secondary"
+											loading={migrating}
+											onClick={handleCleanMigrate}
+										>
+											Migrar e remover origem
+										</Button>
 									</div>
 								</div>
 							)}
@@ -1131,10 +1470,18 @@ export default function WorkspaceSettings({
 					title="Excluir workspace?"
 					actions={
 						<>
-							<Button type="button" variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
+							<Button
+								type="button"
+								variant="secondary"
+								onClick={() => setShowDeleteConfirm(false)}
+							>
 								Cancelar
 							</Button>
-							<Button type="button" variant="danger" onClick={() => setDeleteStep("type-name")}>
+							<Button
+								type="button"
+								variant="danger"
+								onClick={() => setDeleteStep("type-name")}
+							>
 								Continuar
 							</Button>
 						</>
@@ -1184,7 +1531,10 @@ export default function WorkspaceSettings({
 							Todos os dados serão preservados no disco, mas o registro será removido.
 						</p>
 						<Label className="flex flex-col items-start gap-[var(--space-2)]">
-							<span className="text-caption font-medium" style={{ color: "var(--color-text-secondary)" }}>
+							<span
+								className="text-caption font-medium"
+								style={{ color: "var(--color-text-secondary)" }}
+							>
 								Nome do workspace
 							</span>
 							<Input
@@ -1221,7 +1571,9 @@ export default function WorkspaceSettings({
 					<SheetContent side="right" className="w-full sm:max-w-md flex flex-col">
 						<SheetHeader>
 							<SheetTitle>Selecionar diretório</SheetTitle>
-							<SheetDescription>Navegue e selecione o diretório para adicionar como local.</SheetDescription>
+							<SheetDescription>
+								Navegue e selecione o diretório para adicionar como local.
+							</SheetDescription>
 						</SheetHeader>
 
 						<div className="flex-1 overflow-y-auto p-6">
@@ -1236,21 +1588,33 @@ export default function WorkspaceSettings({
 											if (e.key === "Enter") browseDir(dirPath);
 										}}
 									/>
-									<Button size="sm" aria-label="Buscar diretório" onClick={() => browseDir(dirPath)}>
+									<Button
+										size="sm"
+										aria-label="Buscar diretório"
+										onClick={() => browseDir(dirPath)}
+									>
 										<Icon name="search" size={14} />
 									</Button>
 								</div>
 
 								{dirError && (
-									<p className="text-caption" style={{ color: "var(--color-error)" }}>
+									<p
+										className="text-caption"
+										style={{ color: "var(--color-error)" }}
+									>
 										{dirError}
 									</p>
 								)}
 
-									{dirLoading ? (
-										<div className="flex items-center justify-center py-8">
-											<span className="text-caption" style={{ color: "var(--color-text-secondary)" }}>Carregando...</span>
-										</div>
+								{dirLoading ? (
+									<div className="flex items-center justify-center py-8">
+										<span
+											className="text-caption"
+											style={{ color: "var(--color-text-secondary)" }}
+										>
+											Carregando...
+										</span>
+									</div>
 								) : (
 									<div className="space-y-1">
 										{dirEntries.map((entry) => (
@@ -1270,15 +1634,26 @@ export default function WorkspaceSettings({
 											</Button>
 										))}
 										{selectedDir && (
-											<div className="rounded-[var(--radius-md)] border p-3" style={{ borderColor: "var(--color-border)" }}>
-												<p className="text-caption font-medium">Diretório selecionado</p>
-												<p className="mt-1 truncate font-mono text-caption" style={{ color: "var(--color-text-secondary)" }}>
+											<div
+												className="rounded-[var(--radius-md)] border p-3"
+												style={{ borderColor: "var(--color-border)" }}
+											>
+												<p className="text-caption font-medium">
+													Diretório selecionado
+												</p>
+												<p
+													className="mt-1 truncate font-mono text-caption"
+													style={{ color: "var(--color-text-secondary)" }}
+												>
 													{selectedDir.path}
 												</p>
 											</div>
 										)}
 										{dirEntries.length === 0 && !dirError && (
-											<p className="text-caption py-4 text-center" style={{ color: "var(--color-text-secondary)" }}>
+											<p
+												className="text-caption py-4 text-center"
+												style={{ color: "var(--color-text-secondary)" }}
+											>
 												Nenhum subdiretório encontrado
 											</p>
 										)}

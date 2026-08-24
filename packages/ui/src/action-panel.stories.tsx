@@ -19,7 +19,13 @@ const meta: Meta<typeof ActionPanel> = {
 		"x-ds": {
 			category: "primitive",
 			status: "ready",
-			tokens: ["card-padding", "layout-toolbar-gap", "radius-md", "color-border", "color-bg-surface"],
+			tokens: [
+				"card-padding",
+				"layout-toolbar-gap",
+				"radius-md",
+				"color-border",
+				"color-bg-surface",
+			],
 			consumes: ["Badge", "Button", "Icon", "Tag"],
 			surfaces: ["HomeView", "WorkspacesView"],
 			a11y: ["clear-primary-action", "non-destructive-copy", "status-not-color-only"],
@@ -41,7 +47,9 @@ export const NextSafeAction: Story = {
 			description="Responder à solicitação sobre ITEM-74. A revisão abre a evidência do item; nenhuma mudança ocorre antes da sua decisão."
 			meta={
 				<>
-					<Badge variant="amber" tone="soft" icon="alert-triangle">1 decisão</Badge>
+					<Badge variant="amber" tone="soft" icon="alert-triangle">
+						1 decisão
+					</Badge>
 					<Tag variant="warning">ação segura</Tag>
 				</>
 			}
@@ -58,7 +66,11 @@ export const Informational: Story = {
 			icon={<Icon name="activity" size={20} />}
 			title="Examinar evidências"
 			description="Há alertas ativos no workspace. Comece pela atividade registrada para entender causa, origem e impacto antes de aplicar qualquer correção."
-			meta={<Badge variant="info" tone="soft">4 alertas</Badge>}
+			meta={
+				<Badge variant="info" tone="soft">
+					4 alertas
+				</Badge>
+			}
 			action={<Button variant="secondary">Abrir atividade</Button>}
 		/>
 	),
@@ -74,7 +86,9 @@ export const CompactGovernance: Story = {
 			description="Contexto canônico usado para interpretar decisões, evidências e trabalho em foco."
 			meta={
 				<>
-					<Badge icon="file-text" variant="info" tone="soft">ux-release-readiness</Badge>
+					<Badge icon="file-text" variant="info" tone="soft">
+						ux-release-readiness
+					</Badge>
 					<Tag variant="info">contrato ativo</Tag>
 				</>
 			}

@@ -141,9 +141,20 @@ export default function flowCommand() {
 		.option("--executor <id>", "Executor ID performing the handoff")
 		.option("--rollback", "Rollback the last handoff")
 		.description("Handoff item to another agent or rollback")
-		.action(async (itemId: string, options: { to?: string; summary?: string; evidence?: string[]; executor?: string; rollback?: boolean }) => {
-			await handoffAction(undefined, itemId, options);
-		});
+		.action(
+			async (
+				itemId: string,
+				options: {
+					to?: string;
+					summary?: string;
+					evidence?: string[];
+					executor?: string;
+					rollback?: boolean;
+				},
+			) => {
+				await handoffAction(undefined, itemId, options);
+			},
+		);
 
 	cmd.command("ac <item-id> <ac-number>")
 		.description("Mark an acceptance criterion as completed in the spec file")
@@ -161,7 +172,10 @@ export default function flowCommand() {
 
 	cmd.command("bind")
 		.requiredOption("--template <id>", "Flow template id from the harness")
-		.requiredOption("--harness-version <version>", "Versioned harness tag (for example: v0.1.1)")
+		.requiredOption(
+			"--harness-version <version>",
+			"Versioned harness tag (for example: v0.1.1)",
+		)
 		.description("Bind the current workflow to a versioned harness flow")
 		.action(async (options: { template: string; harnessVersion: string }) => {
 			await flowBindAction(undefined, options);

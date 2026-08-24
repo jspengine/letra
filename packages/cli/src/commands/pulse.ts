@@ -60,7 +60,11 @@ function daysInStage(item: Item): number {
 
 function findCurrentItem(workflow: Workflow): Item | null {
 	const activeStages = workflow.stages
-		.filter((s) => s.zone === "doing" || (!s.zone && s.order > 0 && s.order < workflow.stages.length - 1))
+		.filter(
+			(s) =>
+				s.zone === "doing" ||
+				(!s.zone && s.order > 0 && s.order < workflow.stages.length - 1),
+		)
 		.map((s) => s.id);
 	const stageSet = new Set(activeStages);
 	if (stageSet.size === 0) {
@@ -70,7 +74,7 @@ function findCurrentItem(workflow: Workflow): Item | null {
 	}
 	const items = workflow.items.filter((i) => stageSet.has(i.stage));
 	if (items.length === 0) return null;
-	return items.reduce((a, b) => new Date(a.createdAt) > new Date(b.createdAt) ? a : b);
+	return items.reduce((a, b) => (new Date(a.createdAt) > new Date(b.createdAt) ? a : b));
 }
 
 function findNextBacklog(workflow: Workflow): Item | null {
@@ -78,14 +82,17 @@ function findNextBacklog(workflow: Workflow): Item | null {
 	if (!firstStage) return null;
 	const items = workflow.items.filter((i) => i.stage === firstStage.id);
 	if (items.length === 0) return null;
-	return items.reduce((a, b) => new Date(a.createdAt) < new Date(b.createdAt) ? a : b);
+	return items.reduce((a, b) => (new Date(a.createdAt) < new Date(b.createdAt) ? a : b));
 }
 
 function getStageName(workflow: Workflow, stageId: string): string {
 	return workflow.stages.find((s) => s.id === stageId)?.name ?? stageId;
 }
 
-function countSpecACs(stateDir: string, specName: string): { pending: number; done: number; total: number } {
+function countSpecACs(
+	stateDir: string,
+	specName: string,
+): { pending: number; done: number; total: number } {
 	let specDir = join(stateDir, "specs", specName);
 	if (!existsSync(specDir)) {
 		specDir = join(getLetraDir(stateDir), "specs", specName);
@@ -97,11 +104,19 @@ function countSpecACs(stateDir: string, specName: string): { pending: number; do
 		const boldPending = content.match(/-\s*\[ \]\s*\*\*AC[-]?\d+\*\*/g) || [];
 		const boldDone = content.match(/-\s*\[[xX]\]\s*\*\*AC[-]?\d+\*\*/g) || [];
 		if (boldPending.length > 0 || boldDone.length > 0) {
-			return { pending: boldPending.length, done: boldDone.length, total: boldPending.length + boldDone.length };
+			return {
+				pending: boldPending.length,
+				done: boldDone.length,
+				total: boldPending.length + boldDone.length,
+			};
 		}
 		const genericPending = content.match(/^- \[ \]\s+AC[-]?\d+/gm) || [];
 		const genericDone = content.match(/^- \[[xX]\]\s+AC[-]?\d+/gm) || [];
-		return { pending: genericPending.length, done: genericDone.length, total: genericPending.length + genericDone.length };
+		return {
+			pending: genericPending.length,
+			done: genericDone.length,
+			total: genericPending.length + genericDone.length,
+		};
 	} catch {
 		return { pending: 0, done: 0, total: 0 };
 	}
@@ -121,9 +136,11 @@ export async function pulse(
 	const statePath = resolution.workspaceDir;
 	const workflow = loadWorkflow(resolution.targetDir);
 	const name = workflow?.name ?? "meu-projeto";
-	const legacyWarning = resolution.type === "local" && existsSync(join(resolution.workspaceRoot, ".letra", "workflow.json"))
-		? "Workspace legado local detectado. Migre para um workspace externo com `letra migrate`."
-		: undefined;
+	const legacyWarning =
+		resolution.type === "local" &&
+		existsSync(join(resolution.workspaceRoot, ".letra", "workflow.json"))
+			? "Workspace legado local detectado. Migre para um workspace externo com `letra migrate`."
+			: undefined;
 
 	if (!workflow) {
 		const empty: PulseData = {
@@ -197,9 +214,9 @@ export async function pulse(
 		daysIdle: workflow.updatedAt ? daysSince(new Date(workflow.updatedAt)) : null,
 		nextItem: findNextBacklog(workflow)
 			? {
-					id: findNextBacklog(workflow)!.id,
-					description: findNextBacklog(workflow)!.description,
-					stage: findNextBacklog(workflow)!.stage,
+					id: findNextBacklog(workflow)?.id ?? "",
+					description: findNextBacklog(workflow)?.description ?? "",
+					stage: findNextBacklog(workflow)?.stage ?? "",
 				}
 			: null,
 	};
@@ -211,7 +228,9 @@ export async function pulse(
 		currentItem ? resolveFocusRecommendations(focusRoot, currentItem.id) : [],
 	);
 	if (focusResult.cleared) {
-		console.log(chalk.yellow("  focus.md limpo — item referenciado não encontrado no workflow"));
+		console.log(
+			chalk.yellow("  focus.md limpo — item referenciado não encontrado no workflow"),
+		);
 	}
 
 	const focusData = readFocusFile(focusRoot);
@@ -232,7 +251,11 @@ export async function pulse(
 
 function renderPulseText(data: PulseData, focusDiverged = false, statePath?: string): void {
 	const dateStr = new Date(data.pulseAt).toLocaleDateString("pt-BR", {
-		day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+		day: "2-digit",
+		month: "2-digit",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
 	});
 
 	console.log(`\n${chalk.bold("╔══════════════════════════════════════════╗")}`);
@@ -248,14 +271,22 @@ function renderPulseText(data: PulseData, focusDiverged = false, statePath?: str
 		const ci = data.currentItem;
 		console.log(`  ${chalk.bold("Item em andamento:")}`);
 		if (statePath) {
-			console.log(`    ${chalk.gray(`Workflow: ${pathToFileURL(join(statePath, "workflow.json")).href}`)}`);
+			console.log(
+				`    ${chalk.gray(`Workflow: ${pathToFileURL(join(statePath, "workflow.json")).href}`)}`,
+			);
 		}
 		console.log(`    ${chalk.cyan(ci.id)} · ${ci.description}`);
 		const agentInfo = ci.claimedBy ? ` 🤖 Agent: ${ci.claimedBy}` : "";
-		console.log(`    ${chalk.gray(`Estágio: ${ci.stageName} · ${ci.daysInStage} dia(s) no estágio${agentInfo}`)}`);
-		console.log(`    ${chalk.gray(`ACs: ${ci.acs.pending}/${ci.acs.total} pendentes (${ci.acs.done} feito(s))`)}`);
+		console.log(
+			`    ${chalk.gray(`Estágio: ${ci.stageName} · ${ci.daysInStage} dia(s) no estágio${agentInfo}`)}`,
+		);
+		console.log(
+			`    ${chalk.gray(`ACs: ${ci.acs.pending}/${ci.acs.total} pendentes (${ci.acs.done} feito(s))`)}`,
+		);
 		if (ci.tasks.total > 0) {
-			console.log(`    ${chalk.gray(`Tasks: ${ci.tasks.open}/${ci.tasks.total} abertas (${ci.tasks.done} feita(s))`)}`);
+			console.log(
+				`    ${chalk.gray(`Tasks: ${ci.tasks.open}/${ci.tasks.total} abertas (${ci.tasks.done} feita(s))`)}`,
+			);
 		}
 		if (ci.spec) {
 			const specReference = statePath
@@ -277,16 +308,22 @@ function renderPulseText(data: PulseData, focusDiverged = false, statePath?: str
 		console.log(`  ${chalk.bold("Handoff pendente:")}`);
 		console.log(`    ${chalk.cyan(h.itemId)} · ${h.from} → ${h.to} [${status}]`);
 		console.log(`    ${chalk.gray(h.summary)}`);
-		console.log(`    ${chalk.gray(`Expira: ${new Date(h.expiresAt).toLocaleString("pt-BR")}`)}`);
+		console.log(
+			`    ${chalk.gray(`Expira: ${new Date(h.expiresAt).toLocaleString("pt-BR")}`)}`,
+		);
 		console.log();
 	}
 
 	const alerts = data.alerts;
 	if (alerts.novo > 0 || alerts.acknowledged > 0 || alerts.resolved > 0) {
 		console.log(`  ${chalk.bold("Alertas:")}`);
-		console.log(`    ${chalk.red(`${alerts.novo} novo(s)`)} · ${chalk.yellow(`${alerts.acknowledged} em acompanhamento`)} · ${chalk.gray(`${alerts.resolved} resolvido(s)`)}`);
+		console.log(
+			`    ${chalk.red(`${alerts.novo} novo(s)`)} · ${chalk.yellow(`${alerts.acknowledged} em acompanhamento`)} · ${chalk.gray(`${alerts.resolved} resolvido(s)`)}`,
+		);
 		if (alerts.highSeverity > 0) {
-			console.log(`    ${chalk.red.bold(`⚠ ${alerts.highSeverity} alerta(s) de severidade alta`)}`);
+			console.log(
+				`    ${chalk.red.bold(`⚠ ${alerts.highSeverity} alerta(s) de severidade alta`)}`,
+			);
 		}
 		console.log(`    ${chalk.gray("→ Corra `letra health` para detalhes")}`);
 	} else {
@@ -296,19 +333,29 @@ function renderPulseText(data: PulseData, focusDiverged = false, statePath?: str
 
 	if (data.lastUpdated) {
 		const idle = data.daysIdle !== null ? `(${data.daysIdle} dia(s) parado)` : "";
-		console.log(`  ${chalk.gray(`Última atualização: ${new Date(data.lastUpdated).toLocaleDateString("pt-BR")} ${idle}`)}`);
+		console.log(
+			`  ${chalk.gray(`Última atualização: ${new Date(data.lastUpdated).toLocaleDateString("pt-BR")} ${idle}`)}`,
+		);
 	}
 	if (data.nextItem) {
-		console.log(`  ${chalk.gray(`Próximo item na fila: ${data.nextItem.id} · ${data.nextItem.description} (${data.nextItem.stage})`)}`);
+		console.log(
+			`  ${chalk.gray(`Próximo item na fila: ${data.nextItem.id} · ${data.nextItem.description} (${data.nextItem.stage})`)}`,
+		);
 	}
 	if (focusDiverged) {
-		console.log(`  ${chalk.red.bold("⚠ Foco dessincronizado!")} focus.md aponta para spec diferente do item ativo`);
+		console.log(
+			`  ${chalk.red.bold("⚠ Foco dessincronizado!")} focus.md aponta para spec diferente do item ativo`,
+		);
 		console.log(`    ${chalk.gray("→ Corra `letra focus <spec>` para corrigir")}`);
 	}
 	console.log();
 }
 
-function runTargetCommand(root: string, label: string, cmdStr: string | null | undefined): string | null {
+function runTargetCommand(
+	root: string,
+	label: string,
+	cmdStr: string | null | undefined,
+): string | null {
 	if (!cmdStr) return null;
 	try {
 		const out = execSync(cmdStr, { cwd: root, encoding: "utf-8", timeout: 60000 });
@@ -320,11 +367,9 @@ function runTargetCommand(root: string, label: string, cmdStr: string | null | u
 }
 
 export default function () {
-	const cmd = new Command("pulse")
-		.description("Pulse do workspace — overview de uma olhada só");
+	const cmd = new Command("pulse").description("Pulse do workspace — overview de uma olhada só");
 
-	cmd
-		.option("--json", "Output in JSON format")
+	cmd.option("--json", "Output in JSON format")
 		.option("--build", "Run build command from target config")
 		.option("--test", "Run test command from target config")
 		.action(async (options: { json?: boolean; build?: boolean; test?: boolean }) => {
@@ -337,11 +382,19 @@ export default function () {
 					| { path: string; buildCommand?: string | null; testCommand?: string | null }
 					| undefined;
 				if (options.build) {
-					const result = runTargetCommand(location?.path || root, "Build", location?.buildCommand ?? null);
+					const result = runTargetCommand(
+						location?.path || root,
+						"Build",
+						location?.buildCommand ?? null,
+					);
 					if (result) console.log(chalk.gray(result));
 				}
 				if (options.test) {
-					const result = runTargetCommand(location?.path || root, "Test", location?.testCommand ?? null);
+					const result = runTargetCommand(
+						location?.path || root,
+						"Test",
+						location?.testCommand ?? null,
+					);
 					if (result) console.log(chalk.gray(result));
 				}
 			}

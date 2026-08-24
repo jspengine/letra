@@ -5,10 +5,7 @@ interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {}
 
 export function Skeleton({ className, ...props }: SkeletonProps) {
 	return (
-		<div
-			className={cn("skeleton-shimmer rounded-[var(--radius-sm)]", className)}
-			{...props}
-		/>
+		<div className={cn("skeleton-shimmer rounded-[var(--radius-sm)]", className)} {...props} />
 	);
 }
 

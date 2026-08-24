@@ -1,5 +1,12 @@
 import "./index.css";
-import { Skeleton, SkeletonAgentList, SkeletonCard, SkeletonKanban, SkeletonPipeline, SkeletonTable } from "./skeleton";
+import {
+	Skeleton,
+	SkeletonAgentList,
+	SkeletonCard,
+	SkeletonKanban,
+	SkeletonPipeline,
+	SkeletonTable,
+} from "./skeleton";
 
 export const Base = () => (
 	<div className="flex flex-col gap-[var(--space-2)]">

@@ -7,7 +7,10 @@ import { getRecurringSystemActions, logSystemAction } from "./system-actions.js"
 const dirs: string[] = [];
 
 function makeRoot(): string {
-	const root = join(tmpdir(), `letra-system-actions-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+	const root = join(
+		tmpdir(),
+		`letra-system-actions-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+	);
 	mkdirSync(join(root, ".letra"), { recursive: true });
 	dirs.push(root);
 	return root;
@@ -42,7 +45,9 @@ describe("system actions", () => {
 			details: { reason: "startup", suggestions: 2 },
 		});
 
-		const diagnostics = getRecurringSystemActions(root).find((action) => action.id === "diagnostics-scan");
+		const diagnostics = getRecurringSystemActions(root).find(
+			(action) => action.id === "diagnostics-scan",
+		);
 		expect(diagnostics?.lastOutcome).toBe("completed");
 		expect(diagnostics?.status).toBe("success");
 		expect(diagnostics?.lastRunAt).toEqual(expect.any(String));

@@ -19,7 +19,10 @@ function inlineFormat(text: string): ReactNode[] {
 				<code
 					key={key++}
 					className="rounded px-1 py-0.5 text-xs"
-					style={{ backgroundColor: "var(--color-bg-surface)", color: "var(--color-text-primary)" }}
+					style={{
+						backgroundColor: "var(--color-bg-surface)",
+						color: "var(--color-text-primary)",
+					}}
 				>
 					{match[6]}
 				</code>,
@@ -95,7 +98,10 @@ export function Markdown({ content, className }: MarkdownProps) {
 				<blockquote
 					key={key++}
 					className="my-2 border-l-2 py-1 pl-4 text-sm"
-					style={{ borderColor: "var(--color-primary)", color: "var(--color-text-secondary)" }}
+					style={{
+						borderColor: "var(--color-primary)",
+						color: "var(--color-text-secondary)",
+					}}
 				>
 					{quoteLines.map((ql, qi) => (
 						<Fragment key={ql}>
@@ -163,11 +169,18 @@ export function Markdown({ content, className }: MarkdownProps) {
 			const rows = tableLines.slice(2).map(parseRow);
 			elements.push(
 				<div key={key++} className="my-3 overflow-x-auto">
-					<table className="w-full border-collapse text-sm" style={{ color: "var(--color-text-primary)" }}>
+					<table
+						className="w-full border-collapse text-sm"
+						style={{ color: "var(--color-text-primary)" }}
+					>
 						<thead>
 							<tr>
 								{headerCells.map((cell) => (
-									<th key={cell} className="border-b-2 px-3 py-2 text-left font-semibold" style={{ borderColor: "var(--border)" }}>
+									<th
+										key={cell}
+										className="border-b-2 px-3 py-2 text-left font-semibold"
+										style={{ borderColor: "var(--border)" }}
+									>
 										{inlineFormat(cell)}
 									</th>
 								))}
@@ -177,7 +190,11 @@ export function Markdown({ content, className }: MarkdownProps) {
 							{rows.map((row, ri) => (
 								<tr key={row.join("|") || ri}>
 									{row.map((cell, ci) => (
-										<td key={`${cell}-${ci}`} className="border-b px-3 py-1.5" style={{ borderColor: "var(--border)" }}>
+										<td
+											key={`${cell}-${ci}`}
+											className="border-b px-3 py-1.5"
+											style={{ borderColor: "var(--border)" }}
+										>
 											{inlineFormat(cell)}
 										</td>
 									))}
@@ -191,7 +208,9 @@ export function Markdown({ content, className }: MarkdownProps) {
 		}
 
 		if (/^-{3,}$/.test(trimmed)) {
-			elements.push(<hr key={key++} className="my-4" style={{ borderColor: "var(--border)" }} />);
+			elements.push(
+				<hr key={key++} className="my-4" style={{ borderColor: "var(--border)" }} />,
+			);
 			i++;
 			continue;
 		}

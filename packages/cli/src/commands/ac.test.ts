@@ -7,7 +7,10 @@ import { type Workflow, saveWorkflow } from "./flow-init.js";
 import { loadSessionLog, closeSessionLogHandles } from "../session-log.js";
 
 function createTestDir(): string {
-	const dir = join(tmpdir(), `letra-ac-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+	const dir = join(
+		tmpdir(),
+		`letra-ac-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+	);
 	mkdirSync(dir, { recursive: true });
 	mkdirSync(join(dir, ".letra", "specs", "test-spec"), { recursive: true });
 	return dir;
@@ -24,7 +27,15 @@ function createWorkflow(): Workflow {
 			{ id: "doing", name: "Doing", order: 1 },
 			{ id: "done", name: "Done", order: 2 },
 		],
-		items: [{ id: "ITEM-1", description: "Test item", stage: "doing", spec: "test-spec", createdAt: "2026-01-01T00:00:00.000Z" }],
+		items: [
+			{
+				id: "ITEM-1",
+				description: "Test item",
+				stage: "doing",
+				spec: "test-spec",
+				createdAt: "2026-01-01T00:00:00.000Z",
+			},
+		],
 		tools: [],
 		primaryItemId: "ITEM-1",
 	};

@@ -7,9 +7,7 @@ import { getLetraDir } from "./../../workspace/resolver.js";
 const DONE_AC_PATTERN = /-\s\[x\]\s\*\*`([^`]+)`\*\*/g;
 
 function toCamelCase(words: string[]): string {
-	return words
-		.map((w, i) => (i === 0 ? w : w.charAt(0).toUpperCase() + w.slice(1)))
-		.join("");
+	return words.map((w, i) => (i === 0 ? w : w.charAt(0).toUpperCase() + w.slice(1))).join("");
 }
 
 function toPascalCase(words: string[]): string {

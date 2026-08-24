@@ -31,7 +31,10 @@ export function DriftIndicator({
 				style={{ background: "var(--color-warning)" }}
 				aria-hidden="true"
 			/>
-			<span className="flex-1 text-body-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
+			<span
+				className="flex-1 text-body-sm font-medium"
+				style={{ color: "var(--color-text-primary)" }}
+			>
 				{message}
 			</span>
 			{action && <div className="shrink-0">{action}</div>}

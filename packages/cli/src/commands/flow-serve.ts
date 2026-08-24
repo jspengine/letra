@@ -113,7 +113,8 @@ export class FlowServer {
 		this.port = port;
 		this.resolution = resolveWorkspaceRoot(root);
 		this.activeWorkspaceRoot = this.resolution.workspaceRoot;
-		this.loadWorkflow = (overrideRoot?: string) => loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
+		this.loadWorkflow = (overrideRoot?: string) =>
+			loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
 		this.engine = new DiagnosticEngine(this.activeWorkspaceRoot);
 		this.automationRuntime = new AutomationRuntime({
 			runDiagnostics: runDiagnosticsAndSyncHealth,
@@ -201,7 +202,8 @@ export class FlowServer {
 				writeWorkflow,
 				resolveActiveFlow: resolveActiveFlowFor,
 				detectWorkspaceName: detectProjectName,
-				loadHarness: (workspaceRoot) => loadHarness(resolveHarnessWithShared(workspaceRoot)),
+				loadHarness: (workspaceRoot) =>
+					loadHarness(resolveHarnessWithShared(workspaceRoot)),
 				createFromTemplate: createWorkflowFromTemplateService,
 				broadcast: () => this.broadcast(),
 			}),
@@ -248,13 +250,13 @@ export class FlowServer {
 						})
 						.map((item) => ({
 							itemId: item.id,
-							from: item.handoff!.from,
-							to: item.handoff!.to,
-							summary: item.handoff!.summary,
-							evidence: item.handoff!.evidence || [],
-							executorId: item.handoff!.executorId,
-							timestamp: item.handoff!.timestamp,
-							expiresAt: item.handoff!.expiresAt,
+							from: item.handoff?.from ?? "",
+							to: item.handoff?.to ?? "",
+							summary: item.handoff?.summary ?? "",
+							evidence: item.handoff?.evidence || [],
+							executorId: item.handoff?.executorId,
+							timestamp: item.handoff?.timestamp ?? "",
+							expiresAt: item.handoff?.expiresAt ?? "",
 						}));
 				},
 			}),
@@ -265,7 +267,8 @@ export class FlowServer {
 		this.activeWorkspaceRoot = workspaceRoot;
 		this.activeDirectory = null;
 		this.resolution = resolveWorkspaceRoot(workspaceRoot);
-		this.loadWorkflow = (overrideRoot?: string) => loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
+		this.loadWorkflow = (overrideRoot?: string) =>
+			loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
 		this.engine = new DiagnosticEngine(this.activeWorkspaceRoot);
 		this.automationRuntime.rebind(this.automationBinding());
 		this.orchestrator = new Orchestrator({
@@ -279,7 +282,8 @@ export class FlowServer {
 
 	switchDirectory(directory: string | null) {
 		this.activeDirectory = directory;
-		this.loadWorkflow = (overrideRoot?: string) => loadWorkflow(overrideRoot ?? this.activeDirectory ?? this.activeWorkspaceRoot);
+		this.loadWorkflow = (overrideRoot?: string) =>
+			loadWorkflow(overrideRoot ?? this.activeDirectory ?? this.activeWorkspaceRoot);
 		this.broadcast();
 	}
 
@@ -353,7 +357,14 @@ export class FlowServer {
 			}
 			wh.lastSentAt = new Date().toISOString();
 		}
-		writeWorkflow(workspaceRoot, { workflow: wf, source: "web-ui", skipAdapters: true, skipSitrep: true, skipLog: true, quiet: true });
+		writeWorkflow(workspaceRoot, {
+			workflow: wf,
+			source: "web-ui",
+			skipAdapters: true,
+			skipSitrep: true,
+			skipLog: true,
+			quiet: true,
+		});
 	}
 
 	start(): Promise<void> {

@@ -1,10 +1,5 @@
 import type { writeWorkflow } from "../../commands/flow-init.js";
-import type {
-	clearSpec,
-	loadResolvedSpecs,
-	validateSpec,
-	writeSpec,
-} from "../specs.js";
+import type { clearSpec, loadResolvedSpecs, validateSpec, writeSpec } from "../specs.js";
 import { HttpBodyError, readJson, sendError, sendJson } from "../http.js";
 import type { RouteHandler } from "../router.js";
 

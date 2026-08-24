@@ -96,7 +96,9 @@ describe("flow-move", () => {
 			const origExit = process.exit;
 			const origLog = console.log;
 			let exitCode: number | undefined;
-			process.exit = ((code?: number) => { exitCode = code; }) as any;
+			process.exit = ((code?: number) => {
+				exitCode = code;
+			}) as any;
 			try {
 				flowMove(tmpDir, "ITEM-1", "", { auto: true });
 				expect(exitCode).toBe(1);
@@ -241,7 +243,7 @@ describe("flow-move", () => {
 			workflow.items[0].stage = "backlog";
 			saveWorkflow(tmpDir, workflow);
 
-			const harnessDir = join(tmpDir, ".letra", "harness", "v0.1.0");
+			const harnessDir = join(tmpDir, ".letra", "harness", "v0.2.0");
 			mkdirSync(join(harnessDir, "flows"), { recursive: true });
 			mkdirSync(join(harnessDir, "gates"), { recursive: true });
 			mkdirSync(join(harnessDir, "roles"), { recursive: true });
@@ -286,7 +288,9 @@ describe("flow-move", () => {
 			console.log = (msg: string) => logs.push(msg);
 			try {
 				flowMove(tmpDir, "ITEM-1", "approved");
-				expect(logs.some((line) => line.includes("Gate bloqueante: Custom Approval"))).toBe(true);
+				expect(logs.some((line) => line.includes("Gate bloqueante: Custom Approval"))).toBe(
+					true,
+				);
 				const loaded = JSON.parse(
 					readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
 				);

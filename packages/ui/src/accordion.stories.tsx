@@ -7,13 +7,15 @@ export const Default = () => (
 		<AccordionItem>
 			<AccordionTrigger>What is Letra?</AccordionTrigger>
 			<AccordionContent>
-				A workflow orchestration tool for AI agents. It maps SDLC phases to stages, gates, and roles.
+				A workflow orchestration tool for AI agents. It maps SDLC phases to stages, gates,
+				and roles.
 			</AccordionContent>
 		</AccordionItem>
 		<AccordionItem>
 			<AccordionTrigger>How does it work?</AccordionTrigger>
 			<AccordionContent>
-				It keeps workflow, specs, gates, and evidence visible so a human can supervise the work.
+				It keeps workflow, specs, gates, and evidence visible so a human can supervise the
+				work.
 			</AccordionContent>
 		</AccordionItem>
 		<AccordionItem>
@@ -67,10 +69,13 @@ export const Rich = () => (
 			<AccordionContent>
 				<div className="flex flex-col gap-[var(--space-3)]">
 					<p className="text-sm text-[var(--color-text-primary)]">
-						Deployment is blocked because the security clearance gate is not approved yet.
+						Deployment is blocked because the security clearance gate is not approved
+						yet.
 					</p>
 					<p className="text-sm text-[var(--color-text-secondary)]">
-						Ask the security reviewer to run <code className="font-mono text-xs">letra gate approve security-clear</code>.
+						Ask the security reviewer to run{" "}
+						<code className="font-mono text-xs">letra gate approve security-clear</code>
+						.
 					</p>
 				</div>
 			</AccordionContent>

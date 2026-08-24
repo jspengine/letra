@@ -25,10 +25,7 @@ function loadGateStatusFromDisk(root: string, gateId: string): GateRuntimeStatus
 	];
 	for (const gatesDir of candidates) {
 		if (!existsSync(gatesDir)) continue;
-		const files = [
-			join(gatesDir, `${gateId}.yaml`),
-			join(gatesDir, `${gateId}.yml`),
-		];
+		const files = [join(gatesDir, `${gateId}.yaml`), join(gatesDir, `${gateId}.yml`)];
 		for (const f of files) {
 			if (existsSync(f)) {
 				const raw = parseSimpleYaml(readFileSync(f, "utf-8"));
@@ -66,13 +63,17 @@ function loadManifestGates(root: string): Record<string, Gate> {
 					blocksHandoff: raw.blocksHandoff === true,
 					policyRef: typeof raw.policyRef === "string" ? raw.policyRef : undefined,
 					description: String(raw.description ?? ""),
-					decisions: raw.decisions && typeof raw.decisions === "object"
-						? Object.fromEntries(
-							Object.entries(raw.decisions as Record<string, unknown>)
-								.filter(([, v]) => typeof v === "string" && (v as string).trim())
-								.map(([k, v]) => [k, (v as string).trim()]),
-						)
-						: undefined,
+					decisions:
+						raw.decisions && typeof raw.decisions === "object"
+							? Object.fromEntries(
+									Object.entries(raw.decisions as Record<string, unknown>)
+										.filter(
+											([, v]) =>
+												typeof v === "string" && (v as string).trim(),
+										)
+										.map(([k, v]) => [k, (v as string).trim()]),
+								)
+							: undefined,
 				};
 			} catch {
 				// ignore malformed gate file

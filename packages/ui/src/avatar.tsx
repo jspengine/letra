@@ -32,12 +32,7 @@ export function Avatar({ className, size = "md", children, ...props }: AvatarPro
 interface AvatarImageProps extends ImgHTMLAttributes<HTMLImageElement> {}
 
 export function AvatarImage({ className, ...props }: AvatarImageProps) {
-	return (
-		<img
-			className={cn("aspect-square h-full w-full object-cover", className)}
-			{...props}
-		/>
-	);
+	return <img className={cn("aspect-square h-full w-full object-cover", className)} {...props} />;
 }
 
 interface AvatarFallbackProps extends HTMLAttributes<HTMLSpanElement> {
@@ -68,4 +63,4 @@ export function AvatarFallback({
 			{children}
 		</span>
 	);
-}
+}

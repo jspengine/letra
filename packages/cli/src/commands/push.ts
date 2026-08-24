@@ -6,12 +6,19 @@ import { loadWorkflow } from "./flow-init.js";
 import { generateAdapters } from "../adapters/generate.js";
 import { getLetraDir } from "./../workspace/resolver.js";
 
-export async function push(targetPath?: string, options?: { dryRun?: boolean; quiet?: boolean }): Promise<void> {
+export async function push(
+	targetPath?: string,
+	options?: { dryRun?: boolean; quiet?: boolean },
+): Promise<void> {
 	const cwd = targetPath ? join(process.cwd(), targetPath) : process.cwd();
 	const resolution = resolveWorkspaceRoot(cwd);
 
 	if (!isWorkspaceMode(resolution)) {
-		console.log(chalk.yellow("Nenhum workspace isolado detectado. Use `letra init --workspace <nome>` primeiro."));
+		console.log(
+			chalk.yellow(
+				"Nenhum workspace isolado detectado. Use `letra init --workspace <nome>` primeiro.",
+			),
+		);
 		return;
 	}
 
@@ -52,11 +59,16 @@ export async function push(targetPath?: string, options?: { dryRun?: boolean; qu
 	const relativeTarget = relative(process.cwd(), targetDir).replace(/\\/g, "/");
 	const targetConfig = workflow.locations?.find((location) => {
 		const locationPath = location.path.replace(/\\/g, "/");
-		return locationPath === normalizedTarget || locationPath === relativeTarget || locationPath === targetPath;
+		return (
+			locationPath === normalizedTarget ||
+			locationPath === relativeTarget ||
+			locationPath === targetPath
+		);
 	});
-	const effectiveTools = targetConfig?.adapters && targetConfig.adapters.length > 0
-		? targetConfig.adapters
-		: workflow.tools;
+	const effectiveTools =
+		targetConfig?.adapters && targetConfig.adapters.length > 0
+			? targetConfig.adapters
+			: workflow.tools;
 
 	// Generate adapters in target
 	if (effectiveTools && effectiveTools.length > 0 && !dryRun) {
@@ -74,7 +86,13 @@ export async function push(targetPath?: string, options?: { dryRun?: boolean; qu
 			primaryItemId: workflow.primaryItemId || workflow.items[0]?.id,
 			workspaceDir,
 		});
-		files.push("AGENTS.md", ".cursorrules", "CLAUDE.md", ".windsurfrules", ".github/copilot-instructions.md");
+		files.push(
+			"AGENTS.md",
+			".cursorrules",
+			"CLAUDE.md",
+			".windsurfrules",
+			".github/copilot-instructions.md",
+		);
 	}
 
 	if (!quiet) {

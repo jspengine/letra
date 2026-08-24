@@ -62,7 +62,9 @@ describe("Header", () => {
 		renderHeader();
 
 		expect(screen.getByRole("button", { name: "Recolher menu global" })).toBeTruthy();
-		expect(screen.getByRole("button", { name: "Contexto atual: workspace Letra, escopo client" })).toBeTruthy();
+		expect(
+			screen.getByRole("button", { name: "Contexto atual: workspace Letra, escopo client" }),
+		).toBeTruthy();
 		expect(
 			screen.getByRole("button", {
 				name: "Abrir supervisao: 2 decisoes pendentes, 8 sinais ativos, 2 bloqueiam conclusao",
@@ -75,7 +77,9 @@ describe("Header", () => {
 		const user = userEvent.setup();
 		const { props } = renderHeader();
 
-		await user.click(screen.getByRole("button", { name: "Contexto atual: workspace Letra, escopo client" }));
+		await user.click(
+			screen.getByRole("button", { name: "Contexto atual: workspace Letra, escopo client" }),
+		);
 		await user.click(screen.getByRole("option", { name: "Todo o workspace" }));
 
 		expect(props.onDirectoryChange).toHaveBeenCalledWith(null);
@@ -88,7 +92,9 @@ describe("Header", () => {
 			workspaces: [workspace, anotherWorkspace],
 		});
 
-		await user.click(screen.getByRole("button", { name: "Contexto atual: workspace Letra, escopo client" }));
+		await user.click(
+			screen.getByRole("button", { name: "Contexto atual: workspace Letra, escopo client" }),
+		);
 		await user.click(screen.getByRole("option", { name: "Sandbox" }));
 
 		expect(props.onWorkspaceChange).toHaveBeenCalledWith(anotherWorkspace);
@@ -107,7 +113,11 @@ describe("Header", () => {
 		const onOpenHealthCenter = vi.fn();
 		renderHeader({ onOpenHealthCenter });
 
-		await user.click(screen.getByRole("button", { name: "Abrir supervisao: 2 decisoes pendentes, 8 sinais ativos, 2 bloqueiam conclusao" }));
+		await user.click(
+			screen.getByRole("button", {
+				name: "Abrir supervisao: 2 decisoes pendentes, 8 sinais ativos, 2 bloqueiam conclusao",
+			}),
+		);
 
 		expect(onOpenHealthCenter).toHaveBeenCalledOnce();
 	});
@@ -137,7 +147,11 @@ describe("Header", () => {
 			gateCount: 0,
 		});
 
-		expect(screen.getByRole("button", { name: "Contexto atual: workspace Escolha um workspace, escopo Todo o workspace" })).toBeTruthy();
+		expect(
+			screen.getByRole("button", {
+				name: "Contexto atual: workspace Escolha um workspace, escopo Todo o workspace",
+			}),
+		).toBeTruthy();
 		expect(screen.queryByRole("button", { name: /correc/ })).toBeNull();
 	});
 });

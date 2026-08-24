@@ -80,10 +80,7 @@ export default function RolesViewer() {
 			</div>
 			<div className="grid gap-3 sm:grid-cols-2">
 				{roles.map((role) => (
-					<div
-						key={role.id}
-						className="app-section-card p-4"
-					>
+					<div key={role.id} className="app-section-card p-4">
 						<div className="flex items-start gap-3">
 							<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-bg-sunken)]">
 								<Icon
@@ -104,7 +101,12 @@ export default function RolesViewer() {
 								</p>
 								<div className="mt-2 flex flex-wrap gap-1">
 									{(role.allowedStages ?? []).map((stage) => (
-										<Badge key={stage} variant="amber" tone="soft" className="text-[10px]">
+										<Badge
+											key={stage}
+											variant="amber"
+											tone="soft"
+											className="text-[10px]"
+										>
 											{stage}
 										</Badge>
 									))}

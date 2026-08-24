@@ -24,7 +24,11 @@ function NavigationMenuList({ className, ...props }: NavigationMenuPrimitive.Lis
 
 const NavigationMenuItem = NavigationMenuPrimitive.Item;
 
-function NavigationMenuTrigger({ className, children, ...props }: NavigationMenuPrimitive.Trigger.Props) {
+function NavigationMenuTrigger({
+	className,
+	children,
+	...props
+}: NavigationMenuPrimitive.Trigger.Props) {
 	return (
 		<NavigationMenuPrimitive.Trigger
 			data-slot="navigation-menu-trigger"
@@ -70,11 +74,11 @@ function NavigationMenuLink({ className, ...props }: NavigationMenuPrimitive.Lin
 
 function NavigationMenuViewport({ className, ...props }: NavigationMenuPrimitive.Viewport.Props) {
 	return (
-			<NavigationMenuPrimitive.Portal>
-				<NavigationMenuPrimitive.Positioner sideOffset={8}>
-					<NavigationMenuPrimitive.Popup
-						data-slot="navigation-menu-popup"
-						className="rounded-[var(--radius-md)] border-[length:var(--border-thin)] border-[var(--color-border)] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] shadow-lg outline-none"
+		<NavigationMenuPrimitive.Portal>
+			<NavigationMenuPrimitive.Positioner sideOffset={8}>
+				<NavigationMenuPrimitive.Popup
+					data-slot="navigation-menu-popup"
+					className="rounded-[var(--radius-md)] border-[length:var(--border-thin)] border-[var(--color-border)] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] shadow-lg outline-none"
 				>
 					<NavigationMenuPrimitive.Viewport
 						data-slot="navigation-menu-viewport"

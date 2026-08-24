@@ -17,12 +17,10 @@ export function EmptyState({ icon, title, description, action, className }: Empt
 				className,
 			)}
 		>
-			{icon && (
-				<div style={{ color: "var(--color-text-secondary)" }}>
-					{icon}
-				</div>
-			)}
-			<h3 className="text-h2" style={{ color: "var(--color-text-primary)" }}>{title}</h3>
+			{icon && <div style={{ color: "var(--color-text-secondary)" }}>{icon}</div>}
+			<h3 className="text-h2" style={{ color: "var(--color-text-primary)" }}>
+				{title}
+			</h3>
 			{description && (
 				<p className="max-w-sm text-body" style={{ color: "var(--color-text-secondary)" }}>
 					{description}

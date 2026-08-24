@@ -7,10 +7,45 @@ const packageRoot = join(root, "..");
 const srcRoot = join(packageRoot, "src");
 const outputPath = join(packageRoot, "catalog", "ds-catalog.json");
 
-const requiredFields = ["category", "status", "tokens", "consumes", "surfaces", "a11y", "breakpoints"];
-const requiredPrimitives = ["Button", "Badge", "Card", "Input", "Dialog", "Sheet", "Select", "Table", "Toast", "Tooltip"];
-const requiredPatterns = ["Sidebar", "KanbanBoard", "GateCard", "ValidatingBar", "MarchingBorder", "Search", "ActivityTimeline", "NavHeader"];
-const requiredSurfaces = ["HomeView", "FlowView", "ExecutionView", "ContextView", "SpecsView", "WorkspacesView"];
+const requiredFields = [
+	"category",
+	"status",
+	"tokens",
+	"consumes",
+	"surfaces",
+	"a11y",
+	"breakpoints",
+];
+const requiredPrimitives = [
+	"Button",
+	"Badge",
+	"Card",
+	"Input",
+	"Dialog",
+	"Sheet",
+	"Select",
+	"Table",
+	"Toast",
+	"Tooltip",
+];
+const requiredPatterns = [
+	"Sidebar",
+	"KanbanBoard",
+	"GateCard",
+	"ValidatingBar",
+	"MarchingBorder",
+	"Search",
+	"ActivityTimeline",
+	"NavHeader",
+];
+const requiredSurfaces = [
+	"HomeView",
+	"FlowView",
+	"ExecutionView",
+	"ContextView",
+	"SpecsView",
+	"WorkspacesView",
+];
 
 function walk(dir, files = []) {
 	for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -68,7 +103,7 @@ for (const file of walk(srcRoot)) {
 	const defaultSource = extractBalancedObject(source, "export default");
 	if (!defaultSource) continue;
 
-	const xdsSource = extractBalancedObject(defaultSource, "\"x-ds\"");
+	const xdsSource = extractBalancedObject(defaultSource, '"x-ds"');
 	if (!xdsSource) continue;
 
 	const title = readString(defaultSource, "title");
@@ -101,9 +136,15 @@ for (const file of walk(srcRoot)) {
 	entries.push(entry);
 }
 
-const primitiveNames = new Set(entries.filter((entry) => entry.category === "primitive").map((entry) => entry.name));
-const patternNames = new Set(entries.filter((entry) => entry.category === "pattern").map((entry) => entry.name));
-const surfaceEntry = entries.find((entry) => entry.category === "surface" && entry.title === "Surfaces/ClientViews");
+const primitiveNames = new Set(
+	entries.filter((entry) => entry.category === "primitive").map((entry) => entry.name),
+);
+const patternNames = new Set(
+	entries.filter((entry) => entry.category === "pattern").map((entry) => entry.name),
+);
+const surfaceEntry = entries.find(
+	(entry) => entry.category === "surface" && entry.title === "Surfaces/ClientViews",
+);
 const missingPrimitives = requiredPrimitives.filter((name) => !primitiveNames.has(name));
 const missingPatterns = requiredPatterns.filter((name) => !patternNames.has(name));
 const missingSurfaces = requiredSurfaces.filter((name) => !surfaceEntry?.surfaces.includes(name));

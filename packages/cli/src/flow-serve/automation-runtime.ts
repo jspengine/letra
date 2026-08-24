@@ -145,7 +145,8 @@ export class AutomationRuntime {
 		this.safeLogAction(binding.workspaceRoot, "diagnostics-scan", "triggered", {
 			details: { reason },
 		});
-		void this.dependencies.runDiagnostics(binding.engine, binding.workspaceRoot)
+		void this.dependencies
+			.runDiagnostics(binding.engine, binding.workspaceRoot)
 			.then((output) => {
 				if (this.binding !== binding) return;
 				this.dependencies.broadcastDiagnostics(output);

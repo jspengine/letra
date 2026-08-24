@@ -66,7 +66,11 @@ export function createContextRoutes(dependencies: ContextRouteDependencies): Rou
 			}
 			const state = dependencies.readFocusState(workspaceDir);
 			const content = dependencies.readFocusDocument(workspaceDir);
-			sendJson(res, 200, state.active ? { ...state, content: content ?? "" } : { active: false });
+			sendJson(
+				res,
+				200,
+				state.active ? { ...state, content: content ?? "" } : { active: false },
+			);
 			return true;
 		}
 
@@ -95,8 +99,8 @@ export function createContextRoutes(dependencies: ContextRouteDependencies): Rou
 		if (path === "/api/log" && method === "GET") {
 			const rawLimit = url.searchParams.get("limit");
 			const rawPage = url.searchParams.get("page");
-			const page = rawPage ? Math.max(1, parseInt(rawPage, 10)) : 1;
-			const limit = rawLimit ? Math.max(1, Math.min(500, parseInt(rawLimit, 10))) : 50;
+			const page = rawPage ? Math.max(1, Number.parseInt(rawPage, 10)) : 1;
+			const limit = rawLimit ? Math.max(1, Math.min(500, Number.parseInt(rawLimit, 10))) : 50;
 			const offset = (page - 1) * limit;
 			const result = dependencies.queryLogWithMeta(workspaceRoot, {
 				all: url.searchParams.get("all") === "true",
@@ -122,15 +126,26 @@ export function createContextRoutes(dependencies: ContextRouteDependencies): Rou
 				const { join } = await import("node:path");
 				const { readFocusFile } = await import("../../adapters/focus-sync.js");
 				const { loadSessionLog } = await import("../../session-log.js");
-				const { loadHealthRecord, getActiveEntries } = await import("../../health-record.js");
+				const { loadHealthRecord, getActiveEntries } = await import(
+					"../../health-record.js"
+				);
 
 				function readFile(relativePath: string): string {
 					const fp = join(workspaceDir, relativePath);
 					if (!existsSync(fp)) return "";
-					try { return readFileSync(fp, "utf-8"); } catch { return ""; }
+					try {
+						return readFileSync(fp, "utf-8");
+					} catch {
+						return "";
+					}
 				}
 
-				const l1Files = ["constitution.md", "context.md", "glossary.md", "constraints.md"] as const;
+				const l1Files = [
+					"constitution.md",
+					"context.md",
+					"glossary.md",
+					"constraints.md",
+				] as const;
 				const l1 = l1Files.map((f) => ({
 					path: `.letra/${f}`,
 					content: readFile(f),
@@ -138,10 +153,14 @@ export function createContextRoutes(dependencies: ContextRouteDependencies): Rou
 
 				const focus = readFocusFile(workspaceRoot);
 				const focusContent = readFile("focus.md");
-				const specContent = focus?.specName ? readFile(`specs/${focus.specName}/spec.md`) : "";
+				const specContent = focus?.specName
+					? readFile(`specs/${focus.specName}/spec.md`)
+					: "";
 				const l2 = {
 					focus: focus ? { ...focus, content: focusContent } : null,
-					spec: specContent ? { path: `.letra/specs/${focus!.specName}/spec.md`, content: specContent } : null,
+					spec: specContent
+						? { path: `.letra/specs/${focus?.specName}/spec.md`, content: specContent }
+						: null,
 				};
 
 				const healthRecord = loadHealthRecord(workspaceRoot);

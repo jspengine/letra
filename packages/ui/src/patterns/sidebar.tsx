@@ -31,9 +31,15 @@ export function Sidebar({ items, collapsed = false, onToggle, className }: Sideb
 			)}
 			style={{ borderColor: "var(--color-border)" }}
 		>
-			<div className="flex items-center justify-between border-b px-[var(--space-3)] py-[var(--space-2)]" style={{ borderColor: "var(--color-border)" }}>
+			<div
+				className="flex items-center justify-between border-b px-[var(--space-3)] py-[var(--space-2)]"
+				style={{ borderColor: "var(--color-border)" }}
+			>
 				{!collapsed && (
-					<span className="text-h2 tracking-tight" style={{ color: "var(--color-text-primary)" }}>
+					<span
+						className="text-h2 tracking-tight"
+						style={{ color: "var(--color-text-primary)" }}
+					>
 						Letra
 					</span>
 				)}
@@ -60,7 +66,11 @@ export function Sidebar({ items, collapsed = false, onToggle, className }: Sideb
 							background: item.active ? "var(--color-bg-sunken)" : "transparent",
 						}}
 					>
-						{item.icon && <span className="flex size-[var(--icon-md)] shrink-0 items-center justify-center">{item.icon}</span>}
+						{item.icon && (
+							<span className="flex size-[var(--icon-md)] shrink-0 items-center justify-center">
+								{item.icon}
+							</span>
+						)}
 						{!collapsed && <span className="truncate">{item.label}</span>}
 					</button>
 				))}

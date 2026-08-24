@@ -70,9 +70,12 @@ export const stageDriftDetector: Detector = {
 					},
 				});
 			} else if (pctDone > 0 && pctDone < 1 && isInBacklog) {
-				const doingStage = stages.find((s: { zone?: string }) => s.zone === "doing")
-					?? stages.find((_s: unknown, i: number) => i > 0);
-				const stageHint = doingStage ? `"${doingStage.name || doingStage.id}"` : "o próximo estágio";
+				const doingStage =
+					stages.find((s: { zone?: string }) => s.zone === "doing") ??
+					stages.find((_s: unknown, i: number) => i > 0);
+				const stageHint = doingStage
+					? `"${doingStage.name || doingStage.id}"`
+					: "o próximo estágio";
 				results.push({
 					id: `stage-drift_${item.id}_partial`,
 					type: "info",

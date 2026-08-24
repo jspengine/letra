@@ -31,7 +31,9 @@ describe("SupervisionInbox", () => {
 		);
 
 		expect(screen.getByText("Prioridade agora")).toBeTruthy();
-		expect(screen.getByText("Um gate humano impede o fluxo de avancar sem sua decisao.")).toBeTruthy();
+		expect(
+			screen.getByText("Um gate humano impede o fluxo de avancar sem sua decisao."),
+		).toBeTruthy();
 		expect(screen.getByRole("heading", { name: "Decisoes pendentes" })).toBeTruthy();
 		expect(screen.getByText("Aprovar contrato publico")).toBeTruthy();
 		expect(screen.getByText(/nenhuma mudanca ocorre antes da sua decisao/i)).toBeTruthy();
@@ -112,7 +114,11 @@ describe("SupervisionInbox", () => {
 
 		expect(screen.getByText("Nenhuma decisao aguarda voce.")).toBeTruthy();
 		expect(screen.getByText("Nenhum sinal ativo de saude.")).toBeTruthy();
-		expect(screen.getByText("Historico resolvido ou descartado fica em Atividade; esta area mostra apenas o que pede investigacao agora.")).toBeTruthy();
+		expect(
+			screen.getByText(
+				"Historico resolvido ou descartado fica em Atividade; esta area mostra apenas o que pede investigacao agora.",
+			),
+		).toBeTruthy();
 		expect(screen.getByText("Em foco por ser o item central da sessao atual.")).toBeTruthy();
 		expect(screen.getByText("Nenhuma atividade registrada.")).toBeTruthy();
 		expect(screen.getByText(/abre o item sem alterar seu estagio/i)).toBeTruthy();
@@ -139,7 +145,13 @@ describe("SupervisionInbox", () => {
 		);
 
 		expect(screen.getByText("Saude indisponivel agora.")).toBeTruthy();
-		expect(screen.getByRole("button", { name: "Verificando" }).hasAttribute("disabled")).toBe(true);
-		expect(screen.getByText("A supervisao continua disponivel, mas sem a fotografia de saude do workspace.")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Verificando" }).hasAttribute("disabled")).toBe(
+			true,
+		);
+		expect(
+			screen.getByText(
+				"A supervisao continua disponivel, mas sem a fotografia de saude do workspace.",
+			),
+		).toBeTruthy();
 	});
 });

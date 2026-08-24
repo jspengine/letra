@@ -7,7 +7,11 @@ export const Default = () => <DriftIndicator message="Spec and implementation dr
 export const WithAction = () => (
 	<DriftIndicator
 		message="Acceptance criteria changed after implementation"
-		action={<Button size="sm" variant="secondary">Review diff</Button>}
+		action={
+			<Button size="sm" variant="secondary">
+				Review diff
+			</Button>
+		}
 	/>
 );
 
