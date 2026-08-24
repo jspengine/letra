@@ -69,6 +69,7 @@ import { createAdapterRoutes } from "../flow-serve/routes/adapter-routes.js";
 import { createHandoffRoutes } from "../flow-serve/routes/handoff-routes.js";
 import { ClientAssets } from "../flow-serve/client-assets.js";
 import { AutomationRuntime, type AutomationBinding } from "../flow-serve/automation-runtime.js";
+import { Orchestrator } from "../orchestrator/orchestrator.js";
 
 const DEFAULT_PORT = 3000;
 
@@ -99,6 +100,7 @@ export class FlowServer {
 	private router = new FlowServerRouter();
 	private clientAssets: ClientAssets;
 	private automationRuntime: AutomationRuntime;
+	private orchestrator: Orchestrator;
 	private port: number;
 	private loadWorkflow: (root?: string) => Workflow | null;
 	private engine: DiagnosticEngine;
@@ -126,6 +128,11 @@ export class FlowServer {
 				this.events.broadcastSystemActionUpdated({ actionId, outcome });
 			},
 		});
+		this.orchestrator = new Orchestrator({
+			root: this.activeWorkspaceRoot,
+			onHandoffEvent: (payload) => this.events.broadcastHandoff(payload),
+		});
+		this.orchestrator.registerFromManifest();
 		this.router.register((context) => {
 			if (context.path !== "/events") return false;
 			this.events.handleSse(context.req, context.res);
@@ -261,6 +268,12 @@ export class FlowServer {
 		this.loadWorkflow = (overrideRoot?: string) => loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
 		this.engine = new DiagnosticEngine(this.activeWorkspaceRoot);
 		this.automationRuntime.rebind(this.automationBinding());
+		this.orchestrator = new Orchestrator({
+			root: this.activeWorkspaceRoot,
+			onHandoffEvent: (payload) => this.events.broadcastHandoff(payload),
+		});
+		this.orchestrator.registerFromManifest();
+		this.orchestrator.startReclaimTimer();
 		this.broadcast();
 	}
 
@@ -348,6 +361,7 @@ export class FlowServer {
 			this.server = createServer(this.handleRequest);
 			this.server.listen(this.port, () => {
 				this.automationRuntime.start(this.automationBinding());
+				this.orchestrator.startReclaimTimer();
 				resolve();
 			});
 			this.server.on("error", reject);
@@ -356,6 +370,7 @@ export class FlowServer {
 
 	stop(): void {
 		this.automationRuntime.stop();
+		this.orchestrator.stopReclaimTimer();
 		if (this.server) this.server.close();
 		this.events.close();
 	}
