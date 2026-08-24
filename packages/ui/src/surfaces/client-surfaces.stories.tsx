@@ -8,6 +8,7 @@ import FlowView from "../../../client/src/components/Flow/FlowView";
 import ContextView from "../../../client/src/components/Context/ContextView";
 import SpecsView from "../../../client/src/components/Specs/SpecsView";
 import WorkspacesView from "../../../client/src/components/Workspaces/WorkspacesView";
+import ExecutionView from "../../../client/src/components/Execution/ExecutionView";
 
 import "../../../client/src/index.css";
 
@@ -440,7 +441,7 @@ export default {
 				"radius-lg",
 			],
 			consumes: ["Button", "Card", "Badge", "Icon", "Input", "Sheet", "ToastProvider"],
-			surfaces: ["HomeView", "FlowView", "ContextView", "SpecsView", "WorkspacesView"],
+			surfaces: ["HomeView", "FlowView", "ExecutionView", "ContextView", "SpecsView", "WorkspacesView"],
 			a11y: ["mocked-api", "keyboard-navigation", "landmarks"],
 			breakpoints: ["mobile", "desktop"],
 		},
@@ -466,6 +467,14 @@ export const Flow: Story = {
 				onItemMoved={() => {}}
 				onOpenSpec={() => {}}
 			/>
+		</SurfaceFrame>
+	),
+};
+
+export const Execution: Story = {
+	render: () => (
+		<SurfaceFrame>
+			<ExecutionView workflow={workflow} activeFlow={activeFlow} />
 		</SurfaceFrame>
 	),
 };
