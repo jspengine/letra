@@ -279,7 +279,7 @@ export default function KanbanView({
 									const progressMax = acCount
 										? acCount.total
 										: hasTasks
-											? it.tasks?.length
+											? (it.tasks?.length ?? 0)
 											: 0;
 									const progressVal = acCount
 										? acCount.done
