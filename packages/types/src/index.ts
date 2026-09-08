@@ -34,6 +34,35 @@ export interface ExternalProtocolContext {
 	timestamp: string;
 }
 
+export type ExternalProtocolEventStatus = "started" | "heartbeat" | "succeeded" | "failed";
+
+export interface ExternalProtocolEvent {
+	schemaVersion: "1";
+	status: ExternalProtocolEventStatus;
+	itemId: string;
+	actor: ExternalProtocolActor;
+	executorId: string;
+	revision: string;
+	timestamp: string;
+	message?: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface ExternalProtocolEvidence {
+	kind: "diff" | "file" | "command" | "test" | "artifact";
+	value: string;
+	sha256?: string;
+	exitCode?: number;
+	observedAt: string;
+	source: string;
+}
+
+export interface ExternalProtocolFailure extends ExternalProtocolEvent {
+	status: "failed";
+	recovery: "retry" | "release" | "handoff" | "human";
+	errorCode: string;
+}
+
 export interface Stage {
 	id: string;
 	name: string;
