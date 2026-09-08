@@ -180,6 +180,9 @@ export interface AgentDirectionSnapshot {
 		description: string;
 		stage: string;
 		spec: string | null;
+		claimedBy?: string | null;
+		claimedAt?: string | null;
+		claimExpiresAt?: string | null;
 	} | null;
 	roleIds: string[];
 	allowedStageIds: string[];

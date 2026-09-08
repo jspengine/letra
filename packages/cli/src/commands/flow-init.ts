@@ -58,6 +58,7 @@ export interface Item {
 	tasks?: Task[];
 	claimedBy?: string;
 	claimedAt?: string;
+	claimExpiresAt?: string;
 	currentPhase?: string;
 	handoff?: ItemHandoff;
 }

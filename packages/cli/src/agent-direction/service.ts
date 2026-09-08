@@ -199,6 +199,9 @@ export function createAgentDirectionSnapshot(
 					description: item.description,
 					stage: item.stage,
 					spec: item.spec ?? null,
+					claimedBy: item.claimedBy ?? null,
+					claimedAt: item.claimedAt ?? null,
+					claimExpiresAt: item.claimExpiresAt ?? null,
 				}
 			: null,
 		roleIds: stage ? [...stage.roleIds] : [],

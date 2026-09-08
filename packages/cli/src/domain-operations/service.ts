@@ -41,6 +41,13 @@ export interface RequestTransitionInput extends OperationContext {
 	targetStageId: string;
 }
 
+export interface ClaimOperationInput extends OperationContext {
+	itemId: string;
+	executorId: string;
+	capability: string;
+	ttlMinutes?: number;
+}
+
 function audit(
 	root: string,
 	action: LogAction,
@@ -130,6 +137,58 @@ function checkRevision(
 function normalizeAcId(value: string): string {
 	const match = value.trim().match(/^AC[\s-]?(\d+(?:\.\d+)*)$/i);
 	return match ? `AC${match[1]}` : value.trim().toUpperCase();
+}
+
+export async function claimOperation(
+	root: string,
+	input: ClaimOperationInput,
+): Promise<OperationResult> {
+	const workspaceRoot = createWorkspaceBoundary(resolve(root)).root;
+	const before = resolveAgentDirection(workspaceRoot);
+	const subject = { itemId: input.itemId, operation: "claim" };
+	const stale = checkRevision(workspaceRoot, before, input, subject);
+	if (stale) return stale;
+	if (!input.actor?.trim())
+		return rejected(workspaceRoot, before, "ACTOR_REQUIRED", "Claim exige identidade do actor.", input, subject);
+	if (!before.item || before.item.id !== input.itemId)
+		return rejected(workspaceRoot, before, "ITEM_NOT_CURRENT", "O claim exige o item vigente.", input, subject);
+	const flow = resolveActiveFlow(workspaceRoot).flow;
+	const stage = flow?.stages.find((candidate) => candidate.id === before.item?.stage);
+	const capabilities = stage?.roles.flatMap((role) => role.capabilities) ?? [];
+	if (capabilities.length > 0 && !capabilities.includes(input.capability))
+		return rejected(workspaceRoot, before, "CAPABILITY_INVALID", `Capability não permitida: ${input.capability}.`, input, subject);
+	const workflow = loadWorkflow(workspaceRoot);
+	const item = workflow?.items.find((candidate) => candidate.id === input.itemId);
+	if (!workflow || !item) return rejected(workspaceRoot, before, "ITEM_NOT_FOUND", "Item não encontrado.", input, subject);
+	if (item.claimedBy && item.claimedBy !== input.actor)
+		return rejected(workspaceRoot, before, "CLAIM_CONFLICT", `Item já está sob responsabilidade de ${item.claimedBy}.`, input, subject);
+	const ttl = Math.max(1, Math.min(1440, input.ttlMinutes ?? 30));
+	const now = new Date();
+	item.claimedBy = input.actor.trim();
+	item.claimedAt = now.toISOString();
+	item.claimExpiresAt = new Date(now.getTime() + ttl * 60_000).toISOString();
+	workflow.updatedAt = now.toISOString();
+	const writeResult = await writeWorkflow(workspaceRoot, {
+		workflow,
+		source: "flow-claim",
+		primaryItemId: item.id,
+		skipSitrep: true,
+		skipLog: true,
+		quiet: true,
+		confineAdapterWrites: true,
+	});
+	if (!writeResult.ok)
+		return rejected(workspaceRoot, before, "CLAIM_WRITE_FAILED", writeResult.error ?? "Falha ao persistir claim.", input, subject);
+	const after = resolveAgentDirection(workspaceRoot);
+	const entry = audit(workspaceRoot, "agent_claim_requested", before, {
+		outcome: "accepted",
+		reasonCode: "CLAIM_ACCEPTED",
+		reason: input.reason,
+		actor: input.actor,
+		itemId: item.id,
+		details: { executorId: input.executorId, capability: input.capability, ttlMinutes: ttl, expiresAt: item.claimExpiresAt },
+	});
+	return result(before, entry.id, "accepted", "CLAIM_ACCEPTED", input.reason, after);
 }
 
 function markPendingAc(content: string, acId: string): string | null {
