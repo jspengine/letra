@@ -10,7 +10,7 @@ export function createAgentRoutes(dependencies: { loadWorkflow: (root: string) =
 		try {
 			if (context.path === "/api/agents" && context.method === "GET") { sendJson(context.res, 200, listAgents(root, dependencies.loadWorkflow(root))); return true; }
 			if (context.path === "/api/agents" && context.method === "POST") {
-				const agent = await readJson<AgentIdentity>(context.req); sendJson(context.res, 201, createAgent(root, agent, dependencies.loadWorkflow(root))); return true;
+				const agent = await readJson<AgentIdentity>(context.req); const result = createAgent(root, agent, dependencies.loadWorkflow(root)); dependencies.broadcast?.(); sendJson(context.res, 201, result); return true;
 			}
 			const match = context.path.match(/^\/api\/agents\/([^/]+)$/); if (!match) return false;
 			const id = decodeURIComponent(match[1]);

@@ -4,6 +4,7 @@ import { Badge, Icon, Button, Progress, Card, CardContent, Tag, AgentAvatar } fr
 import type { AgentIdentity } from "@letra/types";
 import { cn } from "../../lib/utils";
 import { computeSlug } from "../../lib/item-utils";
+import { resolveAgent } from "../../lib/agent-resolver";
 import {
 	doneStageIds,
 	humanGateStageIds,
@@ -176,7 +177,7 @@ function ItemCard({
 		(stage) => stage.id === item.stage,
 	);
 	const agentName = item.claimedBy ?? resolvedStage?.roles[0]?.label ?? "Não atribuído";
-	const agent = agents.find((candidate) => candidate.id === item.claimedBy || candidate.role === item.claimedBy);
+	const agent = resolveAgent(agents, item.claimedBy);
 	const agentAction = resolvedStage ? stageActionLabel(resolvedStage) : "Processando";
 	const isRunning = state.key === "running";
 	const hasProgress = progress.total > 0;
