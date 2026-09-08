@@ -24,6 +24,7 @@
 		"typecheck": "npm -w packages/cli run typecheck && npm -w packages/ui run typecheck",
 		"test": "npm -w packages/cli run test",
 		"test:client": "npm -w packages/client run test",
+		"test:package": "node scripts/test-package.mjs",
 		"ds:playground": "npm -w packages/design-toolkit run playground",
 		"ds:check": "npm -w packages/design-toolkit run check",
 		"ds:validate": "npm -w packages/design-toolkit run validate"

@@ -14,6 +14,11 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify release commit belongs to main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
       
       - name: Use Node.js 22.x
         uses: actions/setup-node@v4
@@ -22,14 +27,22 @@ jobs:
           cache: 'npm'
           registry-url: 'https://registry.npmjs.org'
           scope: '@letra-ai'
+
+      - name: Verify tag matches package version
+        run: node -e "const { version } = require('./packages/cli/package.json'); if (process.env.GITHUB_REF_NAME !== 'v' + version) throw new Error('Tag must match CLI version ' + version)"
       
       - name: Install dependencies
         run: npm ci
       
       - name: Build package
         run: npm run build
+
+      - name: Test consumer installation
+        id: package
+        run: npm run test:package -- --pack-destination "$RUNNER_TEMP/letra-release"
       
       - name: Publish to npm
-        run: npm publish --workspace=packages/cli --access public
+        run: npm publish "$TARBALL" --access public
         env:
+          TARBALL: ${{ steps.package.outputs.tarball }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

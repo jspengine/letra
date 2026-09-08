@@ -1,12 +1,16 @@
 {
 	"name": "@letra-ai/cli",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"type": "module",
 	"bin": {
 		"letra": "dist/index.js"
 	},
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
+	"files": ["dist"],
+	"engines": {
+		"node": ">=22"
+	},
 	"scripts": {
 		"dev": "tsx src/index.ts",
 		"build": "node ../../scripts/build-cli.mjs",
@@ -15,7 +19,6 @@
 		"test:watch": "vitest"
 	},
 	"dependencies": {
-		"@letra/types": "*",
 		"@modelcontextprotocol/sdk": "^1.29.0",
 		"chalk": "^5.4.1",
 		"commander": "^12.1.0",
@@ -26,6 +29,7 @@
 		"zod": "^3.25.76"
 	},
 	"devDependencies": {
+		"@letra/types": "*",
 		"tsup": "^8.5.0",
 		"typescript": "^5.8.3",
 		"vitest": "^3.2.4"
