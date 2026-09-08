@@ -1,3 +1,39 @@
+/** Versioned identity of the agent/tool making a protocol request. */
+export interface ExternalProtocolActor {
+	agentId: string;
+	displayName: string;
+	toolId: string;
+	toolVersion: string;
+}
+
+/** Capabilities an external executor advertises to the Letra control plane. */
+export type ExternalProtocolCapability = string;
+
+/** Stable workspace reference carried by protocol messages. */
+export interface ExternalProtocolWorkspaceRef {
+	workspaceId: string;
+	workspaceRoot: string;
+}
+
+/** Versioned description of an external executor and its transport. */
+export interface ExternalProtocolExecutor {
+	id: string;
+	capabilities: ExternalProtocolCapability[];
+	status: "online" | "offline" | "busy";
+	transport: "cli" | "mcp" | "webhook" | "file";
+	maxExecutionTime?: number;
+}
+
+/** Common envelope for requests made against the external executor protocol. */
+export interface ExternalProtocolContext {
+	schemaVersion: "1";
+	workspace: ExternalProtocolWorkspaceRef;
+	actor: ExternalProtocolActor;
+	executor: ExternalProtocolExecutor;
+	revision: string;
+	timestamp: string;
+}
+
 export interface Stage {
 	id: string;
 	name: string;
