@@ -36,7 +36,11 @@ export default function FlowConfigurationMap({ stages, activeFlow, items = [] }:
 					</div>
 					{activeFlow?.harnessVersion ? <Tag>harness {activeFlow.harnessVersion}</Tag> : null}
 				</div>
-				<div className="flex min-w-0 items-stretch gap-2 overflow-x-auto pb-1">
+				<div
+					className="flex min-w-0 items-stretch gap-2 overflow-x-auto pb-1"
+					tabIndex={0}
+					aria-label="Configuração da esteira"
+				>
 					{stages.map((stage, index) => {
 						const role = stage.roles[0];
 						const configuredGate = stage.gate;

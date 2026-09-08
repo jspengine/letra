@@ -226,7 +226,7 @@ function ItemCard({
 			data-gate={isHumanGate ? "true" : "false"}
 			data-running={isRunning ? "true" : "false"}
 			draggable
-			role="button"
+			role="group"
 			tabIndex={0}
 			aria-label={`Abrir ${item.id}: ${title}`}
 			onClick={onClick}
