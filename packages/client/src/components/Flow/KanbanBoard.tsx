@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { ResolvedSpec, Workflow, Item } from "@letra/types";
-import { Badge, Icon, Button, Progress, Card, CardContent, Tag } from "@letra/ui";
+import { Badge, Icon, Button, Progress, Card, CardContent, Tag, AgentAvatar } from "@letra/ui";
+import type { AgentIdentity } from "@letra/types";
 import { cn } from "../../lib/utils";
 import { computeSlug } from "../../lib/item-utils";
 import {
@@ -126,6 +127,7 @@ function ItemCard({
 	workflow,
 	activeFlow,
 	specs,
+	agents,
 	onClick,
 	onDragStart,
 	onDragEnd,
@@ -134,6 +136,7 @@ function ItemCard({
 	workflow: Workflow;
 	activeFlow: ActiveFlowDefinition | null;
 	specs: ResolvedSpec[];
+	agents: AgentIdentity[];
 	onClick: () => void;
 	onDragStart: (e: React.DragEvent) => void;
 	onDragEnd: (e: React.DragEvent) => void;
@@ -173,6 +176,7 @@ function ItemCard({
 		(stage) => stage.id === item.stage,
 	);
 	const agentName = item.claimedBy ?? resolvedStage?.roles[0]?.label ?? "Não atribuído";
+	const agent = agents.find((candidate) => candidate.id === item.claimedBy || candidate.role === item.claimedBy);
 	const agentAction = resolvedStage ? stageActionLabel(resolvedStage) : "Processando";
 	const isRunning = state.key === "running";
 	const hasProgress = progress.total > 0;
@@ -267,7 +271,7 @@ function ItemCard({
 
 				<div className="flex min-w-0 flex-wrap items-center gap-1.5 text-caption text-[var(--color-text-secondary)]">
 					<Tag variant={item.claimedBy ? "agent" : "default"}>
-						<Icon name={item.claimedBy ? "bot" : "circle"} size={10} />
+						{agent ? <AgentAvatar agent={agent} size="sm" /> : <Icon name={item.claimedBy ? "bot" : "circle"} size={10} />}
 						{agentName}
 					</Tag>
 					<span className="min-w-0 flex-1 basis-32 truncate">{agentAction}</span>
@@ -328,6 +332,7 @@ export default function KanbanBoard({
 	const [dragOver, setDragOver] = useState<string | null>(null);
 	const [draggingId, setDraggingId] = useState<string | null>(null);
 	const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
+	const [agents, setAgents] = useState<AgentIdentity[]>([]);
 	const dragItem = useRef<Workflow["items"][0] | null>(null);
 
 	const loadSpecs = useCallback(async () => {
@@ -343,6 +348,7 @@ export default function KanbanBoard({
 
 	useEffect(() => {
 		loadSpecs();
+		fetch("/api/agents").then((r) => r.json()).then((d) => Array.isArray(d) && setAgents(d)).catch(() => {});
 	}, [loadSpecs]);
 
 	useEffect(() => {
@@ -483,6 +489,7 @@ export default function KanbanBoard({
 							workflow={workflow}
 							activeFlow={activeFlow}
 							specs={specs}
+							agents={agents}
 							onClick={() => onSelectItem(item.id)}
 							onDragStart={(e) => handleDragStart(e, item.id)}
 							onDragEnd={handleDragEnd}

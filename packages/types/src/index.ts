@@ -63,6 +63,31 @@ export interface ExternalProtocolFailure extends ExternalProtocolEvent {
 	errorCode: string;
 }
 
+export type AgentAvatar = { type: "emoji" | "initials" | "image"; value: string };
+export interface AgentSkill {
+	id: string;
+	label: string;
+	level: "beginner" | "intermediate" | "advanced" | "expert";
+	category?: string;
+}
+export interface AgentIdentity {
+	id: string;
+	displayName: string;
+	role: string;
+	bio?: string;
+	avatar: AgentAvatar;
+	color: string;
+	skills: AgentSkill[];
+	status: "online" | "offline" | "busy";
+	stageBindings: string[];
+	adapterHints?: Record<string, string>;
+}
+export interface AgentRegistry {
+	version: "1";
+	updatedAt: string;
+	agents: AgentIdentity[];
+}
+
 export interface Stage {
 	id: string;
 	name: string;

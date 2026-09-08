@@ -31,6 +31,7 @@ export { AgentStatusIndicator } from "./agent-status-indicator";
 export type { AgentState } from "./agent-status-indicator";
 export { Avatar, AvatarImage, AvatarFallback } from "./avatar";
 export { AvatarWithStatus } from "./avatar-with-status";
+export { AgentAvatar } from "./agent-avatar";
 export { Separator } from "./separator";
 export {
 	Breadcrumb,

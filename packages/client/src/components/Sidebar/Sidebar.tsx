@@ -16,7 +16,7 @@ import type { IconName } from "@letra/ui";
 import LogoDiamond from "../Header/LogoDiamond";
 import type { WorkspaceData } from "../Workspaces/WorkspacesView";
 
-export type Tab = "supervision" | "work" | "knowledge" | "activity" | "settings";
+export type Tab = "supervision" | "work" | "knowledge" | "activity" | "agents" | "settings";
 
 interface SidebarProps {
 	activeTab: Tab;
@@ -41,6 +41,7 @@ const PRIMARY_DESTINATIONS: NavItem[] = [
 	{ id: "work", label: "Trabalho", icon: "grid", color: "var(--color-primary)" },
 	{ id: "knowledge", label: "Conhecimento e Regras", icon: "book", color: "var(--color-agent)" },
 	{ id: "activity", label: "Atividade", icon: "activity", color: "var(--color-success)" },
+	{ id: "agents", label: "Agentes", icon: "user", color: "var(--color-agent)" },
 ];
 
 const SETTINGS_ITEMS: NavItem[] = [

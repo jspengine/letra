@@ -67,6 +67,7 @@ import { createWorkflowRoutes } from "../flow-serve/routes/workflow-routes.js";
 import { createWorkspaceRoutes } from "../flow-serve/routes/workspace-routes.js";
 import { createAdapterRoutes } from "../flow-serve/routes/adapter-routes.js";
 import { createHandoffRoutes } from "../flow-serve/routes/handoff-routes.js";
+import { createAgentRoutes } from "../flow-serve/routes/agent-routes.js";
 import { ClientAssets } from "../flow-serve/client-assets.js";
 import { AutomationRuntime, type AutomationBinding } from "../flow-serve/automation-runtime.js";
 import { Orchestrator } from "../orchestrator/orchestrator.js";
@@ -261,6 +262,7 @@ export class FlowServer {
 				},
 			}),
 		);
+		this.router.register(createAgentRoutes({ loadWorkflow: (root) => this.loadWorkflow(root), broadcast: () => this.broadcast() }));
 	}
 
 	switchWorkspace(workspaceRoot: string) {
