@@ -10,7 +10,7 @@ import { resolveActiveFlow } from "../flow-definition/resolve.js";
 import { createWorkspaceBoundary } from "../security/workspace-boundary.js";
 import { logEntry, type LogAction } from "../session-log.js";
 import { GateChecker } from "../harness/gate-checker.js";
-import { getLetraDir } from "./../workspace/resolver.js";
+import { getLetraDir, resolveWorkspaceRoot } from "./../workspace/resolver.js";
 
 export type OperationOutcome = "accepted" | "rejected" | "approval-required";
 
@@ -181,8 +181,8 @@ export async function runValidationOperation(
 }
 
 export function completeAcOperation(root: string, input: CompleteAcInput): OperationResult {
-	const boundary = createWorkspaceBoundary(resolve(root));
-	const workspaceRoot = boundary.root;
+	const workspaceRoot = createWorkspaceBoundary(resolve(root)).root;
+	const boundary = createWorkspaceBoundary(resolveWorkspaceRoot(root).workspaceDir);
 	const before = resolveAgentDirection(workspaceRoot);
 	const subject = { itemId: before.item?.id, acId: input.acId, operation: "complete_ac" };
 	const stale = checkRevision(workspaceRoot, before, input, subject);
