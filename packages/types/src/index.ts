@@ -212,6 +212,10 @@ export interface AgentDirectionSnapshot {
 		claimedBy?: string | null;
 		claimedAt?: string | null;
 		claimExpiresAt?: string | null;
+		activityStatus?: ExternalProtocolEventStatus | null;
+		activityStartedAt?: string | null;
+		lastHeartbeatAt?: string | null;
+		lastFailure?: { code: string; message: string; recovery: string; at: string } | null;
 	} | null;
 	roleIds: string[];
 	allowedStageIds: string[];

@@ -48,6 +48,15 @@ export interface ClaimOperationInput extends OperationContext {
 	ttlMinutes?: number;
 }
 
+export interface ExecutionEventInput extends OperationContext {
+	itemId: string;
+	executorId: string;
+	status: "started" | "heartbeat" | "succeeded" | "failed";
+	message?: string;
+	recovery?: "retry" | "release" | "handoff" | "human";
+	errorCode?: string;
+}
+
 function audit(
 	root: string,
 	action: LogAction,
@@ -189,6 +198,34 @@ export async function claimOperation(
 		details: { executorId: input.executorId, capability: input.capability, ttlMinutes: ttl, expiresAt: item.claimExpiresAt },
 	});
 	return result(before, entry.id, "accepted", "CLAIM_ACCEPTED", input.reason, after);
+}
+
+export async function recordExecutionEvent(
+	root: string,
+	input: ExecutionEventInput,
+): Promise<OperationResult> {
+	const workspaceRoot = createWorkspaceBoundary(resolve(root)).root;
+	const before = resolveAgentDirection(workspaceRoot);
+	const subject = { itemId: input.itemId, operation: input.status };
+	const stale = checkRevision(workspaceRoot, before, input, subject);
+	if (stale) return stale;
+	if (!input.actor?.trim()) return rejected(workspaceRoot, before, "ACTOR_REQUIRED", "Evento exige identidade do actor.", input, subject);
+	if (!before.item || before.item.id !== input.itemId) return rejected(workspaceRoot, before, "ITEM_NOT_CURRENT", "Evento exige o item vigente.", input, subject);
+	const workflow = loadWorkflow(workspaceRoot);
+	const item = workflow?.items.find((candidate) => candidate.id === input.itemId);
+	if (!workflow || !item) return rejected(workspaceRoot, before, "ITEM_NOT_FOUND", "Item não encontrado.", input, subject);
+	if (item.claimedBy !== input.actor) return rejected(workspaceRoot, before, "CLAIM_REQUIRED", "O actor precisa possuir o claim vigente.", input, subject);
+	const now = new Date().toISOString();
+	item.activityStatus = input.status;
+	if (input.status === "started") item.activityStartedAt = now;
+	if (input.status === "heartbeat" || input.status === "started") item.lastHeartbeatAt = now;
+	if (input.status === "failed") item.lastFailure = { code: input.errorCode ?? "EXECUTION_FAILED", message: input.message ?? "Execução falhou.", recovery: input.recovery ?? "human", at: now };
+	workflow.updatedAt = now;
+	const writeResult = await writeWorkflow(workspaceRoot, { workflow, source: "flow-claim", primaryItemId: item.id, skipSitrep: true, skipLog: true, quiet: true, confineAdapterWrites: true });
+	if (!writeResult.ok) return rejected(workspaceRoot, before, "EVENT_WRITE_FAILED", writeResult.error ?? "Falha ao persistir evento.", input, subject);
+	const after = resolveAgentDirection(workspaceRoot);
+	const entry = audit(workspaceRoot, "agent_execution_event", before, { outcome: "accepted", reasonCode: "EVENT_RECORDED", reason: input.reason, actor: input.actor, itemId: item.id, details: { status: input.status, executorId: input.executorId, message: input.message, recovery: input.recovery, errorCode: input.errorCode } });
+	return result(before, entry.id, "accepted", "EVENT_RECORDED", input.reason, after);
 }
 
 function markPendingAc(content: string, acId: string): string | null {

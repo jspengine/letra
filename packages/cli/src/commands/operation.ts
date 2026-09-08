@@ -15,6 +15,21 @@ export default function operationCommand(): Command {
 	);
 
 	command
+		.command("event <item-id>")
+		.requiredOption("--status <status>", "started, heartbeat, succeeded ou failed")
+		.requiredOption("--executor <executor-id>", "Executor externo")
+		.requiredOption("--expected-revision <revision>", "Direction revision returned by Letra")
+		.requiredOption("--reason <reason>", "Reason for the operation")
+		.option("--actor <actor>", "Identidade do actor", "agent:codex")
+		.option("--message <message>", "Mensagem do evento")
+		.option("--recovery <recovery>", "retry, release, handoff ou human")
+		.option("--error-code <code>", "Código da falha")
+		.action(async (itemId: string, options: { status: "started" | "heartbeat" | "succeeded" | "failed"; executor: string; expectedRevision: string; reason: string; actor: string; message?: string; recovery?: "retry" | "release" | "handoff" | "human"; errorCode?: string }) => {
+			const { recordExecutionEvent } = await import("../domain-operations/service.js");
+			printJson(await recordExecutionEvent(resolve(process.cwd()), { itemId, status: options.status, executorId: options.executor, expectedRevision: options.expectedRevision, reason: options.reason, actor: options.actor, message: options.message, recovery: options.recovery, errorCode: options.errorCode }));
+		});
+
+	command
 		.command("claim <item-id>")
 		.requiredOption("--executor <executor-id>", "Executor externo")
 		.requiredOption("--capability <capability>", "Capability usada")
