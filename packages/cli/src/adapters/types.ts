@@ -1,3 +1,5 @@
+import type { AgentDirectionSnapshot } from "@letra/types";
+
 export type AdapterSource = "init" | "flow-move" | "focus" | "flow-ac";
 
 export interface HarnessDirectionCommand {
@@ -49,6 +51,8 @@ export interface HandoffData {
 }
 
 export interface HarnessSnapshot {
+	/** Canonical versioned direction shared with CLI and MCP consumers. */
+	direction?: AgentDirectionSnapshot;
 	workflowName: string;
 	hasWorkflow: boolean;
 	activeStage?: { id: string; name: string };
