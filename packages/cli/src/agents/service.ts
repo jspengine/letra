@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { AgentIdentity, AgentRegistry, Workflow } from "@letra/types";
+import type { AgentIdentity, AgentRegistry, Workflow, ExternalProtocolActor, ExternalProtocolExecutor } from "@letra/types";
 import { getLetraDir, resolveWorkspaceRoot } from "../workspace/resolver.js";
 
 const DEFAULTS: Record<string, Omit<AgentIdentity, "id" | "role">> = {
@@ -29,7 +29,7 @@ export function defaultAgentIdentities(workflow: Workflow): AgentIdentity[] { re
 export function loadAgents(root: string, workflow?: Workflow): AgentRegistry {
 	const file = pathFor(root);
 	if (existsSync(file)) {
-		try { const parsed = JSON.parse(readFileSync(file, "utf8")) as AgentRegistry; if (parsed?.version === "1" && Array.isArray(parsed.agents)) return { ...parsed, agents: parsed.agents.filter((a) => { try { assertAgent(a); return true; } catch { return false; } }) }; } catch { /* migrate below */ }
+		try { const parsed = JSON.parse(readFileSync(file, "utf8")) as AgentRegistry; if (parsed?.version === "1" && Array.isArray(parsed.agents)) { const valid = parsed.agents.filter((a) => { try { assertAgent(a); return true; } catch { return false; } }); const known = new Set(valid.map((a) => a.role)); const merged = workflow ? [...valid, ...defaults(workflow).filter((a) => !known.has(a.role))] : valid; const registry = { ...parsed, agents: merged }; if (merged.length !== parsed.agents.length) saveAgents(root, registry); return registry; } } catch { /* migrate below */ }
 	}
 	const registry: AgentRegistry = { version: "1", updatedAt: new Date().toISOString(), agents: workflow ? defaults(workflow) : [] };
 	if (workflow) saveAgents(root, registry);
@@ -39,5 +39,9 @@ export function saveAgents(root: string, registry: AgentRegistry): void { const 
 export function listAgents(root: string, workflow?: Workflow): AgentIdentity[] { return loadAgents(root, workflow).agents; }
 export function createAgent(root: string, agent: AgentIdentity, workflow?: Workflow): AgentIdentity { const r = loadAgents(root, workflow); assertAgent(agent); if (r.agents.some((a) => a.id === agent.id)) throw new Error(`Agent ${agent.id} already exists`); r.agents.push(agent); saveAgents(root, r); return agent; }
 export function updateAgent(root: string, id: string, patch: Partial<AgentIdentity>, workflow?: Workflow): AgentIdentity { const r = loadAgents(root, workflow); const i = r.agents.findIndex((a) => a.id === id); if (i < 0) throw new Error(`Agent ${id} not found`); const next = assertAgent({ ...r.agents[i], ...patch, avatar: patch.avatar ?? r.agents[i].avatar, skills: patch.skills ?? r.agents[i].skills, stageBindings: patch.stageBindings ?? r.agents[i].stageBindings, adapterHints: patch.adapterHints ?? r.agents[i].adapterHints, id }); r.agents[i] = next; saveAgents(root, r); return next; }
-export function deleteAgent(root: string, id: string, workflow?: Workflow): void { const r = loadAgents(root, workflow); if (!r.agents.some((a) => a.id === id)) throw new Error(`Agent ${id} not found`); r.agents = r.agents.filter((a) => a.id !== id); saveAgents(root, r); }
+export function deleteAgent(root: string, id: string, workflow?: Workflow): void { const r = loadAgents(root, workflow); if (!r.agents.some((a) => a.id === id)) throw new Error(`Agent ${id} not found`); if (workflow?.items.some((item) => item.claimedBy === id)) throw new Error(`Agent ${id} possui claims ativos`); r.agents = r.agents.filter((a) => a.id !== id); saveAgents(root, r); }
 export function agentsFor(root?: string, workflow?: Workflow): AgentIdentity[] { const resolved = resolveWorkspaceRoot(root); return listAgents(resolved.workspaceRoot, workflow); }
+/** Canonical identity ↔ protocol mapping used by adapters and claims. */
+export function protocolIdentity(agent: AgentIdentity, toolId: string, toolVersion = "unknown"): { actor: ExternalProtocolActor; executor: ExternalProtocolExecutor } {
+	return { actor: { agentId: agent.id, displayName: agent.displayName, toolId, toolVersion }, executor: { id: toolId, capabilities: agent.skills.map((s) => s.id), status: agent.status, transport: "cli" } };
+}
