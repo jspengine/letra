@@ -284,7 +284,7 @@ export default function KanbanView({
 									const progressVal = acCount
 										? acCount.done
 										: hasTasks
-											? it.tasks?.filter((t) => t.done).length
+											? (it.tasks?.filter((t) => t.done).length ?? 0)
 											: 0;
 									return (
 										<div
