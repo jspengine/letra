@@ -259,7 +259,7 @@ function resolveFromWorkflow(
 		harnessVersion: workflow.harnessVersion ?? null,
 		templateVersion: null,
 		name: workflow.name,
-		stages: workflow.stages
+		stages: (Array.isArray(workflow.stages) ? workflow.stages : [])
 			.map((stage) => workflowStageDefinition(stage as Stage))
 			.sort((left, right) => left.order - right.order),
 		roles: [],
