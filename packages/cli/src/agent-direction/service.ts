@@ -254,10 +254,12 @@ export function resolveAgentDirection(root: string): AgentDirectionSnapshot {
 	const focus = readFocusFile(root);
 	const workflow = resolution.workflow;
 	const focusedItem =
-		workflow && focus?.itemId
+		workflow && focus?.itemId && Array.isArray(workflow.items)
 			? (workflow.items.find((item) => item.id === focus.itemId) ?? null)
 			: null;
-	const selectedItem = focusedItem ?? (workflow ? findCurrentItem(workflow) : null);
+	const selectedItem =
+		focusedItem ??
+		(workflow && Array.isArray(workflow.items) ? findCurrentItem(workflow) : null);
 	const specName = selectedItem?.spec ?? focus?.specName ?? null;
 	return createAgentDirectionSnapshot({
 		workspaceRoot: root,
