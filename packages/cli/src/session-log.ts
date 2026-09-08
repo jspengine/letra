@@ -36,6 +36,8 @@ export type LogAction =
 	| "agent_direction_read"
 	| "agent_validation_run"
 	| "agent_ac_completion_requested"
+	| "agent_claim_requested"
+	| "agent_execution_event"
 	| "agent_transition_requested"
 	| "agent_operation_rejected"
 	| "constitution_read"

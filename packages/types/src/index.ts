@@ -1,3 +1,95 @@
+/** Versioned identity of the agent/tool making a protocol request. */
+export interface ExternalProtocolActor {
+	agentId: string;
+	displayName: string;
+	toolId: string;
+	toolVersion: string;
+}
+
+/** Capabilities an external executor advertises to the Letra control plane. */
+export type ExternalProtocolCapability = string;
+
+/** Stable workspace reference carried by protocol messages. */
+export interface ExternalProtocolWorkspaceRef {
+	workspaceId: string;
+	workspaceRoot: string;
+}
+
+/** Versioned description of an external executor and its transport. */
+export interface ExternalProtocolExecutor {
+	id: string;
+	capabilities: ExternalProtocolCapability[];
+	status: "online" | "offline" | "busy";
+	transport: "cli" | "mcp" | "webhook" | "file";
+	maxExecutionTime?: number;
+}
+
+/** Common envelope for requests made against the external executor protocol. */
+export interface ExternalProtocolContext {
+	schemaVersion: "1";
+	workspace: ExternalProtocolWorkspaceRef;
+	actor: ExternalProtocolActor;
+	executor: ExternalProtocolExecutor;
+	revision: string;
+	timestamp: string;
+}
+
+export type ExternalProtocolEventStatus = "started" | "heartbeat" | "succeeded" | "failed";
+
+export interface ExternalProtocolEvent {
+	schemaVersion: "1";
+	status: ExternalProtocolEventStatus;
+	itemId: string;
+	actor: ExternalProtocolActor;
+	executorId: string;
+	revision: string;
+	timestamp: string;
+	message?: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface ExternalProtocolEvidence {
+	kind: "diff" | "file" | "command" | "test" | "artifact";
+	value: string;
+	sha256?: string;
+	exitCode?: number;
+	observedAt: string;
+	source: string;
+}
+
+export interface ExternalProtocolFailure extends ExternalProtocolEvent {
+	status: "failed";
+	recovery: "retry" | "release" | "handoff" | "human";
+	errorCode: string;
+}
+
+export type AgentAvatar = { type: "emoji" | "initials" | "image"; value: string };
+export interface AgentSkill {
+	id: string;
+	label: string;
+	level: "beginner" | "intermediate" | "advanced" | "expert";
+	category?: string;
+}
+export interface AgentIdentity {
+	id: string;
+	displayName: string;
+	role: string;
+	/** Canonical role references; `role` remains for backward compatibility. */
+	roleIds?: string[];
+	bio?: string;
+	avatar: AgentAvatar;
+	color: string;
+	skills: AgentSkill[];
+	status: "online" | "offline" | "busy";
+	stageBindings: string[];
+	adapterHints?: Record<string, string>;
+}
+export interface AgentRegistry {
+	version: "1";
+	updatedAt: string;
+	agents: AgentIdentity[];
+}
+
 export interface Stage {
 	id: string;
 	name: string;
@@ -29,7 +121,25 @@ export interface Item {
 	tasks?: Task[];
 	claimedBy?: string;
 	claimedAt?: string;
+	claimExecutorId?: string;
+	claimCapability?: string;
+	claimRevision?: string;
+	claimExpiresAt?: string;
+	claimTtlMinutes?: number;
+	activityStatus?: ExternalProtocolEventStatus;
+	activityStartedAt?: string;
+	lastHeartbeatAt?: string;
+	lastFailure?: { code: string; message: string; recovery: string; at: string };
 	currentPhase?: string;
+	handoff?: {
+		from: string;
+		to: string;
+		summary: string;
+		evidence: string[];
+		timestamp: string;
+		expiresAt: string;
+		executorId?: string;
+	};
 }
 
 export interface SpecLink {
@@ -144,6 +254,17 @@ export interface AgentDirectionSnapshot {
 		description: string;
 		stage: string;
 		spec: string | null;
+		claimedBy?: string | null;
+		claimedAt?: string | null;
+		claimExpiresAt?: string | null;
+		claimExecutorId?: string | null;
+		claimCapability?: string | null;
+		claimRevision?: string | null;
+		claimTtlMinutes?: number | null;
+		activityStatus?: ExternalProtocolEventStatus | null;
+		activityStartedAt?: string | null;
+		lastHeartbeatAt?: string | null;
+		lastFailure?: { code: string; message: string; recovery: string; at: string } | null;
 	} | null;
 	roleIds: string[];
 	allowedStageIds: string[];
@@ -165,6 +286,8 @@ export interface ResolvedSpec {
 	id: string;
 	content: string;
 }
+
+export * from "./orchestration-domain.js";
 
 export type GateDecision = "approve" | "request-changes" | "reject";
 
@@ -296,6 +419,7 @@ export interface ResolvedFlowStage {
 	/** @deprecated Use roleIds and roles. */
 	agents: string[];
 	gate: ResolvedFlowGate | null;
+	preferredExecutor?: string;
 	phases?: ResolvedStagePhases;
 	activity?: ResolvedFlowActivity;
 	provenance: "harness" | "workflow-instance";

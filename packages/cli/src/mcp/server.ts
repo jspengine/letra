@@ -13,6 +13,11 @@ import {
 	completeAcOperation,
 	requestTransitionOperation,
 	runValidationOperation,
+	claimOperation,
+	recordExecutionEvent,
+	activityOperation,
+	submitEvidenceOperation,
+	requestHandoffOperation,
 } from "../domain-operations/service.js";
 import { logEntry } from "../session-log.js";
 import { createWorkspaceBoundary, type WorkspaceBoundary } from "../security/workspace-boundary.js";
@@ -238,6 +243,12 @@ export function createLetraMcpServer(root: string): McpServer {
 				}),
 			),
 	);
+	server.registerTool("get_context", { description: "Retorna contexto operacional canônico.", annotations: readOnlyAnnotations }, async () => jsonText(auditRead("context")));
+	server.registerTool("get_activity", { description: "Retorna atividade operacional vigente.", inputSchema: { itemId: z.string().optional() }, annotations: readOnlyAnnotations }, async ({ itemId }) => jsonText(activityOperation(workspaceRoot, itemId)));
+	server.registerTool("claim", { description: "Solicita claim exclusivo.", inputSchema: { itemId: z.string(), executorId: z.string(), capability: z.string(), expectedRevision, reason, ttlMinutes: z.number().optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await claimOperation(workspaceRoot, { ...input, actor: clientIdentity().actor })));
+	server.registerTool("execution_event", { description: "Registra started, heartbeat, succeeded ou failed.", inputSchema: { itemId: z.string(), status: z.enum(["started", "heartbeat", "succeeded", "failed"]), executorId: z.string(), expectedRevision, reason, message: z.string().optional(), recovery: z.enum(["retry", "release", "handoff", "human"]).optional(), errorCode: z.string().optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await recordExecutionEvent(workspaceRoot, { ...input, actor: clientIdentity().actor })));
+	server.registerTool("submit_evidence", { description: "Registra evidência estruturada confinada.", inputSchema: { itemId: z.string(), executorId: z.string(), expectedRevision, reason, evidence: z.array(z.object({ kind: z.enum(["diff", "file", "command", "test", "artifact"]), value: z.string(), source: z.string(), observedAt: z.string().optional(), sha256: z.string().optional(), exitCode: z.number().optional() })) }, annotations: mutationAnnotations }, async (input) => jsonText(await submitEvidenceOperation(workspaceRoot, { ...input, actor: clientIdentity().actor })));
+	server.registerTool("request_handoff", { description: "Solicita handoff atômico.", inputSchema: { itemId: z.string(), to: z.string(), executorId: z.string(), summary: z.string(), evidence: z.array(z.string()), expectedRevision, reason }, annotations: mutationAnnotations }, async (input) => jsonText(await requestHandoffOperation(workspaceRoot, { ...input, actor: clientIdentity().actor })));
 
 	server.registerResource(
 		"direction",

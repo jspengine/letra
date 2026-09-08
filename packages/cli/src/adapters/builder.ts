@@ -21,6 +21,7 @@ import { loadHarness, resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "../har
 import { loadWorkflow } from "../commands/flow-init.js";
 import { getLetraDir } from "./../workspace/resolver.js";
 import { queryLog } from "../session-log.js";
+import { resolveAgentDirection } from "../agent-direction/service.js";
 
 function countACs(
 	stateDir: string,
@@ -142,6 +143,7 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 
 	if (!options.workflow || !options.activeStageId) {
 		return {
+			direction: resolveAgentDirection(root),
 			workflowName: "letra",
 			hasWorkflow: false,
 			items: [],
@@ -310,6 +312,7 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 	}
 
 	return {
+		direction: resolveAgentDirection(root),
 		workflowName: workflow.name,
 		hasWorkflow: true,
 		activeStage: stage

@@ -37,24 +37,26 @@ function slug(value: string): string {
 }
 
 function findCurrentItem(workflow: Workflow, currentItemId?: string | null): Item | null {
+	const items = Array.isArray(workflow.items) ? workflow.items : [];
+	const stages = Array.isArray(workflow.stages) ? workflow.stages : [];
 	if (currentItemId) {
-		const explicit = workflow.items.find((item) => item.id === currentItemId);
+		const explicit = items.find((item) => item.id === currentItemId);
 		if (explicit) return explicit;
 	}
 	if (workflow.primaryItemId) {
-		const primary = workflow.items.find((item) => item.id === workflow.primaryItemId);
+		const primary = items.find((item) => item.id === workflow.primaryItemId);
 		if (primary) return primary;
 	}
 	const doingStages = new Set(
-		workflow.stages
+		stages
 			.filter(
 				(stage, index) =>
 					stage.zone === "doing" ||
-					(!stage.zone && index > 0 && index < workflow.stages.length - 1),
+					(!stage.zone && index > 0 && index < stages.length - 1),
 			)
 			.map((stage) => stage.id),
 	);
-	return workflow.items.find((item) => doingStages.has(item.stage)) ?? null;
+	return items.find((item) => doingStages.has(item.stage)) ?? null;
 }
 
 function firstPendingAC(content: string | null): AgentDirectionSnapshot["pendingAC"] {
@@ -199,6 +201,17 @@ export function createAgentDirectionSnapshot(
 					description: item.description,
 					stage: item.stage,
 					spec: item.spec ?? null,
+					claimedBy: item.claimedBy ?? null,
+					claimedAt: item.claimedAt ?? null,
+					claimExpiresAt: item.claimExpiresAt ?? null,
+					claimExecutorId: item.claimExecutorId ?? null,
+					claimCapability: item.claimCapability ?? null,
+					claimRevision: item.claimRevision ?? null,
+					claimTtlMinutes: item.claimTtlMinutes ?? null,
+					activityStatus: item.activityStatus ?? null,
+					activityStartedAt: item.activityStartedAt ?? null,
+					lastHeartbeatAt: item.lastHeartbeatAt ?? null,
+					lastFailure: item.lastFailure ?? null,
 				}
 			: null,
 		roleIds: stage ? [...stage.roleIds] : [],
@@ -243,10 +256,12 @@ export function resolveAgentDirection(root: string): AgentDirectionSnapshot {
 	const focus = readFocusFile(root);
 	const workflow = resolution.workflow;
 	const focusedItem =
-		workflow && focus?.itemId
+		workflow && focus?.itemId && Array.isArray(workflow.items)
 			? (workflow.items.find((item) => item.id === focus.itemId) ?? null)
 			: null;
-	const selectedItem = focusedItem ?? (workflow ? findCurrentItem(workflow) : null);
+	const selectedItem =
+		focusedItem ??
+		(workflow && Array.isArray(workflow.items) ? findCurrentItem(workflow) : null);
 	const specName = selectedItem?.spec ?? focus?.specName ?? null;
 	return createAgentDirectionSnapshot({
 		workspaceRoot: root,

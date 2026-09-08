@@ -3,6 +3,7 @@ import type { ResolvedSpec, Workflow } from "@letra/types";
 import type { ActiveFlowDefinition } from "../../lib/active-flow";
 import KanbanBoard from "./KanbanBoard";
 import ActivityTimeline from "./ActivityTimeline";
+import FlowConfigurationMap from "./FlowConfigurationMap";
 import ItemDetailModal from "./ItemDetailModal";
 import { cn } from "../../lib/utils";
 import {
@@ -548,6 +549,7 @@ export default function FlowView({
 					<div className="flex min-w-0 flex-1 overflow-y-hidden">
 						{/* ─── Left Column: Kanban ─── */}
 						<div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4 gap-3">
+							<FlowConfigurationMap stages={resolvedStages} activeFlow={activeFlow} items={workflow.items} />
 							<ActionPanel
 								className="min-w-0"
 								tone={primaryTone}
@@ -832,6 +834,7 @@ export default function FlowView({
 									specRefreshKey={specRefreshKey}
 									filter={activeFilter}
 									onItemDecided={onItemMoved}
+									onOpenSpec={onOpenSpec}
 								/>
 							</div>
 						</div>

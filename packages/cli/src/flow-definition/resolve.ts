@@ -178,6 +178,7 @@ function mergeTemplateStage(
 		roles: resolveRoles(harness, roleIds, warnings, artifactRef),
 		agents: [...roleIds],
 		gate: resolveGate(harness, stageDef.gate, warnings, artifactRef),
+		preferredExecutor: stageDef.preferredExecutor,
 		phases: resolvePhases(harness, stageDef.phases, warnings, stageDef.id),
 		activity: cloneActivity(stageDef.activity),
 		provenance: "harness",
@@ -198,6 +199,7 @@ function workflowStageDefinition(
 		roles: [],
 		agents: [],
 		gate: null,
+		preferredExecutor: undefined,
 		phases: resolvePhases(null, stage.phases, [], stage.id),
 		activity: undefined,
 		provenance,
@@ -257,7 +259,7 @@ function resolveFromWorkflow(
 		harnessVersion: workflow.harnessVersion ?? null,
 		templateVersion: null,
 		name: workflow.name,
-		stages: workflow.stages
+		stages: (Array.isArray(workflow.stages) ? workflow.stages : [])
 			.map((stage) => workflowStageDefinition(stage as Stage))
 			.sort((left, right) => left.order - right.order),
 		roles: [],

@@ -5,6 +5,6 @@ blocking: true
 blocksHandoff: true
 description: Final human approval before marking item as done.
 decisions:
-  approve: "All checks passed. Item is complete."
-  request-changes: "Needs more work. Return to implementer."
-  reject: "Item is not viable. Reject."
+  approve: done
+  request-changes: code
+  reject: backlog

@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, writeFileSync, realpathSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import type { AgentDirectionSnapshot } from "@letra/types";
 import { resolveAgentDirection } from "../agent-direction/service.js";
@@ -10,7 +11,7 @@ import { resolveActiveFlow } from "../flow-definition/resolve.js";
 import { createWorkspaceBoundary } from "../security/workspace-boundary.js";
 import { logEntry, type LogAction } from "../session-log.js";
 import { GateChecker } from "../harness/gate-checker.js";
-import { getLetraDir } from "./../workspace/resolver.js";
+import { getLetraDir, resolveWorkspaceRoot } from "./../workspace/resolver.js";
 
 export type OperationOutcome = "accepted" | "rejected" | "approval-required";
 
@@ -39,6 +40,66 @@ export interface CompleteAcInput extends OperationContext {
 export interface RequestTransitionInput extends OperationContext {
 	itemId: string;
 	targetStageId: string;
+}
+
+export interface ClaimOperationInput extends OperationContext {
+	itemId: string;
+	executorId: string;
+	capability: string;
+	ttlMinutes?: number;
+}
+
+export interface ExecutionEventInput extends OperationContext {
+	itemId: string;
+	executorId: string;
+	status: "started" | "heartbeat" | "succeeded" | "failed";
+	message?: string;
+	recovery?: "retry" | "release" | "handoff" | "human";
+	errorCode?: string;
+}
+
+export interface EvidenceInput extends OperationContext {
+	itemId: string;
+	executorId: string;
+	evidence: Array<{ kind: "diff" | "file" | "command" | "test" | "artifact"; value: string; source: string; observedAt?: string; sha256?: string; exitCode?: number }>;
+}
+export interface HandoffInput extends OperationContext {
+	itemId: string; to: string; summary: string; evidence: string[]; executorId: string; ttlMinutes?: number;
+}
+
+export function activityOperation(root: string, itemId?: string): AgentDirectionSnapshot["item"] {
+	const direction = resolveAgentDirection(createWorkspaceBoundary(resolve(root)).root);
+	return direction.item && (!itemId || direction.item.id === itemId) ? direction.item : null;
+}
+
+export async function submitEvidenceOperation(root: string, input: EvidenceInput): Promise<OperationResult> {
+	const workspaceRoot = createWorkspaceBoundary(resolve(root)).root;
+	const before = resolveAgentDirection(workspaceRoot); const subject = { itemId: input.itemId, operation: "submit_evidence" };
+	const stale = checkRevision(workspaceRoot, before, input, subject); if (stale) return stale;
+	const item = loadWorkflow(workspaceRoot)?.items.find((candidate) => candidate.id === input.itemId);
+	if (!item || item.claimedBy !== input.actor || (item.claimExecutorId && item.claimExecutorId !== input.executorId)) return rejected(workspaceRoot, before, "CLAIM_REQUIRED", "A evidência exige claim vigente.", input, subject);
+	const boundary = createWorkspaceBoundary(resolveWorkspaceRoot(root).workspaceDir);
+	for (const evidence of input.evidence) {
+		if (!evidence.source?.trim() || !evidence.value?.trim()) return rejected(workspaceRoot, before, "EVIDENCE_INVALID", "Evidência exige origem e valor.", input, subject);
+		if (evidence.kind === "file" || evidence.kind === "diff" || evidence.kind === "artifact") {
+			try { const path = boundary.assertPath(evidence.value); if (existsSync(path) && statSync(path).isSymbolicLink()) throw new Error("symlink"); }
+			catch { return rejected(workspaceRoot, before, "EVIDENCE_PATH_OUTSIDE_WORKSPACE", "Path da evidência fora do workspace autorizado.", input, subject); }
+		}
+	}
+	const entry = audit(workspaceRoot, "agent_execution_event", before, { outcome: "accepted", reasonCode: "EVIDENCE_ACCEPTED", reason: input.reason, actor: input.actor, itemId: input.itemId, details: { evidence: input.evidence.map((e) => ({ ...e, observedAt: e.observedAt ?? new Date().toISOString(), sha256: e.sha256 ?? createHash("sha256").update(e.value).digest("hex") })) } });
+	return result(before, entry.id, "accepted", "EVIDENCE_ACCEPTED", input.reason, resolveAgentDirection(workspaceRoot));
+}
+
+export async function requestHandoffOperation(root: string, input: HandoffInput): Promise<OperationResult> {
+	const workspaceRoot = createWorkspaceBoundary(resolve(root)).root; const before = resolveAgentDirection(workspaceRoot); const subject = { itemId: input.itemId, operation: "request_handoff" };
+	const stale = checkRevision(workspaceRoot, before, input, subject); if (stale) return stale;
+	const workflow = loadWorkflow(workspaceRoot); const item = workflow?.items.find((candidate) => candidate.id === input.itemId);
+	if (!workflow || !item || item.claimedBy !== input.actor || (item.claimExecutorId && item.claimExecutorId !== input.executorId)) return rejected(workspaceRoot, before, "CLAIM_REQUIRED", "Handoff exige claim vigente do executor.", input, subject);
+	if (item.handoff) return rejected(workspaceRoot, before, "HANDOFF_CONFLICT", "Já existe handoff pendente.", input, subject);
+	const now = new Date(); item.handoff = { from: input.actor ?? "unknown", to: input.to, summary: input.summary, evidence: input.evidence, timestamp: now.toISOString(), expiresAt: new Date(now.getTime() + (input.ttlMinutes ?? 30) * 60000).toISOString(), executorId: input.executorId };
+	item.claimedBy = undefined; item.claimedAt = undefined; item.claimExecutorId = undefined; item.claimCapability = undefined; item.claimRevision = undefined; item.claimExpiresAt = undefined; item.claimTtlMinutes = undefined; workflow.updatedAt = now.toISOString();
+	const write = await writeWorkflow(workspaceRoot, { workflow, source: "flow-handoff", primaryItemId: item.id, skipSitrep: true, skipLog: true, quiet: true, confineAdapterWrites: true }); if (!write.ok) return rejected(workspaceRoot, before, "HANDOFF_WRITE_FAILED", write.error ?? "Falha ao persistir handoff.", input, subject);
+	const entry = audit(workspaceRoot, "agent_execution_event", before, { outcome: "accepted", reasonCode: "HANDOFF_ACCEPTED", reason: input.reason, actor: input.actor, itemId: item.id, details: { to: input.to, executorId: input.executorId } }); return result(before, entry.id, "accepted", "HANDOFF_ACCEPTED", input.reason, resolveAgentDirection(workspaceRoot));
 }
 
 function audit(
@@ -132,6 +193,95 @@ function normalizeAcId(value: string): string {
 	return match ? `AC${match[1]}` : value.trim().toUpperCase();
 }
 
+export async function claimOperation(
+	root: string,
+	input: ClaimOperationInput,
+): Promise<OperationResult> {
+	const workspaceRoot = createWorkspaceBoundary(resolve(root)).root;
+	const before = resolveAgentDirection(workspaceRoot);
+	const subject = { itemId: input.itemId, operation: "claim" };
+	const stale = checkRevision(workspaceRoot, before, input, subject);
+	if (stale) return stale;
+	if (!input.actor?.trim())
+		return rejected(workspaceRoot, before, "ACTOR_REQUIRED", "Claim exige identidade do actor.", input, subject);
+	if (!before.item || before.item.id !== input.itemId)
+		return rejected(workspaceRoot, before, "ITEM_NOT_CURRENT", "O claim exige o item vigente.", input, subject);
+	const flow = resolveActiveFlow(workspaceRoot).flow;
+	const stage = flow?.stages.find((candidate) => candidate.id === before.item?.stage);
+	const capabilities = stage?.roles.flatMap((role) => role.capabilities) ?? [];
+	if (capabilities.length > 0 && !capabilities.includes(input.capability))
+		return rejected(workspaceRoot, before, "CAPABILITY_INVALID", `Capability não permitida: ${input.capability}.`, input, subject);
+	const workflow = loadWorkflow(workspaceRoot);
+	const item = workflow?.items.find((candidate) => candidate.id === input.itemId);
+	if (!workflow || !item) return rejected(workspaceRoot, before, "ITEM_NOT_FOUND", "Item não encontrado.", input, subject);
+	const claimExpired = item.claimExpiresAt ? Date.now() >= Date.parse(item.claimExpiresAt) : false;
+	if (item.claimedBy && !claimExpired && (item.claimedBy !== input.actor || item.claimExecutorId !== input.executorId))
+		return rejected(workspaceRoot, before, "CLAIM_CONFLICT", `Item já está sob responsabilidade de ${item.claimedBy}.`, input, subject);
+	const ttl = Math.max(1, Math.min(1440, input.ttlMinutes ?? 30));
+	const now = new Date();
+	item.claimedBy = input.actor.trim();
+	item.claimedAt = now.toISOString();
+	item.claimExecutorId = input.executorId.trim();
+	item.claimCapability = input.capability.trim();
+	item.claimRevision = before.revision;
+	item.claimTtlMinutes = ttl;
+	item.claimExpiresAt = new Date(now.getTime() + ttl * 60_000).toISOString();
+	workflow.updatedAt = now.toISOString();
+	const writeResult = await writeWorkflow(workspaceRoot, {
+		workflow,
+		source: "flow-claim",
+		primaryItemId: item.id,
+		skipSitrep: true,
+		skipLog: true,
+		quiet: true,
+		confineAdapterWrites: true,
+	});
+	if (!writeResult.ok)
+		return rejected(workspaceRoot, before, "CLAIM_WRITE_FAILED", writeResult.error ?? "Falha ao persistir claim.", input, subject);
+	const after = resolveAgentDirection(workspaceRoot);
+	const entry = audit(workspaceRoot, "agent_claim_requested", before, {
+		outcome: "accepted",
+		reasonCode: "CLAIM_ACCEPTED",
+		reason: input.reason,
+		actor: input.actor,
+		itemId: item.id,
+		details: { executorId: input.executorId, capability: input.capability, ttlMinutes: ttl, expiresAt: item.claimExpiresAt },
+	});
+	return result(before, entry.id, "accepted", "CLAIM_ACCEPTED", input.reason, after);
+}
+
+export async function recordExecutionEvent(
+	root: string,
+	input: ExecutionEventInput,
+): Promise<OperationResult> {
+	const workspaceRoot = createWorkspaceBoundary(resolve(root)).root;
+	const before = resolveAgentDirection(workspaceRoot);
+	const subject = { itemId: input.itemId, operation: input.status };
+	const stale = checkRevision(workspaceRoot, before, input, subject);
+	if (stale) return stale;
+	if (!input.actor?.trim()) return rejected(workspaceRoot, before, "ACTOR_REQUIRED", "Evento exige identidade do actor.", input, subject);
+	if (!before.item || before.item.id !== input.itemId) return rejected(workspaceRoot, before, "ITEM_NOT_CURRENT", "Evento exige o item vigente.", input, subject);
+	const workflow = loadWorkflow(workspaceRoot);
+	const item = workflow?.items.find((candidate) => candidate.id === input.itemId);
+	if (!workflow || !item) return rejected(workspaceRoot, before, "ITEM_NOT_FOUND", "Item não encontrado.", input, subject);
+	const expired = !item.claimExpiresAt || Date.now() >= Date.parse(item.claimExpiresAt);
+	if (item.claimedBy !== input.actor || item.claimExecutorId !== input.executorId) return rejected(workspaceRoot, before, "CLAIM_REQUIRED", "Actor e executor precisam possuir o claim vigente.", input, subject);
+	if (expired) return rejected(workspaceRoot, before, "CLAIM_EXPIRED", "O lease do claim expirou; faça um novo claim.", input, subject);
+	const nowDate = new Date();
+	const now = nowDate.toISOString();
+	item.activityStatus = input.status;
+	if (input.status === "started") item.activityStartedAt = now;
+	if (input.status === "heartbeat" || input.status === "started") item.lastHeartbeatAt = now;
+	if (input.status === "heartbeat") item.claimExpiresAt = new Date(nowDate.getTime() + (item.claimTtlMinutes ?? 30) * 60_000).toISOString();
+	if (input.status === "failed") item.lastFailure = { code: input.errorCode ?? "EXECUTION_FAILED", message: input.message ?? "Execução falhou.", recovery: input.recovery ?? "human", at: now };
+	workflow.updatedAt = now;
+	const writeResult = await writeWorkflow(workspaceRoot, { workflow, source: "flow-claim", primaryItemId: item.id, skipSitrep: true, skipLog: true, quiet: true, confineAdapterWrites: true });
+	if (!writeResult.ok) return rejected(workspaceRoot, before, "EVENT_WRITE_FAILED", writeResult.error ?? "Falha ao persistir evento.", input, subject);
+	const after = resolveAgentDirection(workspaceRoot);
+	const entry = audit(workspaceRoot, "agent_execution_event", before, { outcome: "accepted", reasonCode: "EVENT_RECORDED", reason: input.reason, actor: input.actor, itemId: item.id, details: { status: input.status, executorId: input.executorId, message: input.message, recovery: input.recovery, errorCode: input.errorCode } });
+	return result(before, entry.id, "accepted", "EVENT_RECORDED", input.reason, after);
+}
+
 function markPendingAc(content: string, acId: string): string | null {
 	const lines = content.split("\n");
 	const expected = normalizeAcId(acId);
@@ -181,8 +331,8 @@ export async function runValidationOperation(
 }
 
 export function completeAcOperation(root: string, input: CompleteAcInput): OperationResult {
-	const boundary = createWorkspaceBoundary(resolve(root));
-	const workspaceRoot = boundary.root;
+	const workspaceRoot = createWorkspaceBoundary(resolve(root)).root;
+	const boundary = createWorkspaceBoundary(resolveWorkspaceRoot(root).workspaceDir);
 	const before = resolveAgentDirection(workspaceRoot);
 	const subject = { itemId: before.item?.id, acId: input.acId, operation: "complete_ac" };
 	const stale = checkRevision(workspaceRoot, before, input, subject);

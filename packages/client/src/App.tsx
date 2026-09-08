@@ -9,6 +9,7 @@ import FlowView from "./components/Flow/FlowView";
 import ContextView from "./components/Context/ContextView";
 import type { KnowledgeTab } from "./components/Context/ContextView";
 import AuditLogView from "./components/Logs/AuditLogView";
+import AgentsView from "./components/Agents/AgentsView";
 import WorkspacesView from "./components/Workspaces/WorkspacesView";
 import WorkspaceSettings from "./components/Workspaces/WorkspaceSettings/WorkspaceSettings";
 import type { WorkspaceData } from "./components/Workspaces/WorkspacesView";
@@ -306,6 +307,8 @@ function AppContent() {
 				return <ContextView initialTab={knowledgeInitialTab} />;
 			case "activity":
 				return <AuditLogView />;
+			case "agents":
+				return <AgentsView />;
 			case "settings":
 				return (
 					<WorkspaceSettings
