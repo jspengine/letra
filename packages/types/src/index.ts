@@ -74,6 +74,8 @@ export interface AgentIdentity {
 	id: string;
 	displayName: string;
 	role: string;
+	/** Canonical role references; `role` remains for backward compatibility. */
+	roleIds?: string[];
 	bio?: string;
 	avatar: AgentAvatar;
 	color: string;
@@ -129,6 +131,15 @@ export interface Item {
 	lastHeartbeatAt?: string;
 	lastFailure?: { code: string; message: string; recovery: string; at: string };
 	currentPhase?: string;
+	handoff?: {
+		from: string;
+		to: string;
+		summary: string;
+		evidence: string[];
+		timestamp: string;
+		expiresAt: string;
+		executorId?: string;
+	};
 }
 
 export interface SpecLink {
@@ -276,6 +287,8 @@ export interface ResolvedSpec {
 	content: string;
 }
 
+export * from "./orchestration-domain.js";
+
 export type GateDecision = "approve" | "request-changes" | "reject";
 
 export interface ResolvedFlowGate {
@@ -406,6 +419,7 @@ export interface ResolvedFlowStage {
 	/** @deprecated Use roleIds and roles. */
 	agents: string[];
 	gate: ResolvedFlowGate | null;
+	preferredExecutor?: string;
 	phases?: ResolvedStagePhases;
 	activity?: ResolvedFlowActivity;
 	provenance: "harness" | "workflow-instance";

@@ -106,11 +106,13 @@ export default function flowCommand() {
 	cmd.command("serve")
 		.option("--port <number>", "Port to listen on", "3000")
 		.option("--open", "Open browser automatically")
+		.option("--autopilot", "Enable deterministic semiautonomous dispatcher (human gates still block)")
 		.description("Start local web server with live board")
-		.action((options: { port?: string; open?: boolean }) => {
+		.action((options: { port?: string; open?: boolean; autopilot?: boolean }) => {
 			flowServeAction(undefined, {
 				port: options.port ? Number(options.port) : undefined,
 				open: options.open,
+				autopilot: options.autopilot,
 			});
 		});
 

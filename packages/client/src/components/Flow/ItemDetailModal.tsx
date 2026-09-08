@@ -124,6 +124,8 @@ export default function ItemDetailModal({
 	const [specLoading, setSpecLoading] = useState(true);
 	const [activities, setActivities] = useState<ActivityEntry[]>([]);
 	const [activitiesLoaded, setActivitiesLoaded] = useState(false);
+	const [activityPage, setActivityPage] = useState(1);
+	const [activityTotal, setActivityTotal] = useState(0);
 	const [showTimeline, setShowTimeline] = useState(false);
 	const [showAdvancedActions, setShowAdvancedActions] = useState(false);
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -147,6 +149,9 @@ export default function ItemDetailModal({
 	const stageAction = curStage ? stageActionLabel(curStage) : "Item registrado no fluxo.";
 	const owner = item.claimedBy ?? curStage?.roles[0]?.label ?? "Não atribuído";
 	const availableStages = resolvedStages.filter((stage) => stage.id !== item.stage);
+	const heartbeatAge = item.lastHeartbeatAt ? Date.now() - new Date(item.lastHeartbeatAt).getTime() : null;
+	const heartbeatStale = heartbeatAge !== null && heartbeatAge > 60_000;
+	const retryCount = activities.filter((entry) => /retry|retrying|re-emit/i.test(`${entry.action} ${entry.description}`)).length;
 
 	useEffect(() => {
 		prevFocusRef.current = document.activeElement as HTMLElement;
@@ -207,15 +212,23 @@ export default function ItemDetailModal({
 		return () => clearTimeout(timer);
 	}, []);
 
-	useEffect(() => {
-		fetch(`/api/log?item=${item.id}&limit=100`)
+	const loadActivities = useCallback((page: number) => {
+		setActivitiesLoaded(false);
+		fetch(`/api/log?item=${item.id}&limit=50&page=${page}`)
 			.then((response) => response.json())
 			.then((data) => {
-				if (data.entries) setActivities(data.entries);
+				if (data.entries) setActivities((current) => page === 1 ? data.entries : [...current, ...data.entries]);
+				if (typeof data.total === "number") setActivityTotal(data.total);
 			})
 			.catch(() => {})
 			.finally(() => setActivitiesLoaded(true));
 	}, [item.id]);
+
+	useEffect(() => {
+		setActivityPage(1);
+		setActivities([]);
+		loadActivities(1);
+	}, [loadActivities]);
 
 	const handleMove = useCallback(() => {
 		if (!moveTarget) return;
@@ -366,6 +379,31 @@ export default function ItemDetailModal({
 
 						<Card>
 							<CardContent className="gap-3 p-4">
+								<div className="flex items-center justify-between gap-2">
+									<h3 className="text-body-sm font-semibold">Execução e handoff</h3>
+									{heartbeatStale ? <Badge variant="error" tone="soft">Heartbeat expirado</Badge> : null}
+								</div>
+								<MetadataRow className="grid-cols-1" items={[
+									{ label: "Claim", value: item.claimedBy ? `${item.claimedBy}${item.claimRevision ? ` · ${item.claimRevision.slice(0, 12)}` : ""}` : "Nenhum claim ativo" },
+									{ label: "Executor", value: item.claimExecutorId ?? "Nenhum executor" },
+									{ label: "Heartbeat", value: item.lastHeartbeatAt ? `${item.lastHeartbeatAt}${heartbeatStale ? " · stale" : " · ativo"}` : "Nenhum heartbeat registrado" },
+									{ label: "Retries", value: retryCount ? String(retryCount) : "Nenhuma tentativa de retry" },
+									{ label: "Gate", value: curStage?.gate ? `${curStage.gate.name} · ${curStage.gate.blocking ? "bloqueante" : "informativo"}` : "Nenhum gate configurado" },
+								]} />
+								{item.handoff ? (
+									<div className="grid gap-1 rounded border border-[var(--color-border)] p-3 text-xs">
+										<strong>Handoff: {item.handoff.from} → {item.handoff.to}</strong>
+										<span>{item.handoff.summary}</span>
+										<span className="app-section-muted">Expira em {item.handoff.expiresAt} · {item.handoff.evidence.length} evidência(s)</span>
+										{item.handoff.evidence.length > 0 ? <span className="break-words">{item.handoff.evidence.join(" · ")}</span> : <span className="app-section-muted">Nenhuma evidência anexada ao handoff.</span>}
+									</div>
+								) : <p className="app-section-muted text-xs">Nenhum handoff pendente.</p>}
+								{item.lastFailure ? <p className="text-xs text-[var(--color-danger)]">Falha {item.lastFailure.code}: {item.lastFailure.message} · recuperação: {item.lastFailure.recovery}</p> : null}
+							</CardContent>
+						</Card>
+
+						<Card>
+							<CardContent className="gap-3 p-4">
 								<h3 className="text-body-sm font-semibold">Movimentação</h3>
 								<div className="flex items-center gap-2">
 									<Select value={moveTarget} onValueChange={setMoveTarget}>
@@ -426,6 +464,8 @@ export default function ItemDetailModal({
 						<EventLog
 							activities={activities}
 							loaded={activitiesLoaded}
+							hasMore={activityTotal > activities.length}
+							onLoadMore={() => { const next = activityPage + 1; setActivityPage(next); loadActivities(next); }}
 							open={showTimeline}
 							onOpenChange={setShowTimeline}
 						/>
@@ -591,11 +631,15 @@ function TaskList({
 function EventLog({
 	activities,
 	loaded,
+	hasMore,
+	onLoadMore,
 	open,
 	onOpenChange,
 }: {
 	activities: ActivityEntry[];
 	loaded: boolean;
+	hasMore: boolean;
+	onLoadMore: () => void;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }) {
@@ -623,7 +667,7 @@ function EventLog({
 									Nenhum evento registrado para este item.
 								</p>
 							) : (
-								activities.map((entry) => (
+											activities.map((entry) => (
 									<div
 										key={entry.id}
 										className="grid gap-0.5 border-l-2 border-[var(--color-primary)] pl-2"
@@ -643,8 +687,9 @@ function EventLog({
 											{entry.description}
 										</p>
 									</div>
-								))
-							)}
+											))
+											)}
+											{loaded && hasMore ? <Button type="button" size="sm" variant="ghost" onClick={onLoadMore}>Carregar eventos anteriores</Button> : null}
 						</div>
 					</CollapsibleContent>
 				</Collapsible>

@@ -186,7 +186,9 @@ stages:
     description: Security agent analyzes vulnerabilities and dependencies.
     agents:
       - security
-    gate: security-clear
+    # Security checks run automatically; the final transition to Done is
+    # released only by the human-approved gate handled by the UI/API.
+    gate: human-approved
     preferredExecutor: opencode
     phases:
       initialState: scan

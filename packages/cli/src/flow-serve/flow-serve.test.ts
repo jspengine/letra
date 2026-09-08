@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { FlowServer } from "../commands/flow-serve.js";
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { loadWorkflow, saveWorkflow } from "../commands/flow-init.js";
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -115,5 +116,39 @@ describe("FlowServer SSE + Orchestrator Integration", () => {
 				action: "emitted",
 			}),
 		);
+	});
+
+	it("wires the semiautonomous dispatcher only when autopilot is enabled", async () => {
+		const server = new FlowServer(root, 3003, { autopilot: true, dispatcherIntervalMs: 60_000 });
+		const dispatcher = (server as any).dispatcher;
+		expect(dispatcher).toBeDefined();
+		const startSpy = vi.spyOn(dispatcher, "start");
+		await server.start();
+		expect(startSpy).toHaveBeenCalledTimes(1);
+		server.stop();
+	});
+
+	it("runs a handoff to the human gate and leaves an auditable pause", async () => {
+		const workflow = loadWorkflow(root)!;
+		workflow.items[0].handoff = {
+			from: "design",
+			to: "implementer",
+			summary: "Implement approved work",
+			evidence: ["spec-approved"],
+			timestamp: new Date().toISOString(),
+			expiresAt: new Date(Date.now() + 1_800_000).toISOString(),
+		};
+		saveWorkflow(root, workflow);
+		const server = new FlowServer(root, 3004, { autopilot: true, dispatcherIntervalMs: 60_000 });
+		await server.start();
+		await new Promise((resolve) => setTimeout(resolve, 80));
+		server.stop();
+		const updated = loadWorkflow(root)!;
+		expect(updated.items[0].activityStatus).toBe("succeeded");
+		expect(updated.items[0].handoff?.to).toBe("human");
+		expect(updated.items[0].handoff?.evidence).toContain("simulated:implement:ITEM-1");
+		const logFiles = readdirSync(join(root, ".letra", "session-log"), { recursive: true }) as string[];
+		const logContent = logFiles.filter((file) => file.endsWith(".jsonl")).map((file) => readFileSync(join(root, ".letra", "session-log", file), "utf8")).join("\n");
+		expect(logContent).toContain("Autonomous dispatcher: dispatched");
 	});
 });

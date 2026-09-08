@@ -71,8 +71,14 @@ import { createAgentRoutes } from "../flow-serve/routes/agent-routes.js";
 import { ClientAssets } from "../flow-serve/client-assets.js";
 import { AutomationRuntime, type AutomationBinding } from "../flow-serve/automation-runtime.js";
 import { Orchestrator } from "../orchestrator/orchestrator.js";
+import { PersistentDispatcher } from "../orchestrator/dispatcher.js";
+import { createSimulatedExecutor } from "../orchestrator/simulated-executor.js";
 
 const DEFAULT_PORT = 3000;
+export interface FlowServerOptions {
+	autopilot?: boolean;
+	dispatcherIntervalMs?: number;
+}
 
 /**
  * Resolve the harness directory for `root`, preferring the workspace-local
@@ -108,8 +114,11 @@ export class FlowServer {
 	private resolution: WorkspaceResolution;
 	private activeWorkspaceRoot: string;
 	private activeDirectory: string | null = null;
+	private dispatcher: PersistentDispatcher | undefined;
+	private readonly options: FlowServerOptions;
 
-	constructor(root: string, port: number = DEFAULT_PORT) {
+	constructor(root: string, port: number = DEFAULT_PORT, options: FlowServerOptions = {}) {
+		this.options = options;
 		this.clientAssets = new ClientAssets(root);
 		this.port = port;
 		this.resolution = resolveWorkspaceRoot(root);
@@ -135,6 +144,7 @@ export class FlowServer {
 			onHandoffEvent: (payload) => this.events.broadcastHandoff(payload),
 		});
 		this.orchestrator.registerFromManifest();
+		if (options.autopilot) this.dispatcher = this.createDispatcher();
 		this.router.register((context) => {
 			if (context.path !== "/events") return false;
 			this.events.handleSse(context.req, context.res);
@@ -265,6 +275,57 @@ export class FlowServer {
 		this.router.register(createAgentRoutes({ loadWorkflow: (root) => this.loadWorkflow(root), broadcast: () => this.broadcast() }));
 	}
 
+	private createDispatcher(): PersistentDispatcher {
+		const simulated = createSimulatedExecutor("letra-simulated");
+		const manifest = this.orchestrator.getManifest();
+		return new PersistentDispatcher(
+			{
+				loadWorkflow: () => {
+					const workflow = this.loadWorkflow();
+					if (!workflow) throw new Error("No workflow found for dispatcher");
+					return workflow;
+				},
+				writeWorkflow: async (workflow) => {
+					writeWorkflow(this.activeWorkspaceRoot, {
+						workflow,
+						source: "orchestrator",
+						primaryItemId: workflow.primaryItemId,
+						skipSitrep: true,
+					});
+					this.broadcast();
+				},
+				advance: () => undefined,
+				claim: (itemId, executorId, agentId) =>
+					this.orchestrator.autoClaim(itemId, executorId, agentId).success,
+			},
+			() => [simulated],
+			this.options.dispatcherIntervalMs ?? 30_000,
+			{
+				stageActors: (stageId) => {
+					const templateId = this.loadWorkflow()?.template ?? "flow-main";
+					return manifest?.flows[templateId]?.stages.find((stage) => stage.id === stageId)?.agents ?? [];
+				},
+				blocksHandoff: (stage, item) => {
+					const gate = stage.gate ? manifest?.gates[stage.gate] : undefined;
+					// A human gate protects entry into the next role. The role that
+					// owns the current stage must still be allowed to execute and
+					// produce the evidence presented at that gate.
+					const currentActor = (manifest?.flows[this.loadWorkflow()?.template ?? "flow-main"]?.stages.find((entry) => entry.id === stage.id)?.agents ?? (stage as typeof stage & { agents?: string[] }).agents)?.[0];
+					return gate?.type === "human" && gate.blocksHandoff === true && item.handoff?.to !== currentActor;
+				},
+				onResult: (result) => {
+					if (result.status === "dispatched" || result.status === "failed") {
+						logEntry(this.activeWorkspaceRoot, "agent_execution_event", `Autonomous dispatcher: ${result.status}`, {
+							itemId: result.itemId,
+							details: { status: result.status, reason: result.reason ?? null },
+						});
+					}
+					this.broadcast();
+				},
+			},
+		);
+	}
+
 	switchWorkspace(workspaceRoot: string) {
 		this.activeWorkspaceRoot = workspaceRoot;
 		this.activeDirectory = null;
@@ -278,6 +339,11 @@ export class FlowServer {
 			onHandoffEvent: (payload) => this.events.broadcastHandoff(payload),
 		});
 		this.orchestrator.registerFromManifest();
+		if (this.options.autopilot) {
+			this.dispatcher?.stop();
+			this.dispatcher = this.createDispatcher();
+			this.dispatcher.start();
+		}
 		this.orchestrator.startReclaimTimer();
 		this.broadcast();
 	}
@@ -375,6 +441,7 @@ export class FlowServer {
 			this.server.listen(this.port, () => {
 				this.automationRuntime.start(this.automationBinding());
 				this.orchestrator.startReclaimTimer();
+				this.dispatcher?.start();
 				resolve();
 			});
 			this.server.on("error", reject);
@@ -383,6 +450,7 @@ export class FlowServer {
 
 	stop(): void {
 		this.automationRuntime.stop();
+		this.dispatcher?.stop();
 		this.orchestrator.stopReclaimTimer();
 		if (this.server) this.server.close();
 		this.events.close();
@@ -395,7 +463,7 @@ export class FlowServer {
 
 export async function flowServeAction(
 	targetPath: string | undefined,
-	options?: { port?: number; open?: boolean },
+	options?: { port?: number; open?: boolean; autopilot?: boolean },
 ): Promise<void> {
 	const root = resolve(process.cwd(), targetPath ?? ".");
 	const port = options?.port ?? DEFAULT_PORT;
@@ -406,7 +474,7 @@ export async function flowServeAction(
 		return;
 	}
 
-	const server = new FlowServer(root, port);
+	const server = new FlowServer(root, port, { autopilot: options?.autopilot });
 	try {
 		await server.start();
 		console.log(`\n  Flow Board → http://localhost:${port}\n`);

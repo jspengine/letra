@@ -169,6 +169,23 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 
 				const sourceStage = item.stage;
 				item.stage = targetStage;
+				// A decision creates the next durable handoff. Without replacing the
+				// previous handoff, request-changes could leave the item addressed to
+				// the old role and the dispatcher would pause forever at the gate.
+				const targetStageDefinition = flow.stages.find((stage) => stage.id === targetStage);
+				const targetActor = targetStageDefinition?.agents[0];
+				if (targetActor) {
+					item.handoff = {
+						from: "human:web-ui",
+						to: targetActor,
+						summary: `Gate ${gate.name} decision ${data.decision}; continue at ${targetStageDefinition?.name ?? targetStage}.`,
+						evidence: [`gate:${gate.id}:${data.decision}`],
+						timestamp: new Date().toISOString(),
+						expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+					};
+				} else {
+					item.handoff = undefined;
+				}
 				workflow.updatedAt = new Date().toISOString();
 				await dependencies.writeWorkflow(workspaceRoot, {
 					workflow,

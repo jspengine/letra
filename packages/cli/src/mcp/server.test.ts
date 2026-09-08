@@ -82,19 +82,25 @@ describe("Letra MCP read-only server", () => {
 				"validate",
 				"complete_ac",
 				"request_transition",
+				"get_context",
+				"get_activity",
+				"claim",
+				"execution_event",
+				"submit_evidence",
+				"request_handoff",
 				"list_gates",
 				"list_roles",
 			]);
 			expect(
 				tools.tools.filter((tool) => tool.annotations?.readOnlyHint === true).length,
-			).toBe(5);
+			).toBe(7);
 			expect(
 				tools.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length,
-			).toBe(3);
+			).toBe(7);
 			expect(
 				tools.tools.filter((tool) => tool.inputSchema?.additionalProperties === false)
 					.length,
-			).toBe(3);
+			).toBe(8);
 
 			const direction = toolJson(
 				await client.callTool({ name: "get_direction", arguments: {} }),

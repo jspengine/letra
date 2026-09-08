@@ -62,6 +62,7 @@ function configureHumanGate(
 		"request-changes": "previous",
 		reject: "first",
 	},
+	gateStageId = "review",
 ) {
 	vi.mocked(deps.resolveActiveFlow).mockReturnValue({
 		workflow: null,
@@ -88,8 +89,8 @@ function configureHumanGate(
 					provenance: "harness",
 				},
 				{
-					id: "review",
-					name: "Review",
+					id: gateStageId,
+					name: gateStageId === "security" ? "Security" : "Review",
 					order: 1,
 					zone: "doing",
 					roleIds: [],
@@ -110,6 +111,17 @@ function configureHumanGate(
 					name: "Code",
 					order: 2,
 					zone: "doing",
+					roleIds: [],
+					roles: [],
+					agents: [],
+					gate: null,
+					provenance: "harness",
+				},
+				{
+					id: "done",
+					name: "Done",
+					order: 3,
+					zone: "done",
 					roleIds: [],
 					roles: [],
 					agents: [],
@@ -320,5 +332,24 @@ describe("item routes", () => {
 		expect(logEntry).not.toHaveBeenCalled();
 		expect(res.writeHead).toHaveBeenCalledWith(422, { "Content-Type": "application/json" });
 		expect(res.end).toHaveBeenCalledWith(expect.stringContaining("decisão humana explícita"));
+	});
+
+	it("resolves the final human-approved gate to Done or back to Code", async () => {
+		const { deps, writeWorkflow, logEntry } = dependencies();
+		const value = workflowAtGate();
+		value.stages = [
+			{ id: "security", name: "Security", order: 1, zone: "doing" },
+			{ id: "code", name: "Code", order: 2, zone: "doing" },
+			{ id: "done", name: "Done", order: 3, zone: "done" },
+		];
+		value.items = [{ id: "ITEM-1", description: "", stage: "security", createdAt: "" }];
+		configureHumanGate(deps, { approve: "done", "request-changes": "code", reject: "code" }, "security");
+		const res = response();
+		const context = createRequestContext(request("POST", '{"decision":"approve"}'), res, new URL("http://localhost/api/items/ITEM-1/gate-decisions"), { workspaceRoot: "C:\\workspace", workspaceDir: "C:\\workspace\\.letra", workflow: value });
+		await createItemRoutes(deps)(context);
+		expect(value.items[0].stage).toBe("done");
+		expect(value.items[0].handoff).toBeUndefined();
+		expect(writeWorkflow).toHaveBeenCalled();
+		expect(logEntry).toHaveBeenCalledWith("C:\\workspace", "decision", expect.any(String), expect.objectContaining({ itemId: "ITEM-1" }));
 	});
 });

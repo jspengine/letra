@@ -4,7 +4,7 @@ import { Badge, Icon, Button, Progress, Card, CardContent, Tag, AgentAvatar } fr
 import type { AgentIdentity } from "@letra/types";
 import { cn } from "../../lib/utils";
 import { computeSlug } from "../../lib/item-utils";
-import { resolveAgent } from "../../lib/agent-resolver";
+import { projectKanbanCard } from "../../lib/kanban-card-projection";
 import {
 	doneStageIds,
 	humanGateStageIds,
@@ -27,6 +27,7 @@ interface Props {
 	allowDrop?: (item: Workflow["items"][0], targetStageId: string) => boolean;
 	specRefreshKey?: number;
 	onAddItem?: () => void;
+	onOpenSpec?: () => void;
 	filter?: string;
 	className?: string;
 }
@@ -130,6 +131,7 @@ function ItemCard({
 	specs,
 	agents,
 	onClick,
+	onOpenSpec,
 	onDragStart,
 	onDragEnd,
 }: {
@@ -139,11 +141,12 @@ function ItemCard({
 	specs: ResolvedSpec[];
 	agents: AgentIdentity[];
 	onClick: () => void;
+	onOpenSpec?: () => void;
 	onDragStart: (e: React.DragEvent) => void;
 	onDragEnd: (e: React.DragEvent) => void;
 }) {
 	const slug = computeSlug(item, specs, workflow);
-	const daysInStage = Math.floor((Date.now() - new Date(item.createdAt).getTime()) / 86400000);
+	const projection = projectKanbanCard(item, workflow, activeFlow, specs, agents);
 	const isHumanGate = humanGateStageIds(workflow, activeFlow).has(item.stage);
 	const state = computeItemState(itemOperationalState(item, workflow, activeFlow));
 
@@ -173,12 +176,9 @@ function ItemCard({
 					source: "Evidência",
 				};
 
-	const resolvedStage = orderedStages(workflow, activeFlow).find(
-		(stage) => stage.id === item.stage,
-	);
-	const agentName = item.claimedBy ?? resolvedStage?.roles[0]?.label ?? "Não atribuído";
-	const agent = resolveAgent(agents, item.claimedBy);
-	const agentAction = resolvedStage ? stageActionLabel(resolvedStage) : "Processando";
+	const agent = projection.identity;
+	const agentName = projection.identity?.displayName ?? "Não atribuído";
+	const persona = projection.persona;
 	const isRunning = state.key === "running";
 	const hasProgress = progress.total > 0;
 	const progressValue = progress.total > 0 ? progress.done : 0;
@@ -194,7 +194,6 @@ function ItemCard({
 						? "agent"
 						: "default";
 	const title = item.description?.trim() || linkedSpec?.id || slug;
-	const ageLabel = daysInStage === 0 ? "Hoje no fluxo" : `${daysInStage}d no fluxo`;
 	const cardBorder =
 		state.key === "blocked"
 			? "var(--color-danger)"
@@ -260,30 +259,13 @@ function ItemCard({
 					</h3>
 				</div>
 
-				<div className="grid gap-1.5">
-					<div className="flex min-w-0 flex-wrap items-center gap-1.5">
-						<Tag>{resolvedStage?.name ?? item.stage}</Tag>
-						<Tag>{ageLabel}</Tag>
-					</div>
-					<p className="line-clamp-2 text-caption leading-snug text-[var(--color-text-secondary)]">
-						{linkedSpec ? `Especificação ${linkedSpec.id}` : `Evidência ${slug}`}
-					</p>
-				</div>
-
 				<div className="flex min-w-0 flex-wrap items-center gap-1.5 text-caption text-[var(--color-text-secondary)]">
 					<Tag variant={item.claimedBy ? "agent" : "default"}>
 						{agent ? <AgentAvatar agent={agent} size="sm" /> : <Icon name={item.claimedBy ? "bot" : "circle"} size={10} />}
 						{agentName}
 					</Tag>
-					<span className="min-w-0 flex-1 basis-32 truncate">{agentAction}</span>
+					<Tag>{persona}</Tag>
 				</div>
-				{item.claimedBy && (
-					<div className="grid gap-0.5 rounded border border-[var(--color-agent)]/20 bg-[var(--color-agent)]/5 px-2 py-1 text-[10px] text-[var(--color-text-secondary)]">
-						<span className="font-medium text-[var(--color-agent)]">Execução ativa · {item.claimExecutorId ?? "executor desconhecido"}</span>
-						<span>Início: {item.activityStartedAt ?? item.claimedAt ?? "—"} · Heartbeat: {item.lastHeartbeatAt ?? "pendente"}</span>
-						<span>Lease: {item.claimExpiresAt ?? "sem validade registrada"}</span>
-					</div>
-				)}
 
 				{hasProgress ? (
 					<div className="grid gap-1">
@@ -304,13 +286,10 @@ function ItemCard({
 					</div>
 				) : null}
 
-				<div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg-sunken)] px-2 py-1.5">
-					<div className="flex min-w-0 items-center gap-1.5 text-caption font-medium text-[var(--color-text-primary)]">
-						<Icon name={state.icon} size={12} />
-						<span className="min-w-0 whitespace-normal leading-snug">
-							{state.action}
-						</span>
-					</div>
+				<div className="flex items-center justify-end pt-1">
+					<Button type="button" size="sm" variant="secondary" onClick={(event) => { event.stopPropagation(); onClick(); }} aria-label={`Acompanhar trabalho ativo de ${item.id}`}>
+						<Icon name="activity" size={12} /> Acompanhar trabalho ativo
+					</Button>
 				</div>
 			</CardContent>
 		</Card>
@@ -327,6 +306,7 @@ export default function KanbanBoard({
 	allowDrop,
 	specRefreshKey,
 	onAddItem,
+	onOpenSpec,
 	filter = "all",
 	className,
 }: Props) {
@@ -492,6 +472,7 @@ export default function KanbanBoard({
 							specs={specs}
 							agents={agents}
 							onClick={() => onSelectItem(item.id)}
+							onOpenSpec={item.spec && onOpenSpec ? onOpenSpec : undefined}
 							onDragStart={(e) => handleDragStart(e, item.id)}
 							onDragEnd={handleDragEnd}
 						/>
