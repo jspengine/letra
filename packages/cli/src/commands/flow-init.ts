@@ -58,7 +58,11 @@ export interface Item {
 	tasks?: Task[];
 	claimedBy?: string;
 	claimedAt?: string;
+	claimExecutorId?: string;
+	claimCapability?: string;
+	claimRevision?: string;
 	claimExpiresAt?: string;
+	claimTtlMinutes?: number;
 	activityStatus?: "started" | "heartbeat" | "succeeded" | "failed";
 	activityStartedAt?: string;
 	lastHeartbeatAt?: string;

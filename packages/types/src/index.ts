@@ -94,6 +94,15 @@ export interface Item {
 	tasks?: Task[];
 	claimedBy?: string;
 	claimedAt?: string;
+	claimExecutorId?: string;
+	claimCapability?: string;
+	claimRevision?: string;
+	claimExpiresAt?: string;
+	claimTtlMinutes?: number;
+	activityStatus?: ExternalProtocolEventStatus;
+	activityStartedAt?: string;
+	lastHeartbeatAt?: string;
+	lastFailure?: { code: string; message: string; recovery: string; at: string };
 	currentPhase?: string;
 }
 
@@ -212,6 +221,10 @@ export interface AgentDirectionSnapshot {
 		claimedBy?: string | null;
 		claimedAt?: string | null;
 		claimExpiresAt?: string | null;
+		claimExecutorId?: string | null;
+		claimCapability?: string | null;
+		claimRevision?: string | null;
+		claimTtlMinutes?: number | null;
 		activityStatus?: ExternalProtocolEventStatus | null;
 		activityStartedAt?: string | null;
 		lastHeartbeatAt?: string | null;

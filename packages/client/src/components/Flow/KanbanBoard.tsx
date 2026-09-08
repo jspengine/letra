@@ -272,6 +272,13 @@ function ItemCard({
 					</Tag>
 					<span className="min-w-0 flex-1 basis-32 truncate">{agentAction}</span>
 				</div>
+				{item.claimedBy && (
+					<div className="grid gap-0.5 rounded border border-[var(--color-agent)]/20 bg-[var(--color-agent)]/5 px-2 py-1 text-[10px] text-[var(--color-text-secondary)]">
+						<span className="font-medium text-[var(--color-agent)]">Execução ativa · {item.claimExecutorId ?? "executor desconhecido"}</span>
+						<span>Início: {item.activityStartedAt ?? item.claimedAt ?? "—"} · Heartbeat: {item.lastHeartbeatAt ?? "pendente"}</span>
+						<span>Lease: {item.claimExpiresAt ?? "sem validade registrada"}</span>
+					</div>
+				)}
 
 				{hasProgress ? (
 					<div className="grid gap-1">

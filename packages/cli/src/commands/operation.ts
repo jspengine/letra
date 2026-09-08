@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { Command, Option } from "commander";
+import { activityOperation } from "../domain-operations/service.js";
 
 function collectEvidence(value: string, previous: string[]): string[] {
 	return [...previous, value];
@@ -49,6 +50,30 @@ export default function operationCommand(): Command {
 		.action(async (options: { expectedRevision: string; reason: string }) => {
 			const { runValidationOperation } = await import("../domain-operations/service.js");
 			printJson(await runValidationOperation(resolve(process.cwd()), options));
+		});
+	command.command("activity [item-id]").action((itemId?: string) => printJson(activityOperation(resolve(process.cwd()), itemId)));
+	command.command("evidence <item-id>")
+		.requiredOption("--executor <executor-id>", "Executor externo")
+		.requiredOption("--expected-revision <revision>", "Direction revision")
+		.requiredOption("--reason <reason>", "Reason")
+		.requiredOption("--kind <kind>", "diff, file, command, test ou artifact")
+		.requiredOption("--value <value>", "Valor/path")
+		.requiredOption("--source <source>", "Origem observada")
+		.option("--actor <actor>", "Actor", "agent:codex")
+		.action(async (itemId: string, options: { executor: string; expectedRevision: string; reason: string; kind: "diff" | "file" | "command" | "test" | "artifact"; value: string; source: string; actor: string }) => {
+			const { submitEvidenceOperation } = await import("../domain-operations/service.js");
+			printJson(await submitEvidenceOperation(resolve(process.cwd()), { itemId, executorId: options.executor, expectedRevision: options.expectedRevision, reason: options.reason, actor: options.actor, evidence: [{ kind: options.kind, value: options.value, source: options.source }] }));
+		});
+	command.command("handoff <item-id>")
+		.requiredOption("--to <actor>", "Destino")
+		.requiredOption("--executor <executor-id>", "Executor")
+		.requiredOption("--summary <summary>", "Resumo")
+		.requiredOption("--expected-revision <revision>", "Direction revision")
+		.requiredOption("--reason <reason>", "Reason")
+		.option("--actor <actor>", "Actor", "agent:codex")
+		.action(async (itemId: string, options: { to: string; executor: string; summary: string; expectedRevision: string; reason: string; actor: string }) => {
+			const { requestHandoffOperation } = await import("../domain-operations/service.js");
+			printJson(await requestHandoffOperation(resolve(process.cwd()), { itemId, to: options.to, executorId: options.executor, summary: options.summary, evidence: [], expectedRevision: options.expectedRevision, reason: options.reason, actor: options.actor }));
 		});
 
 	command
