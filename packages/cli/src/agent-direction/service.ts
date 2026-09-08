@@ -37,24 +37,26 @@ function slug(value: string): string {
 }
 
 function findCurrentItem(workflow: Workflow, currentItemId?: string | null): Item | null {
+	const items = Array.isArray(workflow.items) ? workflow.items : [];
+	const stages = Array.isArray(workflow.stages) ? workflow.stages : [];
 	if (currentItemId) {
-		const explicit = workflow.items.find((item) => item.id === currentItemId);
+		const explicit = items.find((item) => item.id === currentItemId);
 		if (explicit) return explicit;
 	}
 	if (workflow.primaryItemId) {
-		const primary = workflow.items.find((item) => item.id === workflow.primaryItemId);
+		const primary = items.find((item) => item.id === workflow.primaryItemId);
 		if (primary) return primary;
 	}
 	const doingStages = new Set(
-		workflow.stages
+		stages
 			.filter(
 				(stage, index) =>
 					stage.zone === "doing" ||
-					(!stage.zone && index > 0 && index < workflow.stages.length - 1),
+					(!stage.zone && index > 0 && index < stages.length - 1),
 			)
 			.map((stage) => stage.id),
 	);
-	return workflow.items.find((item) => doingStages.has(item.stage)) ?? null;
+	return items.find((item) => doingStages.has(item.stage)) ?? null;
 }
 
 function firstPendingAC(content: string | null): AgentDirectionSnapshot["pendingAC"] {
