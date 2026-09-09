@@ -1,0 +1,10 @@
+Comando: letra operation request-transition ITEM-86 --to review --expected-revision <revision> --reason "Implementation complete."
+Origem: C:/Workspace/letra
+CLI: 0.6.2
+Data: 2026-09-09
+Alt text: Captura textual reproduzivel de uma tentativa de transicao controlada pelo harness, mostrando que o agente solicita handoff e gates humanos continuam fora da aprovacao automatica.
+
+Resultado esperado no protocolo:
+handoff/request-transition registrado para reviewer quando permitido pelo stage code.
+Se houver gate humano aplicavel, o resultado esperado e approval-required.
+O executor externo nao aprova o proprio trabalho.

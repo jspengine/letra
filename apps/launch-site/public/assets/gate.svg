@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="520" viewBox="0 0 960 520" role="img" aria-labelledby="title desc">
+  <title id="title">Gate humano no Letra</title>
+  <desc id="desc">Terminal mostra request-transition e resposta approval-required, deixando claro que o agente nao aprova o proprio trabalho.</desc>
+  <rect width="960" height="520" fill="#0f1115"/>
+  <rect x="36" y="36" width="888" height="448" rx="8" fill="#171a20" stroke="#49515d"/>
+  <text x="60" y="82" fill="#ecedef" font-family="Consolas, monospace" font-size="20">letra operation request-transition ITEM-86 --to review</text>
+  <text x="60" y="140" fill="#ffb800" font-family="Consolas, monospace" font-size="26">approval-required</text>
+  <text x="60" y="190" fill="#c0c8d4" font-family="Consolas, monospace" font-size="20">Gate: human-approved</text>
+  <text x="60" y="230" fill="#c0c8d4" font-family="Consolas, monospace" font-size="20">Executor: codex / implementer</text>
+  <text x="60" y="270" fill="#c0c8d4" font-family="Consolas, monospace" font-size="20">Acao permitida: solicitar handoff</text>
+  <text x="60" y="310" fill="#c0c8d4" font-family="Consolas, monospace" font-size="20">Acao proibida: aprovar o proprio gate</text>
+  <rect x="60" y="372" width="790" height="54" rx="4" fill="#242b35"/>
+  <text x="82" y="407" fill="#ecedef" font-family="Consolas, monospace" font-size="19">A decisao continua humana e fica registrada no workflow.</text>
+</svg>

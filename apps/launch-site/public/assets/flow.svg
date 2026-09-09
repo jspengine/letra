@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="520" viewBox="0 0 960 520" role="img" aria-labelledby="title desc">
+  <title id="title">Fluxo real do Letra</title>
+  <desc id="desc">Esteira com backlog, design, code, review, security e done, personas e gates humanos.</desc>
+  <rect width="960" height="520" fill="#0f1115"/>
+  <text x="44" y="70" fill="#ecedef" font-family="Arial, sans-serif" font-size="30" font-weight="700">Esteira governada</text>
+  <g font-family="Arial, sans-serif" font-size="16">
+    <rect x="44" y="116" width="130" height="108" rx="8" fill="#171a20" stroke="#49515d"/>
+    <text x="64" y="148" font-weight="700">Backlog</text><text x="64" y="182">ideia</text>
+    <rect x="200" y="116" width="130" height="108" rx="8" fill="#171a20" stroke="#49515d"/>
+    <text x="220" y="148" font-weight="700">Design</text><text x="220" y="182">analyst</text>
+    <rect x="356" y="116" width="130" height="108" rx="8" fill="#24233b" stroke="#8b5cf6" stroke-width="3"/>
+    <text x="376" y="148" font-weight="700">Code</text><text x="376" y="182">implementer</text>
+    <rect x="512" y="116" width="130" height="108" rx="8" fill="#171a20" stroke="#49515d"/>
+    <text x="532" y="148" font-weight="700">Review</text><text x="532" y="182">reviewer</text>
+    <rect x="668" y="116" width="130" height="108" rx="8" fill="#171a20" stroke="#49515d"/>
+    <text x="688" y="148" font-weight="700">Security</text><text x="688" y="182">security</text>
+    <rect x="824" y="116" width="92" height="108" rx="8" fill="#171a20" stroke="#49515d"/>
+    <text x="844" y="148" font-weight="700">Done</text>
+    <path d="M174 170 H200 M330 170 H356 M486 170 H512 M642 170 H668 M798 170 H824" stroke="#ecedef" stroke-width="2"/>
+    <text x="214" y="280">spec-approved</text>
+    <text x="526" y="280">code-reviewed</text>
+    <text x="676" y="330">human-approved gate</text>
+    <rect x="44" y="368" width="872" height="72" rx="8" fill="#ecedef"/>
+    <text x="68" y="412" fill="#fff">Registro: direction -> claim -> atividade -> evidencia -> handoff -> decisao.</text>
+  </g>
+</svg>
