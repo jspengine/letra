@@ -22,4 +22,12 @@ describe("agent registry", () => {
 		createAgent(root, agent, workflow); updateAgent(root, "x", { bio: "Review" }, workflow);
 		expect(listAgents(root, workflow).find((item) => item.id === "x")?.bio).toBe("Review");
 	});
+	it("does not persist manually edited availability because presence is runtime-derived", () => {
+		const root = mkdtempSync(join(tmpdir(), "letra-agents-"));
+		writeFileSync(join(root, "workflow.json"), "{}");
+		const agent = { id: "x", displayName: "X", role: "reviewer", avatar: { type: "initials" as const, value: "X" }, color: "red", skills: [], status: "offline" as const, stageBindings: [] };
+		createAgent(root, agent, workflow);
+		updateAgent(root, "x", { status: "busy" }, workflow);
+		expect(listAgents(root, workflow).find((item) => item.id === "x")?.status).toBe("offline");
+	});
 });

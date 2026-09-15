@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="520" viewBox="0 0 960 520" role="img" aria-labelledby="title desc">
+  <title id="title">Estado real do Letra por direction JSON</title>
+  <desc id="desc">Terminal mostrando ITEM-86 em code, actor implementer, capability write_code, objetivo e revision do harness.</desc>
+  <rect width="960" height="520" fill="#0f1115"/>
+  <rect x="32" y="32" width="896" height="456" rx="8" fill="#171a20" stroke="#49515d"/>
+  <text x="56" y="76" fill="#ecedef" font-family="Consolas, monospace" font-size="22">letra direction --json</text>
+  <text x="56" y="122" fill="#c0c8d4" font-family="Consolas, monospace" font-size="19">{</text>
+  <text x="86" y="160" fill="#ffb800" font-family="Consolas, monospace" font-size="19">"item"</text>
+  <text x="172" y="160" fill="#c0c8d4" font-family="Consolas, monospace" font-size="19">: { "id": "ITEM-86", "stage": "code" },</text>
+  <text x="86" y="198" fill="#ffb800" font-family="Consolas, monospace" font-size="19">"claimedBy"</text>
+  <text x="210" y="198" fill="#c0c8d4" font-family="Consolas, monospace" font-size="19">: "implementer",</text>
+  <text x="86" y="236" fill="#ffb800" font-family="Consolas, monospace" font-size="19">"claimCapability"</text>
+  <text x="270" y="236" fill="#c0c8d4" font-family="Consolas, monospace" font-size="19">: "write_code",</text>
+  <text x="86" y="274" fill="#ffb800" font-family="Consolas, monospace" font-size="19">"objective"</text>
+  <text x="205" y="274" fill="#c0c8d4" font-family="Consolas, monospace" font-size="19">: "Implement acceptance criteria one by one.",</text>
+  <text x="86" y="312" fill="#ffb800" font-family="Consolas, monospace" font-size="19">"revision"</text>
+  <text x="196" y="312" fill="#c0c8d4" font-family="Consolas, monospace" font-size="19">: "sha256:0864d7a..."</text>
+  <text x="56" y="350" fill="#c0c8d4" font-family="Consolas, monospace" font-size="19">}</text>
+  <rect x="56" y="396" width="810" height="44" rx="4" fill="#242b35"/>
+  <text x="76" y="425" fill="#ecedef" font-family="Consolas, monospace" font-size="18">Contrato de leitura: o agente so age dentro do stage e da revision retornados.</text>
+</svg>

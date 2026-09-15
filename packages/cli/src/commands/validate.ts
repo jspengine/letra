@@ -11,6 +11,8 @@ import {
 	checkSpecContent,
 } from "../validation/content.js";
 import { getLetraDir } from "./../workspace/resolver.js";
+import { loadWorkflow } from "./flow-init.js";
+import { validateSpecCatalog } from "../spec-catalog/service.js";
 
 export {
 	checkBinaryCriteria,
@@ -493,6 +495,24 @@ export async function validate(
 					totalFail++;
 				}
 			}
+		}
+
+		const catalogValidation = validateSpecCatalog(root, loadWorkflow(root));
+		for (const issue of catalogValidation.issues) {
+			const level = "fail" as const;
+			collectResult(
+				allResults,
+				level,
+				issue.specId ?? "(spec-catalog)",
+				`Catálogo ${issue.code}`,
+				issue.message,
+				issue.itemId ? `item=${issue.itemId}` : "",
+			);
+			totalFail++;
+		}
+		if (catalogValidation.valid) {
+			collectResult(allResults, "pass", "(spec-catalog)", "Catálogo íntegro", "Disposições, referências e reversibilidade válidas", "");
+			totalPass++;
 		}
 
 		if (fmt === "text" || fmt === "github-annotation") {

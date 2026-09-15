@@ -2,6 +2,7 @@ import type { writeWorkflow } from "../../commands/flow-init.js";
 import type { clearSpec, loadResolvedSpecs, validateSpec, writeSpec } from "../specs.js";
 import { HttpBodyError, readJson, sendError, sendJson } from "../http.js";
 import type { RouteHandler } from "../router.js";
+import { readSpecCatalog } from "../../spec-catalog/service.js";
 
 export interface SpecRouteDependencies {
 	loadResolvedSpecs: typeof loadResolvedSpecs;
@@ -31,6 +32,14 @@ function sendBodyError(error: unknown, res: Parameters<typeof sendError>[0]): vo
 
 export function createSpecRoutes(dependencies: SpecRouteDependencies): RouteHandler {
 	return async ({ method, path, req, res, workspaceRoot, workspaceDir, workflow }) => {
+		if (path === "/api/spec-catalog" && method === "GET") {
+			try {
+				sendJson(res, 200, readSpecCatalog(workspaceRoot));
+			} catch {
+				sendJson(res, 200, null);
+			}
+			return true;
+		}
 		if (path === "/api/specs" && method === "GET") {
 			try {
 				sendJson(res, 200, dependencies.loadResolvedSpecs(workspaceRoot, workflow));

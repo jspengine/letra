@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { FlowServer } from "./flow-serve.js";
 import { saveWorkflow, type Item, type Workflow } from "./flow-init.js";
+import { resolveAgentDirection } from "../agent-direction/service.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -131,6 +132,16 @@ async function api(method: string, url: string, body?: unknown): Promise<HttpRes
 	return { status: res.status, body: parsed };
 }
 
+function executorBody(root: string, idempotencyKey: string) {
+	return {
+		actor: "implementer",
+		executorId: "web-ui",
+		capability: "write_code",
+		expectedRevision: resolveAgentDirection(root).revision,
+		idempotencyKey,
+	};
+}
+
 function runCLI(args: string[], cwd: string): { stdout: string; stderr: string; status: number } {
 	const cmd = `npx tsx ${cliEntry} ${args.map((a) => (a.includes(" ") ? `"${a}"` : a)).join(" ")}`;
 	try {
@@ -182,20 +193,20 @@ describe("FlowServer HTTP API integration", () => {
 
 	describe("AC1.1 — Claim via POST /api/items/:id/claim", () => {
 		it("should populate claimedBy and claimedAt on claim", async () => {
-			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/claim`);
+			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-claim-1"));
 			expect(status).toBe(200);
-			const item = body as Record<string, unknown>;
-			expect(item.claimedBy).toBe("web-ui");
+			const item = (body as { nextDirection?: { item?: Record<string, unknown> } }).nextDirection?.item ?? {};
+			expect(item.claimedBy).toBe("implementer");
 			expect(item.claimedAt).toEqual(expect.any(String));
 		});
 
 		it("should return 404 for non-existent item", async () => {
-			const { status } = await api("POST", `${baseUrl}/api/items/ITEM-999/claim`);
+			const { status } = await api("POST", `${baseUrl}/api/items/ITEM-999/claim`, executorBody(tmpDir, "integration-claim-missing"));
 			expect(status).toBe(404);
 		});
 
 		it("should return 400 when claiming a done-zone item", async () => {
-			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-3/claim`);
+			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-3/claim`, executorBody(tmpDir, "integration-claim-done"));
 			expect(status).toBe(400);
 			const err = body as { error?: string };
 			expect(err.error).toMatch(/cannot claim a completed/i);
@@ -204,9 +215,9 @@ describe("FlowServer HTTP API integration", () => {
 
 	describe("AC1.2 — Release via POST /api/items/:id/release", () => {
 		it("should clear claimedBy and claimedAt", async () => {
-			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`);
+			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-release-claim"));
 
-			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/release`);
+			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/release`, { actor: "implementer", expectedRevision: resolveAgentDirection(tmpDir).revision, idempotencyKey: "integration-release" });
 			expect(status).toBe(200);
 			const item = body as Record<string, unknown>;
 			expect(item.claimedBy).toBeUndefined();
@@ -245,19 +256,19 @@ describe("FlowServer HTTP API integration", () => {
 
 	describe("GET /api/workflow", () => {
 		it("should return the full workflow with item state", async () => {
-			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`);
+			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-workflow-claim"));
 			const { status, body } = await api("GET", `${baseUrl}/api/workflow`);
 			expect(status).toBe(200);
 			const wf = body as { items?: Array<Record<string, unknown>> };
 			expect(wf.items).toBeDefined();
 			const item = wf.items?.find((i) => i.id === "ITEM-1");
 			expect(item).toBeDefined();
-			expect(item?.claimedBy).toBe("web-ui");
+			expect(item?.claimedBy).toBe("implementer");
 		});
 
 		it("should reflect release via GET", async () => {
-			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`);
-			await api("POST", `${baseUrl}/api/items/ITEM-1/release`);
+			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-workflow-release-claim"));
+			await api("POST", `${baseUrl}/api/items/ITEM-1/release`, { actor: "implementer", expectedRevision: resolveAgentDirection(tmpDir).revision, idempotencyKey: "integration-workflow-release" });
 
 			const { body } = await api("GET", `${baseUrl}/api/workflow`);
 			const wf = body as { items?: Array<Record<string, unknown>> };
@@ -354,6 +365,7 @@ describe("FlowServer HTTP API integration", () => {
 					stages: [
 						{ id: "secondary-stage", name: "Instance Stage", order: 0, zone: "doing" },
 					],
+					items: [{ id: "ITEM-1", description: "Secondary item", stage: "secondary-stage", createdAt: "2026-06-17T00:00:00.000Z" }],
 				}),
 			);
 
@@ -374,7 +386,7 @@ describe("FlowServer HTTP API integration", () => {
 			const update = await api(
 				"PATCH",
 				`${baseUrl}/api/items/ITEM-1?workspace=${encodeURIComponent(secondaryRoot)}`,
-				{ stage: "secondary-stage" },
+				{ description: "updated in secondary workspace" },
 			);
 			expect(update.status).toBe(200);
 			const secondaryWorkflow = JSON.parse(
@@ -405,15 +417,15 @@ describe("FlowServer HTTP API integration", () => {
 	describe("AC1.8 — SSE broadcast verification", () => {
 		it("should broadcast workflow-updated after claim", async () => {
 			const received = await sseWaitForEvent(baseUrl, "workflow-updated", async () => {
-				await api("POST", `${baseUrl}/api/items/ITEM-2/claim`);
+				await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-sse-claim"));
 			});
 			expect(received).toBe(true);
 		});
 
 		it("should broadcast workflow-updated after release", async () => {
-			await api("POST", `${baseUrl}/api/items/ITEM-2/claim`);
+			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-sse-release-claim"));
 			const received = await sseWaitForEvent(baseUrl, "workflow-updated", async () => {
-				await api("POST", `${baseUrl}/api/items/ITEM-2/release`);
+				await api("POST", `${baseUrl}/api/items/ITEM-1/release`, { actor: "implementer", expectedRevision: resolveAgentDirection(tmpDir).revision, idempotencyKey: "integration-sse-release" });
 			});
 			expect(received).toBe(true);
 		});

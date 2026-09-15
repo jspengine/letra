@@ -1,6 +1,6 @@
 import type { Workflow } from "@letra/types";
 import { Badge, Card, CardContent, EmptyState, Icon, SkeletonAgentList } from "@letra/ui";
-import { orderedStages, roleCatalog, type ActiveFlowDefinition } from "../../lib/active-flow";
+import { itemOperationalState, orderedStages, roleCatalog, type ActiveFlowDefinition } from "../../lib/active-flow";
 
 interface AgentDetailProps {
 	workflow: Workflow;
@@ -21,7 +21,7 @@ function runtimeActors(
 	const stages = orderedStages(workflow, activeFlow);
 	const actors = new Map<string, { itemCount: number; stageIds: Set<string> }>();
 	for (const item of workflow.items) {
-		if (!item.claimedBy) continue;
+		if (!item.claimedBy || itemOperationalState(item, workflow, activeFlow) !== "running") continue;
 		const current = actors.get(item.claimedBy) ?? { itemCount: 0, stageIds: new Set<string>() };
 		current.itemCount += 1;
 		current.stageIds.add(item.stage);

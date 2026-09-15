@@ -83,7 +83,7 @@ function computeItemState(state: OperationalState): {
 		};
 	return {
 		key: state,
-		label: "Na fila",
+		label: "Aguardando executor",
 		variant: "info",
 		tagVariant: "default",
 		action: "Aguardando responsável",
@@ -131,6 +131,7 @@ function ItemCard({
 	specs,
 	agents,
 	onClick,
+	onItemDecided,
 	onOpenSpec,
 	onDragStart,
 	onDragEnd,
@@ -141,6 +142,7 @@ function ItemCard({
 	specs: ResolvedSpec[];
 	agents: AgentIdentity[];
 	onClick: () => void;
+	onItemDecided?: () => void;
 	onOpenSpec?: () => void;
 	onDragStart: (e: React.DragEvent) => void;
 	onDragEnd: (e: React.DragEvent) => void;
@@ -265,6 +267,7 @@ function ItemCard({
 						{agentName}
 					</Tag>
 					<Tag>{persona}</Tag>
+					{!item.claimedBy && agent?.status === "offline" ? <Tag variant="warning">Executor offline</Tag> : null}
 				</div>
 
 				{hasProgress ? (
@@ -283,6 +286,19 @@ function ItemCard({
 							size="xs"
 							state={progressState}
 						/>
+					</div>
+				) : null}
+
+				{isHumanGate ? (
+					<div
+						className="grid gap-2 rounded-[var(--radius-md)] border border-[color-mix(in_oklch,var(--color-success)_35%,var(--color-border))] bg-[color-mix(in_oklch,var(--color-success)_6%,var(--color-bg-surface))] p-2"
+						onClick={(event) => event.stopPropagation()}
+					>
+						<div className="flex items-center gap-2 text-caption font-medium text-[var(--color-success)]">
+							<Icon name="clock" size={12} />
+							<span>Aprovação necessária</span>
+						</div>
+						<GateDecisionActions itemId={item.id} onDecided={onItemDecided} />
 					</div>
 				) : null}
 
@@ -472,37 +488,13 @@ export default function KanbanBoard({
 							specs={specs}
 							agents={agents}
 							onClick={() => onSelectItem(item.id)}
+							onItemDecided={onItemDecided}
 							onOpenSpec={item.spec && onOpenSpec ? onOpenSpec : undefined}
 							onDragStart={(e) => handleDragStart(e, item.id)}
 							onDragEnd={handleDragEnd}
 						/>
 					))}
 
-					{isHumanGate && hasAnyItems && (
-						<div className="app-board-gate-banner mt-1 pt-2">
-							<div className="flex items-center gap-2 text-caption mb-1.5 px-1">
-								<Icon
-									name="clock"
-									size={10}
-									style={{ color: "var(--color-success)" }}
-								/>
-								<span
-									style={{ color: "var(--color-success)" }}
-									className="font-medium"
-								>
-									Aprovação necessária
-								</span>
-							</div>
-							{items.map((item) => (
-								<div key={item.id} className="mb-2">
-									<GateDecisionActions
-										itemId={item.id}
-										onDecided={onItemDecided}
-									/>
-								</div>
-							))}
-						</div>
-					)}
 				</div>
 			</div>
 		);

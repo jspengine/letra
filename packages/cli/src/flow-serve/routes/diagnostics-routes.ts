@@ -10,6 +10,7 @@ import type {
 import type { runDiagnosticsAndSyncHealth, DiagnosticsOutput } from "../diagnostics.js";
 import { HttpBodyError, readJson, sendError, sendJson } from "../http.js";
 import type { RouteHandler } from "../router.js";
+import type { inspectWorkspaceIntegrity } from "../../workspace/integrity.js";
 
 export interface DiagnosticsRouteDependencies {
 	engineFor: (workspaceRoot: string) => DiagnosticEngine;
@@ -22,6 +23,7 @@ export interface DiagnosticsRouteDependencies {
 	getActiveEntries: typeof getActiveEntries;
 	broadcast: () => void;
 	broadcastDiagnostics: (output: DiagnosticsOutput) => void;
+	inspectWorkspaceIntegrity: typeof inspectWorkspaceIntegrity;
 }
 
 function sendBodyError(error: unknown, res: Parameters<typeof sendError>[0]): void {
@@ -35,6 +37,10 @@ function sendBodyError(error: unknown, res: Parameters<typeof sendError>[0]): vo
 export function createDiagnosticsRoutes(dependencies: DiagnosticsRouteDependencies): RouteHandler {
 	return async ({ method, path, req, res, url, workspaceRoot }) => {
 		const engine = dependencies.engineFor(workspaceRoot);
+		if (path === "/api/diagnostics/workspace" && method === "GET") {
+			sendJson(res, 200, dependencies.inspectWorkspaceIntegrity(workspaceRoot));
+			return true;
+		}
 
 		if (path === "/api/diagnostics" && method === "GET") {
 			sendJson(res, 200, engine.getLastOutput());

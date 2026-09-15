@@ -27,7 +27,8 @@ describe("diagnostics routes", () => {
 			getActiveEntries: vi.fn(),
 			runDiagnostics: vi.fn(),
 			broadcast: vi.fn(),
-			broadcastDiagnostics: vi.fn(),
+		broadcastDiagnostics: vi.fn(),
+		inspectWorkspaceIntegrity: vi.fn().mockReturnValue({ ok: true, code: "WORKSPACE_OK", resolution: {}, pathsTried: [], drifts: [] }),
 		} as unknown as DiagnosticsRouteDependencies;
 		const context = createRequestContext(req, res, new URL("http://localhost/api/health/ack"), {
 			workspaceRoot: "C:\\workspace-c",

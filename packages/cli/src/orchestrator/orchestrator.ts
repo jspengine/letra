@@ -15,11 +15,16 @@ import type {
 	HarnessManifest,
 } from "../harness/types.js";
 import type { HandoffEventPayload } from "../flow-serve/events.js";
-import { loadWorkflow, writeWorkflow } from "../commands/flow-init.js";
+import { loadWorkflow } from "../commands/flow-init.js";
 import { logEntry } from "../session-log.js";
 import { GateChecker } from "../harness/gate-checker.js";
 import { resolveAgentDirection } from "../agent-direction/service.js";
 import { loadHarness, resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "../harness/loader.js";
+import { getLetraDir } from "../workspace/resolver.js";
+import {
+	CanonicalOrchestratorGateway,
+	type OrchestratorGateway,
+} from "../domain-operations/orchestrator-gateway.js";
 
 const DEFAULT_HEARTBEAT_INTERVAL = 30_000;
 const DEFAULT_HEARTBEAT_TIMEOUT = 60_000;
@@ -38,6 +43,8 @@ export interface OrchestratorConfig {
 	maxExecutionTime?: number;
 	reclaimInterval?: number;
 	onHandoffEvent?: (payload: HandoffEventPayload) => void;
+	/** Compatibility mutations are routed through the canonical gateway. */
+	gateway?: OrchestratorGateway;
 }
 
 export class Orchestrator {
@@ -48,6 +55,7 @@ export class Orchestrator {
 	private readonly heartbeats: Map<string, HeartbeatInfo> = new Map();
 	private readonly stageExecutorPreferences: Map<string, string[]> = new Map();
 	private readonly onHandoffEvent?: (payload: HandoffEventPayload) => void;
+	private readonly gateway: OrchestratorGateway;
 	private reclaimTimer: ReturnType<typeof setInterval> | null = null;
 
 	constructor(config: OrchestratorConfig) {
@@ -55,6 +63,7 @@ export class Orchestrator {
 		this.manifest = loadHarness(resolveHarnessRoot(config.root, DEFAULT_HARNESS_VERSION));
 		this.gateChecker = new GateChecker(config.root, this.manifest ?? undefined);
 		this.onHandoffEvent = config.onHandoffEvent;
+		this.gateway = config.gateway ?? new CanonicalOrchestratorGateway();
 	}
 
 	registerExecutor(executor: ExecutorConfig): void {
@@ -141,33 +150,9 @@ export class Orchestrator {
 			}
 		}
 
-		item.handoff = {
-			from: payload.from,
-			to: payload.to,
-			summary: payload.summary,
-			evidence: payload.evidence,
-			timestamp: payload.timestamp,
-			expiresAt: payload.expiresAt,
-			executorId: payload.executorId,
-		};
-
-		workflow.updatedAt = new Date().toISOString();
-		writeWorkflow(this.root, {
-			workflow,
-			source: "orchestrator",
-			primaryItemId: item.id,
-			skipSitrep: true,
-		});
-
-		this.writeHandoffFile(item);
-
-		logEntry(this.root, "handoff_emitted", `Handoff emitted to ${payload.to}`, {
-			itemId: payload.itemId,
-			from: payload.from,
-			to: payload.to,
-			summary: payload.summary,
-			evidence: payload.evidence,
-		});
+		const persisted = this.gateway.emitHandoff(this.root, payload);
+		if (!persisted.ok) return { success: false, reason: persisted.reason };
+		this.writeHandoffFile({ ...item, handoff: payload });
 
 		if (this.onHandoffEvent) {
 			this.onHandoffEvent({
@@ -222,30 +207,11 @@ export class Orchestrator {
 
 		this.writeFileLock(itemId, { executor: executorId, claimedAt: Date.now() });
 
-		item.claimedBy = executorId;
-		item.claimedAt = new Date().toISOString();
-
 		const handoffData =
 			item.handoff && item.handoff.to === agentId ? { ...item.handoff } : null;
-
-		if (item.handoff && item.handoff.to === agentId) {
-			item.handoff = undefined;
-			this.removeHandoffFile(itemId);
-		}
-
-		workflow.updatedAt = new Date().toISOString();
-		writeWorkflow(this.root, {
-			workflow,
-			source: "orchestrator",
-			primaryItemId: itemId,
-			skipSitrep: true,
-		});
-
-		logEntry(this.root, "item_claim", `Claimed by ${executorId}`, {
-			itemId,
-			executorId,
-			agentId,
-		});
+		const persisted = this.gateway.claim(this.root, { itemId, executorId, agentId });
+		if (!persisted.ok) return { success: false, reason: persisted.reason };
+		if (handoffData) this.removeHandoffFile(itemId);
 
 		if (this.onHandoffEvent && handoffData) {
 			this.onHandoffEvent({
@@ -274,7 +240,7 @@ export class Orchestrator {
 		const snapshot = resolveAgentDirection(this.root);
 		let specContent: string | null = null;
 		if (item.spec) {
-			const specPath = join(this.root, ".letra", "specs", item.spec, "spec.md");
+			const specPath = join(getLetraDir(this.root), "specs", item.spec, "spec.md");
 			if (existsSync(specPath)) {
 				specContent = readFileSync(specPath, "utf-8");
 			}
@@ -331,25 +297,12 @@ export class Orchestrator {
 
 		const lockFiles = this.listLockFiles();
 		for (const [itemId, lock] of lockFiles) {
-			const executorConfig = this.executors.get(lock.executor);
-			const maxExecTime = executorConfig?.maxExecutionTime
-				? executorConfig.maxExecutionTime * 1000
-				: DEFAULT_MAX_EXECUTION_TIME;
-			const age = now - lock.claimedAt;
-			if (age > maxExecTime) {
-				const item = workflow.items.find((i) => i.id === itemId);
-				if (item) {
-					item.claimedBy = undefined;
-					item.claimedAt = undefined;
-					reclaimed.push(itemId);
-
-					logEntry(this.root, "item_reclaim", `Item reclaimed (timeout ${age}ms)`, {
-						itemId,
-						executorId: lock.executor,
-					});
-				}
-				this.deleteFileLock(itemId);
+			const item = workflow.items.find((i) => i.id === itemId);
+			const expiry = item?.claimExpiresAt ? Date.parse(item.claimExpiresAt) : lock.claimedAt + DEFAULT_MAX_EXECUTION_TIME;
+			if (item && Number.isFinite(expiry) && now >= expiry) {
+				reclaimed.push(itemId);
 			}
+			if (!item || (Number.isFinite(expiry) && now >= expiry)) this.deleteFileLock(itemId);
 		}
 
 		for (const [executorId, heartbeat] of this.heartbeats) {
@@ -367,12 +320,8 @@ export class Orchestrator {
 		}
 
 		if (reclaimed.length > 0) {
-			workflow.updatedAt = new Date().toISOString();
-			writeWorkflow(this.root, {
-				workflow,
-				source: "orchestrator-reclaim",
-				skipSitrep: true,
-			});
+			const persisted = this.gateway.reclaim(this.root, reclaimed);
+			if (!persisted.ok) return [];
 		}
 
 		return reclaimed;
@@ -495,6 +444,23 @@ export class Orchestrator {
 		if (new Date(item.handoff.expiresAt) >= new Date()) {
 			return { success: false, reason: `Handoff for ${itemId} has not expired yet` };
 		}
+		const retryCount = item.retryCount ?? 0;
+		if (retryCount >= 3) {
+			const now = new Date();
+			const deadLetter: HandoffPayload = {
+				itemId,
+				from: item.handoff.from,
+				to: "human",
+				summary: `Retry limit exceeded for ${itemId}; human recovery required.`,
+				evidence: item.handoff.evidence,
+				timestamp: now.toISOString(),
+				expiresAt: new Date(now.getTime() + 24 * 60 * 60_000).toISOString(),
+			};
+			const persisted = this.gateway.retry(this.root, { itemId, deadLetter: true, handoff: deadLetter, retryCount });
+			if (!persisted.ok) return { success: false, reason: persisted.reason };
+			this.writeHandoffFile({ ...item, handoff: deadLetter });
+			return { success: true, reEmittedTo: "human" };
+		}
 
 		const previousTo = item.handoff.to;
 		const previousFrom = item.handoff.from;
@@ -527,7 +493,8 @@ export class Orchestrator {
 		const now = new Date();
 		const expiresAt = new Date(now.getTime() + ttlMinutes * 60 * 1000);
 
-		item.handoff = {
+		const nextHandoff: HandoffPayload = {
+			itemId,
 			from: previousFrom,
 			to: previousTo,
 			summary,
@@ -536,29 +503,14 @@ export class Orchestrator {
 			expiresAt: expiresAt.toISOString(),
 			executorId: nextExecutor.id,
 		};
-
-		workflow.updatedAt = now.toISOString();
-		writeWorkflow(this.root, {
-			workflow,
-			source: "orchestrator-retry",
-			primaryItemId: itemId,
-			skipSitrep: true,
+		const persisted = this.gateway.retry(this.root, {
+			itemId,
+			handoff: nextHandoff,
+			retryCount: retryCount + 1,
+			lastOperationKey: `retry:${itemId}:${retryCount + 1}:${nextExecutor.id}`,
 		});
-
-		this.writeHandoffFile(item);
-
-		logEntry(
-			this.root,
-			"handoff_emitted",
-			`Handoff re-emitted to ${previousTo} (retry via ${nextExecutor.id})`,
-			{
-				itemId,
-				from: previousFrom,
-				to: previousTo,
-				executorId: nextExecutor.id,
-				retry: true,
-			},
-		);
+		if (!persisted.ok) return { success: false, reason: persisted.reason };
+		this.writeHandoffFile({ ...item, handoff: nextHandoff });
 
 		if (this.onHandoffEvent) {
 			this.onHandoffEvent({

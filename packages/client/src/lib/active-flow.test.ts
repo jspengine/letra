@@ -33,6 +33,9 @@ function workflow(): Workflow {
 				stage: "alpha-x",
 				createdAt: "2026-07-01T00:00:00.000Z",
 				claimedBy: "runtime-agent",
+				claimExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+				lastHeartbeatAt: new Date().toISOString(),
+				activityStatus: "started",
 			},
 		],
 		tools: [],
@@ -53,6 +56,7 @@ function activeFlow(): ResolvedFlowDefinition {
 		harnessVersion: "v-test",
 		templateVersion: "1.0.0",
 		name: "Arbitrary Flow",
+		operations: {},
 		roles: [operator],
 		warnings: [
 			{
@@ -139,6 +143,79 @@ describe("active-flow projections", () => {
 			"waiting",
 			"idle",
 		]);
+	});
+
+	it("does not treat an automated stage gate as an execution block", () => {
+		const wf = workflow();
+		wf.stages = [{ id: "code", name: "Code", order: 1 }];
+		wf.items = [
+			{
+				id: "ITEM-CODE",
+				description: "Queued implementation",
+				stage: "code",
+				createdAt: "2026-07-01T00:00:00.000Z",
+				handoff: {
+					from: "analyst",
+					to: "implementer",
+					summary: "Ready for implementation",
+					evidence: [],
+					timestamp: "2026-07-01T00:00:00.000Z",
+					expiresAt: "2026-07-02T00:00:00.000Z",
+				},
+			},
+		];
+		const flowWithAutomatedGate = {
+			...activeFlow(),
+			stages: [
+				{
+					id: "code",
+					name: "Code",
+					order: 1,
+					zone: "doing" as const,
+					roleIds: ["operator"],
+					roles: [
+						{
+							...activeFlow().roles[0],
+							allowedStages: ["code"],
+						},
+					],
+					agents: ["operator"],
+					gate: {
+						id: "code-reviewed",
+						name: "Code Reviewed",
+						type: "automated" as const,
+						blocking: true,
+						description: "Automated checks before handoff",
+					},
+					provenance: "harness" as const,
+				},
+			],
+		};
+
+		expect(itemOperationalState(wf.items[0], wf, flowWithAutomatedGate)).toBe("idle");
+		wf.items[0].claimedBy = "implementer";
+		wf.items[0].claimExpiresAt = new Date(Date.now() + 60_000).toISOString();
+		wf.items[0].lastHeartbeatAt = new Date().toISOString();
+		wf.items[0].activityStatus = "started";
+		expect(itemOperationalState(wf.items[0], wf, flowWithAutomatedGate)).toBe("running");
+		wf.items[0].claimedBy = undefined;
+		wf.items[0].claimExpiresAt = undefined;
+		wf.items[0].lastHeartbeatAt = undefined;
+		wf.items[0].activityStatus = "failed";
+		expect(itemOperationalState(wf.items[0], wf, flowWithAutomatedGate)).toBe("blocked");
+	});
+
+	it("does not promote stale activity markers to running", () => {
+		const wf = workflow();
+		const flow = activeFlow();
+		wf.items[0].activityStatus = "started";
+		expect(itemOperationalState(wf.items[0], wf, flow)).toBe("waiting");
+		wf.items[0].stage = "alpha-x";
+		expect(itemOperationalState(wf.items[0], wf, flow)).toBe("idle");
+		wf.items[0].claimedBy = "runtime-agent";
+		wf.items[0].claimExpiresAt = new Date(Date.now() - 1).toISOString();
+		wf.items[0].lastHeartbeatAt = new Date().toISOString();
+		expect(itemOperationalState(wf.items[0], wf, flow)).toBe("idle");
 	});
 
 	it("returns cloned role and warning projections", () => {

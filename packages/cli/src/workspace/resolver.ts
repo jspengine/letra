@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, statSync, readFileSync } from "node:fs";
-import { join, isAbsolute, resolve, dirname, parse } from "node:path";
+import { homedir } from "node:os";
+import { join, isAbsolute, resolve, dirname } from "node:path";
 import { getWorkspacePath, detectManifest, ensureLetraDirs } from "./index.js";
 
 export interface WorkspaceResolution {
@@ -11,6 +12,9 @@ export interface WorkspaceResolution {
 	/** @deprecated use workspaceRoot */
 	projectRoot: string;
 	type: "local" | "manifest" | "env" | "flag" | "linked" | "direct";
+	errorCode?: "WORKSPACE_LINK_INVALID";
+	errorMessage?: string;
+	linkPath?: string;
 }
 
 const ENV_KEY = "LETRA_WORKSPACE";
@@ -40,35 +44,64 @@ function parseLinkTarget(dir: string, target: string): string {
 	return isAbsolute(target) ? target : resolve(dir, target);
 }
 
-function readLinkTarget(dir: string): { path: string; target: string; dataDir: string } | null {
+type LinkTarget = {
+	path: string;
+	target: string;
+	dataDir: string;
+	valid: boolean;
+	errorMessage?: string;
+};
+
+function readLinkTarget(dir: string): LinkTarget | null {
 	const linkPath = join(dir, LINK_FILE);
 	if (!existsSync(linkPath)) return null;
-	const content = readFileSync(linkPath, "utf-8").trim();
-	const target = content.split("\n")[0].trim();
-	if (!target) {
-		console.warn(`Letra link at ${linkPath} is empty — ignoring.`);
-		return null;
+	let content = "";
+	try {
+		content = readFileSync(linkPath, "utf-8").trim();
+	} catch {
+		return {
+			path: linkPath,
+			target: dir,
+			dataDir: dir,
+			valid: false,
+			errorMessage: "link unreadable",
+		};
 	}
+	const target = content.split("\n")[0].trim();
+	if (!target)
+		return {
+			path: linkPath,
+			target: dir,
+			dataDir: dir,
+			valid: false,
+			errorMessage: "link is empty",
+		};
 	const dataPath = parseLinkTarget(dir, target);
 	if (!existsSync(dataPath)) {
-		console.warn(
-			`Letra link target does not exist (${dataPath}) — falling back to local .letra/.`,
-		);
-		return null;
+		return {
+			path: linkPath,
+			target: dataPath,
+			dataDir: dataPath,
+			valid: false,
+			errorMessage: "link target does not exist",
+		};
 	}
 	const directWorkflow = join(dataPath, "workflow.json");
 	const legacyHarnessDir = join(dataPath, LETRA_FOLDER);
 	const legacyWorkflow = join(legacyHarnessDir, "workflow.json");
 	if (existsSync(directWorkflow)) {
-		return { path: linkPath, target: dataPath, dataDir: dataPath };
+		return { path: linkPath, target: dataPath, dataDir: dataPath, valid: true };
 	}
 	if (existsSync(legacyWorkflow)) {
-		return { path: linkPath, target: dataPath, dataDir: legacyHarnessDir };
+		return { path: linkPath, target: dataPath, dataDir: legacyHarnessDir, valid: true };
 	}
-	console.warn(
-		`Letra link target (${dataPath}) has no workflow.json — falling back to local .letra/.`,
-	);
-	return null;
+	return {
+		path: linkPath,
+		target: dataPath,
+		dataDir: dataPath,
+		valid: false,
+		errorMessage: "link target has no workflow.json",
+	};
 }
 
 function resolution(
@@ -104,15 +137,14 @@ function resolution(
  * @returns a non-null WorkspaceResolution (fallback never returns null)
  */
 export function resolveWorkspaceRoot(cwd?: string): WorkspaceResolution {
-	const start = cwd ?? process.cwd();
+	const start = resolve(cwd ?? process.cwd());
 	if (workspaceRootCache.has(start)) return workspaceRootCache.get(start)!;
 
 	let dir = start;
-	const root = parse(dir).root;
 	const originalCwd = start; // targetDir is the directory resolution started from
 
 	const result = (function walk(): WorkspaceResolution {
-		while (dir && dir !== root) {
+		while (dir) {
 			// 1. Environment variable
 			const envWs = getEnvWorkspace();
 			if (envWs) {
@@ -161,6 +193,9 @@ export function resolveWorkspaceRoot(cwd?: string): WorkspaceResolution {
 					targetDir: originalCwd,
 					workspaceRoot: linked.target,
 					type: "linked",
+					errorCode: linked.valid ? undefined : "WORKSPACE_LINK_INVALID",
+					errorMessage: linked.errorMessage,
+					linkPath: linked.path,
 				});
 			}
 
@@ -178,6 +213,10 @@ export function resolveWorkspaceRoot(cwd?: string): WorkspaceResolution {
 
 			// 6. Local layout: dir contains a .letra/ subfolder
 			const localLetra = join(dir, LETRA_FOLDER);
+			if (resolve(localLetra) === resolve(homedir(), LETRA_FOLDER)) {
+				dir = dirname(dir);
+				continue;
+			}
 			if (existsSync(localLetra) && statSync(localLetra).isDirectory()) {
 				return resolution({
 					workspaceDir: localLetra,
@@ -187,7 +226,9 @@ export function resolveWorkspaceRoot(cwd?: string): WorkspaceResolution {
 				});
 			}
 
-			dir = dirname(dir);
+			const parent = dirname(dir);
+			if (parent === dir) break;
+			dir = parent;
 		}
 
 		// 6. Fallback
@@ -240,7 +281,7 @@ export function resolveDataDir(root: string): string | null {
 	// 2. Single-level .letra-link at root (externalized)
 	if (result === null) {
 		const linked = readLinkTarget(root);
-		if (linked) {
+		if (linked?.valid) {
 			result = linked.dataDir;
 		}
 	}

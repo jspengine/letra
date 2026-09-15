@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
 import chalk from "chalk";
-import { type Item, loadWorkflow, writeWorkflow } from "./flow-init.js";
-import { logEntry } from "../session-log.js";
-import { GateChecker } from "../harness/gate-checker.js";
+import { type Item, loadWorkflow } from "./flow-init.js";
 import { loadHarness, resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "../harness/loader.js";
+import { resolveAgentDirection } from "../agent-direction/service.js";
+import { requestHandoffOperation, rollbackHandoffOperation } from "../domain-operations/service.js";
 
 const DEFAULT_HANDOFF_TTL_MINUTES = 30;
 
@@ -46,21 +46,16 @@ export async function handoffItem(
 			process.exit(1);
 		}
 		const previousFrom = item.handoff.from;
-		item.claimedBy = previousFrom;
-		item.claimedAt = new Date().toISOString();
-		item.handoff = undefined;
-		workflow.updatedAt = new Date().toISOString();
-		writeWorkflow(root, {
-			workflow,
-			source: "flow-handoff-rollback",
-			primaryItemId: item.id,
-			skipSitrep: true,
+		const operation = await rollbackHandoffOperation(root, {
+			itemId,
+			actor: "human:cli",
+			expectedRevision: resolveAgentDirection(root).revision,
+			reason: options.summary ?? "Rollback solicitado pela CLI.",
 		});
-		logEntry(root, "handoff_rollback", `Handoff rolled back to ${previousFrom}`, {
-			itemId: item.id,
-			to: previousFrom,
-			reason: options.summary,
-		});
+		if (operation.outcome !== "accepted") {
+			console.log(chalk.red(`Cannot rollback: ${operation.reason}`));
+			process.exit(1);
+		}
 		console.log(`  ${chalk.green("✓")} ${itemId} handoff rolled back to ${previousFrom}`);
 		return;
 	}
@@ -73,16 +68,6 @@ export async function handoffItem(
 	if (!options.summary) {
 		console.log(chalk.red("Summary is required (--summary)"));
 		process.exit(1);
-	}
-
-	const currentStage = workflow.stages.find((s) => s.id === item.stage);
-	if (currentStage?.gate) {
-		const gateChecker = new GateChecker(root);
-		const gateResult = gateChecker.checkHandoffAllowed(currentStage.gate, item);
-		if (!gateResult.allowed) {
-			console.log(chalk.red(`Cannot handoff: ${gateResult.reason}`));
-			process.exit(1);
-		}
 	}
 
 	let ttlMinutes = DEFAULT_HANDOFF_TTL_MINUTES;
@@ -101,35 +86,27 @@ export async function handoffItem(
 	const now = new Date();
 	const expiresAt = new Date(now.getTime() + ttlMinutes * 60 * 1000);
 
-	item.handoff = {
-		from: item.claimedBy || "unknown",
+	const from = item.claimedBy;
+	if (!from) {
+		console.log(chalk.red("Cannot handoff: item has no active claim"));
+		process.exit(1);
+	}
+	const operation = await requestHandoffOperation(root, {
+		itemId,
 		to: options.to,
+		actor: from,
+		executorId: options.executor ?? item.claimExecutorId ?? "cli",
 		summary: options.summary,
 		evidence: options.evidence || [],
-		timestamp: now.toISOString(),
-		expiresAt: expiresAt.toISOString(),
-		executorId: options.executor,
-	};
-
-	workflow.updatedAt = now.toISOString();
-	writeWorkflow(root, {
-		workflow,
-		source: "flow-handoff",
-		primaryItemId: item.id,
-		skipSitrep: true,
+		ttlMinutes,
+		expectedRevision: resolveAgentDirection(root).revision,
+		reason: options.summary,
 	});
-
-	logEntry(root, "handoff", `Handoff from ${item.handoff.from} to ${options.to}`, {
-		itemId: item.id,
-		from: item.handoff.from,
-		to: options.to,
-		summary: options.summary,
-		evidence: options.evidence,
-		executorId: options.executor,
-		expiresAt: expiresAt.toISOString(),
-	});
-
-	console.log(`  ${chalk.green("✓")} ${itemId} handoff: ${item.handoff.from} → ${options.to}`);
+	if (operation.outcome !== "accepted") {
+		console.log(chalk.red(`Cannot handoff: ${operation.reason}`));
+		process.exit(1);
+	}
+	console.log(`  ${chalk.green("✓")} ${itemId} handoff: ${from} → ${options.to}`);
 	console.log(`    ${chalk.dim(`Expires at: ${expiresAt.toISOString()}`)}`);
 }
 

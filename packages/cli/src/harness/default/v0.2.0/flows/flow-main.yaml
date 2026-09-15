@@ -3,6 +3,52 @@ version: "0.2.0"
 name: Main Flow
 description: Standard SDLC flow with agent orchestration and handoff protocol.
 defaultPolicy: sdlc-default
+
+capability_families:
+  code: [read_code, write_code, run_tests, generate_doc, write_spec]
+  review: [review_code, suggest_changes]
+  security: [security_scan, dependency_audit]
+
+executors:
+  opencode:
+    command: opencode
+    model: null
+    timeout_ms: 300000
+  codex:
+    command: codex
+    model: gpt-5.5
+    timeout_ms: 300000
+
+operations:
+  security_review:
+    required_capability: security_scan
+    requires_claim: true
+    allowed_in_stages: [security]
+    description: Scan for vulnerabilities, secrets, dependency issues.
+
+  rework:
+    required_capability: review_code
+    requires_claim: false
+    allowed_actors: [reviewer, security]
+    allowed_in_stages: [review, security]
+    description: Return item to a previous stage for corrections.
+
+  approve:
+    requires_claim: false
+    actor_prefix: "human:"
+    allowed_in_stages: [security]
+    description: Human approval for security-clear items.
+
+  reclaim:
+    requires_claim: false
+    allowed_in_stages: ["*"]
+    description: Reclaim an item from another agent.
+
+  handoff:
+    requires_claim: true
+    allowed_in_stages: ["*"]
+    description: Hand off item to another agent or stage.
+
 stages:
   - id: backlog
     name: Backlog
@@ -21,6 +67,10 @@ stages:
       - analyst
     gate: spec-approved
     preferredExecutor: opencode
+    rework:
+      target: backlog
+      allowed_actors: [analyst]
+      create_ac: false
     phases:
       initialState: analyze
       states:
@@ -77,6 +127,14 @@ stages:
       - implementer
     gate: code-reviewed
     preferredExecutor: opencode
+    rework:
+      target: design
+      allowed_actors: [reviewer]
+      create_ac: true
+    hooks:
+      on_enter:
+        - action: capture_baseline
+          auto: true
     phases:
       initialState: implement
       states:
@@ -129,6 +187,10 @@ stages:
       - reviewer
     gate: null
     preferredExecutor: opencode
+    rework:
+      target: code
+      allowed_actors: [reviewer]
+      create_ac: true
     phases:
       initialState: review
       states:
@@ -190,6 +252,19 @@ stages:
     # released only by the human-approved gate handled by the UI/API.
     gate: human-approved
     preferredExecutor: opencode
+    rework:
+      target: code
+      allowed_actors: [security]
+      create_ac: false
+    hooks:
+      on_enter:
+        - action: security_review
+          auto: true
+          requires_claim: true
+    auto_transitions:
+      - when: security_clear AND human_approved
+        target: done
+        actor: "system:auto"
     phases:
       initialState: scan
       states:

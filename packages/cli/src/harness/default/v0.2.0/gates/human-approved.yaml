@@ -4,6 +4,7 @@ type: human
 blocking: true
 blocksHandoff: true
 description: Final human approval before marking item as done.
+pre_check: security-scoped
 decisions:
   approve: done
   request-changes: code

@@ -63,6 +63,11 @@ version: "0.2.0"
 name: Main Flow
 description: Test flow
 defaultPolicy: sdlc-default
+operations:
+  inspect:
+    required_capability: scan
+    requires_claim: true
+    allowed_in_stages: [forge]
 stages:
   - id: design
     name: Design
@@ -72,6 +77,11 @@ stages:
       - analyst
     gate: spec-approved
     preferredExecutor: opencode
+    hooks:
+      on_enter:
+        - action: capture_baseline
+          auto: true
+          requires_claim: true
 `,
 		);
 
@@ -92,7 +102,9 @@ stages:
 		});
 		expect(manifest?.flows["flow-main"]?.stages[0]).toMatchObject({
 			preferredExecutor: "opencode",
+			hooks: { on_enter: [{ action: "capture_baseline", auto: true, requires_claim: true }] },
 		});
+		expect(manifest?.flows["flow-main"]?.operations?.inspect).toMatchObject({ required_capability: "scan", requires_claim: true, allowed_in_stages: ["forge"] });
 	});
 
 	it("loads executor registry", () => {

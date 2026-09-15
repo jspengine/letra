@@ -43,6 +43,13 @@ function dependencies() {
 			{ id: "old_ITEM-56_test", status: "resolvido" },
 		],
 	});
+	const createItemOperation = vi.fn().mockResolvedValue({ outcome: "accepted", reasonCode: "ITEM_CREATED", auditId: "log-item", nextDirection: {} });
+	const updateItemOperation = vi.fn().mockResolvedValue({ outcome: "accepted", reasonCode: "ITEM_UPDATED", auditId: "log-item", nextDirection: {} });
+	const deleteItemOperation = vi.fn().mockResolvedValue({ outcome: "accepted", reasonCode: "ITEM_DELETED", auditId: "log-item", nextDirection: {} });
+	const decideGateOperation = vi.fn();
+	const requestTransitionOperation = vi.fn().mockResolvedValue({ outcome: "accepted", reasonCode: "TRANSITION_COMPLETED", auditId: "log-transition", nextDirection: {} });
+	const claimOperation = vi.fn().mockResolvedValue({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED", auditId: "log-claim", nextDirection: {} });
+	const releaseClaimOperation = vi.fn().mockResolvedValue({ outcome: "accepted", reasonCode: "CLAIM_RELEASED", auditId: "log-release", nextDirection: {} });
 	const deps = {
 		writeWorkflow,
 		loadHealthRecord,
@@ -51,8 +58,15 @@ function dependencies() {
 		resolveActiveFlow: vi.fn().mockReturnValue({ flow: null, warnings: [] }),
 		broadcast: vi.fn(),
 		fireWebhooks: vi.fn().mockResolvedValue(undefined),
+		createItemOperation,
+		updateItemOperation,
+		deleteItemOperation,
+		decideGateOperation,
+		requestTransitionOperation,
+		claimOperation,
+		releaseClaimOperation,
 	} as unknown as ItemRouteDependencies;
-	return { deps, writeWorkflow, loadHealthRecord, logEntry };
+	return { deps, writeWorkflow, loadHealthRecord, logEntry, createItemOperation, decideGateOperation, requestTransitionOperation };
 }
 
 function configureHumanGate(
@@ -74,6 +88,7 @@ function configureHumanGate(
 			harnessVersion: "v0.1.3",
 			templateVersion: "0.1.3",
 			name: "Test flow",
+			operations: {},
 			roles: [],
 			warnings: [],
 			stages: [
@@ -179,7 +194,7 @@ describe("item routes", () => {
 	});
 
 	it("persists item mutations in the request workspace", async () => {
-		const { deps, writeWorkflow } = dependencies();
+		const { deps, writeWorkflow, createItemOperation } = dependencies();
 		const res = response();
 		const context = createRequestContext(
 			request("POST", '{"id":"ITEM-9","description":"Extract routes","stage":"backlog"}'),
@@ -193,9 +208,9 @@ describe("item routes", () => {
 		);
 
 		await expect(createItemRoutes(deps)(context)).resolves.toBe(true);
-		expect(writeWorkflow).toHaveBeenCalledWith(
+		expect(createItemOperation).toHaveBeenCalledWith(
 			"C:\\workspace-b",
-			expect.objectContaining({ source: "web-ui", primaryItemId: "ITEM-9" }),
+			expect.objectContaining({ id: "ITEM-9", actor: "human:web-ui" }),
 		);
 		expect(res.writeHead).toHaveBeenCalledWith(200, { "Content-Type": "application/json" });
 	});
@@ -220,10 +235,40 @@ describe("item routes", () => {
 		expect(res.end).toHaveBeenCalledWith('{"error":"Malformed JSON request body"}');
 	});
 
+	it("delegates web validation to the canonical operation", async () => {
+		const { deps } = dependencies();
+		const runValidationOperation = vi.fn().mockResolvedValue({
+			outcome: "accepted",
+			reasonCode: "VALIDATION_COMPLETED",
+			auditId: "log-validation",
+		});
+		deps.runValidationOperation = runValidationOperation;
+		const res = response();
+		const context = createRequestContext(
+			request("POST", '{"expectedRevision":"sha256:web","reason":"Validate before review"}'),
+			res,
+			new URL("http://localhost/api/operations/validate"),
+			{ workspaceRoot: "C:\\workspace-b", workspaceDir: "C:\\workspace-b\\.letra", workflow: workflow() },
+		);
+
+		await expect(createItemRoutes(deps)(context)).resolves.toBe(true);
+		expect(runValidationOperation).toHaveBeenCalledWith("C:\\workspace-b", {
+			expectedRevision: "sha256:web",
+			reason: "Validate before review",
+			actor: "human:web-ui",
+		});
+		expect(res.writeHead).toHaveBeenCalledWith(200, { "Content-Type": "application/json" });
+	});
+
 	it("applies and audits a gate decision for the requested item only", async () => {
-		const { deps, writeWorkflow, logEntry } = dependencies();
+		const { deps, writeWorkflow, logEntry, decideGateOperation } = dependencies();
 		configureHumanGate(deps);
 		const value = workflowAtGate();
+		decideGateOperation.mockImplementation(async (_root: string, input: { itemId: string }) => {
+			const target = value.items.find((item) => item.id === input.itemId)!;
+			target.stage = "code";
+			return { outcome: "accepted", reasonCode: "GATE_DECISION_RECORDED", auditId: "log-gate", nextDirection: { item: target } };
+		});
 		const res = response();
 		const context = createRequestContext(
 			request("POST", '{"decision":"approve"}'),
@@ -240,28 +285,7 @@ describe("item routes", () => {
 
 		expect(value.items[0].stage).toBe("review");
 		expect(value.items[1].stage).toBe("code");
-		expect(writeWorkflow).toHaveBeenCalledWith(
-			"C:\\workspace",
-			expect.objectContaining({
-				source: "web-ui-gate-decision",
-				primaryItemId: "ITEM-2",
-			}),
-		);
-		expect(logEntry).toHaveBeenCalledWith(
-			"C:\\workspace",
-			"decision",
-			expect.stringContaining("approve"),
-			expect.objectContaining({
-				itemId: "ITEM-2",
-				details: expect.objectContaining({
-					gateId: "human-review",
-					decision: "approve",
-					from: "review",
-					to: "code",
-					by: "human:web-ui",
-				}),
-			}),
-		);
+		expect(decideGateOperation).toHaveBeenCalledWith("C:\\workspace", expect.objectContaining({ itemId: "ITEM-2", actor: "human:web-ui", decision: "approve" }));
 		expect(res.writeHead).toHaveBeenCalledWith(200, { "Content-Type": "application/json" });
 	});
 
@@ -288,8 +312,9 @@ describe("item routes", () => {
 	});
 
 	it("rejects safely when the harness does not define decision targets", async () => {
-		const { deps, writeWorkflow } = dependencies();
+		const { deps, writeWorkflow, decideGateOperation } = dependencies();
 		configureHumanGate(deps, null);
+		decideGateOperation.mockResolvedValue({ outcome: "rejected", reasonCode: "INVALID_GATE_DECISION", reason: "does not define decision targets", auditId: "log-rejected", nextDirection: {} });
 		const res = response();
 		const context = createRequestContext(
 			request("POST", '{"decision":"approve"}'),
@@ -310,9 +335,10 @@ describe("item routes", () => {
 	});
 
 	it("prevents the generic patch route from bypassing a human gate", async () => {
-		const { deps, writeWorkflow, logEntry } = dependencies();
+		const { deps, writeWorkflow, logEntry, requestTransitionOperation } = dependencies();
 		configureHumanGate(deps);
 		const value = workflowAtGate();
+		requestTransitionOperation.mockResolvedValue({ outcome: "rejected", reasonCode: "HUMAN_APPROVAL_REQUIRED", reason: "decisão humana explícita necessária", auditId: "log-rejected", nextDirection: {} });
 		const res = response();
 		const context = createRequestContext(
 			request("PATCH", '{"stage":"code"}'),
@@ -335,7 +361,7 @@ describe("item routes", () => {
 	});
 
 	it("resolves the final human-approved gate to Done or back to Code", async () => {
-		const { deps, writeWorkflow, logEntry } = dependencies();
+		const { deps, writeWorkflow, logEntry, decideGateOperation } = dependencies();
 		const value = workflowAtGate();
 		value.stages = [
 			{ id: "security", name: "Security", order: 1, zone: "doing" },
@@ -344,12 +370,16 @@ describe("item routes", () => {
 		];
 		value.items = [{ id: "ITEM-1", description: "", stage: "security", createdAt: "" }];
 		configureHumanGate(deps, { approve: "done", "request-changes": "code", reject: "code" }, "security");
+		decideGateOperation.mockImplementation(async () => {
+			value.items[0].stage = "done";
+			value.items[0].handoff = undefined;
+			return { outcome: "accepted", reasonCode: "GATE_DECISION_RECORDED", auditId: "log-gate", nextDirection: { item: value.items[0] } };
+		});
 		const res = response();
 		const context = createRequestContext(request("POST", '{"decision":"approve"}'), res, new URL("http://localhost/api/items/ITEM-1/gate-decisions"), { workspaceRoot: "C:\\workspace", workspaceDir: "C:\\workspace\\.letra", workflow: value });
 		await createItemRoutes(deps)(context);
 		expect(value.items[0].stage).toBe("done");
 		expect(value.items[0].handoff).toBeUndefined();
-		expect(writeWorkflow).toHaveBeenCalled();
-		expect(logEntry).toHaveBeenCalledWith("C:\\workspace", "decision", expect.any(String), expect.objectContaining({ itemId: "ITEM-1" }));
+		expect(decideGateOperation).toHaveBeenCalledWith("C:\\workspace", expect.objectContaining({ itemId: "ITEM-1", actor: "human:web-ui", decision: "approve" }));
 	});
 });

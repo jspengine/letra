@@ -1,9 +1,10 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveFallbackDirection } from "./fallback.js";
 import { resolveAgentDirection } from "./service.js";
+import * as sessionLog from "../session-log.js";
 
 const roots: string[] = [];
 
@@ -77,5 +78,17 @@ describe("direction fallback", () => {
 		expect(
 			fallback.warnings.filter((warning) => warning.code === "LIVE_CONTEXT_UNAVAILABLE"),
 		).toHaveLength(1);
+	});
+
+	it("retries audit on a later read after a sink failure", () => {
+		const root = fixture();
+		const audit = vi.spyOn(sessionLog, "logEntry")
+			.mockImplementationOnce(() => { throw new Error("sink unavailable"); })
+			.mockImplementation(() => ({ id: "log-test", timestamp: "", action: "", description: "", itemId: null, acId: null, details: {} }));
+		const first = resolveFallbackDirection(root);
+		const second = resolveFallbackDirection(root);
+		expect(first.warnings.some((warning) => warning.code === "AUDIT_DEGRADED")).toBe(true);
+		expect(second.warnings.some((warning) => warning.code === "AUDIT_DEGRADED")).toBe(false);
+		expect(audit).toHaveBeenCalledTimes(2);
 	});
 });

@@ -256,4 +256,18 @@ describe("resolveActiveFlowFrom", () => {
 		expect(harness.roles.analyst.capabilities).toEqual(["spec:write"]);
 		expect(harness.flows.sdlc.stages[1].agents).toEqual(["analyst"]);
 	});
+
+	it("propagates declarative operations, gate checks, and hook semantics", () => {
+		const harness = makeHarness();
+		harness.flows.sdlc.operations = {
+			inspect: { required_capability: "scan", requires_claim: true, allowed_in_stages: ["design"], allowed_actors: ["auditor"] },
+		};
+		harness.flows.sdlc.stages[1].hooks = { on_enter: [{ action: "capture_baseline", auto: true, requires_claim: true }] };
+		harness.gates["spec-review"].pre_check = "spec-linked";
+		harness.gates["spec-review"].check_type = "acceptance-complete";
+		const flow = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness).flow;
+		expect(flow?.operations.inspect).toMatchObject({ requiredCapability: "scan", requiresClaim: true, allowedInStages: ["design"], allowedActors: ["auditor"] });
+		expect(flow?.stages[1].hooks?.on_enter?.[0]).toMatchObject({ action: "capture_baseline", auto: true, requiresClaim: true });
+		expect(flow?.stages[1].gate).toMatchObject({ preCheck: "spec-linked", checkType: "acceptance-complete" });
+	});
 });

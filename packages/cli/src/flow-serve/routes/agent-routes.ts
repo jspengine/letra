@@ -2,16 +2,28 @@ import { readJson, sendError, sendJson } from "../http.js";
 import type { RouteHandler } from "../router.js";
 import { createAgent, deleteAgent, listAgents, updateAgent } from "../../agents/service.js";
 import type { AgentIdentity } from "@letra/types";
+import type { AgenticExecutor } from "../../executor/executor.js";
+import { projectAgentPresence } from "../../agents/runtime-binding.js";
 
 let agentMutation = false;
 async function acquireAgentMutation(): Promise<() => void> { while (agentMutation) await new Promise((resolve) => setTimeout(resolve, 0)); agentMutation = true; return () => { agentMutation = false; }; }
 
-export function createAgentRoutes(dependencies: { loadWorkflow: (root: string) => any; broadcast?: () => void }): RouteHandler {
+export function createAgentRoutes(dependencies: {
+	loadWorkflow: (root: string) => any;
+	loadRuntimeRegistry?: (root: string, workflow?: any) => ReturnType<typeof import("../../agents/service.js")["loadRuntimeAgentRegistry"]>;
+	getExecutors?: () => AgenticExecutor[];
+	broadcast?: () => void;
+}): RouteHandler {
 	return async (context) => {
 		if (!context.path.startsWith("/api/agents")) return false;
 		const root = context.workspaceRoot;
 		try {
-			if (context.path === "/api/agents" && context.method === "GET") { sendJson(context.res, 200, listAgents(root, dependencies.loadWorkflow(root))); return true; }
+			if (context.path === "/api/agents" && context.method === "GET") {
+				const workflow = dependencies.loadWorkflow(root);
+				const registry = dependencies.loadRuntimeRegistry?.(root, workflow);
+				sendJson(context.res, 200, projectAgentPresence(registry ?? listAgents(root, workflow), workflow, dependencies.getExecutors?.() ?? []));
+				return true;
+			}
 			if (context.path === "/api/agents" && context.method === "POST") {
 				const release = await acquireAgentMutation(); try { const agent = await readJson<AgentIdentity>(context.req); const result = createAgent(root, agent, dependencies.loadWorkflow(root)); dependencies.broadcast?.(); sendJson(context.res, 201, result); return true; } finally { release(); }
 			}

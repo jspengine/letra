@@ -27,6 +27,7 @@ const activeFlow: ResolvedFlowDefinition = {
 	harnessVersion: "v-test",
 	templateVersion: "1.0.0",
 	name: "Arbitrary Flow",
+	operations: {},
 	stages: [
 		{
 			id: "alpha-x",

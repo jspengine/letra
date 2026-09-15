@@ -52,6 +52,7 @@ function flow(): ResolvedFlowDefinition {
 		harnessVersion: "v1",
 		templateVersion: "1",
 		name: "Main",
+		operations: {},
 		roles: [
 			{
 				id: "builder",
@@ -227,6 +228,43 @@ describe("AgentDirectionService", () => {
 		});
 	});
 
+	it("sanitizes shadow state when the workspace link is invalid", () => {
+		const root = tempRoot();
+		writeFileSync(join(root, ".letra-link"), "missing-canonical-workspace\n", "utf8");
+		writeFileSync(
+			join(root, ".letra", "workflow.json"),
+			JSON.stringify({
+				version: "shadow",
+				primaryItemId: "SHADOW-1",
+				items: [{ id: "SHADOW-1", description: "shadow item", stage: "code", spec: "shadow-spec" }],
+				stages: [{ id: "code", name: "Code", order: 0 }],
+			}),
+		);
+		writeFileSync(join(root, ".letra", "specs", "adapter-platform-v2", "spec.md"), "- [ ] **AC99**: shadow criterion\n");
+
+		const snapshot = resolveAgentDirection(root);
+
+		expect(snapshot).toMatchObject({
+			mode: "degraded",
+			item: null,
+			roleIds: [],
+			allowedStageIds: [],
+			objective: null,
+			pendingAC: null,
+			commands: [],
+			prohibitions: [],
+			requiredEvidence: [],
+			nextActions: [],
+			workspace: {
+				code: "WORKSPACE_LINK_INVALID",
+				recovery: expect.stringContaining("letra sync --mirror link-to-workspace"),
+			},
+		});
+		expect(snapshot.warnings).toEqual([
+			expect.objectContaining({ code: "WORKSPACE_LINK_INVALID" }),
+		]);
+	});
+
 	it("resolves the current workspace through the canonical flow resolver", () => {
 		const root = tempRoot();
 		const currentWorkflow = workflow();
@@ -244,6 +282,26 @@ describe("AgentDirectionService", () => {
 		expect(snapshot.warnings.some((warning) => warning.code === "HARNESS_UNAVAILABLE")).toBe(
 			true,
 		);
+	});
+
+	it("keeps review-created criteria in the direction loop when acceptance.md is stale", () => {
+		const root = tempRoot();
+		const currentWorkflow = workflow();
+		writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify(currentWorkflow));
+		writeFileSync(
+			join(root, ".letra", "specs", "adapter-platform-v2", "spec.md"),
+			"# Spec\n\n## Acceptance Criteria\n- [x] **AC1**: initial work\n\n## Retorno de revisão\n\n- [ ] **AC62 — Correção de revisão**: recriar executor para a localização selecionada\n- [ ] AC63: liberar claim falho imediatamente\n",
+		);
+		writeFileSync(
+			join(root, ".letra", "specs", "adapter-platform-v2", "acceptance.md"),
+			"# Acceptance Criteria\n\n- [x] **AC1**: initial work\n",
+		);
+
+		const snapshot = resolveAgentDirection(root);
+		expect(snapshot.pendingAC).toEqual({
+			id: "AC62",
+			description: "recriar executor para a localização selecionada",
+		});
 	});
 });
 

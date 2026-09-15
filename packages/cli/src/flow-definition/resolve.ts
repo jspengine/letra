@@ -80,7 +80,31 @@ function resolveGate(
 		policyRef: gate.policyRef,
 		description: gate.description,
 		decisions: gate.decisions ? { ...gate.decisions } : undefined,
+		preCheck: gate.pre_check,
+		checkType: gate.check_type,
 	};
+}
+
+function resolveOperations(template: FlowTemplate): ResolvedFlowDefinition["operations"] {
+	return Object.fromEntries(Object.entries(template.operations ?? {}).map(([id, operation]) => [id, {
+		requiredCapability: operation.required_capability,
+		requiresClaim: operation.requires_claim,
+		allowedInStages: [...(operation.allowed_in_stages ?? [])],
+		allowedActors: [...(operation.allowed_actors ?? [])],
+		actorPrefix: operation.actor_prefix,
+		description: operation.description,
+	}]));
+}
+
+function resolveHooks(stageDef: StageDef): ResolvedFlowStage["hooks"] {
+	if (!stageDef.hooks) return undefined;
+	const normalize = (hooks: NonNullable<StageDef["hooks"]>["on_enter"] = []) => hooks.map((hook) => ({
+		action: hook.action,
+		auto: hook.auto === true,
+		requiresClaim: hook.requires_claim === true,
+		params: hook.params ? { ...hook.params } : undefined,
+	}));
+	return { on_enter: normalize(stageDef.hooks.on_enter), on_exit: normalize(stageDef.hooks.on_exit) };
 }
 
 function cloneRole(role: HarnessManifest["roles"][string]): ResolvedFlowRole {
@@ -182,6 +206,9 @@ function mergeTemplateStage(
 		phases: resolvePhases(harness, stageDef.phases, warnings, stageDef.id),
 		activity: cloneActivity(stageDef.activity),
 		provenance: "harness",
+		rework: stageDef.rework,
+		hooks: resolveHooks(stageDef),
+		auto_transitions: stageDef.auto_transitions,
 	};
 }
 
@@ -244,6 +271,7 @@ function resolveFromTemplate(
 			(left, right) => left.order - right.order,
 		),
 		roles: harness ? Object.values(harness.roles).map(cloneRole) : [],
+		operations: resolveOperations(template),
 		warnings,
 	};
 }
@@ -263,6 +291,7 @@ function resolveFromWorkflow(
 			.map((stage) => workflowStageDefinition(stage as Stage))
 			.sort((left, right) => left.order - right.order),
 		roles: [],
+		operations: {},
 		warnings: warnings.map((warning) => ({ ...warning })),
 	};
 }

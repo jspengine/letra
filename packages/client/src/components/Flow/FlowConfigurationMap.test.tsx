@@ -5,7 +5,7 @@ import FlowConfigurationMap from "./FlowConfigurationMap";
 
 const flow: ActiveFlowDefinition = {
 	id: "flow-test", source: "workflow-template", harnessVersion: "v2", templateVersion: "1",
-	name: "Test flow", warnings: [], roles: [{ id: "builder", label: "Builder", description: "", allowedStages: ["code"], capabilities: ["write", "test"] }],
+	name: "Test flow", operations: {}, warnings: [], roles: [{ id: "builder", label: "Builder", description: "", allowedStages: ["code"], capabilities: ["write", "test"] }],
 	stages: [{ id: "code", name: "Code", order: 1, zone: "doing", description: "Implementa", roleIds: ["builder"], roles: [{ id: "builder", label: "Builder", description: "", allowedStages: ["code"], capabilities: ["write", "test"] }], agents: ["builder"], preferredExecutor: "opencode", gate: null, provenance: "harness", phases: { initialState: "work", states: { work: { id: "work", label: "Trabalho", description: "", transitions: [{ target: "review", gate: null }] } } } }],
 };
 

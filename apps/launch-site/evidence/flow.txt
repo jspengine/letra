@@ -1,0 +1,16 @@
+Comando: letra flow board
+Origem: C:/Workspace/letra
+CLI: 0.6.2
+Data: 2026-09-09
+Alt text: Captura textual reproduzivel do board do Letra com ITEM-86 em Code e filas Backlog, Design, Review, Security e Done visiveis.
+
+Board - Letra
+
+Backlog 12 items
+Design 2 items
+Code 2 items
+  ITEM-28 Painel de Integracao de Ferramentas Agenticas
+  ITEM-86 Lancamento publico do Letra no GitHub Pages - narrativa, demonstracao real e documentacao - agent: implementer
+Review 7 items
+Security 1 item
+Done 67 items

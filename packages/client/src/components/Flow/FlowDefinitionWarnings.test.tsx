@@ -10,6 +10,7 @@ function flowWithWarning(): ResolvedFlowDefinition {
 		harnessVersion: "v-test",
 		templateVersion: "1.0.0",
 		name: "Arbitrary Flow",
+		operations: {},
 		stages: [],
 		roles: [],
 		warnings: [

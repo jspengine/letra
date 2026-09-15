@@ -13,7 +13,8 @@ import type {
 import { readFocusFile } from "../adapters/focus-sync.js";
 import type { Item, Workflow } from "../commands/flow-init.js";
 import { resolveActiveFlow } from "../flow-definition/resolve.js";
-import { getLetraDir } from "./../workspace/resolver.js";
+import { getLetraDir, resolveWorkspaceRoot } from "./../workspace/resolver.js";
+import { invalidWorkspaceDiagnostic } from "../workspace/integrity.js";
 
 export interface CreateAgentDirectionSnapshotInput {
 	workspaceRoot: string;
@@ -61,13 +62,19 @@ function findCurrentItem(workflow: Workflow, currentItemId?: string | null): Ite
 
 function firstPendingAC(content: string | null): AgentDirectionSnapshot["pendingAC"] {
 	if (!content) return null;
-	const match = content.match(/-\s*\[ \]\s*\*\*([^*]+)\*\*\s*:?\s*([^\r\n]*)/);
+	// Review criteria are generated after the initial Acceptance Criteria
+	// section and may use either the regular bold label or the compact
+	// checklist form.  Direction is the operation contract, so it must keep
+	// recognizing both forms instead of silently ending the AC loop.
+	const match = content.match(/-\s*\[ \]\s*(?:\*\*([^*]+)\*\*|([^:\r\n]+))\s*:?\s*([^\r\n]*)/);
 	if (!match) return null;
-	const id = match[1].match(/\bAC[\s-]?(\d+)\b/i);
+	const label = (match[1] ?? match[2] ?? "").trim();
+	const description = (match[3] ?? "").trim();
+	const id = label.match(/\bAC[\s-]?(\d+)\b/i);
 	if (!id) return null;
 	return {
 		id: `AC${id[1]}`,
-		description: match[2].trim() || match[1].replace(/^AC[\s-]?\d+\s*[—-]?\s*/i, "").trim(),
+		description: description || label.replace(/^AC[\s-]?\d+\s*[—-]?\s*/i, "").trim(),
 	};
 }
 
@@ -137,6 +144,43 @@ function semanticRevision(
 export function createAgentDirectionSnapshot(
 	input: CreateAgentDirectionSnapshotInput,
 ): AgentDirectionSnapshot {
+	const workspaceResolution = resolveWorkspaceRoot(input.workspaceRoot);
+	const invalidWorkspace = workspaceResolution.errorCode === "WORKSPACE_LINK_INVALID"
+		? invalidWorkspaceDiagnostic(input.workspaceRoot)
+		: null;
+	if (invalidWorkspace) {
+		const sanitized = {
+			schemaVersion: "1" as const,
+			source: {
+				harnessVersion: null,
+				flowId: null,
+				workspaceRoot: workspaceResolution.workspaceRoot.replace(/\\/g, "/"),
+				workspaceDir: workspaceResolution.workspaceDir.replace(/\\/g, "/"),
+				locationPath: workspaceResolution.locationPath.replace(/\\/g, "/"),
+				resolutionMode: workspaceResolution.type,
+			},
+			mode: "degraded" as const,
+			workspace: invalidWorkspace,
+			item: null,
+			roleIds: [],
+			allowedStageIds: [],
+			objective: null,
+			pendingAC: null,
+			commands: [],
+			prohibitions: [],
+			requiredEvidence: [],
+			nextActions: [],
+			warnings: [{
+				code: "WORKSPACE_LINK_INVALID" as const,
+				message: `O .letra-link não aponta para um workspace canônico válido${workspaceResolution.errorMessage ? `: ${workspaceResolution.errorMessage}` : "."}`,
+			}],
+		};
+		return {
+			...sanitized,
+			revision: semanticRevision(sanitized),
+			generatedAt: input.now ?? new Date().toISOString(),
+		};
+	}
 	const item = input.workflow ? findCurrentItem(input.workflow, input.currentItemId) : null;
 	const stage = item
 		? (input.flow?.stages.find((candidate) => candidate.id === item.stage) ?? null)
@@ -152,8 +196,14 @@ export function createAgentDirectionSnapshot(
 		code: warning.code,
 		message: warning.message,
 	}));
+	if (workspaceResolution.errorCode === "WORKSPACE_LINK_INVALID") {
+		warnings.push({
+			code: "WORKSPACE_LINK_INVALID",
+			message: `O .letra-link não aponta para um workspace canônico válido${workspaceResolution.errorMessage ? `: ${workspaceResolution.errorMessage}` : "."}`,
+		});
+	}
 	const mode: AgentDirectionSnapshot["mode"] = !input.workflow
-		? "unconfigured"
+		? workspaceResolution.errorCode ? "degraded" : "unconfigured"
 		: !input.flow || input.flow.source !== "workflow-template" || warnings.length > 0
 			? "degraded"
 			: "active";
@@ -192,7 +242,10 @@ export function createAgentDirectionSnapshot(
 		source: {
 			harnessVersion: input.flow?.harnessVersion ?? input.workflow?.harnessVersion ?? null,
 			flowId: input.flow?.id ?? null,
-			workspaceRoot: resolve(input.workspaceRoot).replace(/\\/g, "/"),
+		workspaceRoot: workspaceResolution.workspaceRoot.replace(/\\/g, "/"),
+		workspaceDir: workspaceResolution.workspaceDir.replace(/\\/g, "/"),
+		locationPath: workspaceResolution.locationPath.replace(/\\/g, "/"),
+		resolutionMode: workspaceResolution.type,
 		},
 		mode,
 		item: item
@@ -212,6 +265,7 @@ export function createAgentDirectionSnapshot(
 					activityStartedAt: item.activityStartedAt ?? null,
 					lastHeartbeatAt: item.lastHeartbeatAt ?? null,
 					lastFailure: item.lastFailure ?? null,
+					validation: item.validation ?? null,
 				}
 			: null,
 		roleIds: stage ? [...stage.roleIds] : [],
@@ -238,8 +292,12 @@ function readActiveSpec(root: string, specName: string | null): string | null {
 	const specDir = join(getLetraDir(root), "specs", specName);
 	const acceptancePath = join(specDir, "acceptance.md");
 	const specPath = join(specDir, "spec.md");
-	if (existsSync(acceptancePath)) return readFileSync(acceptancePath, "utf-8");
+	// spec.md is the canonical narrative and is where request_rework appends
+	// new criteria. acceptance.md is a projection kept for tools that need a
+	// compact checklist. Reading the projection first made a valid rework look
+	// like it had no pending AC whenever a legacy acceptance.md was stale.
 	if (existsSync(specPath)) return readFileSync(specPath, "utf-8");
+	if (existsSync(acceptancePath)) return readFileSync(acceptancePath, "utf-8");
 	return null;
 }
 

@@ -8,6 +8,8 @@ import type {
 	ActivityReferenceHint,
 	AgentHandoffConfig,
 	GateExpectationConfig,
+	GateCheckType,
+	FlowTemplate,
 	HarnessManifest,
 	PhaseAction,
 	PhaseDef,
@@ -39,6 +41,31 @@ function unwrapStages(value: unknown): any[] {
 	if (value && typeof value === "object" && Array.isArray((value as any).stages))
 		return (value as any).stages;
 	return [];
+}
+
+function stringList(value: unknown): string[] | undefined {
+	if (Array.isArray(value)) return value.map(String).map((entry) => entry.trim()).filter(Boolean);
+	if (typeof value === "string") {
+		const content = value.trim().replace(/^\[/, "").replace(/\]$/, "");
+		return content.split(",").map((entry) => entry.trim().replace(/^['"]|['"]$/g, "")).filter(Boolean);
+	}
+	return undefined;
+}
+
+function normalizeOperations(value: unknown): FlowTemplate["operations"] {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+	return Object.fromEntries(Object.entries(value as Record<string, unknown>).flatMap(([id, entry]) => {
+		if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+		const raw = entry as Record<string, unknown>;
+		return [[id, {
+			required_capability: typeof raw.required_capability === "string" ? raw.required_capability : undefined,
+			requires_claim: typeof raw.requires_claim === "boolean" ? raw.requires_claim : undefined,
+			allowed_in_stages: stringList(raw.allowed_in_stages),
+			allowed_actors: stringList(raw.allowed_actors),
+			actor_prefix: typeof raw.actor_prefix === "string" ? raw.actor_prefix : undefined,
+			description: typeof raw.description === "string" ? raw.description : undefined,
+		}]];
+	}));
 }
 
 function normalizeGateDecisions(value: unknown): HarnessManifest["gates"][string]["decisions"] {
@@ -297,6 +324,7 @@ export function loadHarness(root: string): HarnessManifest | null {
 				name: String(raw.name ?? raw.id),
 				description: String(raw.description ?? ""),
 				defaultPolicy: String(raw.defaultPolicy ?? ""),
+				operations: normalizeOperations(raw.operations),
 				stages: unwrapStages(raw.stages).map((s: any) => ({
 					id: String(s.id ?? ""),
 					name: String(s.name ?? s.id ?? ""),
@@ -318,6 +346,43 @@ export function loadHarness(root: string): HarnessManifest | null {
 						typeof s.preferredExecutor === "string" ? s.preferredExecutor : undefined,
 					phases: normalizeStagePhases(s.phases),
 					activity: normalizeStageActivity(s.activity),
+					rework: s.rework
+						? {
+								target: typeof s.rework.target === "string" ? s.rework.target : undefined,
+								allowed_actors: Array.isArray(s.rework.allowed_actors)
+									? s.rework.allowed_actors.map((a: any) => String(a))
+									: undefined,
+								create_ac: s.rework.create_ac === true,
+							}
+						: undefined,
+					hooks: s.hooks
+						? {
+								on_enter: Array.isArray(s.hooks.on_enter)
+									? s.hooks.on_enter.map((h: any) => ({
+											action: String(h.action ?? ""),
+											auto: typeof h.auto === "boolean" ? h.auto : undefined,
+											requires_claim: typeof h.requires_claim === "boolean" ? h.requires_claim : undefined,
+											params: h.params && typeof h.params === "object" ? h.params : undefined,
+										}))
+									: undefined,
+								on_exit: Array.isArray(s.hooks.on_exit)
+									? s.hooks.on_exit.map((h: any) => ({
+											action: String(h.action ?? ""),
+											auto: typeof h.auto === "boolean" ? h.auto : undefined,
+											requires_claim: typeof h.requires_claim === "boolean" ? h.requires_claim : undefined,
+											params: h.params && typeof h.params === "object" ? h.params : undefined,
+										}))
+									: undefined,
+							}
+						: undefined,
+					auto_transitions: Array.isArray(s.auto_transitions)
+						? s.auto_transitions.map((t: any) => ({
+								from: typeof t.from === "string" ? t.from : undefined,
+								gate: typeof t.gate === "string" ? t.gate : undefined,
+								allow_claim: t.allow_claim === true,
+								condition: typeof t.condition === "string" ? t.condition : undefined,
+							}))
+						: undefined,
 				})),
 			};
 		}
@@ -339,6 +404,8 @@ export function loadHarness(root: string): HarnessManifest | null {
 				policyRef: (raw.policyRef as string | undefined) ?? undefined,
 				description: String(raw.description ?? ""),
 				decisions: normalizeGateDecisions(raw.decisions),
+				pre_check: typeof raw.pre_check === "string" ? raw.pre_check as GateCheckType : undefined,
+				check_type: typeof raw.check_type === "string" ? raw.check_type as GateCheckType : undefined,
 			};
 		}
 	}

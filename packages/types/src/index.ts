@@ -84,10 +84,30 @@ export interface AgentIdentity {
 	stageBindings: string[];
 	adapterHints?: Record<string, string>;
 }
+
+/**
+ * Versioned operational link between the visual persona, a harness role and
+ * the executor that is allowed to carry work for that persona.  The binding
+ * deliberately lives beside the identity registry: identity is descriptive;
+ * a binding is an enforceable runtime contract.
+ */
+export interface AgentRuntimeBinding {
+	version: "1";
+	id: string;
+	identityId: string;
+	roleId: string;
+	executorId: string;
+	capabilities: string[];
+	stageIds: string[];
+	availability: "online-required";
+	harnessVersion: string;
+	promptTemplate?: string;
+}
 export interface AgentRegistry {
 	version: "1";
 	updatedAt: string;
 	agents: AgentIdentity[];
+	runtimeBindings?: AgentRuntimeBinding[];
 }
 
 export interface Stage {
@@ -110,6 +130,19 @@ export interface Task {
 	done: boolean;
 }
 
+/** Evidence emitted by the canonical validation operation for a work item. */
+export interface ValidationEvidence {
+	schemaVersion: "1";
+	outcome: "accepted" | "rejected";
+	validatedAt: string;
+	expiresAt: string;
+	summary: {
+		passed: number;
+		failed: number;
+		warnings: number;
+	};
+}
+
 export interface Item {
 	id: string;
 	description: string;
@@ -130,6 +163,7 @@ export interface Item {
 	activityStartedAt?: string;
 	lastHeartbeatAt?: string;
 	lastFailure?: { code: string; message: string; recovery: string; at: string };
+	validation?: ValidationEvidence;
 	currentPhase?: string;
 	handoff?: {
 		from: string;
@@ -247,8 +281,17 @@ export interface AgentDirectionSnapshot {
 		harnessVersion: string | null;
 		flowId: string | null;
 		workspaceRoot: string;
+		workspaceDir?: string;
+		locationPath?: string;
+		resolutionMode?: "local" | "manifest" | "env" | "flag" | "linked" | "direct";
 	};
 	mode: "active" | "degraded" | "unconfigured";
+	/** Resolution failure details; present only when the workspace authority is invalid. */
+	workspace?: {
+		code: "WORKSPACE_LINK_INVALID";
+		paths: string[];
+		recovery: string;
+	};
 	item: {
 		id: string;
 		description: string;
@@ -265,6 +308,7 @@ export interface AgentDirectionSnapshot {
 		activityStartedAt?: string | null;
 		lastHeartbeatAt?: string | null;
 		lastFailure?: { code: string; message: string; recovery: string; at: string } | null;
+		validation?: ValidationEvidence | null;
 	} | null;
 	roleIds: string[];
 	allowedStageIds: string[];
@@ -299,6 +343,26 @@ export interface ResolvedFlowGate {
 	policyRef?: string;
 	description: string;
 	decisions?: Partial<Record<GateDecision, string>>;
+	preCheck?: ResolvedGateCheckType;
+	checkType?: ResolvedGateCheckType;
+}
+
+export type ResolvedGateCheckType = "validation" | "security-scoped" | "spec-linked" | "acceptance-complete";
+
+export interface ResolvedFlowOperation {
+	requiredCapability?: string;
+	requiresClaim?: boolean;
+	allowedInStages: string[];
+	allowedActors: string[];
+	actorPrefix?: string;
+	description?: string;
+}
+
+export interface ResolvedStageHook {
+	action: string;
+	auto: boolean;
+	requiresClaim: boolean;
+	params?: Record<string, unknown>;
 }
 
 export interface ResolvedFlowRole {
@@ -400,7 +464,8 @@ export type FlowDefinitionWarningCode =
 	| "ROLE_NOT_FOUND"
 	| "INSTANCE_STAGE_NOT_IN_TEMPLATE"
 	| "TEMPLATE_STAGE_NOT_IN_INSTANCE"
-	| "CONSTITUTION_MISSING";
+	| "CONSTITUTION_MISSING"
+	| "WORKSPACE_LINK_INVALID";
 
 export interface FlowDefinitionWarning {
 	code: FlowDefinitionWarningCode;
@@ -423,6 +488,21 @@ export interface ResolvedFlowStage {
 	phases?: ResolvedStagePhases;
 	activity?: ResolvedFlowActivity;
 	provenance: "harness" | "workflow-instance";
+	rework?: {
+		target?: string;
+		allowed_actors?: string[];
+		create_ac?: boolean;
+	};
+	hooks?: {
+		on_enter?: ResolvedStageHook[];
+		on_exit?: ResolvedStageHook[];
+	};
+	auto_transitions?: Array<{
+		from?: string;
+		gate?: string;
+		allow_claim?: boolean;
+		condition?: string;
+	}>;
 }
 
 export interface ResolvedFlowDefinition {
@@ -433,5 +513,6 @@ export interface ResolvedFlowDefinition {
 	name: string;
 	stages: ResolvedFlowStage[];
 	roles: ResolvedFlowRole[];
+	operations: Record<string, ResolvedFlowOperation>;
 	warnings: FlowDefinitionWarning[];
 }

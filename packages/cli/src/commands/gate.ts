@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { Command } from "commander";
 import chalk from "chalk";
 import { logEntry } from "../session-log.js";
+import { getLetraDir } from "../workspace/resolver.js";
+import { DEFAULT_HARNESS_VERSION, resolveHarnessRoot } from "../harness/loader.js";
 
 const GATE_DIR = join(".letra", "harness", "gates");
 
@@ -14,7 +16,14 @@ export default function gateCommand() {
 		.description("Marca um gate como approved")
 		.action((id: string) => {
 			const root = process.cwd();
+			const dataDir = getLetraDir(root);
 			const candidates = [
+				join(dataDir, "harness", "gates", `${id}.yaml`),
+				join(dataDir, "harness", "gates", `${id}.yml`),
+				join(dataDir, "harness", DEFAULT_HARNESS_VERSION, "gates", `${id}.yaml`),
+				join(dataDir, "harness", DEFAULT_HARNESS_VERSION, "gates", `${id}.yml`),
+				join(resolveHarnessRoot(root, DEFAULT_HARNESS_VERSION), "gates", `${id}.yaml`),
+				join(resolveHarnessRoot(root, DEFAULT_HARNESS_VERSION), "gates", `${id}.yml`),
 				join(root, GATE_DIR, `${id}.yaml`),
 				join(root, GATE_DIR, `${id}.yml`),
 			];

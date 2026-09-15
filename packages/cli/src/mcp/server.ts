@@ -18,10 +18,14 @@ import {
 	activityOperation,
 	submitEvidenceOperation,
 	requestHandoffOperation,
+	requestReworkOperation,
+	runSecurityReviewOperation,
 } from "../domain-operations/service.js";
 import { logEntry } from "../session-log.js";
 import { createWorkspaceBoundary, type WorkspaceBoundary } from "../security/workspace-boundary.js";
+import { readSpecCatalog } from "../spec-catalog/service.js";
 import { getLetraDir, resolveWorkspaceRoot } from "./../workspace/resolver.js";
+import { invalidWorkspaceDiagnostic } from "../workspace/integrity.js";
 
 interface ActiveSpecPayload {
 	name: string | null;
@@ -41,7 +45,7 @@ function safeActiveSpec(root: string, boundary: WorkspaceBoundary): ActiveSpecPa
 	if (!name || !/^[a-zA-Z0-9._-]+$/.test(name)) {
 		return { name, path: null, content: null };
 	}
-	const specsRoot = resolve(root, ".letra", "specs");
+	const specsRoot = resolve(getLetraDir(root), "specs");
 	const specDir = resolve(specsRoot, name);
 	if (
 		specDir !== specsRoot &&
@@ -50,10 +54,10 @@ function safeActiveSpec(root: string, boundary: WorkspaceBoundary): ActiveSpecPa
 	) {
 		return { name, path: null, content: null };
 	}
-	const acceptancePath = join(specDir, "acceptance.md");
 	const specPath = join(specDir, "spec.md");
+	const acceptancePath = join(specDir, "acceptance.md");
 	const selectedPath = existsSync(acceptancePath)
-		? acceptancePath
+		? (existsSync(specPath) ? specPath : acceptancePath)
 		: existsSync(specPath)
 			? specPath
 			: null;
@@ -83,6 +87,8 @@ function collectRoles(root: string): ResolvedFlowRole[] {
 }
 
 function healthPayload(root: string) {
+	const workspace = invalidWorkspaceDiagnostic(root);
+	if (workspace) return { reasonCode: workspace.code, workspace };
 	const record = loadHealthRecord(root);
 	return {
 		scannedAt: record.lastScanAt ?? null,
@@ -99,8 +105,20 @@ function resourceText(uri: string, text: string, mimeType = "application/json") 
 export function createLetraMcpServer(root: string): McpServer {
 	const resolution = resolveWorkspaceRoot(root);
 	const workspaceDir = resolution.workspaceDir;
-	const boundary = createWorkspaceBoundary(workspaceDir);
-	const workspaceRoot = boundary.root;
+	// An invalid link may point at a directory that no longer exists. Build the
+	// boundary from the caller's existing location in that case so MCP can
+	// return the structured diagnostic instead of throwing from realpathSync.
+	const boundary = createWorkspaceBoundary(
+		resolution.errorCode === "WORKSPACE_LINK_INVALID" ? resolution.locationPath : workspaceDir,
+	);
+	const workspaceRoot = resolution.errorCode === "WORKSPACE_LINK_INVALID"
+		? resolution.locationPath
+		: boundary.root;
+	// Preserve the caller's project location while the link is invalid so the
+	// operation gateway can emit WORKSPACE_LINK_INVALID before touching any
+	// canonical or local projection. A valid link continues to use its
+	// canonical workspace root.
+	const operationRoot = workspaceRoot;
 	const auditedReads = new Set<string>();
 	const server = new McpServer({
 		name: "letra",
@@ -134,24 +152,39 @@ export function createLetraMcpServer(root: string): McpServer {
 		};
 	};
 	const auditRead = (resource: string, direction = resolveAgentDirection(workspaceRoot)) => {
+		if (invalidWorkspaceDiagnostic(workspaceRoot)) return direction;
 		const key = `${resource}:${direction.revision}`;
 		if (auditedReads.has(key)) return direction;
-		auditedReads.add(key);
 		const client = clientIdentity();
-		logEntry(workspaceRoot, "agent_direction_read", `MCP read: ${resource}`, {
-			itemId: direction.item?.id,
-			acId: direction.pendingAC?.id,
-			details: {
-				adapter: "codex",
-				by: client.actor,
-				clientVersion: client.clientVersion,
-				resource,
-				revision: direction.revision,
-				reason: "Consulta de contexto pelo transporte MCP.",
-				outcome: "accepted",
-			},
-		});
+		try {
+			logEntry(workspaceRoot, "agent_direction_read", `MCP read: ${resource}`, {
+				itemId: direction.item?.id,
+				acId: direction.pendingAC?.id,
+				details: {
+					adapter: "codex",
+					by: client.actor,
+					clientVersion: client.clientVersion,
+					resource,
+					revision: direction.revision,
+					reason: "Consulta de contexto pelo transporte MCP.",
+					outcome: "accepted",
+				},
+			});
+			auditedReads.add(key);
+		} catch {
+			// Direction is a read contract. Audit sink failure degrades the
+			// observation path but cannot make context unavailable.
+			(direction as unknown as { mode: string }).mode = "degraded";
+			(direction as unknown as { warnings: Array<{ code: string; message: string }> }).warnings = [
+				...(direction.warnings ?? []),
+				{ code: "AUDIT_DEGRADED", message: "Auditoria indisponível; direção retornada sem registro." },
+			];
+		}
 		return direction;
+	};
+	const blockedRead = () => {
+		const workspace = invalidWorkspaceDiagnostic(workspaceRoot);
+		return workspace ? { reasonCode: workspace.code, workspace } : null;
 	};
 
 	server.registerTool(
@@ -161,7 +194,11 @@ export function createLetraMcpServer(root: string): McpServer {
 				"Retorna a direção vigente e versionada do harness para o workspace atual.",
 			annotations: readOnlyAnnotations,
 		},
-		async () => jsonText(auditRead("direction")),
+		async () => {
+			const blocked = blockedRead();
+			if (blocked) return jsonText(blocked);
+			return jsonText(auditRead("direction"));
+		},
 	);
 	server.registerTool(
 		"get_active_spec",
@@ -170,6 +207,8 @@ export function createLetraMcpServer(root: string): McpServer {
 			annotations: readOnlyAnnotations,
 		},
 		async () => {
+			const blocked = blockedRead();
+			if (blocked) return jsonText(blocked);
 			auditRead("active-spec");
 			return jsonText(safeActiveSpec(workspaceRoot, boundary));
 		},
@@ -181,6 +220,8 @@ export function createLetraMcpServer(root: string): McpServer {
 			annotations: readOnlyAnnotations,
 		},
 		async () => {
+			const blocked = blockedRead();
+			if (blocked) return jsonText(blocked);
 			auditRead("health");
 			return jsonText(healthPayload(workspaceRoot));
 		},
@@ -192,12 +233,13 @@ export function createLetraMcpServer(root: string): McpServer {
 			inputSchema: {
 				expectedRevision,
 				reason,
+				idempotencyKey: z.string().trim().min(1).max(200).optional(),
 			},
 			annotations: verificationAnnotations,
 		},
 		async (input) =>
 			jsonText(
-				await runValidationOperation(workspaceRoot, {
+				await runValidationOperation(operationRoot, {
 					...input,
 					actor: clientIdentity().actor,
 				}),
@@ -209,15 +251,17 @@ export function createLetraMcpServer(root: string): McpServer {
 			description: "Conclui o AC vigente após validar revisão e evidência de regressão.",
 			inputSchema: {
 				acId: z.string().regex(/^AC\d+(?:\.\d+)*$/i),
+				executorId: z.string().trim().min(1).optional(),
 				expectedRevision,
 				evidence: z.array(z.string().trim().min(1).max(500)).max(20),
 				reason,
+				idempotencyKey: z.string().trim().min(1).max(200).optional(),
 			},
 			annotations: mutationAnnotations,
 		},
 		async (input) =>
 			jsonText(
-				completeAcOperation(workspaceRoot, {
+				completeAcOperation(operationRoot, {
 					...input,
 					actor: clientIdentity().actor,
 				}),
@@ -232,47 +276,86 @@ export function createLetraMcpServer(root: string): McpServer {
 				targetStageId: z.string().regex(/^[a-zA-Z0-9._-]+$/),
 				expectedRevision,
 				reason,
+				idempotencyKey: z.string().trim().min(1).max(200).optional(),
 			},
 			annotations: mutationAnnotations,
 		},
 		async (input) =>
 			jsonText(
-				await requestTransitionOperation(workspaceRoot, {
+				await requestTransitionOperation(operationRoot, {
 					...input,
 					actor: clientIdentity().actor,
 				}),
 			),
 	);
-	server.registerTool("get_context", { description: "Retorna contexto operacional canônico.", annotations: readOnlyAnnotations }, async () => jsonText(auditRead("context")));
-	server.registerTool("get_activity", { description: "Retorna atividade operacional vigente.", inputSchema: { itemId: z.string().optional() }, annotations: readOnlyAnnotations }, async ({ itemId }) => jsonText(activityOperation(workspaceRoot, itemId)));
-	server.registerTool("claim", { description: "Solicita claim exclusivo.", inputSchema: { itemId: z.string(), executorId: z.string(), capability: z.string(), expectedRevision, reason, ttlMinutes: z.number().optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await claimOperation(workspaceRoot, { ...input, actor: clientIdentity().actor })));
-	server.registerTool("execution_event", { description: "Registra started, heartbeat, succeeded ou failed.", inputSchema: { itemId: z.string(), status: z.enum(["started", "heartbeat", "succeeded", "failed"]), executorId: z.string(), expectedRevision, reason, message: z.string().optional(), recovery: z.enum(["retry", "release", "handoff", "human"]).optional(), errorCode: z.string().optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await recordExecutionEvent(workspaceRoot, { ...input, actor: clientIdentity().actor })));
-	server.registerTool("submit_evidence", { description: "Registra evidência estruturada confinada.", inputSchema: { itemId: z.string(), executorId: z.string(), expectedRevision, reason, evidence: z.array(z.object({ kind: z.enum(["diff", "file", "command", "test", "artifact"]), value: z.string(), source: z.string(), observedAt: z.string().optional(), sha256: z.string().optional(), exitCode: z.number().optional() })) }, annotations: mutationAnnotations }, async (input) => jsonText(await submitEvidenceOperation(workspaceRoot, { ...input, actor: clientIdentity().actor })));
-	server.registerTool("request_handoff", { description: "Solicita handoff atômico.", inputSchema: { itemId: z.string(), to: z.string(), executorId: z.string(), summary: z.string(), evidence: z.array(z.string()), expectedRevision, reason }, annotations: mutationAnnotations }, async (input) => jsonText(await requestHandoffOperation(workspaceRoot, { ...input, actor: clientIdentity().actor })));
+	server.registerTool("get_context", { description: "Retorna contexto operacional canônico completo.", annotations: readOnlyAnnotations }, async () => {
+		const blocked = blockedRead();
+		if (blocked) return jsonText(blocked);
+		const direction = auditRead("context");
+		return jsonText({
+			direction,
+			spec: safeActiveSpec(workspaceRoot, boundary),
+			health: healthPayload(workspaceRoot),
+			workflow: loadWorkflow(workspaceRoot),
+		});
+	});
+	server.registerTool("get_activity", { description: "Retorna atividade operacional vigente.", inputSchema: { itemId: z.string().optional() }, annotations: readOnlyAnnotations }, async ({ itemId }) => {
+		const blocked = blockedRead();
+		if (blocked) return jsonText(blocked);
+		return jsonText(activityOperation(workspaceRoot, itemId));
+	});
+	server.registerTool("get_spec_catalog", { description: "Retorna a matriz canônica de specs, disposições e referências.", annotations: readOnlyAnnotations }, async () => {
+		const blocked = blockedRead();
+		if (blocked) return jsonText(blocked);
+		auditRead("spec-catalog");
+		return jsonText(readSpecCatalog(workspaceRoot));
+	});
+	server.registerTool("claim", { description: "Solicita claim exclusivo.", inputSchema: { itemId: z.string(), executorId: z.string(), capability: z.string(), expectedRevision, reason, ttlMinutes: z.number().optional(), idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await claimOperation(operationRoot, { ...input, actor: clientIdentity().actor })));
+	server.registerTool("execution_event", { description: "Registra started, heartbeat, succeeded ou failed.", inputSchema: { itemId: z.string(), status: z.enum(["started", "heartbeat", "succeeded", "failed"]), executorId: z.string(), expectedRevision, reason, message: z.string().optional(), recovery: z.enum(["retry", "release", "handoff", "human"]).optional(), errorCode: z.string().optional(), idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await recordExecutionEvent(operationRoot, { ...input, actor: clientIdentity().actor })));
+	server.registerTool("submit_evidence", { description: "Registra evidência estruturada confinada.", inputSchema: { itemId: z.string(), executorId: z.string(), expectedRevision, reason, evidence: z.array(z.object({ kind: z.enum(["diff", "file", "command", "test", "artifact"]), value: z.string(), source: z.string(), observedAt: z.string().optional(), sha256: z.string().optional(), exitCode: z.number().optional() })), idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await submitEvidenceOperation(operationRoot, { ...input, actor: clientIdentity().actor })));
+	server.registerTool("security_review", { description: "Executa a revisão de Security escopada ao item, usando baseline e política do harness.", inputSchema: { itemId: z.string(), executorId: z.string(), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await runSecurityReviewOperation(operationRoot, { ...input, actor: clientIdentity().actor })));
+	server.registerTool("request_handoff", { description: "Solicita handoff atômico.", inputSchema: { itemId: z.string(), to: z.string(), executorId: z.string(), summary: z.string(), evidence: z.array(z.string()), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await requestHandoffOperation(operationRoot, { ...input, actor: clientIdentity().actor })));
+	server.registerTool("request_rework", { description: "Solicita retrabalho conforme a configuração declarativa do estágio.", inputSchema: { itemId: z.string(), expectedRevision, reason, acceptanceCriteria: z.array(z.object({ id: z.string().optional(), description: z.string().min(1) })).default([]) }, annotations: mutationAnnotations }, async (input) => jsonText(await requestReworkOperation(operationRoot, { ...input, actor: clientIdentity().actor })));
 
 	server.registerResource(
 		"direction",
 		"letra://direction",
 		{ title: "Direção vigente do harness", mimeType: "application/json" },
-		async () =>
-			resourceText("letra://direction", JSON.stringify(auditRead("direction"), null, 2)),
+		async () => {
+			const blocked = blockedRead();
+			if (blocked) return resourceText("letra://direction", JSON.stringify(blocked, null, 2), "application/json");
+			return resourceText("letra://direction", JSON.stringify(auditRead("direction"), null, 2), "application/json");
+		},
 	);
 	server.registerResource(
 		"active-spec",
 		"letra://spec/active",
 		{ title: "Spec ativa", mimeType: "text/markdown" },
-		async () =>
-			resourceText(
-				"letra://spec/active",
-				(auditRead("active-spec"), safeActiveSpec(workspaceRoot, boundary).content ?? ""),
-				"text/markdown",
-			),
+		async () => {
+			const blocked = blockedRead();
+			if (blocked) return resourceText("letra://spec/active", JSON.stringify(blocked, null, 2), "application/json");
+			auditRead("active-spec");
+			return resourceText("letra://spec/active", safeActiveSpec(workspaceRoot, boundary).content ?? "", "text/markdown");
+		},
+	);
+	server.registerResource(
+		"spec-catalog",
+		"letra://spec-catalog",
+		{ title: "Catálogo canônico de specs", mimeType: "application/json" },
+		async () => {
+			const blocked = blockedRead();
+			if (blocked) return resourceText("letra://spec-catalog", JSON.stringify(blocked, null, 2), "application/json");
+			auditRead("spec-catalog");
+			return resourceText("letra://spec-catalog", JSON.stringify(readSpecCatalog(workspaceRoot), null, 2), "application/json");
+		},
 	);
 	server.registerResource(
 		"constitution",
 		"letra://constitution",
 		{ title: "Constituição do workspace", mimeType: "text/markdown" },
 		async () => {
+			const blocked = blockedRead();
+			if (blocked) return resourceText("letra://constitution", JSON.stringify(blocked, null, 2), "application/json");
 			auditRead("constitution");
 			const path = boundary.assertPath(join(getLetraDir(workspaceRoot), "constitution.md"));
 			const content = existsSync(path) ? readFileSync(path, "utf-8") : "";
@@ -294,14 +377,16 @@ export function createLetraMcpServer(root: string): McpServer {
 		"health",
 		"letra://health",
 		{ title: "Saúde operacional", mimeType: "application/json" },
-		async () =>
-			resourceText(
-				"letra://health",
-				JSON.stringify((auditRead("health"), healthPayload(workspaceRoot)), null, 2),
-			),
+		async () => {
+			const blocked = blockedRead();
+			if (blocked) return resourceText("letra://health", JSON.stringify(blocked, null, 2));
+			auditRead("health");
+			return resourceText("letra://health", JSON.stringify(healthPayload(workspaceRoot), null, 2));
+		},
 	);
 
 	const auditHarnessRead = (resource: string) => {
+		if (blockedRead()) return false;
 		const direction = resolveAgentDirection(workspaceRoot);
 		const key = `harness:${resource}:${direction.revision}`;
 		if (auditedReads.has(key)) return;
@@ -326,6 +411,8 @@ export function createLetraMcpServer(root: string): McpServer {
 		"letra://harness/templates",
 		{ title: "Templates disponíveis no harness", mimeType: "application/json" },
 		async () => {
+			const blocked = blockedRead();
+			if (blocked) return resourceText("letra://harness/templates", JSON.stringify(blocked, null, 2));
 			auditHarnessRead("templates");
 			const workflow = loadWorkflow(workspaceRoot);
 			const harness = loadHarnessForWorkflow(workspaceRoot, workflow);
@@ -337,6 +424,8 @@ export function createLetraMcpServer(root: string): McpServer {
 		"harness-template",
 		new ResourceTemplate("letra://harness/templates/{flowId}", { list: undefined }),
 		async (uri, variables) => {
+			const blocked = blockedRead();
+			if (blocked) return resourceText(uri.href, JSON.stringify(blocked, null, 2));
 			const flowId = variables.flowId as string;
 			auditHarnessRead(`templates/${flowId}`);
 			const workflow = loadWorkflow(workspaceRoot);
@@ -396,6 +485,8 @@ export function createLetraMcpServer(root: string): McpServer {
 		"letra://harness/gates",
 		{ title: "Gates do harness", mimeType: "application/json" },
 		async () => {
+			const blocked = blockedRead();
+			if (blocked) return resourceText("letra://harness/gates", JSON.stringify(blocked, null, 2));
 			auditHarnessRead("gates");
 			return resourceText(
 				"letra://harness/gates",
@@ -408,6 +499,8 @@ export function createLetraMcpServer(root: string): McpServer {
 		"letra://harness/roles",
 		{ title: "Roles do harness", mimeType: "application/json" },
 		async () => {
+			const blocked = blockedRead();
+			if (blocked) return resourceText("letra://harness/roles", JSON.stringify(blocked, null, 2));
 			auditHarnessRead("roles");
 			return resourceText(
 				"letra://harness/roles",
@@ -423,6 +516,8 @@ export function createLetraMcpServer(root: string): McpServer {
 			annotations: readOnlyAnnotations,
 		},
 		async () => {
+			const blocked = blockedRead();
+			if (blocked) return jsonText(blocked);
 			auditHarnessRead("gates");
 			return jsonText(collectGates(workspaceRoot));
 		},
@@ -434,6 +529,8 @@ export function createLetraMcpServer(root: string): McpServer {
 			annotations: readOnlyAnnotations,
 		},
 		async () => {
+			const blocked = blockedRead();
+			if (blocked) return jsonText(blocked);
 			auditHarnessRead("roles");
 			return jsonText(collectRoles(workspaceRoot));
 		},

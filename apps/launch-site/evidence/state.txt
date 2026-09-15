@@ -1,0 +1,23 @@
+Comando: letra direction --json
+Origem: C:/Workspace/letra
+CLI: 0.6.2
+Data: 2026-09-09
+Alt text: Captura textual reproduzivel do estado vivo do Letra mostrando ITEM-86 no estagio code, actor implementer, objetivo de implementar ACs e revision do harness.
+
+{
+  "mode": "degraded",
+  "item": {
+    "id": "ITEM-86",
+    "stage": "code",
+    "spec": "launch-site",
+    "claimedBy": "implementer",
+    "claimExecutorId": "codex",
+    "claimCapability": "write_code",
+    "activityStatus": "started"
+  },
+  "roleIds": ["implementer"],
+  "allowedStageIds": ["code"],
+  "objective": "Implement acceptance criteria one by one.",
+  "pendingAC": null,
+  "revision": "sha256:0864d7a44adc183572abb712d8c3c70b30cd832c048b160f25029742a37c15d3"
+}

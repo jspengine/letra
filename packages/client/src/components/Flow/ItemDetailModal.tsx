@@ -150,7 +150,7 @@ export default function ItemDetailModal({
 	const owner = item.claimedBy ?? curStage?.roles[0]?.label ?? "Não atribuído";
 	const availableStages = resolvedStages.filter((stage) => stage.id !== item.stage);
 	const heartbeatAge = item.lastHeartbeatAt ? Date.now() - new Date(item.lastHeartbeatAt).getTime() : null;
-	const heartbeatStale = heartbeatAge !== null && heartbeatAge > 60_000;
+	const heartbeatStale = heartbeatAge !== null && heartbeatAge > 90_000;
 	const retryCount = activities.filter((entry) => /retry|retrying|re-emit/i.test(`${entry.action} ${entry.description}`)).length;
 
 	useEffect(() => {

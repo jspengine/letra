@@ -7,6 +7,7 @@ import { logEntry } from "../session-log.js";
 import { validate } from "./validate.js";
 import { generateAdapters } from "../adapters/generate.js";
 import { getLetraDir } from "./../workspace/resolver.js";
+import { completeAcOperation } from "../domain-operations/service.js";
 
 export function findAcByPattern(lines: string[], acId: string): number | null {
 	const normalized = acId.trim();
@@ -21,6 +22,10 @@ export function findAcByPattern(lines: string[], acId: string): number | null {
 
 function escapeRegex(s: string): string {
 	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function collectEvidence(value: string, previous: string[]): string[] {
+	return [...previous, value];
 }
 
 export function listPendingACs(lines: string[]): { lineIdx: number; id: string; text: string }[] {
@@ -148,10 +153,26 @@ export default function acCommand() {
 
 	cmd.command("done <ac-id>")
 		.option("--spec <name>", "Nome do spec (padrão: spec do item ativo)")
-		.description("Marcar um AC como concluído no spec.md")
-		.action((acId: string, options: { spec?: string }) => {
+		.requiredOption("--expected-revision <revision>", "Revision retornada por letra direction")
+		.requiredOption("--reason <reason>", "Motivo da conclusão")
+		.requiredOption("--evidence <evidence>", "Evidência verificável; pode ser repetido", collectEvidence, [])
+		.requiredOption("--executor <executor-id>", "Executor que produziu a evidência")
+		.option("--actor <actor>", "Identidade do actor que possui o claim", "agent:codex")
+		.option("--idempotency-key <key>", "Chave idempotente da operação")
+		.description("Concluir um AC pela operação canônica do harness")
+		.action((acId: string, options: { spec?: string; expectedRevision: string; reason: string; evidence: string[]; executor: string; actor: string; idempotencyKey?: string }) => {
 			const root = resolve(process.cwd());
-			markAcById(root, acId, options.spec);
+			const result = completeAcOperation(root, {
+				acId,
+				expectedRevision: options.expectedRevision,
+				reason: options.reason,
+				evidence: options.evidence,
+				executorId: options.executor,
+				actor: options.actor,
+				idempotencyKey: options.idempotencyKey,
+			});
+			if (result.outcome !== "accepted") throw new Error(`${result.reasonCode}: ${result.reason}`);
+			console.log(JSON.stringify(result, null, 2));
 		});
 
 	cmd.command("list")

@@ -4,4 +4,5 @@ type: automated
 blocking: true
 blocksHandoff: false
 description: Automated code review checks (lint, typecheck, tests).
+check_type: validation
 policyRef: policies/sdlc-default.json

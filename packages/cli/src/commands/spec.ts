@@ -5,6 +5,7 @@ import ora from "ora";
 import { loadWorkflow, writeWorkflow } from "./flow-init.js";
 import { logEntry } from "../session-log.js";
 import { getLetraDir } from "./../workspace/resolver.js";
+import { writeSpecCatalog } from "../spec-catalog/service.js";
 
 const builtInTemplates: Record<string, { spec: string; acceptance: string }> = {
 	"web-api": {
@@ -350,4 +351,15 @@ Por que estamos construindo isso. Trade-offs considerados.
 		spinner.fail(chalk.red("Failed to create spec"));
 		process.exit(1);
 	}
+}
+
+export function specCatalog(targetPath?: string, options?: { json?: boolean }): void {
+	const root = resolve(process.cwd(), targetPath || ".");
+	const workflow = loadWorkflow(root);
+	const catalog = writeSpecCatalog(root, workflow);
+	if (options?.json) {
+		console.log(JSON.stringify(catalog, null, 2));
+		return;
+	}
+	console.log(`  ${chalk.green("✓")} Matriz canônica gerada: ${chalk.cyan(catalog.specs.length.toString())} specs e ${chalk.cyan(catalog.items.length.toString())} itens`);
 }

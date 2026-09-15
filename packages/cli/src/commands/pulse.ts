@@ -101,17 +101,9 @@ function countSpecACs(
 	if (!existsSync(specFile)) return { pending: 0, done: 0, total: 0 };
 	try {
 		const content = readFileSync(specFile, "utf-8");
-		const boldPending = content.match(/-\s*\[ \]\s*\*\*AC[-]?\d+\*\*/g) || [];
-		const boldDone = content.match(/-\s*\[[xX]\]\s*\*\*AC[-]?\d+\*\*/g) || [];
-		if (boldPending.length > 0 || boldDone.length > 0) {
-			return {
-				pending: boldPending.length,
-				done: boldDone.length,
-				total: boldPending.length + boldDone.length,
-			};
-		}
-		const genericPending = content.match(/^- \[ \]\s+AC[-]?\d+/gm) || [];
-		const genericDone = content.match(/^- \[[xX]\]\s+AC[-]?\d+/gm) || [];
+		const checklist = content.match(/^-\s*\[[ xX]\]\s+(?:\*\*)?AC[- ]?\d+\b[^\r\n]*/gm) || [];
+		const genericPending = checklist.filter((line) => /^-\s*\[ \]/.test(line));
+		const genericDone = checklist.filter((line) => /^-\s*\[[xX]\]/.test(line));
 		return {
 			pending: genericPending.length,
 			done: genericDone.length,

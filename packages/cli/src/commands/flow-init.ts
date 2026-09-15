@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import chalk from "chalk";
@@ -17,6 +17,8 @@ import {
 	type WorkspaceResolution,
 } from "../workspace/resolver.js";
 import { getLetraDir } from "./../workspace/resolver.js";
+import type { ValidationEvidence } from "@letra/types";
+import type { SecurityBaseline, SecurityReviewReport } from "../security/scoped-review.js";
 
 export interface Stage {
 	id: string;
@@ -67,6 +69,12 @@ export interface Item {
 	activityStartedAt?: string;
 	lastHeartbeatAt?: string;
 	lastFailure?: { code: string; message: string; recovery: string; at: string };
+	validation?: ValidationEvidence;
+	/** Immutable pre-Code snapshot and the latest item-scoped Security result. */
+	securityBaseline?: SecurityBaseline;
+	securityReview?: SecurityReviewReport;
+	retryCount?: number;
+	lastOperationKey?: string;
 	currentPhase?: string;
 	handoff?: ItemHandoff;
 }
@@ -315,7 +323,9 @@ export function saveWorkflow(root: string, workflow: Workflow): void {
 			// best-effort backup
 		}
 	}
-	writeFileSync(filePath, JSON.stringify(workflow, null, 2));
+	const temporaryPath = `${filePath}.tmp-${process.pid}-${Date.now()}`;
+	writeFileSync(temporaryPath, JSON.stringify(workflow, null, 2), "utf-8");
+	renameSync(temporaryPath, filePath);
 }
 
 export function loadWorkspaceWorkflow(cwd?: string): {
@@ -343,7 +353,10 @@ export type WriteWorkflowSource =
 	| "flow-release"
 	| "flow-handoff"
 	| "flow-handoff-rollback"
+	| "flow-validate"
+	| "security-review"
 	| "orchestrator"
+	| "orchestrator-gateway"
 	| "orchestrator-reclaim"
 	| "orchestrator-retry"
 	| "init"
@@ -363,6 +376,8 @@ export interface WriteWorkflowOptions {
 	quiet?: boolean;
 	confineAdapterWrites?: boolean;
 	resolution?: import("../workspace/resolver.js").WorkspaceResolution;
+	/** Revision observed immediately before the mutation. Checked under the write lock. */
+	expectedRevision?: string;
 }
 
 export interface WriteWorkflowResult {
@@ -370,6 +385,8 @@ export interface WriteWorkflowResult {
 	filesUpdated: string[];
 	error?: string;
 }
+
+let workflowWriteQueue: Promise<void> = Promise.resolve();
 
 const ADAPTER_TARGETS: Record<string, string> = {
 	cursor: ".cursorrules",
@@ -381,6 +398,21 @@ const ADAPTER_TARGETS: Record<string, string> = {
 };
 
 export async function writeWorkflow(
+	root: string,
+	options: WriteWorkflowOptions,
+): Promise<WriteWorkflowResult> {
+	let release!: () => void;
+	const previous = workflowWriteQueue;
+	workflowWriteQueue = new Promise<void>((resolve) => { release = resolve; });
+	await previous;
+	try {
+		return await writeWorkflowUnlocked(root, options);
+	} finally {
+		release();
+	}
+}
+
+async function writeWorkflowUnlocked(
 	root: string,
 	options: WriteWorkflowOptions,
 ): Promise<WriteWorkflowResult> {
@@ -402,6 +434,13 @@ export async function writeWorkflow(
 	}
 	if (!workflow.stages || !Array.isArray(workflow.stages)) {
 		return { ok: false, filesUpdated: [], error: "workflow.stages must be an array" };
+	}
+	if (options.expectedRevision) {
+		const { resolveAgentDirection } = await import("../agent-direction/service.js");
+		const currentRevision = resolveAgentDirection(root).revision;
+		if (currentRevision !== options.expectedRevision) {
+			return { ok: false, filesUpdated: [], error: `DIRECTION_STALE: expected ${options.expectedRevision}, current ${currentRevision}` };
+		}
 	}
 
 	const filesUpdated: string[] = [];

@@ -35,13 +35,20 @@ function makeManifest(gates: Record<string, Gate> = {}): HarnessManifest {
 	};
 }
 
+function declarativeBuiltins(): HarnessManifest {
+	return makeManifest({
+		"has-spec-file": { id: "has-spec-file", name: "Spec", type: "automated", blocking: true, description: "Spec", check_type: "spec-linked" },
+		"all-acs-passing": { id: "all-acs-passing", name: "ACs", type: "automated", blocking: true, description: "ACs", check_type: "acceptance-complete" },
+	});
+}
+
 describe("GateChecker", () => {
 	describe("checkHasSpecFile", () => {
 		it("returns allowed when item has linked spec dir", () => {
 			const root = fixture();
 			mkdirSync(join(root, ".letra", "specs", "spec-1"), { recursive: true });
 
-			const checker = new GateChecker(root);
+			const checker = new GateChecker(root, declarativeBuiltins());
 			const result = checker.check("has-spec-file", {
 				id: "ITEM-1",
 				description: "test",
@@ -55,7 +62,7 @@ describe("GateChecker", () => {
 
 		it("returns blocked when item has no spec", () => {
 			const root = fixture();
-			const checker = new GateChecker(root);
+			const checker = new GateChecker(root, declarativeBuiltins());
 			const result = checker.check("has-spec-file", {
 				id: "ITEM-1",
 				description: "test",
@@ -69,7 +76,7 @@ describe("GateChecker", () => {
 
 		it("returns blocked when spec dir does not exist", () => {
 			const root = fixture();
-			const checker = new GateChecker(root);
+			const checker = new GateChecker(root, declarativeBuiltins());
 			const result = checker.check("has-spec-file", {
 				id: "ITEM-1",
 				description: "test",
@@ -92,7 +99,7 @@ describe("GateChecker", () => {
 				"# Spec\n\n## Acceptance Criteria\n- [ ] **AC1**: pending\n- [x] **AC2**: done\n",
 			);
 
-			const checker = new GateChecker(root);
+			const checker = new GateChecker(root, declarativeBuiltins());
 			const result = checker.check("all-acs-passing", {
 				id: "ITEM-1",
 				description: "test",
@@ -113,7 +120,7 @@ describe("GateChecker", () => {
 				"# Spec\n\n## Acceptance Criteria\n- [x] **AC1**: done\n- [x] **AC2**: done without log\n",
 			);
 
-			const checker = new GateChecker(root);
+			const checker = new GateChecker(root, declarativeBuiltins());
 			const result = checker.check("all-acs-passing", {
 				id: "ITEM-1",
 				description: "test",
@@ -143,14 +150,14 @@ describe("GateChecker", () => {
 			logEntry(root, "ac_done", "AC1 done", { itemId: item.id, acId: "AC1" });
 			logEntry(root, "ac_done", "AC2 done", { itemId: item.id, acId: "AC2" });
 
-			const checker = new GateChecker(root);
+			const checker = new GateChecker(root, declarativeBuiltins());
 			const result = checker.check("all-acs-passing", item);
 			expect(result.allowed).toBe(true);
 		});
 
 		it("returns blocked when spec file is missing", () => {
 			const root = fixture();
-			const checker = new GateChecker(root);
+			const checker = new GateChecker(root, declarativeBuiltins());
 			const result = checker.check("all-acs-passing", {
 				id: "ITEM-1",
 				description: "test",
@@ -165,7 +172,7 @@ describe("GateChecker", () => {
 	});
 
 	describe("check (data-driven from manifest)", () => {
-		it("returns allowed for unknown gate ids", () => {
+		it("fails closed for unknown gate ids", () => {
 			const root = fixture();
 			const checker = new GateChecker(root, makeManifest());
 			const result = checker.check("unknown-gate", {
@@ -175,7 +182,7 @@ describe("GateChecker", () => {
 				createdAt: new Date().toISOString(),
 			} as any);
 
-			expect(result.allowed).toBe(true);
+			expect(result).toMatchObject({ allowed: false, reasonCode: "GATE_NOT_FOUND" });
 		});
 
 		it("blocks human gate when not approved", () => {
@@ -350,11 +357,13 @@ describe("GateChecker", () => {
 			expect(result.reason).toContain("Spec approved by lead");
 		});
 
-		it("falls back to convention for has-spec-file and all-acs-passing", () => {
+		it("selects built-in behavior by declarative check_type rather than gate id", () => {
 			const root = fixture();
-			const checker = new GateChecker(root, makeManifest());
+			const checker = new GateChecker(root, makeManifest({
+				"arbitrary-spec-check": { id: "arbitrary-spec-check", name: "Spec", type: "automated", blocking: true, description: "Spec", check_type: "spec-linked" },
+			}));
 
-			const specResult = checker.check("has-spec-file", {
+			const specResult = checker.check("arbitrary-spec-check", {
 				id: "ITEM-1",
 				description: "test",
 				stage: "backlog",
@@ -362,6 +371,31 @@ describe("GateChecker", () => {
 			} as any);
 			expect(specResult.allowed).toBe(false);
 			expect(specResult.reason).toContain("Item sem spec vinculada");
+		});
+
+		it("uses validation semantics with an arbitrary gate id", () => {
+			const root = fixture();
+			const checker = new GateChecker(root, makeManifest({
+				orion: { id: "orion", name: "Orion", type: "automated", blocking: true, description: "Validation", check_type: "validation" },
+			}));
+			const result = checker.check("orion", { id: "ITEM-1", description: "test", stage: "forge", createdAt: new Date().toISOString() } as any);
+			expect(result).toMatchObject({ allowed: false, reasonCode: "VALIDATION_EVIDENCE_MISSING" });
+		});
+
+		it("fails closed for unsupported declarative checks", () => {
+			const root = fixture();
+			const checker = new GateChecker(root, makeManifest({
+				atlas: { id: "atlas", name: "Atlas", type: "automated", blocking: true, description: "Unknown", check_type: "unknown" as any },
+			}));
+			expect(checker.check("atlas", { id: "ITEM-1", description: "test", stage: "forge", createdAt: new Date().toISOString() } as any)).toMatchObject({ allowed: false, reasonCode: "GATE_CHECK_UNSUPPORTED" });
+		});
+
+		it("runs a configured security pre-check for an arbitrarily named human gate", () => {
+			const root = fixture();
+			const checker = new GateChecker(root, makeManifest({
+				atlas: { id: "atlas", name: "Atlas", type: "human", blocking: true, description: "Human", pre_check: "security-scoped" },
+			}));
+			expect(checker.check("atlas", { id: "ITEM-1", description: "test", stage: "forge", createdAt: new Date().toISOString() } as any)).toMatchObject({ allowed: false, reasonCode: "SECURITY_REVIEW_REQUIRED" });
 		});
 	});
 
@@ -420,7 +454,7 @@ describe("GateChecker", () => {
 	});
 
 	describe("checkHandoffAllowed", () => {
-		it("allows handoff when gate does not exist", () => {
+		it("fails closed when a handoff gate does not exist", () => {
 			const root = fixture();
 			const checker = new GateChecker(root, makeManifest());
 			const result = checker.checkHandoffAllowed("nonexistent", {
@@ -430,7 +464,7 @@ describe("GateChecker", () => {
 				createdAt: new Date().toISOString(),
 			} as any);
 
-			expect(result.allowed).toBe(true);
+			expect(result).toMatchObject({ allowed: false, reasonCode: "GATE_NOT_FOUND", blocksHandoff: true });
 		});
 
 		it("allows handoff when gate has no gateId", () => {
@@ -506,7 +540,7 @@ describe("GateChecker", () => {
 			expect(result.allowed).toBe(true);
 		});
 
-		it("allows handoff when gate does not block handoff", () => {
+	it("allows handoff when gate does not block handoff", () => {
 			const root = fixture();
 			writeGateFile(
 				root,
@@ -532,7 +566,41 @@ describe("GateChecker", () => {
 				createdAt: new Date().toISOString(),
 			} as any);
 
-			expect(result.allowed).toBe(true);
-		});
+		expect(result.allowed).toBe(true);
 	});
+
+	it("resolves versioned gate runtime in an externalized workspace", () => {
+		const root = fixture();
+		const dir = join(root, ".letra", "harness", "v0.2.0", "gates");
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(join(dir, "code-reviewed.yaml"), "id: code-reviewed\ntype: automated\nblocking: true\nstatus: approved\n");
+		const manifest = makeManifest({ "code-reviewed": { id: "code-reviewed", name: "Code Reviewed", type: "automated", blocking: true, blocksHandoff: false, description: "Test" } });
+		const now = new Date();
+		const result = new GateChecker(root, manifest).check("code-reviewed", {
+			id: "ITEM-1",
+			description: "test",
+			stage: "code",
+			createdAt: now.toISOString(),
+			validation: {
+				schemaVersion: "1",
+				outcome: "accepted",
+				validatedAt: now.toISOString(),
+				expiresAt: new Date(now.getTime() + 60_000).toISOString(),
+				summary: { passed: 1, failed: 0, warnings: 0 },
+			},
+		} as any);
+		expect(result.allowed).toBe(true);
+	});
+
+	it("returns stable reason codes for missing, rejected and expired validation evidence", () => {
+		const root = fixture();
+		const checker = new GateChecker(root, makeManifest({
+			"code-reviewed": { id: "code-reviewed", name: "Code reviewed", type: "automated", blocking: true, description: "test", check_type: "validation" },
+		}));
+		const base = { id: "ITEM-1", description: "test", stage: "code", createdAt: new Date().toISOString() } as any;
+		expect(checker.check("code-reviewed", base)).toMatchObject({ allowed: false, reasonCode: "VALIDATION_EVIDENCE_MISSING" });
+		expect(checker.check("code-reviewed", { ...base, validation: { schemaVersion: "1", outcome: "rejected", validatedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 60_000).toISOString(), summary: { passed: 0, failed: 1, warnings: 0 } } })).toMatchObject({ allowed: false, reasonCode: "VALIDATION_REJECTED" });
+		expect(checker.check("code-reviewed", { ...base, validation: { schemaVersion: "1", outcome: "accepted", validatedAt: new Date(Date.now() - 120_000).toISOString(), expiresAt: new Date(Date.now() - 60_000).toISOString(), summary: { passed: 1, failed: 0, warnings: 0 } } })).toMatchObject({ allowed: false, reasonCode: "VALIDATION_EVIDENCE_EXPIRED" });
+	});
+});
 });

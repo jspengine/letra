@@ -52,6 +52,13 @@ interface Props {
 
 type WorkFilter = "all" | "attention" | "running" | "queued" | "done";
 
+interface AutopilotStatus {
+	enabled: boolean;
+	activeItems: number;
+	waitingHuman: number;
+	updatedAt: string | null;
+}
+
 export default function FlowView({
 	workflow,
 	activeFlow,
@@ -71,6 +78,9 @@ export default function FlowView({
 		pendingChecks: boolean[];
 	} | null>(null);
 	const [activeFilter, setActiveFilter] = useState<WorkFilter>("all");
+	const [autopilot, setAutopilot] = useState<AutopilotStatus | null>(null);
+	const [autopilotPending, setAutopilotPending] = useState(false);
+	const [autopilotConfirmOpen, setAutopilotConfirmOpen] = useState(false);
 	const [observationPanelOpen, setObservationPanelOpen] = useState(() => {
 		try {
 			return localStorage.getItem("letra-observation-panel") !== "false";
@@ -102,6 +112,48 @@ export default function FlowView({
 	useEffect(() => {
 		loadSpecs();
 	}, [loadSpecs, specRefreshKey]);
+
+	const loadAutopilot = useCallback(() => {
+		fetch("/api/autopilot")
+			.then((response) => {
+				if (!response.ok) throw new Error("Autopilot indisponível");
+				return response.json() as Promise<AutopilotStatus>;
+			})
+			.then(setAutopilot)
+			.catch(() => setAutopilot(null));
+	}, []);
+
+	useEffect(() => {
+		loadAutopilot();
+	}, [loadAutopilot, workflow.updatedAt]);
+
+	async function setAutopilotEnabled(enabled: boolean): Promise<void> {
+		setAutopilotPending(true);
+		try {
+			const response = await fetch("/api/autopilot", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ enabled }),
+			});
+			const data = await response.json().catch(() => ({}));
+			if (!response.ok) throw new Error(data.error || "Não foi possível alterar o autopilot.");
+			setAutopilot(data as AutopilotStatus);
+			toast(enabled ? "Autopilot ativado." : "Autopilot pausado.", "success");
+		} catch (error) {
+			toast(error instanceof Error ? error.message : "Não foi possível alterar o autopilot.", "error");
+		} finally {
+			setAutopilotPending(false);
+		}
+	}
+
+	function requestAutopilotToggle(): void {
+		if (!autopilot || autopilotPending) return;
+		if (autopilot.enabled && autopilot.activeItems > 0) {
+			setAutopilotConfirmOpen(true);
+			return;
+		}
+		void setAutopilotEnabled(!autopilot.enabled);
+	}
 	useEffect(() => {
 		function handleOpenItem(event: Event) {
 			const detail = (event as CustomEvent<string>).detail;
@@ -331,9 +383,7 @@ export default function FlowView({
 	}));
 	const doneItems = itemStates.filter(({ state }) => state === "done").length;
 	const pctComplete = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
-	const activeAgents = workflow.items.filter(
-		(it) => it.claimedBy && !doneStages.has(it.stage),
-	).length;
+	const activeAgents = itemStates.filter(({ state }) => state === "running").length;
 	const waitingHuman = itemStates.filter(({ state }) => state === "waiting").length;
 	const blockedItems = itemStates.filter(({ state }) => state === "blocked").length;
 	const attentionItems = waitingHuman + blockedItems;
@@ -351,8 +401,9 @@ export default function FlowView({
 		(s) => s.itemCount > 0 && !doneStages.has(s.id) && s.zone !== "todo",
 	);
 
-	const agentItems = workflow.items
-		.filter((it) => it.claimedBy)
+	const agentItems = itemStates
+		.filter(({ state }) => state === "running")
+		.map(({ item }) => item)
 		.reduce<Record<string, typeof workflow.items>>((acc, it) => {
 			(acc[it.claimedBy!] = acc[it.claimedBy!] || []).push(it);
 			return acc;
@@ -387,7 +438,7 @@ export default function FlowView({
 		workflow.items.find(
 			(item) => itemOperationalState(item, workflow, activeFlow) === "blocked",
 		) ??
-		workflow.items.find((item) => item.claimedBy && !doneStages.has(item.stage)) ??
+		workflow.items.find((item) => itemOperationalState(item, workflow, activeFlow) === "running") ??
 		workflow.items.find((item) => !doneStages.has(item.stage)) ??
 		workflow.items[0] ??
 		null;
@@ -414,7 +465,7 @@ export default function FlowView({
 					? "Abrir trabalho em foco"
 					: "Criar item";
 	const primaryDescription = primaryItem
-		? `${primaryItem.description || primaryItem.id} está em ${primaryStage?.name ?? primaryItem.stage}. ${primaryItem.claimedBy ? `${primaryItem.claimedBy} está responsável por este trabalho.` : "Nenhum responsável declarado."}`
+		? `${primaryItem.description || primaryItem.id} está em ${primaryStage?.name ?? primaryItem.stage}. ${primaryState === "running" ? `${primaryItem.claimedBy} está executando este trabalho.` : "Nenhum executor ativo neste momento."}`
 		: "Nenhum item foi criado neste fluxo. Crie o primeiro item quando houver trabalho supervisionável.";
 
 	return (
@@ -438,6 +489,22 @@ export default function FlowView({
 						>
 							{attentionItems} atenção
 						</Badge>
+						<Button
+							variant={autopilot?.enabled ? "secondary" : "ghost"}
+							size="sm"
+							onClick={requestAutopilotToggle}
+							disabled={autopilot === null || autopilotPending}
+							className="h-8 px-2 text-caption"
+							aria-pressed={autopilot?.enabled ?? false}
+							title={
+								autopilot?.enabled
+									? `Autopilot ativo · ${autopilot.activeItems} em execução · ${autopilot.waitingHuman} aguardando humano`
+									: "Ativar autopilot"
+							}
+						>
+							<Icon name="zap" size={12} />
+							{autopilot?.enabled ? "Autopilot ativo" : "Autopilot desligado"}
+						</Button>
 						<Button
 							variant={observationPanelOpen ? "secondary" : "ghost"}
 							size="sm"
@@ -888,6 +955,16 @@ export default function FlowView({
 				confirmLabel="Excluir"
 				cancelLabel="Cancelar"
 				variant="danger"
+			/>
+
+			<ConfirmDialog
+				open={autopilotConfirmOpen}
+				onClose={() => setAutopilotConfirmOpen(false)}
+				onConfirm={() => void setAutopilotEnabled(false)}
+				title="Pausar autopilot"
+				message={`Há ${autopilot?.activeItems ?? 0} item(ns) em execução. Pausar o autopilot interrompe novos ciclos; a execução atual poderá concluir antes de parar.`}
+				confirmLabel="Pausar"
+				cancelLabel="Continuar"
 			/>
 
 			<Dialog
