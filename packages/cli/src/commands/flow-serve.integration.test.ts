@@ -458,7 +458,7 @@ describe("FlowServer HTTP API integration", () => {
 			expect(context.activity).toBe("implement");
 			expect(context.currentItem?.id).toBe("ITEM-1");
 			expect(context.mustRead?.some((entry) => entry.path === ".letra/context.md")).toBe(
-				true,
+				false,
 			);
 		});
 

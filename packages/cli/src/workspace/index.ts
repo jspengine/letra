@@ -124,7 +124,8 @@ export function ensureExternalWorkspaceLayout(
 			2,
 		),
 		"workspace.json": JSON.stringify(defaults?.workspace ?? {}, null, 2),
-		"context.md": "# Context\n",
+		"context.md":
+			"# Context\n\nEste arquivo é memória humana curada. Estado vivo vem de `get_direction` ou `letra direction --json`.\n",
 		"focus.md": "# Focus\n",
 		"constitution.md": "# Constitution\n",
 		"constraints.md": "# Constraints\n",

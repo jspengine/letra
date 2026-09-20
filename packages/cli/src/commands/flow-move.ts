@@ -3,6 +3,7 @@ import chalk from "chalk";
 import { loadWorkflow } from "./flow-init.js";
 import { requestTransitionOperation } from "../domain-operations/service.js";
 import { resolveAgentDirection } from "../agent-direction/service.js";
+import { resolveLocalIdentity } from "../identity/service.js";
 
 function resolveStage(
 	workflow: { stages: Array<{ id: string; name: string }> },
@@ -16,7 +17,7 @@ export async function flowMove(
 	root: string,
 	itemId: string,
 	targetStageInput: string,
-	options?: { auto?: boolean; force?: boolean },
+	options?: { auto?: boolean; force?: boolean; actor?: string; reason?: string },
 ): Promise<void> {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
@@ -53,12 +54,17 @@ export async function flowMove(
 	}
 	const fromStage = workflow.stages.find((stage) => stage.id === item.stage)?.name ?? item.stage;
 	const toStage = workflow.stages.find((stage) => stage.id === targetStageId)?.name ?? targetStageId;
+	if (options?.force && (!options.actor?.trim() || !options.reason?.trim())) {
+		console.log(chalk.red("--force requires both --actor <human:identity> and --reason <text>"));
+		return;
+	}
 	const operation = await requestTransitionOperation(root, {
 		itemId,
 		targetStageId,
-		actor: "human:cli",
+		actor: options?.actor?.trim() || resolveLocalIdentity(root).id,
 		expectedRevision: resolveAgentDirection(root).revision,
-		reason: `Transição solicitada pela CLI: ${fromStage} → ${toStage}.`,
+		reason: options?.reason?.trim() || `Transição solicitada pela CLI: ${fromStage} → ${toStage}.`,
+		force: options?.force === true,
 	});
 	if (operation.outcome !== "accepted") {
 		console.log(chalk.red(`Cannot move ${itemId}: ${operation.reason}`));
@@ -77,7 +83,7 @@ function normalizeItemId(input: string): string {
 export function flowMoveAction(
 	targetPath: string | undefined,
 	itemId: string,
-	options: { to?: string; auto?: boolean; force?: boolean },
+	options: { to?: string; auto?: boolean; force?: boolean; actor?: string; reason?: string },
 ): void {
 	const root = resolve(process.cwd(), targetPath || ".");
 	void flowMove(root, normalizeItemId(itemId), options.to || "", options);

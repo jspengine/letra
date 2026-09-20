@@ -14,7 +14,8 @@ import { createWorkspaceBoundary } from "../security/workspace-boundary.js";
 import { resolveExecutionWorkspace } from "../orchestrator/execution-workspace.js";
 import { logEntry, type LogAction } from "../session-log.js";
 import { GateChecker } from "../harness/gate-checker.js";
-import { getLetraDir, resolveWorkspaceRoot } from "./../workspace/resolver.js";
+import { getLetraDir, resolveWorkspaceRoot } from "../workspace/resolver.js";
+import { assertOperationLevel } from "../identity/guard.js";
 import { invalidWorkspaceDiagnostic, type WorkspaceIntegrityDiagnostic } from "../workspace/integrity.js";
 import { captureSecurityBaseline, runScopedSecurityReview, resolveSecurityExecutionRoot, securityReportPath, type SecurityReviewReport } from "../security/scoped-review.js";
 import { loadAgents } from "../agents/service.js";
@@ -81,6 +82,8 @@ export interface CompleteAcInput extends OperationContext {
 export interface RequestTransitionInput extends OperationContext {
 	itemId: string;
 	targetStageId: string;
+	/** Explicit human override for administrative transitions with pending ACs. */
+	force?: boolean;
 }
 
 export interface ClaimOperationInput extends OperationContext {
@@ -523,7 +526,10 @@ export async function claimOperation(
 	const workflow = loadWorkflow(workspaceRoot);
 	const item = workflow?.items.find((candidate) => candidate.id === input.itemId);
 	if (!workflow || !item) return rejected(workspaceRoot, before, "ITEM_NOT_FOUND", "Item não encontrado.", input, subject);
-	const flow = resolveActiveFlow(workspaceRoot).flow;
+	const flow = resolveActiveFlow(workspaceRoot, {
+		itemId: item.id,
+		workflowVersionId: item.workflowVersionId,
+	}).flow;
 	const stage = flow?.stages.find((candidate) => candidate.id === item.stage);
 	if (stage?.zone === "done")
 		return rejected(workspaceRoot, before, "ITEM_COMPLETED", "Cannot claim a completed item.", input, subject);
@@ -533,12 +539,38 @@ export async function claimOperation(
 	// Resolve MCP actor to role ID using runtimeBindings
 	const resolvedActor = resolveMcpActor(workspaceRoot, input.actor.trim(), item.stage);
 	const actorForClaim = resolvedActor;
+	const handoffExpiresAt = item.handoff?.expiresAt
+		? Date.parse(item.handoff.expiresAt)
+		: Number.NaN;
+	const isCurrentHandoffRecipient =
+		item.handoff?.to === actorForClaim &&
+		Number.isFinite(handoffExpiresAt) &&
+		handoffExpiresAt > Date.now() &&
+		(!item.handoff.executorId || item.handoff.executorId === input.executorId);
 
-	if (stage?.agents.length && !stage.agents.includes(actorForClaim))
+	if (stage?.agents.length && !stage.agents.includes(actorForClaim) && !isCurrentHandoffRecipient)
 		return rejected(workspaceRoot, before, "ACTOR_NOT_ALLOWED", `Actor não autorizado no estágio ${stage.id}: ${input.actor}.`, input, subject);
-	const capabilities = stage?.roles.flatMap((role) => role.capabilities) ?? [];
+	const capabilities = isCurrentHandoffRecipient
+		? flow?.roles.find((role) => role.id === actorForClaim)?.capabilities ?? []
+		: stage?.roles.flatMap((role) => role.capabilities) ?? [];
 	if (capabilities.length > 0 && !capabilities.includes(input.capability))
 		return rejected(workspaceRoot, before, "CAPABILITY_INVALID", `Capability não permitida: ${input.capability}.`, input, subject);
+	const claimHooks = (stage?.hooks?.on_enter ?? []).filter(
+		(hook) => hook.auto && hook.requiresClaim,
+	);
+	for (const hook of claimHooks) {
+		if (hook.action === "capture_baseline") continue;
+		const operation = flow?.operations[hook.action];
+		if (!operation) {
+			return rejected(workspaceRoot, before, "HOOK_OPERATION_NOT_CONFIGURED", `O hook automático "${hook.action}" não possui operação declarada no flow.`, input, subject);
+		}
+		if (!operation.allowedInStages.includes("*") && !operation.allowedInStages.includes(item.stage)) {
+			return rejected(workspaceRoot, before, "HOOK_STAGE_NOT_ALLOWED", `O hook automático "${hook.action}" não é permitido no estágio "${item.stage}".`, input, subject);
+		}
+		if (operation.requiredCapability && operation.requiredCapability !== input.capability) {
+			return rejected(workspaceRoot, before, "CAPABILITY_INVALID", `O hook automático "${hook.action}" exige a capability "${operation.requiredCapability}".`, input, subject);
+		}
+	}
 	const claimExpired = item.claimExpiresAt ? Date.now() >= Date.parse(item.claimExpiresAt) : false;
 	if (item.claimedBy && !claimExpired && (item.claimedBy !== actorForClaim || item.claimExecutorId !== input.executorId))
 		return rejected(workspaceRoot, before, "CLAIM_CONFLICT", `Item já está sob responsabilidade de ${item.claimedBy}.`, input, subject);
@@ -551,6 +583,15 @@ export async function claimOperation(
 	item.claimRevision = before.revision;
 	item.claimTtlMinutes = ttl;
 	item.claimExpiresAt = new Date(now.getTime() + ttl * 60_000).toISOString();
+	if (!item.workflowVersionId && flow?.workflowVersionId) {
+		item.workflowVersionId = flow.workflowVersionId;
+		item.workflowVersionNumber = flow.workflowVersionNumber ?? undefined;
+	}
+	for (const hook of claimHooks) {
+		if (hook.action === "capture_baseline" && !item.securityBaseline) {
+			item.securityBaseline = captureSecurityBaseline(securityExecutionRoot(workspaceRoot, workflow));
+		}
+	}
 	workflow.updatedAt = now.toISOString();
 	const writeResult = await writeWorkflow(workspaceRoot, {
 		workflow,
@@ -558,13 +599,14 @@ export async function claimOperation(
 		primaryItemId: item.id,
 		skipSitrep: true,
 		skipLog: true,
+		skipAdapters: true,
 		quiet: true,
 		confineAdapterWrites: true,
 		expectedRevision: before.revision,
 	});
 	if (!writeResult.ok)
 		return rejected(workspaceRoot, before, "CLAIM_WRITE_FAILED", writeResult.error ?? "Falha ao persistir claim.", input, subject);
-	const after = resolveAgentDirection(workspaceRoot);
+	let after = resolveAgentDirection(workspaceRoot);
 	const entry = audit(workspaceRoot, "agent_claim_requested", before, {
 		outcome: "accepted",
 		reasonCode: "CLAIM_ACCEPTED",
@@ -573,6 +615,25 @@ export async function claimOperation(
 		itemId: item.id,
 		details: { executorId: input.executorId, capability: input.capability, ttlMinutes: ttl, expiresAt: item.claimExpiresAt, originalActor: input.actor },
 	});
+	for (const hook of claimHooks) {
+		if (hook.action === "capture_baseline") continue;
+		if (hook.action === "security_review") {
+			const hookResult = await runSecurityReviewOperation(workspaceRoot, {
+				itemId: item.id,
+				executorId: input.executorId,
+				actor: actorForClaim,
+				expectedRevision: after.revision,
+				reason: `Hook automático on_enter: ${hook.action}`,
+				idempotencyKey: input.idempotencyKey ? `${input.idempotencyKey}:${hook.action}` : undefined,
+			});
+			after = hookResult.nextDirection;
+			if (hookResult.outcome !== "accepted") {
+				return rememberIdempotent(workspaceRoot, input, result(before, entry.id, hookResult.outcome, hookResult.reasonCode, hookResult.reason, after, { securityReview: hookResult.securityReview }));
+			}
+			continue;
+		}
+		return rememberIdempotent(workspaceRoot, input, result(before, entry.id, "rejected", "HOOK_ACTION_UNSUPPORTED", `O hook automático "${hook.action}" não possui executor registrado.`, after));
+	}
 	return rememberIdempotent(workspaceRoot, input, result(before, entry.id, "accepted", "CLAIM_ACCEPTED", input.reason, after));
 }
 
@@ -920,6 +981,16 @@ export async function requestTransitionOperation(
 	if (!input.actor?.trim()) {
 		return rejected(workspaceRoot, before, "ACTOR_REQUIRED", "Transição exige identidade do actor.", input, subject);
 	}
+	if (input.force && (!input.actor.trim().startsWith("human:") || !input.reason?.trim())) {
+		return rejected(
+			workspaceRoot,
+			before,
+			"ADMINISTRATIVE_OVERRIDE_REQUIRED",
+			"Transição forçada exige actor humano verificável e motivo explícito.",
+			input,
+			subject,
+		);
+	}
 	if (!before.item || before.item.id !== input.itemId) {
 		return rejected(
 			workspaceRoot,
@@ -953,7 +1024,7 @@ export async function requestTransitionOperation(
 		}
 		return rejected(workspaceRoot, before, "ACTOR_NOT_ALLOWED", `O actor "${resolvedActorForRework}" não está autorizado para o retrabalho declarado no estágio "${sourceStageDefForRework.id}".`, input, subject);
 	}
-	if (before.pendingAC) {
+	if (before.pendingAC && !input.force) {
 		return rejected(
 			workspaceRoot,
 			before,
@@ -993,7 +1064,10 @@ export async function requestTransitionOperation(
 		? Math.abs(target.order - sourceStage.order) === 1
 		: false;
 
-	const activeFlow = resolveActiveFlow(workspaceRoot).flow;
+	const activeFlow = resolveActiveFlow(workspaceRoot, {
+		itemId: item.id,
+		workflowVersionId: item.workflowVersionId,
+	}).flow;
 	const sourceDefinition = activeFlow?.stages.find((stage) => stage.id === item.stage);
 	const targetDefinition = activeFlow?.stages.find((stage) => stage.id === target.id);
 
@@ -1081,6 +1155,10 @@ export async function requestTransitionOperation(
 		}
 	}
 	item.stage = target.id;
+	if (!item.workflowVersionId && activeFlow?.workflowVersionId) {
+		item.workflowVersionId = activeFlow.workflowVersionId;
+		item.workflowVersionNumber = activeFlow.workflowVersionNumber ?? undefined;
+	}
 	workflow.updatedAt = new Date().toISOString();
 	const writeResult = await writeWorkflow(workspaceRoot, {
 		workflow,
@@ -1111,7 +1189,13 @@ export async function requestTransitionOperation(
 		reason: input.reason,
 		actor: input.actor,
 		itemId: item.id,
-		details: { from, to: target.id, afterRevision: after.revision },
+		details: {
+			from,
+			to: target.id,
+			afterRevision: after.revision,
+			administrativeOverride: input.force === true,
+			pendingAcBypassed: input.force ? before.pendingAC?.id ?? null : null,
+		},
 	});
 	return rememberIdempotent(workspaceRoot, input, result(before, entry.id, "accepted", "TRANSITION_COMPLETED", input.reason, after));
 }
@@ -1369,6 +1453,7 @@ export async function requestReworkOperation(root: string, input: RequestReworkI
 }
 
 export async function decideGateOperation(root: string, input: GateDecisionInput): Promise<OperationResult> {
+	assertOperationLevel(root, input.actor ?? "", "local");
 	const invalid = guardInvalidWorkspace(root, input, { itemId: input.itemId, operation: "gate_decision" });
 	if (invalid) return invalid;
 	const workspaceRoot = createWorkspaceBoundary(resolve(root)).root;

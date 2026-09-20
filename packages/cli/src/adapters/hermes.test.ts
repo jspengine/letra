@@ -36,7 +36,7 @@ describe("hermes adapter", () => {
 
 		const content = readFileSync(filePath, "utf-8");
 		expect(content).toContain("# Letra Session — test");
-		expect(content).toContain("- .letra/context.md");
+		expect(content).not.toContain("- .letra/context.md");
 		expect(content).toContain("## Comandos");
 	});
 
@@ -156,7 +156,7 @@ describe("hermes adapter", () => {
 		});
 
 		expect(content).toContain("# Letra Session — test");
-		expect(content).toContain("- .letra/context.md");
+		expect(content).not.toContain("- .letra/context.md");
 		expect(content).toContain("## Comandos");
 		expect(content).toContain("## Regras");
 		expect(content).toContain("## Fluxo de Execução");

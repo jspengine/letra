@@ -57,6 +57,8 @@ export interface Item {
 	source?: "github" | "linear";
 	sourceUrl?: string;
 	spec?: string;
+	workflowVersionId?: string;
+	workflowVersionNumber?: number;
 	tasks?: Task[];
 	claimedBy?: string;
 	claimedAt?: string;
@@ -521,13 +523,7 @@ async function writeWorkflowUnlocked(
 		}
 	}
 
-	// 4. Sitrep — skipped by default (expensive)
-	if (!skipSitrep) {
-		try {
-			const { sitrep } = await import("./sitrep.js");
-			await sitrep(resolution?.workspaceDir ?? root, { quiet: true, skipLog: true });
-		} catch {}
-	}
+	// 4. Estado vivo pertence a direction; context.md é memória humana curada.
 
 	// 5. Log
 	if (!skipLog) {

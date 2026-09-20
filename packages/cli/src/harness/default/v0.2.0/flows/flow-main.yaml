@@ -65,7 +65,9 @@ stages:
     description: Analyst analyzes spec, creates ACs, defines context.
     agents:
       - analyst
-    gate: spec-approved
+    # Design is an internal analysis stage; human approval belongs at
+    # publication/activation, not at the design→code handoff.
+    gate: null
     preferredExecutor: opencode
     rework:
       target: backlog

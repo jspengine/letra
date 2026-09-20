@@ -66,6 +66,7 @@ function deps() {
 		detectWorkspaceName: vi.fn().mockReturnValue("Letra"),
 		loadHarness: vi.fn().mockReturnValue(null),
 		createFromTemplate: vi.fn(),
+		resolveHumanActor: vi.fn().mockReturnValue("human:test-session"),
 		broadcast: vi.fn(),
 	} as unknown as WorkflowRouteDependencies;
 }
@@ -78,6 +79,56 @@ describe("workflow routes", () => {
 			rmSync(tmpRoot, { recursive: true, force: true });
 		}
 		tmpRoot = null;
+	});
+
+	it("exposes the canonical draft, validation, publication and rollback lifecycle", async () => {
+		tmpRoot = join(tmpdir(), `letra-workflow-versions-route-${Date.now()}`);
+		mkdirSync(join(tmpRoot, ".letra"), { recursive: true });
+		const dependencies = deps();
+		const route = createWorkflowRoutes(dependencies);
+		const call = async (method: string, path: string, body?: unknown) => {
+			const req = request(method, body === undefined ? "" : JSON.stringify(body));
+			const res = response();
+			const context = createRequestContext(req, res, new URL(`http://localhost${path}`), { workspaceRoot: tmpRoot!, workspaceDir: join(tmpRoot!, ".letra"), workflow: workflow() });
+			expect(await route(context)).toBe(true);
+			return { res, body: payload(res) as any };
+		};
+		const content = { name: "Visual", initialStageId: "draft", stages: [{ id: "draft", transitions: [{ target: "done" }] }, { id: "done", final: true }] };
+		const created = await call("POST", "/api/workflow-definitions", { name: "Visual", actor: "human:owner", content });
+		const id = created.body.definition.id as string;
+		expect(created.res.writeHead).toHaveBeenCalledWith(201, expect.anything());
+		const validation = await call("POST", `/api/workflow-definitions/${id}/validate`);
+		expect(validation.body).toEqual({ valid: true, errors: [] });
+		const published = await call("POST", `/api/workflow-definitions/${id}/publish`, { actor: "human:owner", expectedRevision: 1, reason: "Initial publication" });
+		expect(published.body.number).toBe(1);
+		const rollback = await call("POST", `/api/workflow-definitions/${id}/rollback`, { actor: "human:owner", versionNumber: 1, reason: "Audit rollback" });
+		expect(rollback.body).toMatchObject({ number: 2, restoredFromVersionId: published.body.id });
+		const history = await call("GET", `/api/workflow-definitions/${id}/versions`);
+		expect(history.body).toHaveLength(2);
+	});
+
+	it("rejects publish when no server-side human actor is resolved", async () => {
+		tmpRoot = join(tmpdir(), `letra-workflow-human-actor-route-${Date.now()}`);
+		mkdirSync(join(tmpRoot, ".letra"), { recursive: true });
+		const dependencies = deps();
+		vi.mocked(dependencies.resolveHumanActor!).mockReturnValue(null);
+		const route = createWorkflowRoutes(dependencies);
+		const call = async (method: string, path: string, body?: unknown) => {
+			const req = request(method, body === undefined ? "" : JSON.stringify(body));
+			const res = response();
+			const context = createRequestContext(req, res, new URL(`http://localhost${path}`), { workspaceRoot: tmpRoot!, workspaceDir: join(tmpRoot!, ".letra"), workflow: workflow() });
+			expect(await route(context)).toBe(true);
+			return { res, body: payload(res) as any };
+		};
+		const content = { name: "Visual", initialStageId: "draft", stages: [{ id: "draft", transitions: [{ target: "done" }] }, { id: "done", final: true }] };
+		const created = await call("POST", "/api/workflow-definitions", { name: "Visual", actor: "human:owner", content });
+		const id = created.body.definition.id as string;
+
+		const published = await call("POST", `/api/workflow-definitions/${id}/publish`, { actor: "human:forged-body", expectedRevision: 1, reason: "Try forged body actor" });
+
+		expect(published.res.writeHead).toHaveBeenCalledWith(403, expect.anything());
+		expect(published.body).toEqual({ error: "HUMAN_CONFIRMATION_REQUIRED" });
+		expect(dependencies.broadcast).not.toHaveBeenCalled();
 	});
 
 	it("preserves items and moves items from removed template stages to backlog", async () => {

@@ -11,8 +11,8 @@ import type {
 	ResolvedFlowStage,
 } from "@letra/types";
 import { readFocusFile } from "../adapters/focus-sync.js";
-import type { Item, Workflow } from "../commands/flow-init.js";
-import { resolveActiveFlow } from "../flow-definition/resolve.js";
+import { loadWorkflow, type Item, type Workflow } from "../commands/flow-init.js";
+import { resolveActiveFlow, resolveActiveFlowFor } from "../flow-definition/resolve.js";
 import { getLetraDir, resolveWorkspaceRoot } from "./../workspace/resolver.js";
 import { invalidWorkspaceDiagnostic } from "../workspace/integrity.js";
 
@@ -158,6 +158,8 @@ export function createAgentDirectionSnapshot(
 				workspaceDir: workspaceResolution.workspaceDir.replace(/\\/g, "/"),
 				locationPath: workspaceResolution.locationPath.replace(/\\/g, "/"),
 				resolutionMode: workspaceResolution.type,
+				workflowVersionId: null,
+				workflowVersionNumber: null,
 			},
 			mode: "degraded" as const,
 			workspace: invalidWorkspace,
@@ -204,7 +206,7 @@ export function createAgentDirectionSnapshot(
 	}
 	const mode: AgentDirectionSnapshot["mode"] = !input.workflow
 		? workspaceResolution.errorCode ? "degraded" : "unconfigured"
-		: !input.flow || input.flow.source !== "workflow-template" || warnings.length > 0
+		: !input.flow || (input.flow.source !== "workflow-template" && input.flow.source !== "workflow-version") || warnings.length > 0
 			? "degraded"
 			: "active";
 	const allowedStageIds = [...new Set(stage?.roles.flatMap((role) => role.allowedStages) ?? [])];
@@ -242,10 +244,12 @@ export function createAgentDirectionSnapshot(
 		source: {
 			harnessVersion: input.flow?.harnessVersion ?? input.workflow?.harnessVersion ?? null,
 			flowId: input.flow?.id ?? null,
-		workspaceRoot: workspaceResolution.workspaceRoot.replace(/\\/g, "/"),
-		workspaceDir: workspaceResolution.workspaceDir.replace(/\\/g, "/"),
-		locationPath: workspaceResolution.locationPath.replace(/\\/g, "/"),
-		resolutionMode: workspaceResolution.type,
+			workspaceRoot: workspaceResolution.workspaceRoot.replace(/\\/g, "/"),
+			workspaceDir: workspaceResolution.workspaceDir.replace(/\\/g, "/"),
+			locationPath: workspaceResolution.locationPath.replace(/\\/g, "/"),
+			resolutionMode: workspaceResolution.type,
+			workflowVersionId: input.flow?.workflowVersionId ?? null,
+			workflowVersionNumber: input.flow?.workflowVersionNumber ?? null,
 		},
 		mode,
 		item: item
@@ -254,6 +258,8 @@ export function createAgentDirectionSnapshot(
 					description: item.description,
 					stage: item.stage,
 					spec: item.spec ?? null,
+					workflowVersionId: item.workflowVersionId ?? input.flow?.workflowVersionId ?? null,
+					workflowVersionNumber: item.workflowVersionNumber ?? input.flow?.workflowVersionNumber ?? null,
 					claimedBy: item.claimedBy ?? null,
 					claimedAt: item.claimedAt ?? null,
 					claimExpiresAt: item.claimExpiresAt ?? null,
@@ -309,23 +315,35 @@ function readConstitutionVersion(root: string): string | null {
 	return versionMatch ? versionMatch[1].trim() : null;
 }
 
-export function resolveAgentDirection(root: string): AgentDirectionSnapshot {
-	const resolution = resolveActiveFlow(root);
+export function resolveAgentDirection(
+	root: string,
+	currentItemId?: string | null,
+): AgentDirectionSnapshot {
 	const focus = readFocusFile(root);
-	const workflow = resolution.workflow;
+	const initialWorkflow = loadWorkflow(root);
 	const focusedItem =
-		workflow && focus?.itemId && Array.isArray(workflow.items)
-			? (workflow.items.find((item) => item.id === focus.itemId) ?? null)
+		initialWorkflow && focus?.itemId && Array.isArray(initialWorkflow.items)
+			? (initialWorkflow.items.find((item) => item.id === focus.itemId) ?? null)
 			: null;
 	const selectedItem =
+		(currentItemId ? initialWorkflow?.items?.find((item) => item.id === currentItemId) : null) ??
 		focusedItem ??
+		(initialWorkflow && Array.isArray(initialWorkflow.items) ? findCurrentItem(initialWorkflow) : null);
+
+	const resolution = resolveActiveFlowFor(root, initialWorkflow, {
+		itemId: selectedItem?.id,
+		workflowVersionId: selectedItem?.workflowVersionId,
+	});
+	const workflow = resolution.workflow;
+	const activeItem =
+		(selectedItem ? workflow?.items.find((item) => item.id === selectedItem.id) : null) ??
 		(workflow && Array.isArray(workflow.items) ? findCurrentItem(workflow) : null);
-	const specName = selectedItem?.spec ?? focus?.specName ?? null;
+	const specName = activeItem?.spec ?? focus?.specName ?? null;
 	return createAgentDirectionSnapshot({
 		workspaceRoot: root,
 		workflow,
 		flow: resolution.flow,
 		specContent: readActiveSpec(root, specName),
-		currentItemId: selectedItem?.id ?? null,
+		currentItemId: activeItem?.id ?? null,
 	});
 }

@@ -18,6 +18,19 @@ import type {
 	ResolvedFlowStage,
 	ResolvedStagePhases,
 } from "./types.js";
+import {
+	getActiveWorkflowVersion,
+	getWorkflowVersion,
+	listWorkflowDefinitions,
+	listWorkflowVersions,
+	type WorkflowVersion,
+} from "../workflow-versions/service.js";
+
+export interface ResolveActiveFlowOptions {
+	workflowVersionId?: string | null;
+	itemId?: string | null;
+	workflowId?: string | null;
+}
 
 function resolveTemplate(
 	workflow: Workflow | null,
@@ -94,6 +107,91 @@ function resolveOperations(template: FlowTemplate): ResolvedFlowDefinition["oper
 		actorPrefix: operation.actor_prefix,
 		description: operation.description,
 	}]));
+}
+
+function validateHookOperations(
+	template: FlowTemplate,
+	stageId: string,
+	warnings: FlowDefinitionWarning[],
+): void {
+	const declaredOperations = Object.keys(template.operations ?? {});
+	const hooks = template.stages.find((s) => s.id === stageId)?.hooks;
+	if (!hooks) return;
+	for (const hook of hooks.on_enter ?? []) {
+		if (!declaredOperations.includes(hook.action)) {
+			warnings.push({
+				code: "HOOK_OPERATION_NOT_DECLARED",
+				message: `Hook action "${hook.action}" referenced by stage "${stageId}" is not declared in the flow operations registry.`,
+				artifactRef: `flow stage "${stageId}" hook on_enter`,
+			});
+		}
+	}
+	for (const hook of hooks.on_exit ?? []) {
+		if (!declaredOperations.includes(hook.action)) {
+			warnings.push({
+				code: "HOOK_OPERATION_NOT_DECLARED",
+				message: `Hook action "${hook.action}" referenced by stage "${stageId}" is not declared in the flow operations registry.`,
+				artifactRef: `flow stage "${stageId}" hook on_exit`,
+			});
+		}
+	}
+}
+
+function validateReworkOperation(
+	template: FlowTemplate,
+	stageId: string,
+	warnings: FlowDefinitionWarning[],
+): void {
+	const declaredOperations = Object.keys(template.operations ?? {});
+	const rework = template.stages.find((s) => s.id === stageId)?.rework;
+	if (!rework?.action) return;
+	if (!declaredOperations.includes(rework.action)) {
+		warnings.push({
+			code: "REWORK_OPERATION_NOT_DECLARED",
+			message: `Rework action "${rework.action}" referenced by stage "${stageId}" is not declared in the flow operations registry.`,
+			artifactRef: `flow stage "${stageId}" rework`,
+		});
+	}
+}
+
+function validateAutoTransitionGates(
+	template: FlowTemplate,
+	stageId: string,
+	warnings: FlowDefinitionWarning[],
+): void {
+	const declaredGates = Object.keys(template.stages.flatMap((s) => {
+		// Collect all gate IDs referenced anywhere in the template
+		const gates: string[] = [];
+		if (s.gate) gates.push(s.gate);
+		for (const state of Object.values(s.phases?.states ?? {})) {
+			for (const t of state.transitions ?? []) {
+				if (t.gate) gates.push(t.gate);
+			}
+		}
+		return gates;
+	}));
+	// Also add gates from the harness gates registry
+	// (auto_transitions can reference any gate in the harness, not just flow-level)
+	const stage = template.stages.find((s) => s.id === stageId);
+	if (!stage?.auto_transitions) return;
+	for (const at of stage.auto_transitions) {
+		if (!at.gate) continue;
+		// Check if gate exists in template's stages or harness gates
+		const gateInStages = stage.gate === at.gate;
+		const gateInOtherStages = template.stages.some((s) => {
+			if (s.gate === at.gate) return true;
+			return Object.values(s.phases?.states ?? {}).some((state) =>
+				state.transitions?.some((t) => t.gate === at.gate),
+			);
+		});
+		if (!gateInStages && !gateInOtherStages) {
+			warnings.push({
+				code: "AUTO_TRANSITION_GATE_NOT_DECLARED",
+				message: `Auto-transition gate "${at.gate}" referenced by stage "${stageId}" is not declared in the flow or harness gate registry.`,
+				artifactRef: `flow stage "${stageId}" auto_transition`,
+			});
+		}
+	}
 }
 
 function resolveHooks(stageDef: StageDef): ResolvedFlowStage["hooks"] {
@@ -183,6 +281,7 @@ function resolvePhases(
 }
 
 function mergeTemplateStage(
+	template: FlowTemplate,
 	workflow: Workflow,
 	harness: HarnessManifest | null,
 	stageDef: StageDef,
@@ -192,6 +291,10 @@ function mergeTemplateStage(
 	const workflowStage = workflow.stages.find((stage) => stage.id === stageDef.id);
 	const artifactRef = `flow stage "${stageDef.id}"`;
 	const roleIds = [...(stageDef.agents ?? [])];
+	// AC7: validate registry references before resolving
+	validateHookOperations(template, stageDef.id, warnings);
+	validateReworkOperation(template, stageDef.id, warnings);
+	validateAutoTransitionGates(template, stageDef.id, warnings);
 	return {
 		id: stageDef.id,
 		name: stageDef.name || workflowStage?.name || stageDef.id,
@@ -249,7 +352,7 @@ function resolveFromTemplate(
 				artifactRef: `flow stage "${stageDef.id}"`,
 			});
 		}
-		return mergeTemplateStage(workflow, harness, stageDef, index, warnings);
+		return mergeTemplateStage(template, workflow, harness, stageDef, index, warnings);
 	});
 	const extensionStages = workflow.stages
 		.filter((stage) => !templateStageIds.has(stage.id))
@@ -293,6 +396,154 @@ function resolveFromWorkflow(
 		roles: [],
 		operations: {},
 		warnings: warnings.map((warning) => ({ ...warning })),
+	};
+}
+
+function resolveVersionTarget(
+	root: string,
+	workflow: Workflow | null,
+	options?: ResolveActiveFlowOptions,
+): WorkflowVersion | null {
+	if (options?.workflowVersionId) {
+		const definitions = listWorkflowDefinitions(root);
+		for (const def of definitions) {
+			const versions = listWorkflowVersions(root, def.id);
+			const match = versions.find((v) => v.id === options.workflowVersionId);
+			if (match) return match;
+		}
+	}
+
+	if (options?.itemId && workflow?.items) {
+		const item = workflow.items.find((candidate) => candidate.id === options.itemId);
+		if (item?.workflowVersionId) {
+			const definitions = listWorkflowDefinitions(root);
+			for (const def of definitions) {
+				const versions = listWorkflowVersions(root, def.id);
+				const match = versions.find((v) => v.id === item.workflowVersionId);
+				if (match) return match;
+			}
+		}
+	}
+
+	if (workflow?.primaryItemId && workflow.items) {
+		const primary = workflow.items.find((candidate) => candidate.id === workflow.primaryItemId);
+		if (primary?.workflowVersionId) {
+			const definitions = listWorkflowDefinitions(root);
+			for (const def of definitions) {
+				const versions = listWorkflowVersions(root, def.id);
+				const match = versions.find((v) => v.id === primary.workflowVersionId);
+				if (match) return match;
+			}
+		}
+	}
+
+	const definitions = listWorkflowDefinitions(root);
+	if (definitions.length === 0) return null;
+
+	const targetDef =
+		(options?.workflowId ? definitions.find((d) => d.id === options.workflowId) : null) ??
+		definitions.find((d) => d.activeVersionId !== null) ??
+		definitions[0];
+
+	if (!targetDef?.activeVersionId) return null;
+
+	return getActiveWorkflowVersion(root, targetDef.id);
+}
+
+function resolveFromWorkflowVersion(
+	version: WorkflowVersion,
+	workflow: Workflow | null,
+	harness: HarnessManifest | null,
+): ActiveFlowResolution {
+	const warnings: FlowDefinitionWarning[] = [];
+	const content = version.content;
+	const stagesDef = Array.isArray(content?.stages) ? content.stages : [];
+
+	const stages: ResolvedFlowStage[] = stagesDef
+		.map((rawStage, index) => {
+			const stageDef = rawStage as Record<string, any>;
+			const zone = stageDef.zone ?? (stageDef.final ? "done" : index === 0 ? "todo" : "doing");
+			const roleIds = Array.isArray(stageDef.allow) ? (stageDef.allow as string[]) : [];
+			const artifactRef = `version stage "${stageDef.id}"`;
+			const gate = stageDef.gate
+				? resolveGate(
+						harness,
+						typeof stageDef.gate === "string" ? stageDef.gate : stageDef.gate.id,
+						warnings,
+						artifactRef,
+				  )
+				: null;
+
+			return {
+				id: stageDef.id,
+				name: stageDef.name ?? (stageDef.id.charAt(0).toUpperCase() + stageDef.id.slice(1)),
+				order: typeof stageDef.order === "number" ? stageDef.order : index,
+				zone,
+				description: stageDef.description,
+				roleIds,
+				roles: resolveRoles(harness, roleIds, warnings, artifactRef),
+				agents: roleIds,
+				gate,
+				preferredExecutor: stageDef.preferredExecutor as string | undefined,
+				phases: stageDef.phases as ResolvedStagePhases | undefined,
+				activity: stageDef.activity as ResolvedFlowStage["activity"],
+				provenance: "workflow-version" as const,
+				rework: stageDef.rework as ResolvedFlowStage["rework"],
+				hooks: stageDef.hooks as ResolvedFlowStage["hooks"],
+				auto_transitions: stageDef.auto_transitions as ResolvedFlowStage["auto_transitions"],
+			};
+		})
+		.sort((a, b) => a.order - b.order);
+
+	const adaptedWorkflow: Workflow = {
+		version: version.number ? `v${version.number}` : (workflow?.version ?? "1.0"),
+		name: content.name ?? (workflow?.name ?? "Workflow"),
+		description: content.description ?? workflow?.description,
+		createdAt: version.createdAt ?? (workflow?.createdAt ?? new Date().toISOString()),
+		updatedAt: version.publishedAt ?? (workflow?.updatedAt ?? new Date().toISOString()),
+		stages: stagesDef.map((rawStage, index) => {
+			const stageDef = rawStage as Record<string, any>;
+			const resolved = stages.find((s) => s.id === stageDef.id);
+			return {
+				id: stageDef.id,
+				name: resolved?.name ?? stageDef.name ?? stageDef.id,
+				order: resolved?.order ?? (typeof stageDef.order === "number" ? stageDef.order : index),
+				zone: resolved?.zone,
+				phases: stageDef.phases as StagePhases | undefined,
+				allow: resolved?.roleIds,
+				gate: resolved?.gate?.id ?? (typeof stageDef.gate === "string" ? stageDef.gate : stageDef.gate?.id) ?? null,
+			};
+		}),
+		items: workflow?.items ?? [],
+		tools: workflow?.tools ?? [],
+		webhooks: workflow?.webhooks,
+		primaryItemId: workflow?.primaryItemId,
+		state: workflow?.state,
+		template: version.workflowId,
+		harnessVersion:
+			(content.harnessVersion as string) ?? (workflow?.harnessVersion ?? DEFAULT_HARNESS_VERSION),
+	};
+
+	const flow: ResolvedFlowDefinition = {
+		id: version.workflowId,
+		source: "workflow-version",
+		harnessVersion: adaptedWorkflow.harnessVersion ?? null,
+		templateVersion: version.number ? `v${version.number}` : null,
+		name: content.name ?? "Workflow",
+		stages,
+		roles: harness ? Object.values(harness.roles).map(cloneRole) : [],
+		operations: (content.operations as ResolvedFlowDefinition["operations"]) ?? {},
+		warnings,
+		workflowVersionId: version.id,
+		workflowVersionNumber: version.number,
+		contentHash: version.contentHash,
+	};
+
+	return {
+		workflow: adaptedWorkflow,
+		harness,
+		template: null,
+		flow,
 	};
 }
 
@@ -343,15 +594,27 @@ export function resolveActiveFlowFrom(
 	};
 }
 
-export function resolveActiveFlow(root: string): ActiveFlowResolution {
-	return resolveActiveFlowFor(root);
+export function resolveActiveFlow(
+	root: string,
+	options?: ResolveActiveFlowOptions,
+): ActiveFlowResolution {
+	return resolveActiveFlowFor(root, undefined, options);
 }
 
 export function resolveActiveFlowFor(
 	root: string,
 	workflow: Workflow | null = loadWorkflow(root),
+	options?: ResolveActiveFlowOptions,
 ): ActiveFlowResolution {
 	const harness = loadHarnessForWorkflow(root, workflow);
+	try {
+		const versionTarget = resolveVersionTarget(root, workflow, options);
+		if (versionTarget) {
+			return resolveFromWorkflowVersion(versionTarget, workflow, harness);
+		}
+	} catch {
+		// Fallback to workflow/harness
+	}
 	return resolveActiveFlowFrom(workflow, harness);
 }
 

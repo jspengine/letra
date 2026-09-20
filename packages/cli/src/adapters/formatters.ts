@@ -5,12 +5,7 @@ import type {
 	HarnessDirectionActivity,
 } from "./types.js";
 
-const L1_FILES = [
-	".letra/context.md",
-	".letra/constitution.md",
-	".letra/glossary.md",
-	".letra/constraints.md",
-] as const;
+const L1_FILES = [".letra/constitution.md", ".letra/glossary.md", ".letra/constraints.md"] as const;
 
 function formatL1(snapshot: HarnessSnapshot, format: AdapterFormat): string {
 	if (format === "at") {
@@ -31,7 +26,6 @@ function formatL1(snapshot: HarnessSnapshot, format: AdapterFormat): string {
 function formatMarkdownReferences(snapshot: HarnessSnapshot): string {
 	const links = snapshot.referenceLinks;
 	const lines = [
-		`- [Context](${links.context})`,
 		`- [Constitution](${links.constitution})`,
 		`- [Glossary](${links.glossary})`,
 		`- [Constraints](${links.constraints})`,
@@ -67,18 +61,18 @@ function formatProtocol(snapshot: HarnessSnapshot): string | null {
 		snapshot.totalACs > 0 ? `ACs: ${snapshot.pendingACs}/${snapshot.totalACs} pendentes` : "";
 
 	const lines: string[] = [
-		"PASSO OBRIGATÓRIO #1: letra pulse — verificar estado do workspace",
-		"PASSO OBRIGATÓRIO #2: Leia .letra/context.md — contexto completo do projeto",
-		"PASSO OBRIGATÓRIO #3: Leia .letra/focus.md — foco e outcome da sessão",
+		"PASSO OBRIGATÓRIO #1: Consulte `get_direction` ou execute `letra direction --json` — direção viva e revisão canônica",
+		"PASSO OBRIGATÓRIO #2: Execute `letra pulse --json` — resumo do board, alertas e item atual",
+		"PASSO OBRIGATÓRIO #3: Leia .letra/context.md somente quando precisar de memória humana curada de produto/domínio",
 	];
 
 	if (snapshot.focusSpec) {
 		lines.push(
-			`PASSO OBRIGATÓRIO #4: Leia .letra/specs/${snapshot.focusSpec}/spec.md — ACs do item`,
+			`PASSO OBRIGATÓRIO #4: Leia a seção relevante de .letra/specs/${snapshot.focusSpec}/spec.md — ACs do item`,
 		);
 	} else if (primaryItem?.spec) {
 		lines.push(
-			`PASSO OBRIGATÓRIO #4: Leia .letra/specs/${primaryItem.spec}/spec.md — ACs do item`,
+			`PASSO OBRIGATÓRIO #4: Leia a seção relevante de .letra/specs/${primaryItem.spec}/spec.md — ACs do item`,
 		);
 	} else {
 		lines.push(
@@ -166,7 +160,7 @@ function formatExecutionFlow(): string {
 		"",
 		"**Ao concluir todos ACs**:",
 		"  → `letra pulse` — confirma estado",
-		"  → `letra sitrep` — atualiza context.md",
+		"  → `letra direction --json` — confirma direção viva e revisão",
 		"  → `letra flow move <ITEM-ID> --auto` — avança para próximo estágio",
 	].join("\n");
 }
@@ -429,7 +423,7 @@ function formatCommands(): string {
 		"  `letra health ack <id>`          — Reconhecer alerta",
 		"  `letra health dismiss <id>`      — Descartar alerta",
 		"  `letra health scan`              — Re-executar verificações",
-		"  `letra sitrep`                   — Atualizar context.md",
+		"  `letra direction --json`         — Direção viva para agentes",
 		"  `letra flow move <id> --to <s>`  — Mover item entre estágios",
 		"  `letra focus <spec>`             — Definir foco",
 		"  `letra focus --clear`            — Limpar foco",

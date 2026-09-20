@@ -78,6 +78,7 @@ import { AutomationRuntime, type AutomationBinding } from "../flow-serve/automat
 import { Orchestrator } from "../orchestrator/orchestrator.js";
 import { PersistentDispatcher } from "../orchestrator/dispatcher.js";
 import { createCodexExecutor } from "../orchestrator/codex-executor.js";
+import { HumanSessionGateway } from "../flow-serve/human-session.js";
 import { resolveExecutionWorkspace } from "../orchestrator/execution-workspace.js";
 import type { AgenticExecutor } from "../executor/executor.js";
 import { loadRuntimeAgentRegistry } from "../agents/service.js";
@@ -135,6 +136,7 @@ export class FlowServer {
 	private server: ReturnType<typeof createServer> | undefined;
 	private events = new FlowServerEvents();
 	private router = new FlowServerRouter();
+	private humanSessions: HumanSessionGateway;
 	private clientAssets: ClientAssets;
 	private automationRuntime: AutomationRuntime;
 	private orchestrator: Orchestrator;
@@ -160,10 +162,11 @@ export class FlowServer {
 		// lets HTTP operation routes reach the shared fail-closed gateway instead
 		// of dereferencing a missing canonical target or falling back to .letra.
 		this.activeWorkspaceRoot = this.resolution.errorCode === "WORKSPACE_LINK_INVALID"
-			? this.resolution.locationPath
-			: this.resolution.workspaceRoot;
-		this.loadWorkflow = (overrideRoot?: string) =>
-			loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
+					? this.resolution.locationPath
+					: this.resolution.workspaceRoot;
+				this.humanSessions = new HumanSessionGateway(this.activeWorkspaceRoot);
+				this.loadWorkflow = (overrideRoot?: string) =>
+					loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
 		this.engine = new DiagnosticEngine(this.activeWorkspaceRoot);
 		this.automationRuntime = new AutomationRuntime({
 			runDiagnostics: runDiagnosticsAndSyncHealth,
@@ -266,6 +269,9 @@ export class FlowServer {
 				loadHarness: (workspaceRoot) =>
 					loadHarness(resolveHarnessWithShared(workspaceRoot)),
 				createFromTemplate: createWorkflowFromTemplateService,
+				// Publish/rollback is a human-confirmed action. Do not derive this
+				// identity from request bodies or a permissive default.
+				resolveHumanActor: (req) => this.humanSessions.resolveHumanActor(req),
 				broadcast: () => this.broadcast(),
 			}),
 		);
@@ -522,6 +528,7 @@ export class FlowServer {
 	}
 
 	private handleRequest = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+		this.humanSessions.establishNavigationSession(req, res);
 		const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
 		const path = url.pathname;
 		const requestRoot = this.workspaceRootFor(url);

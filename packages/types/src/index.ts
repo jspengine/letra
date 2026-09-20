@@ -284,6 +284,8 @@ export interface AgentDirectionSnapshot {
 		workspaceDir?: string;
 		locationPath?: string;
 		resolutionMode?: "local" | "manifest" | "env" | "flag" | "linked" | "direct";
+		workflowVersionId?: string | null;
+		workflowVersionNumber?: number | null;
 	};
 	mode: "active" | "degraded" | "unconfigured";
 	/** Resolution failure details; present only when the workspace authority is invalid. */
@@ -297,6 +299,8 @@ export interface AgentDirectionSnapshot {
 		description: string;
 		stage: string;
 		spec: string | null;
+		workflowVersionId?: string | null;
+		workflowVersionNumber?: number | null;
 		claimedBy?: string | null;
 		claimedAt?: string | null;
 		claimExpiresAt?: string | null;
@@ -465,7 +469,10 @@ export type FlowDefinitionWarningCode =
 	| "INSTANCE_STAGE_NOT_IN_TEMPLATE"
 	| "TEMPLATE_STAGE_NOT_IN_INSTANCE"
 	| "CONSTITUTION_MISSING"
-	| "WORKSPACE_LINK_INVALID";
+	| "WORKSPACE_LINK_INVALID"
+	| "HOOK_OPERATION_NOT_DECLARED"
+	| "REWORK_OPERATION_NOT_DECLARED"
+	| "AUTO_TRANSITION_GATE_NOT_DECLARED";
 
 export interface FlowDefinitionWarning {
 	code: FlowDefinitionWarningCode;
@@ -487,7 +494,7 @@ export interface ResolvedFlowStage {
 	preferredExecutor?: string;
 	phases?: ResolvedStagePhases;
 	activity?: ResolvedFlowActivity;
-	provenance: "harness" | "workflow-instance";
+	provenance: "harness" | "workflow-instance" | "workflow-version";
 	rework?: {
 		target?: string;
 		allowed_actors?: string[];
@@ -507,7 +514,7 @@ export interface ResolvedFlowStage {
 
 export interface ResolvedFlowDefinition {
 	id: string | null;
-	source: "workflow-template" | "workflow-instance" | "legacy-fallback";
+	source: "workflow-version" | "workflow-template" | "workflow-instance" | "legacy-fallback";
 	harnessVersion: string | null;
 	templateVersion: string | null;
 	name: string;
@@ -515,4 +522,7 @@ export interface ResolvedFlowDefinition {
 	roles: ResolvedFlowRole[];
 	operations: Record<string, ResolvedFlowOperation>;
 	warnings: FlowDefinitionWarning[];
+	workflowVersionId?: string | null;
+	workflowVersionNumber?: number | null;
+	contentHash?: string | null;
 }

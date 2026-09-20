@@ -346,15 +346,16 @@ export function loadHarness(root: string): HarnessManifest | null {
 						typeof s.preferredExecutor === "string" ? s.preferredExecutor : undefined,
 					phases: normalizeStagePhases(s.phases),
 					activity: normalizeStageActivity(s.activity),
-					rework: s.rework
-						? {
+							rework: s.rework
+							? {
 								target: typeof s.rework.target === "string" ? s.rework.target : undefined,
+								action: typeof s.rework.action === "string" ? s.rework.action : undefined,
 								allowed_actors: Array.isArray(s.rework.allowed_actors)
 									? s.rework.allowed_actors.map((a: any) => String(a))
 									: undefined,
 								create_ac: s.rework.create_ac === true,
 							}
-						: undefined,
+							: undefined,
 					hooks: s.hooks
 						? {
 								on_enter: Array.isArray(s.hooks.on_enter)

@@ -22,6 +22,19 @@ import {
 	runSecurityReviewOperation,
 } from "../domain-operations/service.js";
 import { logEntry } from "../session-log.js";
+import {
+	createWorkflowDefinition,
+	createWorkflowDraft,
+	getActiveWorkflowVersion,
+	getWorkflowDraft,
+	getWorkflowVersion,
+	listWorkflowDefinitions,
+	listWorkflowVersions,
+	publishWorkflowDraft,
+	rollbackWorkflowVersion,
+	updateWorkflowDraft,
+	validateWorkflowContent,
+} from "../workflow-versions/service.js";
 import { createWorkspaceBoundary, type WorkspaceBoundary } from "../security/workspace-boundary.js";
 import { readSpecCatalog } from "../spec-catalog/service.js";
 import { getLetraDir, resolveWorkspaceRoot } from "./../workspace/resolver.js";
@@ -523,20 +536,112 @@ export function createLetraMcpServer(root: string): McpServer {
 		},
 	);
 	server.registerTool(
-		"list_roles",
-		{
-			description: "Lista todos os roles do template ativo do harness.",
-			annotations: readOnlyAnnotations,
-		},
-		async () => {
-			const blocked = blockedRead();
-			if (blocked) return jsonText(blocked);
-			auditHarnessRead("roles");
-			return jsonText(collectRoles(workspaceRoot));
-		},
-	);
+			"list_roles",
+			{
+				description: "Lista todos os roles do template ativo do harness.",
+				annotations: readOnlyAnnotations,
+			},
+			async () => {
+				const blocked = blockedRead();
+				if (blocked) return jsonText(blocked);
+				auditHarnessRead("roles");
+				return jsonText(collectRoles(workspaceRoot));
+			},
+		);
 
-	return server;
+		// ─── Workflow Versioning Tools ─────────────────────────────────────────────
+		server.registerTool(
+			"workflow_list_definitions",
+			{ description: "Lista todas as definições de workflow do workspace.", annotations: readOnlyAnnotations },
+			async () => jsonText(listWorkflowDefinitions(workspaceRoot)),
+		);
+
+		server.registerTool(
+			"workflow_list_versions",
+			{ description: "Lista todas as versões publicadas de um workflow.", inputSchema: { workflowId: z.string() }, annotations: readOnlyAnnotations },
+			async ({ workflowId }) => jsonText(listWorkflowVersions(workspaceRoot, workflowId)),
+		);
+
+		server.registerTool(
+			"workflow_get_version",
+			{ description: "Obtém uma versão específica de um workflow.", inputSchema: { workflowId: z.string(), versionNumber: z.number() }, annotations: readOnlyAnnotations },
+			async ({ workflowId, versionNumber }) => jsonText(getWorkflowVersion(workspaceRoot, workflowId, versionNumber)),
+		);
+
+		server.registerTool(
+			"workflow_get_active",
+			{ description: "Obtém a versão ativa de um workflow.", inputSchema: { workflowId: z.string() }, annotations: readOnlyAnnotations },
+			async ({ workflowId }) => jsonText(getActiveWorkflowVersion(workspaceRoot, workflowId)),
+		);
+
+		server.registerTool(
+			"workflow_get_draft",
+			{ description: "Obtém o rascunho atual de um workflow.", inputSchema: { workflowId: z.string() }, annotations: readOnlyAnnotations },
+			async ({ workflowId }) => jsonText(getWorkflowDraft(workspaceRoot, workflowId)),
+		);
+
+		server.registerTool(
+					"workflow_create_definition",
+					{
+						description: "Cria uma nova definição de workflow.",
+						inputSchema: { name: z.string(), description: z.string().optional(), actor: z.string() },
+						annotations: mutationAnnotations,
+					},
+					async (input) => jsonText(createWorkflowDefinition(workspaceRoot, { ...input, actor: input.actor ?? clientIdentity().actor })),
+				);
+
+				server.registerTool(
+					"workflow_create_draft",
+					{
+						description: "Cria um rascunho para edição de um workflow.",
+						inputSchema: { workflowId: z.string(), basedOnVersionNumber: z.number().optional() },
+						annotations: mutationAnnotations,
+					},
+					async ({ workflowId, basedOnVersionNumber }) => jsonText(createWorkflowDraft(workspaceRoot, workflowId, clientIdentity().actor, basedOnVersionNumber)),
+				);
+
+				server.registerTool(
+					"workflow_update_draft",
+				{
+					description: "Atualiza o conteúdo de um rascunho.",
+					inputSchema: {
+						workflowId: z.string(),
+						expectedRevision: z.number(),
+						content: z.record(z.unknown()),
+						changeSummary: z.string().optional(),
+					},
+					annotations: mutationAnnotations,
+				},
+				async (input) => jsonText(updateWorkflowDraft(workspaceRoot, input.workflowId, { actor: clientIdentity().actor, expectedRevision: input.expectedRevision, content: input.content as Parameters<typeof updateWorkflowDraft>[2]["content"], changeSummary: input.changeSummary })),
+			);
+
+			server.registerTool(
+				"workflow_validate_draft",
+				{ description: "Valida o conteúdo do rascunho atual.", inputSchema: { workflowId: z.string() }, annotations: verificationAnnotations },
+				async ({ workflowId }) => jsonText(validateWorkflowContent(getWorkflowDraft(workspaceRoot, workflowId).content)),
+			);
+
+			server.registerTool(
+				"workflow_publish",
+				{
+					description: "Publica o rascunho como nova versão.",
+					inputSchema: { workflowId: z.string(), expectedRevision: z.number(), reason },
+					annotations: mutationAnnotations,
+				},
+				async (input) => jsonText(publishWorkflowDraft(workspaceRoot, input.workflowId, { expectedRevision: input.expectedRevision, actor: clientIdentity().actor, reason: input.reason })),
+			);
+
+			server.registerTool(
+						"workflow_rollback",
+						{
+							description: "Faz rollback para uma versão anterior (publica nova versão derivada).",
+							inputSchema: { workflowId: z.string(), versionNumber: z.number(), reason },
+							annotations: mutationAnnotations,
+						},
+						async (input) => jsonText(rollbackWorkflowVersion(workspaceRoot, input.workflowId, { versionNumber: input.versionNumber, actor: clientIdentity().actor, reason: input.reason })),
+					);
+
+					return server;
 }
 
 export async function startLetraMcpServer(root: string): Promise<void> {

@@ -99,34 +99,45 @@ describe("Letra MCP read-only server", () => {
 		try {
 			const tools = await client.listTools();
 			expect(tools.tools.map((tool) => tool.name)).toEqual([
-				"get_direction",
-				"get_active_spec",
-				"get_health",
-				"validate",
-				"complete_ac",
-				"request_transition",
-				"get_context",
-				"get_activity",
-				"get_spec_catalog",
-				"claim",
-				"execution_event",
-			"submit_evidence",
-			"security_review",
-			"request_handoff",
-			"request_rework",
-			"list_gates",
-				"list_roles",
-			]);
+						"get_direction",
+						"get_active_spec",
+						"get_health",
+						"validate",
+						"complete_ac",
+						"request_transition",
+						"get_context",
+						"get_activity",
+						"get_spec_catalog",
+						"claim",
+						"execution_event",
+						"submit_evidence",
+						"security_review",
+						"request_handoff",
+						"request_rework",
+						"list_gates",
+						"list_roles",
+						"workflow_list_definitions",
+						"workflow_list_versions",
+						"workflow_get_version",
+						"workflow_get_active",
+						"workflow_get_draft",
+						"workflow_create_definition",
+						"workflow_create_draft",
+						"workflow_update_draft",
+						"workflow_validate_draft",
+						"workflow_publish",
+						"workflow_rollback",
+					]);
+					expect(
+						tools.tools.filter((tool) => tool.annotations?.readOnlyHint === true).length,
+					).toBe(13);
 			expect(
-				tools.tools.filter((tool) => tool.annotations?.readOnlyHint === true).length,
-			).toBe(8);
+						tools.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length,
+					).toBe(15);
 			expect(
-				tools.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length,
-			).toBe(9);
-			expect(
-				tools.tools.filter((tool) => tool.inputSchema?.additionalProperties === false)
-					.length,
-		).toBe(10);
+						tools.tools.filter((tool) => tool.inputSchema?.additionalProperties === false)
+							.length,
+					).toBe(20);
 
 			const direction = toolJson(
 				await client.callTool({ name: "get_direction", arguments: {} }),

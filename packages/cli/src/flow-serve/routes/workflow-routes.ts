@@ -5,6 +5,21 @@ import type { HarnessManifest } from "../../harness/types.js";
 import type { resolveActiveFlowFor } from "../../flow-definition/resolve.js";
 import { HttpBodyError, readJson, sendError, sendJson } from "../http.js";
 import type { RouteHandler } from "../router.js";
+import {
+	createWorkflowDefinition,
+	createWorkflowDraft,
+	getWorkflowDraft,
+	getWorkflowVersion,
+	listWorkflowDefinitions,
+	listWorkflowVersions,
+	publishWorkflowDraft,
+	rollbackWorkflowVersion,
+	updateWorkflowDraft,
+	validateWorkflowContent,
+	type WorkflowDefinitionContent,
+	getActiveWorkflowVersion,
+	listWorkflowDraftRevisions,
+} from "../../workflow-versions/service.js";
 
 export interface WorkflowRouteDependencies {
 	writeWorkflow: typeof writeWorkflow;
@@ -18,6 +33,7 @@ export interface WorkflowRouteDependencies {
 		harness: HarnessManifest | null,
 	) => Workflow;
 	broadcast: () => void;
+	resolveHumanActor?: (req: Parameters<RouteHandler>[0]["req"]) => string | null;
 }
 
 function sendBodyError(error: unknown, res: Parameters<typeof sendError>[0]): void {
@@ -82,6 +98,40 @@ function removeLocationLinkIfOwned(locationPath: string, dataDir: string): boole
 
 export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): RouteHandler {
 	return async ({ method, path, req, res, url, workspaceRoot, workspaceDir, workflow }) => {
+		if (path === "/api/workflow-definitions" && method === "GET") {
+			sendJson(res, 200, listWorkflowDefinitions(workspaceRoot));
+			return true;
+		}
+		if (path === "/api/workflow-definitions" && method === "POST") {
+			try {
+				const data = await readJson<{ name: string; description?: string; actor: string; content?: WorkflowDefinitionContent; duplicateFrom?: { workflowId: string; versionNumber: number } }>(req);
+				sendJson(res, 201, createWorkflowDefinition(workspaceRoot, data));
+			} catch (error) { sendBodyError(error, res); }
+			return true;
+		}
+		const definitionMatch = path.match(/^\/api\/workflow-definitions\/([^/]+)(?:\/(.+))?$/);
+		if (definitionMatch) {
+			const workflowId = decodeURIComponent(definitionMatch[1]);
+			const action = definitionMatch[2] ?? "";
+			try {
+				if (action === "versions" && method === "GET") sendJson(res, 200, listWorkflowVersions(workspaceRoot, workflowId));
+				else if (action.startsWith("versions/") && method === "GET") sendJson(res, 200, getWorkflowVersion(workspaceRoot, workflowId, Number(action.split("/")[1])));
+				else if (action === "draft" && method === "GET") sendJson(res, 200, getWorkflowDraft(workspaceRoot, workflowId));
+				else if (action === "draft-revisions" && method === "GET") sendJson(res, 200, listWorkflowDraftRevisions(workspaceRoot, workflowId));
+				else if (action === "active" && method === "GET") sendJson(res, 200, getActiveWorkflowVersion(workspaceRoot, workflowId));
+				else if (action === "draft" && method === "POST") { const data = await readJson<{ actor: string; basedOnVersionNumber?: number }>(req); sendJson(res, 201, createWorkflowDraft(workspaceRoot, workflowId, data.actor, data.basedOnVersionNumber)); }
+				else if (action === "draft" && method === "PATCH") { const data = await readJson<{ actor: string; expectedRevision: number; content: WorkflowDefinitionContent; changeSummary?: string }>(req); sendJson(res, 200, updateWorkflowDraft(workspaceRoot, workflowId, data)); }
+				else if (action === "validate" && method === "POST") sendJson(res, 200, validateWorkflowContent(getWorkflowDraft(workspaceRoot, workflowId).content));
+				else if (action === "publish" && method === "POST") { const data = await readJson<{ expectedRevision: number; reason: string }>(req); const actor = dependencies.resolveHumanActor?.(req); if (!actor) { sendError(res, 403, "HUMAN_CONFIRMATION_REQUIRED"); return true; } sendJson(res, 201, publishWorkflowDraft(workspaceRoot, workflowId, { ...data, actor })); dependencies.broadcast(); }
+				else if (action === "rollback" && method === "POST") { const data = await readJson<{ versionNumber: number; reason: string }>(req); const actor = dependencies.resolveHumanActor?.(req); if (!actor) { sendError(res, 403, "HUMAN_CONFIRMATION_REQUIRED"); return true; } sendJson(res, 201, rollbackWorkflowVersion(workspaceRoot, workflowId, { ...data, actor })); dependencies.broadcast(); }
+				else return false;
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				const status = message.startsWith("DRAFT_REVISION_CONFLICT") ? 409 : message.startsWith("WORKFLOW_INVALID") ? 422 : message.includes("NOT_FOUND") ? 404 : 400;
+				sendError(res, status, message);
+			}
+			return true;
+		}
 		if (path === "/api/workflow" && method === "GET") {
 			sendJson(res, 200, workflow ?? { error: "No workflow found" });
 			return true;

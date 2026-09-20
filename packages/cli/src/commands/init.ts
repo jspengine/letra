@@ -239,25 +239,56 @@ export async function init(
 		const templateFiles: Record<string, string> = {
 			"context.md": `# Context
 
-> Updated: 2026-06-16
-> Owner: time
+Este arquivo é memória humana curada: intenção, domínio, direção de produto, restrições reais e decisões duráveis.
+Estado vivo, item ativo, AC atual, claim, handoff e próxima ação vêm de \`get_direction\` ou \`letra direction --json\`.
 
 ## Intent
 
-Este projeto segue Specification-Driven Development (SDD).
-Capturamos direção, intenção e contexto para enriquecer prompts de agentes de IA.
+Por que este projeto existe e qual mudança humana ele quer produzir.
 
-## Domínio
+## Product Thesis
+
+Qual aposta de produto guia as decisões.
+
+## Audience
+
+Quem usa este projeto e em quais situações.
+
+## Domain
 
 - ${stackLine}
 - Ferramenta: .letra/ memory format
 - Público: equipe de desenvolvimento
 
-## Restrições Reais
+## Core Concepts
+
+Termos essenciais que um agente precisa entender antes de interpretar specs.
+
+## Product Principles
+
+Princípios duráveis que ajudam a escolher entre soluções tecnicamente válidas.
+
+## Non-Goals
+
+O que explicitamente não faz parte da direção do projeto.
+
+## Important Tradeoffs
+
+Tradeoffs aceitos pelo time.
+
+## Durable Decisions
+
+Decisões humanas que continuam válidas entre sessões.
+
+## Constraints
 
 - Specs devem ser thin (máx 1 página por feature)
 - Sem lock-in de IDE
 - Drift detection deve funcionar para qualquer domínio (não só código)
+
+## Open Questions
+
+Perguntas humanas ainda abertas.
 `,
 			"constitution.md": `# Constitution
 

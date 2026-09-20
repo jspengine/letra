@@ -9,6 +9,7 @@ import { HttpBodyError, readJson, routeParam, sendError, sendJson } from "../htt
 import type { RouteHandler } from "../router.js";
 import { activateWorkOperation, claimOperation, createItemOperation, decideGateOperation, deleteItemOperation, releaseClaimOperation, requestReworkOperation, requestTransitionOperation, runValidationOperation, updateItemOperation } from "../../domain-operations/service.js";
 import { resolveAgentDirection } from "../../agent-direction/service.js";
+import { resolveLocalIdentity } from "../../identity/service.js";
 
 export interface ItemRouteDependencies {
 	writeWorkflow: typeof writeWorkflow;

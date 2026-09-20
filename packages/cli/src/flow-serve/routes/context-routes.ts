@@ -188,10 +188,11 @@ export function createContextRoutes(dependencies: ContextRouteDependencies): Rou
 			return true;
 		}
 		if (path === "/api/sitrep" && method === "POST") {
-			await dependencies.sitrep(workspaceRoot, {
-				dryRun: url.searchParams.get("dryRun") === "true",
+			sendJson(res, 410, {
+				ok: false,
+				message:
+					"sitrep não atualiza mais context.md. Use /api/activity-context ou letra direction --json para estado vivo.",
 			});
-			sendJson(res, 200, { ok: true });
 			return true;
 		}
 		if (path === "/api/pulse" && method === "GET") {

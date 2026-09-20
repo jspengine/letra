@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
+import { resolve } from "node:path";
 import { backlogActionAdd, backlogActionList } from "./flow-backlog.js";
 import { flowBoardAction } from "./flow-board.js";
 import { flowDiffAction, flowEditAction } from "./flow-edit-diff.js";
@@ -16,6 +17,17 @@ import { flowPhasesAction, flowPhaseTransitionAction } from "./flow-phases.js";
 import { flowAutopilotAction } from "./flow-autopilot.js";
 import { flowPhaseRunAction } from "./flow-phase-run.js";
 import { flowBindAction } from "./flow-bind.js";
+import {
+	workflowDraftCommand,
+	workflowDraftRevisionsCommand,
+	workflowListCommands,
+	workflowPublishCommand,
+	workflowRollbackCommand,
+	workflowShowCommand,
+	workflowUpdateDraftCommand,
+	workflowValidateCommand,
+	workflowVersionsCommand,
+} from "./flow-workflow.js";
 
 export default function flowCommand() {
 	const cmd = new Command("flow");
@@ -74,9 +86,11 @@ export default function flowCommand() {
 	cmd.command("move <item-id>")
 		.option("--to <stage>", "Target stage id or name")
 		.option("--auto", "Automatically discover next stage by order")
-		.option("--force", "Skip pre-move validation (pending ACs, etc)")
+		.option("--force", "Administratively bypass pending AC validation")
+		.option("--actor <actor>", "Auditable human identity required with --force")
+		.option("--reason <reason>", "Auditable reason required with --force")
 		.description("Move item to another stage and regenerate adapters")
-		.action((itemId: string, options: { to?: string; auto?: boolean; force?: boolean }) => {
+		.action((itemId: string, options: { to?: string; auto?: boolean; force?: boolean; actor?: string; reason?: string }) => {
 			if (!options.to && !options.auto) {
 				console.log(chalk.red("Either --to or --auto is required"));
 				process.exit(1);
@@ -209,10 +223,76 @@ export default function flowCommand() {
 		});
 
 	cmd.command("phase-run <item-id>")
-		.description("Execute actions of the current phase for an item")
-		.action((itemId: string) => {
-			flowPhaseRunAction(itemId);
-		});
+			.description("Execute actions of the current phase for an item")
+			.action((itemId: string) => {
+				flowPhaseRunAction(itemId);
+			});
 
-	return cmd;
+		const workflow = cmd.command("workflow").description("Manage versioned workflow definitions");
+
+		workflow
+			.command("list")
+			.description("List all workflow definitions")
+			.action(() => {
+				workflowListCommands(resolve(process.cwd()));
+			});
+
+		workflow
+			.command("show <id>")
+			.description("Show workflow definition details")
+			.action((id: string) => {
+				workflowShowCommand(resolve(process.cwd()), id);
+			});
+
+		workflow
+			.command("draft <id>")
+			.option("--actor <actor>", "Identity actor", "human:cli")
+			.option("--based-on <version>", "Base version number", undefined)
+			.description("Create a draft for editing")
+			.action((id: string, options: { actor: string; basedOn?: string }) => {
+				workflowDraftCommand(resolve(process.cwd()), id, options.actor, options.basedOn ? Number(options.basedOn) : undefined);
+			});
+
+		workflow
+			.command("validate <id>")
+			.description("Validate current draft")
+			.action((id: string) => {
+				workflowValidateCommand(resolve(process.cwd()), id);
+			});
+
+		workflow
+			.command("publish <id>")
+			.option("--actor <actor>", "Identity actor", "human:cli")
+			.requiredOption("--revision <revision>", "Expected revision number")
+			.requiredOption("--reason <reason>", "Publication reason")
+			.description("Publish current draft as new version")
+			.action((id: string, options: { actor: string; revision: string; reason: string }) => {
+				workflowPublishCommand(resolve(process.cwd()), id, options.actor, Number(options.revision), options.reason);
+			});
+
+		workflow
+			.command("rollback <id>")
+			.option("--actor <actor>", "Identity actor", "human:cli")
+			.requiredOption("--version <version>", "Version number to restore")
+			.requiredOption("--reason <reason>", "Rollback reason")
+			.description("Rollback to a previous version (publishes new derived version)")
+			.action((id: string, options: { actor: string; version: string; reason: string }) => {
+				workflowRollbackCommand(resolve(process.cwd()), id, options.actor, Number(options.version), options.reason);
+			});
+
+		workflow
+			.command("versions <id>")
+			.description("List all published versions")
+			.action((id: string) => {
+				workflowVersionsCommand(resolve(process.cwd()), id);
+			});
+
+		workflow
+			.command("history <id>")
+			.description("List draft revision history")
+			.action((id: string) => {
+				workflowDraftRevisionsCommand(resolve(process.cwd()), id);
+			});
+
+		return cmd;
 }

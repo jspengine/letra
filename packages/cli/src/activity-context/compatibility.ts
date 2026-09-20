@@ -59,9 +59,14 @@ function compatibilityReferences(
 	context: CompatibilityIntentContext,
 ): ActivityContextReference[] {
 	const references: ActivityContextReference[] = [
-		{ path: ".letra/context.md", reason: "Contexto operacional do workspace" },
 		{ path: ".letra/constitution.md", reason: "Regras não negociáveis do Letra" },
 	];
+	if (activity === "design" || activity === "diagnose") {
+		references.push({
+			path: ".letra/context.md",
+			reason: "Memória humana curada de produto/domínio; não usar como estado vivo",
+		});
+	}
 	if (context.hasFocus) {
 		references.push({ path: ".letra/focus.md", reason: "Foco e outcome da sessão atual" });
 	}

@@ -148,6 +148,7 @@ export interface StageDef {
 	activity?: StageActivityContextConfig;
 	rework?: {
 		target?: string;
+		action?: string;
 		allowed_actors?: string[];
 		create_ac?: boolean;
 	};

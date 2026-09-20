@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -9,8 +9,8 @@ import { logEntry } from "../session-log.js";
 import { resolveWorkspaceRoot } from "../workspace/resolver.js";
 import { getLetraDir } from "./../workspace/resolver.js";
 
-const START_MARKER = "<!-- sitrep:start -->";
-const END_MARKER = "<!-- sitrep:end -->";
+const DEPRECATION_MESSAGE =
+	"`letra sitrep` não atualiza mais context.md. Use `letra direction --json` para estado vivo; edite context.md apenas como memória humana curada.";
 
 interface DecisionInfo {
 	title: string;
@@ -97,13 +97,6 @@ function getStageName(stageId: string, workflow?: Workflow | null): string {
 	return workflow.stages?.find((s) => s.id === stageId)?.name ?? stageId;
 }
 
-function extractSection(content: string, heading: string): string | null {
-	const esc = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-	const regex = new RegExp(`## ${esc}\\s+([\\s\\S]*?)(?=\\n## |\\n*$)`);
-	const match = content.match(regex);
-	return match ? match[1].trim() : null;
-}
-
 function buildSitrepBlock(data: SitrepData): string {
 	const lines: string[] = [];
 
@@ -145,114 +138,10 @@ function buildSitrepBlock(data: SitrepData): string {
 	return lines.join("\n");
 }
 
-function rewriteContextFile(
-	content: string,
-	dynamicBlock: string,
-	stack: string | null,
-	restricoes: string | null,
-	porques: string | null,
-): string {
-	const headerMatch = content.match(/^# Context[\s\S]*?(?=\n## )/);
-	const header = headerMatch ? headerMatch[0].trim() : "# Context";
-
-	const intent = extractSection(content, "Intent");
-	const dominio = extractSection(content, "Domínio");
-
-	// Preserve content after <!-- sitrep:ignore -->
-	const ignoreIdx = content.indexOf("<!-- sitrep:ignore -->");
-	let ignoredContent = "";
-	if (ignoreIdx !== -1) {
-		ignoredContent = content.slice(ignoreIdx);
-	}
-
-	const sections: string[] = [header];
-
-	if (intent) {
-		sections.push(`## Intent\n\n${intent}`);
-	}
-
-	if (dominio) {
-		sections.push(`## Domínio\n\n${dominio}`);
-	}
-
-	sections.push(`${START_MARKER}\n${dynamicBlock}\n${END_MARKER}`);
-
-	if (stack) {
-		sections.push(`## Stack\n\n${stack}`);
-	}
-
-	if (restricoes) {
-		sections.push(`## Restrições Reais\n\n${restricoes}`);
-	}
-
-	if (porques) {
-		sections.push(`## Porquês\n\n${porques}`);
-	}
-
-	let result = `${sections.join("\n\n")}\n`;
-
-	if (ignoredContent) {
-		result += `\n${ignoredContent}\n`;
-	}
-
-	return result;
-}
-
-function showDiff(original: string, modified: string): void {
-	const origLines = original.split("\n");
-	const modLines = modified.split("\n");
-	const maxLen = Math.max(origLines.length, modLines.length);
-
-	for (let i = 0; i < maxLen; i++) {
-		const o = origLines[i] ?? "";
-		const m = modLines[i] ?? "";
-		if (o !== m) {
-			if (i < origLines.length) {
-				console.log(chalk.red(`- ${o}`));
-			}
-			if (i < modLines.length) {
-				console.log(chalk.green(`+ ${m}`));
-			}
-		}
-	}
-}
-
-function logChanges(original: string, modified: string): void {
-	if (original === modified) {
-		console.log(chalk.gray("  Nenhuma alteração necessária."));
-		return;
-	}
-
-	const sections: string[] = [];
-	if (original.match(/^> Updated:.*$/m) !== modified.match(/^> Updated:.*$/m)) {
-		sections.push("Updated");
-	}
-
-	const origHasSitrep = original.includes(START_MARKER);
-	const modHasSitrep = modified.includes(START_MARKER);
-	if (origHasSitrep !== modHasSitrep) {
-		sections.push(modHasSitrep ? "Bloco sitrep (inserido)" : "Bloco sitrep (removido)");
-	} else if (origHasSitrep) {
-		sections.push("Bloco sitrep (atualizado)");
-	}
-
-	if (sections.length > 0) {
-		console.log(chalk.gray(`  Seções alteradas: ${sections.join(", ")}`));
-	} else {
-		console.log(chalk.gray("  Apenas data atualizada."));
-	}
-}
-
 export async function sitrep(
 	rootPath: string,
 	options?: { dryRun?: boolean; quiet?: boolean; skipLog?: boolean },
 ): Promise<void> {
-	const contextFile = join(getLetraDir(rootPath), "context.md");
-	if (!existsSync(contextFile)) {
-		if (!options?.quiet) console.log(chalk.yellow("Aviso: .letra/context.md não encontrado"));
-		return;
-	}
-
 	const workflow = loadWorkflow(rootPath);
 	const healthRecord = loadHealthRecord(rootPath);
 	const alertSummary = getSummary(healthRecord);
@@ -278,34 +167,15 @@ export async function sitrep(
 	};
 
 	const dynamicBlock = buildSitrepBlock(data);
-	const originalContent = readFileSync(contextFile, "utf-8");
 
-	// Extract manual sections for preservation
-	const stack = extractSection(originalContent, "Stack");
-	const restricoes = extractSection(originalContent, "Restrições Reais");
-	const porques = extractSection(originalContent, "Porquês");
-
-	const withUpdated = originalContent.replace(
-		/^(> Updated:).*$/m,
-		`$1 ${new Date().toISOString()}`,
-	);
-
-	const newContent = rewriteContextFile(withUpdated, dynamicBlock, stack, restricoes, porques);
-
-	if (options?.dryRun) {
-		console.log(chalk.bold("\n📋 Simulação de atualização — dry-run\n"));
-		showDiff(originalContent, newContent);
-		return;
-	}
-
-	writeFileSync(contextFile, newContent, "utf-8");
 	if (!options?.quiet) {
-		console.log(chalk.green("✓ Situação atualizada em .letra/context.md"));
-		logChanges(originalContent, newContent);
+		console.log(chalk.yellow(DEPRECATION_MESSAGE));
+		console.log(chalk.bold("\nResumo vivo atual\n"));
+		console.log(dynamicBlock);
 	}
 
 	if (!options?.skipLog) {
-		logEntry(rootPath, "sitrep", "context.md atualizado com estado do workspace", {
+		logEntry(rootPath, "sitrep", "sitrep consultado sem atualizar context.md", {
 			details: {
 				hasItem: !!currentItem,
 				itemId: currentItem?.id,
@@ -317,7 +187,7 @@ export async function sitrep(
 
 export default function () {
 	const cmd = new Command("sitrep").description(
-		"Atualizar .letra/context.md com estado real do workspace",
+		"Compatibilidade: imprimir resumo vivo; não atualiza context.md",
 	);
 
 	cmd.option("--dry-run", "Exibir diff sem modificar o arquivo").action(

@@ -224,12 +224,29 @@ describe("flow-move", () => {
 				"# Spec\n\n## Outcome\nTest\n\n## Acceptance Criteria\n- [ ] **AC1**: Pending AC\n",
 			);
 
-			await flowMove(tmpDir, "ITEM-1", "", { auto: true, force: true });
+			await flowMove(tmpDir, "ITEM-1", "", {
+				auto: true,
+				force: true,
+				actor: "human:admin",
+				reason: "Administrative promotion after design approval.",
+			});
 
 			const loaded = JSON.parse(
 				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
 			);
 			expect(loaded.items[0].stage).toBe("review");
+			expect(readFileSync(join(specDir, "spec.md"), "utf8")).toContain("- [ ] **AC1**");
+		});
+
+		it("--force requires an explicit actor and reason", async () => {
+			const workflow = createTestWorkflow();
+			workflow.items[0].stage = "code";
+			saveWorkflow(tmpDir, workflow);
+
+			await flowMove(tmpDir, "ITEM-1", "review", { force: true });
+
+			const loaded = JSON.parse(readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf8"));
+			expect(loaded.items[0].stage).toBe("code");
 		});
 
 		it("uses resolved active flow gates instead of direct sdlc lookup", () => {
