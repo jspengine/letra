@@ -1,3 +1,4 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
 import type { GateDecision, ResolvedFlowDefinition } from "@letra/types";
 import type { Workflow } from "../../commands/flow-init.js";
 import type { loadHealthRecord } from "../../health-record.js";
@@ -10,6 +11,7 @@ import type { RouteHandler } from "../router.js";
 import { activateWorkOperation, claimOperation, createItemOperation, decideGateOperation, deleteItemOperation, releaseClaimOperation, requestReworkOperation, requestTransitionOperation, runValidationOperation, updateItemOperation } from "../../domain-operations/service.js";
 import { resolveAgentDirection } from "../../agent-direction/service.js";
 import { resolveLocalIdentity } from "../../identity/service.js";
+import type { HumanSessionGateway } from "../human-session.js";
 
 export interface ItemRouteDependencies {
 	writeWorkflow: typeof writeWorkflow;
@@ -33,6 +35,7 @@ export interface ItemRouteDependencies {
 	createItemOperation?: typeof createItemOperation;
 	updateItemOperation?: typeof updateItemOperation;
 	deleteItemOperation?: typeof deleteItemOperation;
+	resolveHumanActor?: (req: IncomingMessage) => string | null;
 }
 
 interface CreateItemBody {
@@ -109,7 +112,7 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				const operation = await dependencies.runValidationOperation(workspaceRoot, {
 					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
 					reason: data.reason?.trim() || "Validação solicitada pela UI.",
-					actor: data.actor ?? "human:web-ui",
+					actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
 				});
 				if (operation.outcome !== "accepted") {
 					sendError(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation.reason);
@@ -147,7 +150,7 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				if (!dependencies.createItemOperation) { sendError(res, 503, "Canonical item creation operation unavailable"); return true; }
 				const operation = await dependencies.createItemOperation(workspaceRoot, {
 					id: data.id, description: data.description, stage: data.stage,
-					actor: data.actor ?? "human:web-ui",
+					actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
 					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
 					reason: data.reason?.trim() || "Item criado pela UI.",
 					idempotencyKey: data.idempotencyKey,
@@ -193,7 +196,7 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 					const operation = await dependencies.decideGateOperation(workspaceRoot, {
 						itemId: gateDecisionItemId,
 						decision: data.decision,
-						actor: data.actor ?? "human:web-ui",
+						actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
 						expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
 						reason: reason ?? "Aprovação humana registrada pela UI.",
 						idempotencyKey: data.idempotencyKey,
@@ -220,7 +223,7 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				const data = await readJson<ActivateWorkBody>(req);
 				const operation = await dependencies.activateWorkOperation(workspaceRoot, {
 					itemId: activateItemId,
-					actor: data.actor ?? "human:web-ui",
+					actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
 					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
 					reason: data.reason?.trim() || "Item priorizado para início do fluxo.",
 				});
@@ -281,7 +284,7 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 					const operation = await dependencies.requestTransitionOperation(workspaceRoot, {
 						itemId,
 						targetStageId: data.stage,
-						actor: data.actor ?? "human:web-ui",
+						actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
 						expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
 						reason: "Transição solicitada pela UI.",
 						idempotencyKey: data.idempotencyKey,
@@ -297,7 +300,7 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				if (!dependencies.updateItemOperation) { sendError(res, 503, "Canonical item update operation unavailable"); return true; }
 				const operation = await dependencies.updateItemOperation(workspaceRoot, {
 					itemId, description: data.description, tasks: data.tasks,
-					actor: data.actor ?? "human:web-ui",
+					actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
 					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
 					reason: "Alteração de item solicitada pela UI.", idempotencyKey: data.idempotencyKey,
 				});
@@ -315,7 +318,7 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 			let data: Pick<UpdateItemBody, "actor" | "expectedRevision" | "idempotencyKey"> = {};
 			try { data = await readJson<typeof data>(req); } catch { /* empty body uses current revision */ }
 			const operation = await dependencies.deleteItemOperation(workspaceRoot, {
-				itemId, actor: data.actor ?? "human:web-ui",
+				itemId, actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
 				expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
 				reason: "Remoção de item solicitada pela UI.", idempotencyKey: data.idempotencyKey,
 			});
@@ -332,7 +335,7 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				const data = await readJson<ClaimBody>(req);
 				const operation = await dependencies.claimOperation(workspaceRoot, {
 					itemId: claimId,
-					actor: data.actor ?? "human:web-ui",
+					actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
 					executorId: data.executorId ?? "web-ui",
 					capability: data.capability ?? "read_code",
 					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
@@ -357,7 +360,7 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				const data = await readJson<ClaimBody>(req);
 				const operation = await dependencies.releaseClaimOperation(workspaceRoot, {
 					itemId: releaseId,
-					actor: data.actor ?? "human:web-ui",
+					actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
 					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
 					reason: "Release solicitado pela UI.",
 					idempotencyKey: data.idempotencyKey,

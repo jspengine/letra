@@ -193,27 +193,28 @@ export class FlowServer {
 			return true;
 		});
 		this.router.register(
-			createItemRoutes({
-				writeWorkflow,
-				loadHealthRecord,
-				writeFocusFile: writeFocusWithRecommendations,
-				logEntry,
-				resolveActiveFlow: resolveActiveFlowFor,
-				decideGateOperation: (root, input) => decideGateOperation(root, input),
-				claimOperation: (root, input) => claimOperation(root, input),
-					releaseClaimOperation: (root, input) => releaseClaimOperation(root, input),
-				requestTransitionOperation: (root, input) => requestTransitionOperation(root, input),
-				activateWorkOperation: (root, input) => activateWorkOperation(root, input),
-				requestReworkOperation: (root, input) => requestReworkOperation(root, input),
-				createItemOperation: (root, input) => createItemOperation(root, input),
-				updateItemOperation: (root, input) => updateItemOperation(root, input),
-				deleteItemOperation: (root, input) => deleteItemOperation(root, input),
-				runValidationOperation: (root, input) => runValidationOperation(root, input),
-				broadcast: () => this.broadcast(),
-				fireWebhooks: (workspaceRoot, event, payload) =>
-					this.fireWebhooks(workspaceRoot, event, payload),
-			}),
-		);
+					createItemRoutes({
+						writeWorkflow,
+						loadHealthRecord,
+						writeFocusFile: writeFocusWithRecommendations,
+						logEntry,
+						resolveActiveFlow: resolveActiveFlowFor,
+						decideGateOperation: (root, input) => decideGateOperation(root, input),
+						claimOperation: (root, input) => claimOperation(root, input),
+							releaseClaimOperation: (root, input) => releaseClaimOperation(root, input),
+						requestTransitionOperation: (root, input) => requestTransitionOperation(root, input),
+						activateWorkOperation: (root, input) => activateWorkOperation(root, input),
+						requestReworkOperation: (root, input) => requestReworkOperation(root, input),
+						createItemOperation: (root, input) => createItemOperation(root, input),
+						updateItemOperation: (root, input) => updateItemOperation(root, input),
+						deleteItemOperation: (root, input) => deleteItemOperation(root, input),
+						runValidationOperation: (root, input) => runValidationOperation(root, input),
+						resolveHumanActor: (req) => this.humanSessions.resolveHumanActor(req),
+						broadcast: () => this.broadcast(),
+						fireWebhooks: (workspaceRoot, event, payload) =>
+							this.fireWebhooks(workspaceRoot, event, payload),
+					}),
+				);
 		this.router.register(
 			createSpecRoutes({
 				loadResolvedSpecs,

@@ -15,7 +15,7 @@ import { resolveExecutionWorkspace } from "../orchestrator/execution-workspace.j
 import { logEntry, type LogAction } from "../session-log.js";
 import { GateChecker } from "../harness/gate-checker.js";
 import { getLetraDir, resolveWorkspaceRoot } from "../workspace/resolver.js";
-import { assertOperationLevel } from "../identity/guard.js";
+import { requireLocalHumanStrict } from "../identity/guard.js";
 import { invalidWorkspaceDiagnostic, type WorkspaceIntegrityDiagnostic } from "../workspace/integrity.js";
 import { captureSecurityBaseline, runScopedSecurityReview, resolveSecurityExecutionRoot, securityReportPath, type SecurityReviewReport } from "../security/scoped-review.js";
 import { loadAgents } from "../agents/service.js";
@@ -219,6 +219,8 @@ export async function createItemOperation(root: string, input: CreateItemInput):
 	const before = resolveAgentDirection(workspaceRoot); const subject = { operation: "create_item" };
 	const stale = checkRevision(workspaceRoot, before, input, subject); if (stale) return stale;
 	if (!input.actor?.trim()) return rejected(workspaceRoot, before, "ACTOR_REQUIRED", "Criação de item exige identidade do actor.", input, subject);
+	const humanCheck = requireLocalHumanStrict(workspaceRoot, input.actor, "create_item");
+	if (humanCheck) return rejected(workspaceRoot, before, "HUMAN_ACTOR_REQUIRED", humanCheck, input, subject);
 	const workflow = loadWorkflow(workspaceRoot);
 	if (!workflow) return rejected(workspaceRoot, before, "WORKFLOW_NOT_FOUND", "Workflow não encontrado.", input, subject);
 	if (workflow.items.some((item) => item.id === input.id)) return rejected(workspaceRoot, before, "ITEM_EXISTS", "Já existe um item com este identificador.", input, subject);
@@ -239,6 +241,8 @@ export async function updateItemOperation(root: string, input: UpdateItemInput):
 	const before = resolveAgentDirection(workspaceRoot); const subject = { itemId: input.itemId, operation: "update_item" };
 	const stale = checkRevision(workspaceRoot, before, input, subject); if (stale) return stale;
 	if (!input.actor?.trim()) return rejected(workspaceRoot, before, "ACTOR_REQUIRED", "Alteração de item exige identidade do actor.", input, subject);
+	const humanCheck = requireLocalHumanStrict(workspaceRoot, input.actor, "update_item");
+	if (humanCheck) return rejected(workspaceRoot, before, "HUMAN_ACTOR_REQUIRED", humanCheck, input, subject);
 	const workflow = loadWorkflow(workspaceRoot); const item = workflow?.items.find((candidate) => candidate.id === input.itemId);
 	if (!workflow || !item) return rejected(workspaceRoot, before, "ITEM_NOT_FOUND", "Item não encontrado.", input, subject);
 	if (input.description !== undefined) item.description = input.description;
@@ -258,6 +262,8 @@ export async function deleteItemOperation(root: string, input: DeleteItemInput):
 	const before = resolveAgentDirection(workspaceRoot); const subject = { itemId: input.itemId, operation: "delete_item" };
 	const stale = checkRevision(workspaceRoot, before, input, subject); if (stale) return stale;
 	if (!input.actor?.trim()) return rejected(workspaceRoot, before, "ACTOR_REQUIRED", "Remoção de item exige identidade do actor.", input, subject);
+	const humanCheck = requireLocalHumanStrict(workspaceRoot, input.actor, "delete_item");
+	if (humanCheck) return rejected(workspaceRoot, before, "HUMAN_ACTOR_REQUIRED", humanCheck, input, subject);
 	const workflow = loadWorkflow(workspaceRoot); const index = workflow?.items.findIndex((candidate) => candidate.id === input.itemId) ?? -1;
 	if (!workflow || index < 0) return rejected(workspaceRoot, before, "ITEM_NOT_FOUND", "Item não encontrado.", input, subject);
 	workflow.items.splice(index, 1); workflow.updatedAt = new Date().toISOString();
@@ -981,12 +987,21 @@ export async function requestTransitionOperation(
 	if (!input.actor?.trim()) {
 		return rejected(workspaceRoot, before, "ACTOR_REQUIRED", "Transição exige identidade do actor.", input, subject);
 	}
-	if (input.force && (!input.actor.trim().startsWith("human:") || !input.reason?.trim())) {
-		return rejected(
+	if (input.force) {
+		const forceCheck = requireLocalHumanStrict(workspaceRoot, input.actor, "transition_force");
+		if (forceCheck) return rejected(
 			workspaceRoot,
 			before,
 			"ADMINISTRATIVE_OVERRIDE_REQUIRED",
-			"Transição forçada exige actor humano verificável e motivo explícito.",
+			`Transição forçada exige actor humano verificável. ${forceCheck}`,
+			input,
+			subject,
+		);
+		if (!input.reason?.trim()) return rejected(
+			workspaceRoot,
+			before,
+			"ADMINISTRATIVE_OVERRIDE_REQUIRED",
+			"Transição forçada exige motivo explícito.",
 			input,
 			subject,
 		);
@@ -1208,7 +1223,9 @@ export async function activateWorkOperation(root: string, input: ActivateWorkInp
 	const subject = { itemId: input.itemId, operation: "activate_work" };
 	const stale = checkRevision(workspaceRoot, before, input, subject);
 	if (stale) return stale;
-	if (!input.actor?.startsWith("human:")) return rejected(workspaceRoot, before, "HUMAN_ACTOR_REQUIRED", "A ativação inicial exige uma decisão humana identificada.", input, subject);
+	const humanCheck = requireLocalHumanStrict(workspaceRoot, input.actor, "activate_work");
+	if (humanCheck) return rejected(workspaceRoot, before, "HUMAN_ACTOR_REQUIRED", humanCheck, input, subject);
+	if (!input.actor?.trim()) return rejected(workspaceRoot, before, "ACTOR_REQUIRED", "Ativação exige identidade do actor.", input, subject);
 	const workflow = loadWorkflow(workspaceRoot);
 	const flow = resolveActiveFlow(workspaceRoot).flow;
 	const item = workflow?.items.find((candidate) => candidate.id === input.itemId);
@@ -1453,17 +1470,18 @@ export async function requestReworkOperation(root: string, input: RequestReworkI
 }
 
 export async function decideGateOperation(root: string, input: GateDecisionInput): Promise<OperationResult> {
-	assertOperationLevel(root, input.actor ?? "", "local");
 	const invalid = guardInvalidWorkspace(root, input, { itemId: input.itemId, operation: "gate_decision" });
 	if (invalid) return invalid;
 	const workspaceRoot = createWorkspaceBoundary(resolve(root)).root;
+	// requireLocalHumanStrict: gate decisions always exigem humano verificável — sem backward-compat
+	const humanCheck = requireLocalHumanStrict(workspaceRoot, input.actor, "gate_decision");
+	if (humanCheck) return rejected(workspaceRoot, resolveAgentDirection(workspaceRoot), "HUMAN_ACTOR_REQUIRED", humanCheck, input, { itemId: input.itemId, operation: "gate_decision" });
 	const replay = replayIdempotent(workspaceRoot, input); if (replay) return replay;
 	const before = resolveAgentDirection(workspaceRoot);
 	const subject = { itemId: input.itemId, operation: "gate_decision" };
 	const stale = checkRevision(workspaceRoot, before, input, subject);
 	if (stale) return stale;
 	if (!input.actor?.trim()) return rejected(workspaceRoot, before, "ACTOR_REQUIRED", "Decisão de gate exige identidade humana.", input, subject);
-	if (!input.actor.trim().startsWith("human:")) return rejected(workspaceRoot, before, "HUMAN_ACTOR_REQUIRED", "Somente uma identidade humana verificável pode decidir este gate.", input, subject);
 	const workflow = loadWorkflow(workspaceRoot);
 	const item = workflow?.items.find((candidate) => candidate.id === input.itemId);
 	const flow = resolveActiveFlow(workspaceRoot).flow;
