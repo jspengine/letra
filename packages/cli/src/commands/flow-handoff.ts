@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import chalk from "chalk";
+import { resolveLocalIdentity } from "../identity/service.js";
 import { type Item, loadWorkflow } from "./flow-init.js";
 import { loadHarness, resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "../harness/loader.js";
 import { resolveAgentDirection } from "../agent-direction/service.js";
@@ -46,9 +47,10 @@ export async function handoffItem(
 			process.exit(1);
 		}
 		const previousFrom = item.handoff.from;
+		const actor = resolveLocalIdentity(root).id;
 		const operation = await rollbackHandoffOperation(root, {
 			itemId,
-			actor: "human:cli",
+			actor,
 			expectedRevision: resolveAgentDirection(root).revision,
 			reason: options.summary ?? "Rollback solicitado pela CLI.",
 		});

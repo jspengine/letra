@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { Command, Option } from "commander";
+import { resolveLocalIdentity } from "../identity/service.js";
 import { activityOperation } from "../domain-operations/service.js";
 
 function collectEvidence(value: string, previous: string[]): string[] {
@@ -49,10 +50,11 @@ export default function operationCommand(): Command {
 		.command("activate-work <item-id>")
 		.requiredOption("--expected-revision <revision>", "Direction revision returned by Letra")
 		.requiredOption("--reason <reason>", "Human prioritization reason")
-		.option("--actor <actor>", "Identidade humana", "human:cli")
+		.option("--actor <actor>", "Identidade humana", undefined)
 		.action(async (itemId: string, options: { expectedRevision: string; reason: string; actor: string }) => {
+			const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
 			const { activateWorkOperation } = await import("../domain-operations/service.js");
-			printJson(await activateWorkOperation(resolve(process.cwd()), { itemId, expectedRevision: options.expectedRevision, reason: options.reason, actor: options.actor }));
+			printJson(await activateWorkOperation(resolve(process.cwd()), { itemId, expectedRevision: options.expectedRevision, reason: options.reason, actor }));
 		});
 
 	command

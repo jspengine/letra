@@ -528,7 +528,7 @@ export default function KanbanBoard({
 					</div>
 				</div>
 			) : (
-				<div className="flex min-w-max gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]">
+				<div className="flex min-w-0 gap-4 pb-2 [scrollbar-width:thin]">
 					{stageCols.map(renderColumn)}
 				</div>
 			)}
