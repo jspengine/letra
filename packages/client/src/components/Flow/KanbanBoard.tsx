@@ -572,6 +572,12 @@ export default function KanbanBoard({
 					</Button>
 				</div>
 			)}
+	{/* Scroll indicator */}
+	<div className="flex justify-center py-1 opacity-50 hover:opacity-100 transition-opacity">
+		<span className="text-[var(--color-text-secondary)] text-xs">
+			← Arraste ou use scroll horizontal →
+		</span>
+	</div>
 		</div>
 	);
 }
