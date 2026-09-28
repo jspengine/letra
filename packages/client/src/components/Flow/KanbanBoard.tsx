@@ -329,6 +329,7 @@ export default function KanbanBoard({
 	const [dragOver, setDragOver] = useState<string | null>(null);
 		const [draggingId, setDraggingId] = useState<string | null>(null);
 		const [searchQuery, setSearchQuery] = useState("");
+		const [selectedStage, setSelectedStage] = useState<string | null>(null);
 	const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
 	const [agents, setAgents] = useState<AgentIdentity[]>([]);
 	const dragItem = useRef<Workflow["items"][0] | null>(null);
