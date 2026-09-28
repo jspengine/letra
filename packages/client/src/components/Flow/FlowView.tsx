@@ -431,6 +431,25 @@ export default function FlowView({
 		{ key: "queued", label: "Na fila" },
 		{ key: "done", label: "Concluídos" },
 	];
+
+		// Custom views from localStorage
+		const [customViews, setCustomViews] = useState<Array<{ key: string; label: string; filter: WorkFilter }>>([]);
+		useEffect(() => {
+			try {
+				const saved = localStorage.getItem("kanban:customViews");
+				if (saved) setCustomViews(JSON.parse(saved));
+			} catch { /* ignore */ }
+		}, []);
+		const saveCustomView = (label: string, filter: WorkFilter) => {
+			const views = [...customViews, { key: `view-${Date.now()}`, label, filter }];
+			setCustomViews(views);
+			localStorage.setItem("kanban:customViews", JSON.stringify(views));
+		};
+		const deleteCustomView = (key: string) => {
+			const views = customViews.filter((v) => v.key !== key);
+			setCustomViews(views);
+			localStorage.setItem("kanban:customViews", JSON.stringify(views));
+		};
 	const inAdminMode = adminMode !== null;
 	const webhooksEditMode = adminMode === "webhooks";
 	const primaryItem =
@@ -856,7 +875,46 @@ export default function FlowView({
 										</ButtonGroupItem>
 									))}
 								</ButtonGroup>
+							<div className="flex items-center gap-1">
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button variant="secondary" size="sm">
+											<Icon name="plus" size={14} />
+											Salvar view
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent>
+										<DropdownMenuLabel>Salvar filtro atual</DropdownMenuLabel>
+										{filterOptions.map(({ key, label }) => (
+											<DropdownMenuItem key={key} onClick={() => saveCustomView(label, key)}>
+												{label}
+											</DropdownMenuItem>
+										))}
+									</DropdownMenuContent>
+								</DropdownMenu>
+								{customViews.length > 0 && (
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button variant="secondary" size="sm">
+												<Icon name="grid" size={14} />
+												Views ({customViews.length})
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent>
+											<DropdownMenuLabel>Views salvas</DropdownMenuLabel>
+											{customViews.map((view) => (
+												<DropdownMenuItem key={view.key} onClick={() => setActiveFilter(view.filter as WorkFilter)}>
+													{view.label}
+												</DropdownMenuItem>
+											))}
+											<DropdownMenuItem onClick={() => { setCustomViews([]); localStorage.removeItem("kanban:customViews"); }}>
+												<span className="text-[var(--color-error)]">Limpar views</span>
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
+								)}
 							</div>
+						</div>
 
 							{/* ─── 6. Kanban Board ─── */}
 							<div className="app-section-card flex min-w-0 flex-1 flex-col overflow-hidden">
