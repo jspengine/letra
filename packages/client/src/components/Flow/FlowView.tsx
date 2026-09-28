@@ -677,35 +677,6 @@ export default function FlowView({
 							<div className="grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
 								{[
 									{
-										label: "Atenção",
-										value: attentionItems,
-										sub:
-											blockedItems > 0
-												? `${blockedItems} bloqueado${blockedItems === 1 ? "" : "s"}`
-												: "decisão humana",
-										color:
-											attentionItems > 0
-												? "var(--color-warning)"
-												: "var(--color-text-secondary)",
-										icon: "shield",
-										urgent: attentionItems > 0,
-									},
-									{
-										label: "Em andamento",
-										value: runningItems,
-										sub: `${activeAgents} ator${activeAgents === 1 ? "" : "es"} ativo${activeAgents === 1 ? "" : "s"}`,
-										color: "var(--color-primary)",
-										icon: "cpu",
-										pulse: runningItems > 0,
-									},
-									{
-										label: "Na fila",
-										value: queuedItems,
-										sub: "sem responsável",
-										color: "var(--color-text-secondary)",
-										icon: "circle",
-									},
-									{
 										label: "Progresso",
 										value: `${pctComplete}%`,
 										sub: `${doneItems}/${totalItems} concluídos`,
@@ -716,7 +687,7 @@ export default function FlowView({
 									<Card
 										key={stat.label}
 										className="app-summary-card hover:shadow-sm"
-										data-urgent={stat.urgent ? "true" : "false"}
+	
 									>
 										<CardContent className="grid gap-0.5 p-2.5">
 											<div className="flex items-center justify-between">
@@ -735,15 +706,12 @@ export default function FlowView({
 												<span
 													className={cn(
 														"text-lg font-bold tabular-nums",
-														stat.pulse && "animate-pulse",
+														false,
 													)}
 													style={{ color: stat.color }}
 												>
 													{stat.value}
 												</span>
-												{stat.pulse && (
-													<span className="w-1 h-1 rounded-full bg-[var(--color-primary)] animate-pulse" />
-												)}
 											</div>
 											<span className="app-section-muted text-caption">
 												{stat.sub}
