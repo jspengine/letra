@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { ResolvedSpec, Workflow, Item } from "@letra/types";
-import { Badge, Icon, Button, Progress, Card, CardContent, Tag, AgentAvatar } from "@letra/ui";
+import { Badge, Icon, Button, Progress, Card, CardContent, Tag, AgentAvatar, Input } from "@letra/ui";
 import type { AgentIdentity } from "@letra/types";
 import { cn } from "../../lib/utils";
 import { computeSlug } from "../../lib/item-utils";
@@ -327,7 +327,8 @@ export default function KanbanBoard({
 	className,
 }: Props) {
 	const [dragOver, setDragOver] = useState<string | null>(null);
-	const [draggingId, setDraggingId] = useState<string | null>(null);
+		const [draggingId, setDraggingId] = useState<string | null>(null);
+		const [searchQuery, setSearchQuery] = useState("");
 	const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
 	const [agents, setAgents] = useState<AgentIdentity[]>([]);
 	const dragItem = useRef<Workflow["items"][0] | null>(null);
@@ -417,7 +418,15 @@ export default function KanbanBoard({
 		done: (it) => doneStages.has(it.stage),
 	};
 	const activeFilter = filterMap[filter] || filterMap.all;
-	const visibleItems = workflow.items.filter(activeFilter);
+		const visibleItems = workflow.items.filter((item) => {
+			if (!activeFilter(item)) return false;
+			if (!searchQuery.trim()) return true;
+			const query = searchQuery.toLowerCase();
+			return (
+				item.id.toLowerCase().includes(query) ||
+				item.description.toLowerCase().includes(query)
+			);
+		});
 	const emptyState = emptyStateForFilter(filter);
 
 	function renderColumn(col: (typeof stageCols)[0]) {
@@ -501,8 +510,30 @@ export default function KanbanBoard({
 	}
 
 	return (
-		<div className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4", className)}>
-			{visibleItems.length === 0 ? (
+			<div className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4", className)}>
+				{/* Busca textual */}
+				<div className="flex items-center gap-2">
+					<Input
+						placeholder="Buscar item por ID ou descrição..."
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+						className="max-w-xs"
+					/>
+					{searchQuery && (
+						<button
+							className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs"
+							onClick={() => setSearchQuery("")}
+						>
+							Limpar
+						</button>
+					)}
+					{searchQuery && (
+						<span className="text-caption text-[var(--color-text-secondary)]">
+							{visibleItems.length} resultado(s)
+						</span>
+					)}
+				</div>
+				{visibleItems.length === 0 ? (
 				<div className="app-board-filter-empty flex min-h-[16rem] flex-1 flex-col items-center justify-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] p-6 text-center">
 					<div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-bg-sunken)] text-[var(--color-text-secondary)]">
 						<Icon
