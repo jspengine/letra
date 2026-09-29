@@ -446,41 +446,41 @@ export default function KanbanBoard({
 					data-gate={isHumanGate && hasAnyItems ? "true" : "false"}
 				>
 					<div className="flex min-w-0 items-center gap-2">
-						{isHumanGate && hasAnyItems ? (
-							<div className="w-2 h-4 rounded-full bg-[var(--color-success)] animate-timeline-dot" />
-						) : (
-							<div
-								className="w-1.5 h-4 rounded-full"
-								style={{ background: col.color }}
-							/>
-						)}
-						<span
-							className={cn(
-								"min-w-0 truncate text-xs font-semibold",
-								isHumanGate && hasAnyItems && "text-[var(--color-success)]",
-							)}
-						>
-							{col.label}
-						</span>
-						<Badge
-							variant={isHumanGate && hasAnyItems ? "amber" : "info"}
-							className={cn(
-								"shrink-0 text-caption px-1.5",
-								isHumanGate && hasAnyItems && "animate-pulse",
-							)}
-						>
-							{workflow.items.filter((it) => it.stage === col.id).length}
-						</Badge>
-						<Tooltip content={col.id} position="bottom">
-							<button
-								className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs ml-1"
-								onClick={() => setSelectedStage(col.id)}
-								title="Informações do estágio"
-							>
-								ℹ️
-							</button>
-						</Tooltip>
-					</div>
+												{isHumanGate && hasAnyItems ? (
+													<div className="w-2 h-4 rounded-full bg-[var(--color-success)] animate-timeline-dot" />
+												) : (
+													<div
+														className="w-1.5 h-4 rounded-full"
+														style={{ background: col.color }}
+													/>
+												)}
+												<span
+													className={cn(
+														"min-w-0 truncate text-xs font-semibold",
+														isHumanGate && hasAnyItems && "text-[var(--color-success)]",
+													)}
+												>
+													{col.label}
+												</span>
+												<Badge
+													variant={isHumanGate && hasAnyItems ? "amber" : "info"}
+													className={cn(
+														"shrink-0 text-caption px-1.5",
+														isHumanGate && hasAnyItems && "animate-pulse",
+													)}
+												>
+													{workflow.items.filter((it) => it.stage === col.id).length}
+												</Badge>
+											</div>
+											<Tooltip content={col.id} position="bottom">
+												<button
+													className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs ml-auto"
+													onClick={() => setSelectedStage(col.id)}
+													title="Informações do estágio"
+												>
+													<Icon name="info" size={12} />
+												</button>
+											</Tooltip>
 				</div>
 
 				<div
