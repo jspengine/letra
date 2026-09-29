@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { ResolvedSpec, Workflow, Item } from "@letra/types";
-import { Badge, Icon, Button, Progress, Card, CardContent, Tag, AgentAvatar, Input } from "@letra/ui";
+import { Badge, Icon, Button, Progress, Card, CardContent, Tag, AgentAvatar, Input, Tooltip } from "@letra/ui";
 import type { AgentIdentity } from "@letra/types";
 import { cn } from "../../lib/utils";
 import { computeSlug } from "../../lib/item-utils";
@@ -471,13 +471,15 @@ export default function KanbanBoard({
 						>
 							{workflow.items.filter((it) => it.stage === col.id).length}
 						</Badge>
-						<button
-							className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs ml-1"
-							onClick={() => setSelectedStage(col.id)}
-							title="Informações do estágio"
-						>
-							ℹ️
-						</button>
+						<Tooltip content={col.id} position="bottom">
+							<button
+								className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs ml-1"
+								onClick={() => setSelectedStage(col.id)}
+								title="Informações do estágio"
+							>
+								ℹ️
+							</button>
+						</Tooltip>
 					</div>
 				</div>
 
