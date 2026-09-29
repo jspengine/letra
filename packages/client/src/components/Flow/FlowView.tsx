@@ -532,45 +532,6 @@ export default function FlowView({
 							<Icon name="list-three" size={12} />
 							Observar
 						</Button>
-						<DropdownMenu>
-							{({ open, setOpen }) => (
-								<>
-									<DropdownMenuTrigger
-										className="h-8 px-2 text-caption"
-										onClick={() => setOpen(!open)}
-									>
-										<Icon name="settings" size={12} />
-										Administração
-									</DropdownMenuTrigger>
-									{open ? (
-										<DropdownMenuContent align="end" className="min-w-48">
-											<DropdownMenuLabel>
-												Operações do fluxo
-											</DropdownMenuLabel>
-											<DropdownMenuItem
-												onClick={() => {
-													setShowAddDialog(true);
-													setOpen(false);
-												}}
-											>
-												<Icon name="plus" size={12} />
-												Novo item
-											</DropdownMenuItem>
-											<DropdownMenuSeparator />
-											<DropdownMenuItem
-												onClick={() => {
-													setAdminMode("webhooks");
-													setOpen(false);
-												}}
-											>
-												<Icon name="activity" size={12} />
-												Configurar webhooks
-											</DropdownMenuItem>
-										</DropdownMenuContent>
-									) : null}
-								</>
-							)}
-						</DropdownMenu>
 					</>
 				}
 			/>
