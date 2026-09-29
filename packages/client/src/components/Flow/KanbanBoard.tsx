@@ -471,6 +471,13 @@ export default function KanbanBoard({
 						>
 							{workflow.items.filter((it) => it.stage === col.id).length}
 						</Badge>
+						<button
+							className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs ml-1"
+							onClick={() => setSelectedStage(col.id)}
+							title="Informações do estágio"
+						>
+							ℹ️
+						</button>
 					</div>
 				</div>
 
