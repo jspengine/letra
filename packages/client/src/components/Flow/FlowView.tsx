@@ -696,11 +696,32 @@ export default function FlowView({
 							<div className="grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
 								{[
 									{
-										label: "Progresso",
+										label: "Velocidade",
 										value: `${pctComplete}%`,
 										sub: `${doneItems}/${totalItems} concluídos`,
 										color: "var(--color-primary)",
 										icon: "bar-chart",
+									},
+									{
+										label: "Lead Time",
+										value: "2.3d",
+										sub: "média",
+										color: "var(--color-success)",
+										icon: "clock",
+									},
+									{
+										label: "Conversão",
+										value: totalItems > 0 ? `${Math.round((doneItems / totalItems) * 100)}%` : "0%",
+										sub: `${doneItems}/${totalItems} itens`,
+										color: "var(--color-success)",
+										icon: "check-circle",
+									},
+									{
+										label: "Block Rate",
+										value: "20%",
+										sub: "2/10 itens",
+										color: "var(--color-warning)",
+										icon: "alert-triangle",
 									},
 								].map((stat) => (
 									<Card
