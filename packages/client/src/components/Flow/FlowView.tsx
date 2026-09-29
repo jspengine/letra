@@ -21,7 +21,7 @@ import {
 	Card,
 	CardContent,
 	NavHeader,
-	ActionPanel,
+	
 	DropdownMenu,
 	DropdownMenuTrigger,
 	DropdownMenuContent,
@@ -595,63 +595,6 @@ export default function FlowView({
 					<div className="flex min-w-0 flex-1 overflow-y-hidden">
 						{/* ─── Left Column: Kanban ─── */}
 						<div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4 gap-3">
-							
-							<ActionPanel
-								className="min-w-0"
-								tone={primaryTone}
-								icon={
-									<Icon
-										name={
-											primaryState === "blocked"
-												? "shield"
-												: primaryState === "waiting"
-													? "clock"
-													: "grid"
-										}
-										size={20}
-									/>
-								}
-								title={
-									primaryItem
-										? `Próximo trabalho seguro: ${primaryItem.id}`
-										: "Nenhum trabalho em foco"
-								}
-								description={primaryDescription}
-								meta={
-									<>
-										{primaryItem ? (
-											<Badge variant="info" tone="soft">
-												{primaryStage?.name ?? primaryItem.stage}
-											</Badge>
-										) : null}
-										{primaryItem?.claimedBy ? (
-											<Tag>{primaryItem.claimedBy}</Tag>
-										) : null}
-									</>
-								}
-								action={
-									<Button
-										size="sm"
-										onClick={() => {
-											if (primaryItem) setSelectedItemId(primaryItem.id);
-											else setShowAddDialog(true);
-										}}
-									>
-										{primaryActionLabel}
-									</Button>
-								}
-								secondaryAction={
-									primaryItem ? (
-										<Button
-											size="sm"
-											variant="secondary"
-											onClick={() => setShowAddDialog(true)}
-										>
-											Novo item
-										</Button>
-									) : null
-								}
-							/>
 
 							<div className="grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
 								{[
