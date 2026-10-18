@@ -173,6 +173,8 @@ export interface Item {
 		timestamp: string;
 		expiresAt: string;
 		executorId?: string;
+		targetExecutorId?: string;
+		targetIdentityId?: string;
 	};
 }
 
@@ -277,6 +279,18 @@ export interface AgentDirectionSnapshot {
 	schemaVersion: "1";
 	revision: string;
 	generatedAt: string;
+	run?: {
+		id: string;
+		itemId: string;
+		executorId: string;
+		workflowVersionId: string;
+		status: "queued" | "running" | "failed" | "completed" | "waiting-human";
+	};
+	assignment?: {
+		status: "assigned" | "unassigned" | "selection-required";
+		runId?: string;
+		candidateRunIds?: string[];
+	};
 	source: {
 		harnessVersion: string | null;
 		flowId: string | null;
@@ -322,6 +336,9 @@ export interface AgentDirectionSnapshot {
 		description: string;
 	} | null;
 	commands: AgentDirectionCommand[];
+	operations?: Array<{ id: string; description?: string; requiredCapability?: string; requiresClaim: boolean; allowedInStages: string[]; allowedActors: string[] }>;
+	gates?: Array<{ id: string; name: string; type: "human" | "automated" | "external"; blocking: boolean; policyRef?: string; checkType?: ResolvedGateCheckType }>;
+	references?: Array<{ id: string; path: string; reason: string; sha256: string | null; available: boolean }>;
 	prohibitions: string[];
 	requiredEvidence: string[];
 	nextActions: AgentDirectionAction[];
@@ -491,6 +508,7 @@ export interface ResolvedFlowStage {
 	/** @deprecated Use roleIds and roles. */
 	agents: string[];
 	gate: ResolvedFlowGate | null;
+	transitions?: Array<{ target: string }>;
 	preferredExecutor?: string;
 	phases?: ResolvedStagePhases;
 	activity?: ResolvedFlowActivity;

@@ -3,6 +3,9 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { buildActivityContext } from "./builder.js";
+import { createExecutionRun } from "../execution-runs/store.js";
+import { publishWorkflowDraft, createWorkflowDefinition } from "../workflow-versions/service.js";
+import type { RunEntity } from "@letra/types";
 
 function createTestDir(): string {
 	const dir = join(
@@ -260,23 +263,19 @@ describe("buildActivityContext", () => {
 		rmSync(dir, { recursive: true, force: true });
 	});
 
-	it("builds context from focus and current item", () => {
+	it("does not derive assignment from a focused doing item", () => {
 		writeWorkflow(dir);
 		writeSpec(dir, "activity-context");
 		writeFocus(dir, "activity-context", "ITEM-47");
 
 		const result = buildActivityContext({ activity: "implement", workspaceRoot: dir });
 
-		expect(result.currentItem?.id).toBe("ITEM-47");
-		expect(result.currentItem?.spec).toBe("activity-context");
-		expect(result.currentItem?.acs).toEqual({ pending: 1, done: 1, total: 2 });
-		expect(result.mustRead.map((entry) => entry.path)).toContain(".letra/focus.md");
-		expect(result.mustRead.map((entry) => entry.path)).toContain(
-			".letra/specs/activity-context/spec.md",
-		);
+		expect(result.currentItem).toBeNull();
+		expect(result.assignment).toEqual({ status: "unassigned" });
+		expect(result.mustRead.map((entry) => entry.path)).not.toContain(".letra/focus.md");
 	});
 
-	it("uses the explicitly focused item when multiple items are active", () => {
+	it("uses only an explicit item selector when multiple items are active", () => {
 		writeWorkflow(dir, {
 			items: [
 				{
@@ -298,32 +297,64 @@ describe("buildActivityContext", () => {
 		writeSpec(dir, "activity-context");
 		writeFocus(dir, "activity-context", "ITEM-47");
 
-		const result = buildActivityContext({ activity: "design", workspaceRoot: dir });
+		const result = buildActivityContext({ activity: "design", workspaceRoot: dir, itemId: "ITEM-47" });
 
 		expect(result.currentItem?.id).toBe("ITEM-47");
 		expect(result.stage?.id).toBe("design");
-		expect(result.signals.some((signal) => signal.code === "focus-diverged")).toBe(false);
+		expect(result.assignment).toBeUndefined();
 	});
 
-	it("falls back safely when there is no active item", () => {
+	it("binds activity context to a selected Run and ignores workspace attention", () => {
+		writeWorkflow(dir);
+		writeSpec(dir, "activity-context");
+		const identityDir = join(dir, ".letra", "identity");
+		mkdirSync(identityDir, { recursive: true });
+		writeFileSync(join(identityDir, "local.json"), JSON.stringify({ id: "human:test", osUser: "test", hostname: "test-host", createdAt: new Date().toISOString() }));
+		const created = createWorkflowDefinition(dir, {
+			name: "Test Flow",
+			actor: "human:test",
+			content: { name: "Test Flow", initialStageId: "design", stages: [{ id: "design", transitions: [{ target: "build" }] }, { id: "build", transitions: [{ target: "review" }] }, { id: "review", final: true }] },
+		});
+		const version = publishWorkflowDraft(dir, created.definition.id, { expectedRevision: 1, actor: "human:test", reason: "test Activity Context Run binding" });
+		const now = new Date().toISOString();
+		const run: RunEntity = {
+			id: "RUN-47", workspaceId: dir, itemId: "ITEM-47",
+			binding: { actorId: "agent-a:builder:executor-a", identityId: "agent-a", roleId: "builder", executorId: "executor-a" },
+			authorization: { kind: "manual", actorId: "human:test", referenceId: "grant-47", grantedAt: now, revision: "grant-rev" },
+			workflowVersionId: version.id, cycle: { number: 1, startedAt: now, endedAt: null }, lease: null, revision: 1,
+			directionRevision: "direction-rev", createdAt: now, updatedAt: now, result: null, handoffs: [], gateDecisions: [], evidence: [], status: "running",
+		};
+		createExecutionRun(dir, run);
+		writeFocus(dir, "other-spec", "ITEM-99");
+
+		const result = buildActivityContext({ activity: "implement", workspaceRoot: dir, runId: run.id, executorId: "executor-a" });
+
+		expect(result.assignment).toEqual({ status: "assigned", runId: "RUN-47" });
+		expect(result.currentItem?.id).toBe("ITEM-47");
+		expect(result.directionRevision).toMatch(/^sha256:/);
+	});
+
+	it("does not infer work from workflow position when no assignment exists", () => {
 		writeWorkflow(dir, { items: [] });
 
 		const result = buildActivityContext({ activity: "design", workspaceRoot: dir });
 
 		expect(result.currentItem).toBeNull();
 		expect(result.signals.some((signal) => signal.code === "no-current-item")).toBe(true);
-		expect(result.nextActions[0]?.label).toBe("Triar item");
+		expect(result.assignment).toEqual({ status: "unassigned" });
+		expect(result.nextActions[0]?.label).toBe("Aguardar atribuição");
 	});
 
-	it("emits divergence signal when focus and active item disagree", () => {
+	it("ignores focus changes when resolving an explicitly assigned item", () => {
 		writeWorkflow(dir);
 		writeSpec(dir, "activity-context");
 		writeSpec(dir, "other-spec");
 		writeFocus(dir, "other-spec", "ITEM-47");
 
-		const result = buildActivityContext({ activity: "review", workspaceRoot: dir });
+		const result = buildActivityContext({ activity: "review", workspaceRoot: dir, itemId: "ITEM-47" });
 
-		expect(result.signals.some((signal) => signal.code === "focus-diverged")).toBe(true);
+		expect(result.currentItem?.id).toBe("ITEM-47");
+		expect(result.signals.some((signal) => signal.code === "focus-diverged")).toBe(false);
 	});
 
 	it("surfaces active health alerts as signals and risks", () => {
@@ -345,7 +376,7 @@ describe("buildActivityContext", () => {
 			},
 		]);
 
-		const result = buildActivityContext({ activity: "diagnose", workspaceRoot: dir });
+		const result = buildActivityContext({ activity: "diagnose", workspaceRoot: dir, itemId: "ITEM-47" });
 
 		expect(result.objective).toBe("Diagnóstico declarado sem ocultar sinais");
 		expect(result.signals.some((signal) => signal.code === "active-health-alerts")).toBe(true);
@@ -367,7 +398,7 @@ describe("buildActivityContext", () => {
 		});
 		writeSpec(dir, "activity-context");
 
-		const result = buildActivityContext({ activity: "review", workspaceRoot: dir });
+		const result = buildActivityContext({ activity: "review", workspaceRoot: dir, itemId: "ITEM-48" });
 
 		expect(result.nextActions.map((action) => action.label)).toContain("Cobrar evidências");
 		expect(result.mustRead.map((entry) => entry.path)).toContain(".letra/session-log.json");
@@ -391,7 +422,7 @@ describe("buildActivityContext", () => {
 		});
 		writeSpec(dir, "activity-context");
 
-		const result = buildActivityContext({ activity: "review", workspaceRoot: dir });
+		const result = buildActivityContext({ activity: "review", workspaceRoot: dir, itemId: "ITEM-48" });
 
 		expect(result.currentItem?.currentPhase).toBe("auto-review");
 		expect(result.objective).toBe("Revisão da fase declarada");
@@ -416,7 +447,7 @@ describe("buildActivityContext", () => {
 		});
 		writeSpec(dir, "activity-context");
 
-		const result = buildActivityContext({ activity: "review", workspaceRoot: dir });
+		const result = buildActivityContext({ activity: "review", workspaceRoot: dir, itemId: "ITEM-48" });
 
 		expect(result.signals.some((signal) => signal.code === "review-phase-code-fix")).toBe(true);
 		expect(result.nextActions[1]?.label).toBe("Listar riscos");
@@ -437,7 +468,7 @@ describe("buildActivityContext", () => {
 		});
 		writeSpec(dir, "activity-context");
 
-		const result = buildActivityContext({ activity: "review", workspaceRoot: dir });
+		const result = buildActivityContext({ activity: "review", workspaceRoot: dir, itemId: "ITEM-48" });
 
 		expect(result.signals.some((signal) => signal.code === "review-phase-human-review")).toBe(
 			true,
@@ -459,7 +490,7 @@ describe("buildActivityContext", () => {
 		});
 		writeSpec(dir, "activity-context");
 
-		const result = buildActivityContext({ activity: "gate", workspaceRoot: dir });
+		const result = buildActivityContext({ activity: "gate", workspaceRoot: dir, itemId: "ITEM-49" });
 
 		expect(result.nextActions.map((action) => action.label)).toContain("Responder gate");
 		expect(result.mustNotDo.some((item) => item.includes("decisão humana"))).toBe(true);
@@ -482,7 +513,7 @@ describe("buildActivityContext", () => {
 		});
 		writeSpec(dir, "activity-context");
 
-		const result = buildActivityContext({ activity: "gate", workspaceRoot: dir });
+		const result = buildActivityContext({ activity: "gate", workspaceRoot: dir, itemId: "ITEM-50" });
 
 		expect(result.signals.some((signal) => signal.code === "spec-approval")).toBe(true);
 		expect(result.nextActions.map((action) => action.label)).toContain("Responder gate");
@@ -573,8 +604,8 @@ describe("buildActivityContext", () => {
 		);
 		writeSpec(dir, "activity-context");
 
-		const reviewContext = buildActivityContext({ activity: "review", workspaceRoot: dir });
-		const gateContext = buildActivityContext({ activity: "gate", workspaceRoot: dir });
+		const reviewContext = buildActivityContext({ activity: "review", workspaceRoot: dir, itemId: "ITEM-51" });
+		const gateContext = buildActivityContext({ activity: "gate", workspaceRoot: dir, itemId: "ITEM-51" });
 
 		expect(
 			reviewContext.signals.some((signal) => signal.code === "review-phase-human-review"),
@@ -603,7 +634,7 @@ describe("buildActivityContext", () => {
 			},
 		]);
 
-		const result = buildActivityContext({ activity: "diagnose", workspaceRoot: dir });
+		const result = buildActivityContext({ activity: "diagnose", workspaceRoot: dir, itemId: "ITEM-47" });
 
 		expect(result.mustRead.map((entry) => entry.path)).toContain(".letra/health-record.json");
 		expect(result.nextActions.map((action) => action.label)).toContain("Priorizar impacto");
@@ -614,7 +645,7 @@ describe("buildActivityContext", () => {
 		writeWorkflow(dir);
 		writeSpec(dir, "activity-context");
 
-		const result = buildActivityContext({ activity: "design", workspaceRoot: dir });
+		const result = buildActivityContext({ activity: "design", workspaceRoot: dir, itemId: "ITEM-47" });
 
 		expect(result.objective).toBe("Direção declarada pelo harness");
 		expect(result.nextActions.map((action) => action.label)).toContain("Preparar decisões");

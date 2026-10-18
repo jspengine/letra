@@ -62,7 +62,7 @@ function formatProtocol(snapshot: HarnessSnapshot): string | null {
 
 	const lines: string[] = [
 		"PASSO OBRIGATÓRIO #1: Consulte `get_direction` ou execute `letra direction --json` — direção viva e revisão canônica",
-		"PASSO OBRIGATÓRIO #2: Execute `letra pulse --json` — resumo do board, alertas e item atual",
+		"PASSO OBRIGATÓRIO #2: Execute `letra pulse --json` — resumo do board e alertas; use a direção viva para identificar tarefa atribuída",
 		"PASSO OBRIGATÓRIO #3: Leia .letra/context.md somente quando precisar de memória humana curada de produto/domínio",
 	];
 
@@ -76,7 +76,7 @@ function formatProtocol(snapshot: HarnessSnapshot): string | null {
 		);
 	} else {
 		lines.push(
-			"PASSO OBRIGATÓRIO #4: Identifique o item ativo via `letra pulse` e leia sua spec",
+			"PASSO OBRIGATÓRIO #4: Sem item atribuído, aguarde atribuição ou selecione um item pela operação canônica antes de ler sua spec",
 		);
 	}
 
@@ -154,7 +154,7 @@ function formatExecutionFlow(): string {
 	return [
 		"**Loop por AC**:",
 		"  1. Implemente o AC no código",
-		"  2. `letra ac done <AC-ID>` — marca como concluído no spec.md",
+		"  2. `letra ac done <AC-ID> --item <ITEM-ID>` — conclui o critério para um item explícito",
 		"  3. `letra validate` — verifica se ACs estão consistentes",
 		"  4. Repita até todos os ACs do item estarem concluídos",
 		"",
@@ -170,7 +170,7 @@ function formatHarnessDirection(snapshot: HarnessSnapshot, format: AdapterFormat
 	const dir = snapshot.harnessDirection;
 	if (!dir) return null;
 
-	const itemId = snapshot.primaryItemId;
+	const itemId = snapshot.direction?.item?.id ?? snapshot.primaryItemId;
 	const item = itemId ? snapshot.items.find((i) => i.id === itemId) : null;
 	const stageId = snapshot.activeStage?.id;
 	const stageName = snapshot.activeStage?.name;
@@ -589,7 +589,7 @@ function formatRulesText(): string {
 		"# Rules",
 		"- Always read specs in .letra/specs/ before writing code",
 		"- Run `letra validate` to check acceptance criteria",
-		"- Execute `letra ac done <ID>` after implementing each AC",
+		"- Execute `letra ac done <ID> --item <ITEM-ID>` after implementing each AC",
 		"- Follow the constitution.md rules strictly",
 		"- Use formal tone in all generated content",
 	].join("\n");

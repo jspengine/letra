@@ -50,6 +50,7 @@ describe("Codex executor process invocation", () => {
 			validate: async () => accepted(),
 			transition: async ({ targetStageId }: any) => { workflow.items[0].stage = targetStageId; return accepted(); },
 			handoff: async ({ to, executorId, summary, evidence }: any) => { Object.assign(workflow.items[0], { claimedBy: undefined, claimExecutorId: undefined, handoff: { from: "codex", to, executorId, summary, evidence, timestamp: "", expiresAt: "" } }); return accepted(); },
+			passage: async ({ targetStageId, to }: any) => { Object.assign(workflow.items[0], { stage: targetStageId, claimedBy: undefined, claimExecutorId: undefined, handoff: { from: "codex", to, timestamp: "", expiresAt: "" } }); return accepted(); },
 			release: async () => accepted(),
 		} satisfies DispatcherOperations;
 		const result = await new PersistentDispatcher(

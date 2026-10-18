@@ -3,7 +3,8 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, u
 import { join } from "node:path";
 import { getLetraDir } from "../workspace/resolver.js";
 import { logEntry } from "../session-log.js";
-import { assertOperationLevel } from "../identity/guard.js";
+import { assertOperationLevel, OPERATION_REQUIRED_LEVELS } from "../identity/guard.js";
+import type { SignedOperationProof } from "../identity/signing.js";
 
 export type WorkflowVersionStatus = "draft" | "published" | "superseded";
 export interface WorkflowDefinitionContent { name: string; description?: string; initialStageId?: string; stages: Array<{ id: string; final?: boolean; transitions?: Array<{ target: string }>; [key: string]: unknown }>; [key: string]: unknown }
@@ -456,7 +457,7 @@ export function updateWorkflowDraft(root: string, workflowId: string, input: { e
 }
 
 export function publishWorkflowDraft(root: string, workflowId: string, input: { expectedRevision: number; actor: string; reason: string; restoredFromVersionId?: string }, faultInjection?: { beforeActivation?: () => void; afterActivation?: () => void }): WorkflowVersion {
-	assertOperationLevel(root, input.actor, "local");
+	assertOperationLevel(root, input.actor, OPERATION_REQUIRED_LEVELS["workflow.publish"]);
 	if (!input.actor.startsWith("human:") || !input.reason.trim()) throw new Error("HUMAN_PUBLICATION_REQUIRED");
 	const definition = loadDefinition(root, workflowId); const draft = loadDraft(root, workflowId); if (draft.revision !== input.expectedRevision) throw new Error(`DRAFT_REVISION_CONFLICT:${draft.revision}`);
 	const validation = validateWorkflowContent(draft.content); if (!validation.valid) throw new Error(`WORKFLOW_INVALID:${JSON.stringify(validation.errors)}`);
@@ -476,8 +477,8 @@ export function publishWorkflowDraft(root: string, workflowId: string, input: { 
 	logEntry(root, "system", `Workflow ${workflowId} published as v${number}`, { details: { actor: input.actor, reason: input.reason, versionId: published.id, previousVersionId: previous, contentHash: published.contentHash } }); try { unlinkSync(transaction); } catch {} return published;
 }
 
-export function rollbackWorkflowVersion(root: string, workflowId: string, input: { versionNumber: number; actor: string; reason: string }): WorkflowVersion {
-	assertOperationLevel(root, input.actor, "local");
+export function rollbackWorkflowVersion(root: string, workflowId: string, input: { versionNumber: number; actor: string; reason: string; proof?: SignedOperationProof }): WorkflowVersion {
+	assertOperationLevel(root, input.actor, OPERATION_REQUIRED_LEVELS["workflow.rollback"], { operation: "workflow.rollback", details: { workflowId, versionNumber: input.versionNumber, reason: input.reason }, proof: input.proof });
 	if (!input.actor.startsWith("human:") || !input.reason.trim()) throw new Error("HUMAN_ROLLBACK_REQUIRED"); const historic = getWorkflowVersion(root, workflowId, input.versionNumber);
 	if (existsSync(draftPath(root, workflowId))) throw new Error("DRAFT_ALREADY_EXISTS"); const draft = createWorkflowDraft(root, workflowId, input.actor, input.versionNumber); draft.restoredFromVersionId = historic.id; atomicJson(draftPath(root, workflowId), draft);
 	return publishWorkflowDraft(root, workflowId, { expectedRevision: draft.revision, actor: input.actor, reason: input.reason, restoredFromVersionId: historic.id });
@@ -515,4 +516,3 @@ export function getWorkflowVersion(root: string, workflowId: string, number: num
 export function getWorkflowDraft(root: string, workflowId: string): WorkflowVersion { return loadDraft(root, workflowId); }
 export function listWorkflowDraftRevisions(root: string, workflowId: string): WorkflowVersion[] { const dir = join(definitionDir(root, workflowId), "draft-revisions"); if (!existsSync(dir)) return []; return readdirSync(dir).filter((file) => /^r\d+\.json$/.test(file)).map((file) => readJson<WorkflowVersion>(join(dir, file))).sort((a, b) => a.revision - b.revision); }
 export function getActiveWorkflowVersion(root: string, workflowId: string): WorkflowVersion | null { const definition = loadDefinition(root, workflowId); return definition.activeVersionId ? listWorkflowVersions(root, workflowId).find((version) => version.id === definition.activeVersionId) ?? null : null; }
-

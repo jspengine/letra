@@ -14,10 +14,13 @@ export function resolveRequestedActivity(
 		: "implement";
 }
 
-export function buildRequestedActivityContext(workspaceRoot: string, activityParam: string | null) {
+export function buildRequestedActivityContext(workspaceRoot: string, activityParam: string | null, runId?: string | null, executorId?: string | null, itemId?: string | null) {
 	return buildActivityContext({
 		activity: resolveRequestedActivity(activityParam),
 		workspaceRoot,
+		runId: runId ?? undefined,
+		executorId: executorId ?? undefined,
+		itemId: itemId ?? undefined,
 	});
 }
 

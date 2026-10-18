@@ -77,6 +77,8 @@ stages:
       - analyst
     gate: spec-approved
     preferredExecutor: opencode
+    transitions:
+      - target: review
     hooks:
       on_enter:
         - action: capture_baseline
@@ -102,6 +104,7 @@ stages:
 		});
 		expect(manifest?.flows["flow-main"]?.stages[0]).toMatchObject({
 			preferredExecutor: "opencode",
+			transitions: [{ target: "review" }],
 			hooks: { on_enter: [{ action: "capture_baseline", auto: true, requires_claim: true }] },
 		});
 		expect(manifest?.flows["flow-main"]?.operations?.inspect).toMatchObject({ required_capability: "scan", requires_claim: true, allowed_in_stages: ["forge"] });

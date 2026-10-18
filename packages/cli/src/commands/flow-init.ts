@@ -17,6 +17,7 @@ import {
 	type WorkspaceResolution,
 } from "../workspace/resolver.js";
 import { getLetraDir } from "./../workspace/resolver.js";
+import { recoverWorkspaceTransaction, withWorkspaceTransactionLock, withWorkspaceTransactionLockSync } from "../domain-operations/workspace-transaction.js";
 import type { ValidationEvidence } from "@letra/types";
 import type { SecurityBaseline, SecurityReviewReport } from "../security/scoped-review.js";
 
@@ -40,6 +41,7 @@ export interface Task {
 }
 
 export interface ItemHandoff {
+	status?: "pending" | "accepted" | "completed" | "expired" | "superseded" | "cancelled";
 	from: string;
 	to: string;
 	summary: string;
@@ -47,6 +49,8 @@ export interface ItemHandoff {
 	timestamp: string;
 	expiresAt: string;
 	executorId?: string;
+	targetExecutorId?: string;
+	targetIdentityId?: string;
 }
 
 export interface Item {
@@ -79,6 +83,7 @@ export interface Item {
 	lastOperationKey?: string;
 	currentPhase?: string;
 	handoff?: ItemHandoff;
+	handoffHistory?: ItemHandoff[];
 }
 
 export interface SpecLink {
@@ -294,6 +299,7 @@ export function migrateTargetsToLocations(workflow: Workflow): {
 }
 
 export function loadWorkflow(root: string): Workflow | null {
+	recoverWorkspaceTransaction(root);
 	const filePath = workflowFilePath(root);
 	if (!existsSync(filePath)) return null;
 	try {
@@ -310,6 +316,9 @@ export function loadWorkflow(root: string): Workflow | null {
 }
 
 export function saveWorkflow(root: string, workflow: Workflow): void {
+	withWorkspaceTransactionLockSync(root, () => saveWorkflowUnlocked(root, workflow));
+}
+function saveWorkflowUnlocked(root: string, workflow: Workflow): void {
 	const dir = getLetraDir(root);
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 	const filePath = workflowFilePath(root);
@@ -408,7 +417,7 @@ export async function writeWorkflow(
 	workflowWriteQueue = new Promise<void>((resolve) => { release = resolve; });
 	await previous;
 	try {
-		return await writeWorkflowUnlocked(root, options);
+		return await withWorkspaceTransactionLock(root, () => writeWorkflowUnlocked(root, options));
 	} finally {
 		release();
 	}
@@ -439,7 +448,12 @@ async function writeWorkflowUnlocked(
 	}
 	if (options.expectedRevision) {
 		const { resolveAgentDirection } = await import("../agent-direction/service.js");
-		const currentRevision = resolveAgentDirection(root).revision;
+		const activeRuns = primaryItemId
+			? (await import("../execution-runs/store.js")).readExecutionRuns(root).runs.filter((run) => run.itemId === primaryItemId && (run.status === "running" || run.status === "queued" || run.status === "waiting-human"))
+			: [];
+		const currentRevision = activeRuns.length === 1
+			? resolveAgentDirection(root, undefined, { runId: activeRuns[0]!.id }).revision
+			: resolveAgentDirection(root, primaryItemId ?? null).revision;
 		if (currentRevision !== options.expectedRevision) {
 			return { ok: false, filesUpdated: [], error: `DIRECTION_STALE: expected ${options.expectedRevision}, current ${currentRevision}` };
 		}
@@ -685,3 +699,4 @@ export async function flowInitAction(
 		process.exit(1);
 	}
 }
+

@@ -30,9 +30,17 @@ export function resolveLocalIdentity(workspaceRoot: string): LocalIdentity {
 
 	if (existsSync(identityPath)) {
 		try {
-			return JSON.parse(readFileSync(identityPath, "utf8")) as LocalIdentity;
+			const identity = JSON.parse(readFileSync(identityPath, "utf8")) as Partial<LocalIdentity>;
+			if (
+				typeof identity.id !== "string" || !identity.id.startsWith("human:") ||
+				typeof identity.osUser !== "string" || typeof identity.hostname !== "string" ||
+				typeof identity.createdAt !== "string"
+			) throw new Error("LOCAL_IDENTITY_INVALID");
+			return identity as LocalIdentity;
 		} catch {
-			// Arquivo corrompido — recria
+			// Authorization checks must fail closed; never silently replace a
+			// corrupted registry with a new identity during verification.
+			throw new Error("LOCAL_IDENTITY_INVALID");
 		}
 	}
 
@@ -62,5 +70,5 @@ export function resolveLocalIdentity(workspaceRoot: string): LocalIdentity {
 export function isKnownLocalActor(workspaceRoot: string, actor: string): boolean {
 	if (!actor.startsWith("human:")) return false;
 	const identity = resolveLocalIdentity(workspaceRoot);
-	return actor === identity.id || actor === `human:${identity.osUser}`;
+	return actor === identity.id;
 }

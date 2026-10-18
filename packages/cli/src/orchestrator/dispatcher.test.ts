@@ -6,18 +6,27 @@ function canonicalOperations(workflow: any) {
 	const direction = () => ({ revision: "test-revision", item: workflow.items[0] ?? null } as any);
 	const accepted = () => ({ outcome: "accepted" as const, afterRevision: "test-revision", reasonCode: "OK", reason: "ok", nextDirection: direction() });
 	return {
-		getDirection: direction,
+		getDirection: vi.fn(direction),
 		claim: vi.fn(async ({ itemId, executorId, actor, capability }: any) => { const item = workflow.items.find((entry: any) => entry.id === itemId); Object.assign(item, { claimedBy: actor, claimExecutorId: executorId, claimCapability: capability, claimedAt: new Date().toISOString(), claimExpiresAt: new Date(Date.now() + 60_000).toISOString() }); return accepted(); }),
 		event: vi.fn(async ({ itemId, status, message, errorCode }: any) => { const item = workflow.items.find((entry: any) => entry.id === itemId); item.activityStatus = status; item.lastHeartbeatAt = new Date().toISOString(); if (status === "failed") { item.claimedBy = undefined; item.claimExecutorId = undefined; item.lastFailure = { code: errorCode, message, recovery: "retry", at: new Date().toISOString() }; } return accepted(); }),
 		evidence: vi.fn(async () => accepted()),
 		validate: vi.fn(async () => accepted()),
 		transition: vi.fn(async ({ itemId, targetStageId }: any) => { workflow.items.find((entry: any) => entry.id === itemId).stage = targetStageId; return accepted(); }),
 		handoff: vi.fn(async ({ itemId, to, summary, evidence, executorId }: any) => { const item = workflow.items.find((entry: any) => entry.id === itemId); Object.assign(item, { claimedBy: undefined, claimExecutorId: undefined, activityStatus: "succeeded", handoff: { from: "agent", to, summary, evidence, executorId, timestamp: new Date().toISOString(), expiresAt: new Date(Date.now() + 1_800_000).toISOString() } }); return accepted(); }),
+		passage: vi.fn(async ({ itemId, targetStageId, to, summary, evidence, executorId }: any) => { const item = workflow.items.find((entry: any) => entry.id === itemId); const source = workflow.stages.find((stage: any) => stage.id === item.stage); const human = to === "human" || to.startsWith("human:"); const candidates = workflow.stages.filter((stage: any) => stage.id === source?.id || (source?.transitions ?? []).some((edge: any) => edge.target === stage.id)).filter((stage: any) => (stage.agents ?? []).includes(to)); const target = targetStageId ? workflow.stages.find((stage: any) => stage.id === targetStageId) : human ? source : candidates.length === 1 ? candidates[0] : undefined; if (!target) return { outcome: "rejected" as const, afterRevision: "test-revision", reasonCode: candidates.length > 1 ? "PASSAGE_TARGET_AMBIGUOUS" : "PASSAGE_TARGET_UNRESOLVED", reason: candidates.length > 1 ? "PASSAGE_TARGET_AMBIGUOUS: Destino ambíguo." : "PASSAGE_TARGET_UNRESOLVED: Destino não configurado.", nextDirection: direction() }; Object.assign(item, { stage: target.id, claimedBy: undefined, claimExecutorId: undefined, activityStatus: "succeeded", handoff: { from: "agent", to, summary, evidence, executorId, timestamp: new Date().toISOString(), expiresAt: new Date(Date.now() + 1_800_000).toISOString() } }); return accepted(); }),
 		release: vi.fn(async ({ itemId }: any) => { const item = workflow.items.find((entry: any) => entry.id === itemId); Object.assign(item, { claimedBy: undefined, claimExecutorId: undefined }); return accepted(); }),
 	} satisfies DispatcherOperations;
 }
 
 describe("PersistentDispatcher", () => {
+	it("does not use workflow.primaryItemId to select the workspace-wide recovery revision", async () => {
+		const workflow = { items: [], stages: [], primaryItemId: "ITEM-UNRELATED", name: "", version: "1", createdAt: "", updatedAt: "", tools: [] } as any;
+		const operations = { ...canonicalOperations(workflow), reclaimExpired: vi.fn(async () => ({ outcome: "accepted" as const, afterRevision: "test-revision", reasonCode: "OK", reason: "ok", nextDirection: { revision: "test-revision", item: null } as any })) };
+		await new PersistentDispatcher({ loadWorkflow: () => workflow, operations }, () => []).dispatch();
+		expect(operations.getDirection).toHaveBeenCalledWith("");
+		expect(operations.reclaimExpired).toHaveBeenCalled();
+	});
+
 	it("dispatches pending handoff and skips offline executors", async () => {
 		const execute = vi.fn().mockResolvedValue({ success: true, output: "ok", artifacts: [], evidences: [] });
 		const workflow = { items: [{ id: "I", description: "", stage: "code", createdAt: "", handoff: { from: "a", to: "b", summary: "", evidence: [], timestamp: "", expiresAt: "" } }], stages: [{ id: "code", name: "Code", order: 1 }], name: "", version: "1", createdAt: "", updatedAt: "", tools: [] } as any;
@@ -26,11 +35,18 @@ describe("PersistentDispatcher", () => {
 		expect(result[0].status).toBe("dispatched"); expect(execute).toHaveBeenCalled(); expect(store.operations.claim).toHaveBeenCalled();
 	});
 
+	it("returns an actionable reason code when no executor can run the configured stage", async () => {
+		const workflow = { items: [{ id: "I", description: "", stage: "code", createdAt: "", handoff: { from: "design", to: "implementer", summary: "", evidence: [], timestamp: "", expiresAt: "" } }], stages: [{ id: "code", name: "Code", order: 1, agents: ["implementer"] }], name: "", version: "1", createdAt: "", updatedAt: "", tools: [] } as any;
+		const store = { loadWorkflow: () => workflow, operations: canonicalOperations(workflow) };
+		const result = await new PersistentDispatcher(store, () => []).dispatch();
+		expect(result).toEqual([expect.objectContaining({ itemId: "I", status: "offline", reasonCode: "NO_COMPATIBLE_EXECUTOR", reason: expect.stringContaining("nenhum executor registrado") })]);
+	});
+
 	it("records simulated evidence and the next handoff", async () => {
 		const workflow = {
 			items: [{ id: "I", description: "", stage: "code", createdAt: "", handoff: { from: "design", to: "implementer", summary: "", evidence: [], timestamp: "", expiresAt: "" } }],
 			stages: [
-				{ id: "code", name: "Code", order: 1, agents: ["implementer"] },
+				{ id: "code", name: "Code", order: 1, agents: ["implementer"], transitions: [{ target: "review" }] },
 				{ id: "review", name: "Review", order: 2, agents: ["reviewer"] },
 			], name: "", version: "1", createdAt: "", updatedAt: "", tools: [],
 		} as any;
@@ -41,6 +57,53 @@ describe("PersistentDispatcher", () => {
 		expect(workflow.items[0].stage).toBe("review");
 		expect(workflow.items[0].handoff?.to).toBe("reviewer");
 		expect(workflow.items[0].handoff?.evidence).toContain("simulated:code:I");
+		expect(store.operations.passage).toHaveBeenCalledTimes(1);
+		expect(store.operations.transition).not.toHaveBeenCalled();
+		expect(store.operations.handoff).not.toHaveBeenCalled();
+	});
+
+	it("does not split an unresolved destination into transition and handoff writes", async () => {
+		const workflow = { items: [{ id: "I", description: "", stage: "code", createdAt: "", handoff: { from: "design", to: "missing-role", summary: "No configured destination", evidence: [], timestamp: "", expiresAt: "" } }], stages: [{ id: "code", name: "Code", order: 1, agents: ["implementer"] }], name: "", version: "1", createdAt: "", updatedAt: "", tools: [] } as any;
+		const operations = canonicalOperations(workflow);
+		const store = { loadWorkflow: () => workflow, operations };
+		const executor = { ...createSimulatedExecutor("simulated", ["code"]), execute: async () => ({ success: true, output: "done", artifacts: [], evidences: [], handoff: { type: "handoff" as const, itemId: "I", from: "simulated", to: "missing-role", summary: "Unknown destination", evidence: [], timestamp: new Date().toISOString() } }) };
+		const result = await new PersistentDispatcher(store, () => [executor], 30_000).dispatch();
+		expect(result[0]).toMatchObject({ status: "failed", reason: expect.stringContaining("PASSAGE_TARGET_UNRESOLVED") });
+		expect(operations.transition).not.toHaveBeenCalled();
+		expect(operations.handoff).not.toHaveBeenCalled();
+		expect(operations.passage).toHaveBeenCalledTimes(1);
+	});
+
+	it("routes the role to an outgoing stage even when that role is also configured elsewhere", async () => {
+		const workflow = { items: [{ id: "I", description: "", stage: "code", createdAt: "", handoff: { from: "design", to: "reviewer", summary: "Review", evidence: [], timestamp: "", expiresAt: "" } }], stages: [{ id: "code", name: "Code", order: 1, agents: ["implementer"], transitions: [{ target: "review" }] }, { id: "review", name: "Review", order: 2, agents: ["reviewer"] }, { id: "security", name: "Security", order: 3, agents: ["reviewer"] }], name: "", version: "1", createdAt: "", updatedAt: "", tools: [] } as any;
+		const operations = canonicalOperations(workflow);
+		const executor = { ...createSimulatedExecutor("simulated", ["code"]), execute: async () => ({ success: true, output: "done", artifacts: [], evidences: [], handoff: { type: "handoff" as const, itemId: "I", from: "simulated", to: "reviewer", summary: "Review", evidence: [], timestamp: new Date().toISOString() } }) };
+		const result = await new PersistentDispatcher({ loadWorkflow: () => workflow, operations }, () => [executor]).dispatch();
+		expect(result[0]).toMatchObject({ status: "dispatched" });
+		expect(operations.passage).toHaveBeenCalledWith(expect.objectContaining({ to: "reviewer" }));
+		expect(operations.handoff).not.toHaveBeenCalled();
+		expect(operations.transition).not.toHaveBeenCalled();
+	});
+
+	it("preserves the canonical reason code for an ambiguous outgoing destination", async () => {
+		const workflow = { items: [{ id: "I", description: "", stage: "code", createdAt: "", handoff: { from: "design", to: "reviewer", summary: "Review", evidence: [], timestamp: "", expiresAt: "" } }], stages: [{ id: "code", name: "Code", order: 1, agents: ["implementer"], transitions: [{ target: "review" }, { target: "security" }] }, { id: "review", name: "Review", order: 2, agents: ["reviewer"] }, { id: "security", name: "Security", order: 3, agents: ["reviewer"] }], name: "", version: "1", createdAt: "", updatedAt: "", tools: [] } as any;
+		const operations = canonicalOperations(workflow);
+		operations.passage.mockResolvedValueOnce({ outcome: "rejected", afterRevision: "test-revision", reasonCode: "PASSAGE_TARGET_AMBIGUOUS", reason: "Escolha uma saída configurada.", nextDirection: { revision: "test-revision", item: workflow.items[0] } as any });
+		const executor = { ...createSimulatedExecutor("simulated", ["code"]), execute: async () => ({ success: true, output: "done", artifacts: [], evidences: [], handoff: { type: "handoff" as const, itemId: "I", from: "simulated", to: "reviewer", summary: "Review", evidence: [], timestamp: new Date().toISOString() } }) };
+		const result = await new PersistentDispatcher({ loadWorkflow: () => workflow, operations }, () => [executor]).dispatch();
+		expect(result[0]).toMatchObject({ status: "failed", outcome: "rejected", reasonCode: "PASSAGE_TARGET_AMBIGUOUS", reason: "Escolha uma saída configurada." });
+		expect(operations.passage).toHaveBeenCalledTimes(1);
+		expect(operations.event).not.toHaveBeenCalledWith(expect.objectContaining({ errorCode: "EXECUTOR_EXCEPTION" }));
+	});
+
+	it("uses the canonical passage operation for a same-stage handoff", async () => {
+		const workflow = { items: [{ id: "I", description: "", stage: "review", createdAt: "", handoff: { from: "code", to: "reviewer", summary: "Review", evidence: [], timestamp: "", expiresAt: "" } }], stages: [{ id: "review", name: "Review", order: 1, agents: ["reviewer"] }], name: "", version: "1", createdAt: "", updatedAt: "", tools: [] } as any;
+		const operations = canonicalOperations(workflow);
+		const executor = { ...createSimulatedExecutor("simulated", ["review"]), execute: async () => ({ success: true, output: "done", artifacts: [], evidences: [], handoff: { type: "handoff" as const, itemId: "I", from: "simulated", to: "reviewer", summary: "Review", evidence: [], timestamp: new Date().toISOString() } }) };
+		const result = await new PersistentDispatcher({ loadWorkflow: () => workflow, operations }, () => [executor], 30_000, { stageActors: () => ["reviewer"] }).dispatch();
+		expect(result[0].status).toBe("dispatched");
+		expect(operations.passage).toHaveBeenCalledWith(expect.objectContaining({ targetStageId: "review" }));
+		expect(operations.handoff).not.toHaveBeenCalled();
 	});
 
 	it("pauses a handoff addressed to the human", async () => {
@@ -79,9 +142,9 @@ describe("PersistentDispatcher", () => {
 		const workflow = {
 			items: [{ id: "I", description: "", stage: "code", createdAt: "", handoff: { from: "human", to: "implementer", summary: "Approved", evidence: [], timestamp: "", expiresAt: "" } }],
 			stages: [
-				{ id: "code", name: "Code", order: 1, agents: ["implementer"] },
-				{ id: "review", name: "Review", order: 2, agents: ["reviewer"] },
-				{ id: "security", name: "Security", order: 3, agents: ["security"], gate: "human-approved" },
+				{ id: "code", name: "Code", order: 1, agents: ["implementer"], transitions: [{ target: "review" }] },
+				{ id: "review", name: "Review", order: 2, agents: ["reviewer"], transitions: [{ target: "security" }] },
+				{ id: "security", name: "Security", order: 3, agents: ["security"], gate: "human-approved", transitions: [] },
 			], name: "", version: "1", createdAt: "", updatedAt: "", tools: [],
 		} as any;
 		const store = { loadWorkflow: () => workflow, operations: canonicalOperations(workflow) };
@@ -98,10 +161,10 @@ describe("PersistentDispatcher", () => {
 		const workflow = {
 			items: [{ id: "I", description: "", stage: "design", createdAt: "", handoff: { from: "human:owner", to: "analyst", summary: "Activated", evidence: ["activation:human-approved"], timestamp: "", expiresAt: "" } }],
 			stages: [
-				{ id: "design", name: "Design", order: 1, agents: ["analyst"] },
-				{ id: "code", name: "Code", order: 2, agents: ["implementer"] },
-				{ id: "review", name: "Review", order: 3, agents: ["reviewer"] },
-				{ id: "security", name: "Security", order: 4, agents: ["security"], gate: "human-approved" },
+				{ id: "design", name: "Design", order: 1, agents: ["analyst"], transitions: [{ target: "code" }] },
+				{ id: "code", name: "Code", order: 2, agents: ["implementer"], transitions: [{ target: "review" }] },
+				{ id: "review", name: "Review", order: 3, agents: ["reviewer"], transitions: [{ target: "security" }] },
+				{ id: "security", name: "Security", order: 4, agents: ["security"], gate: "human-approved", transitions: [] },
 			], name: "", version: "1", createdAt: "", updatedAt: "", tools: [],
 		} as any;
 		const store = { loadWorkflow: () => workflow, operations: canonicalOperations(workflow) };
@@ -199,6 +262,7 @@ describe("PersistentDispatcher", () => {
 			}),
 			evidence: vi.fn(async () => accepted()), validate: vi.fn(async () => accepted()),
 			transition: vi.fn(async () => accepted()), handoff: vi.fn(async () => accepted()), release: vi.fn(async () => accepted()),
+			passage: vi.fn(async () => accepted()),
 		} satisfies DispatcherOperations;
 		const executor = createSimulatedExecutor("simulated", ["code"]);
 		const result = await new PersistentDispatcher({ loadWorkflow: () => workflow, operations }, () => [executor]).dispatch();

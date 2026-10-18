@@ -72,11 +72,14 @@ export default function activityContextCommand() {
 			"implement",
 		)
 		.option("--format <type>", "Output format: text or json", "text")
-		.action((options: { activity?: string; format?: string }) => {
+		.option("--run <id>", "Execution Run ID")
+		.option("--executor <id>", "Executor identity")
+		.option("--item <id>", "Explicit item ID for read-only context")
+		.action((options: { activity?: string; format?: string; run?: string; executor?: string; item?: string }) => {
 			const activity = (options.activity || "implement") as ActivityKind;
 			const format = options.format || "text";
 			const root = resolve(process.cwd());
-			const context = buildActivityContext({ activity, workspaceRoot: root });
+			const context = buildActivityContext({ activity, workspaceRoot: root, runId: options.run, executorId: options.executor, itemId: options.item });
 
 			if (format === "json") {
 				console.log(JSON.stringify(context, null, 2));

@@ -26,6 +26,7 @@ export interface DispatcherOperations {
 	transition(input: { itemId: string; targetStageId: string; actor: string; expectedRevision: string; reason: string; idempotencyKey?: string }): Promise<DispatcherOperationResult>;
 	handoff(input: { itemId: string; to: string; executorId: string; actor: string; summary: string; evidence: string[]; expectedRevision: string; reason: string; idempotencyKey?: string }): Promise<DispatcherOperationResult>;
 	release(input: { itemId: string; actor: string; expectedRevision: string; reason: string; idempotencyKey?: string }): Promise<DispatcherOperationResult>;
+	passage(input: { itemId: string; targetStageId?: string; to: string; executorId: string; actor: string; summary: string; evidence: string[]; expectedRevision: string; reason: string; idempotencyKey?: string }): Promise<DispatcherOperationResult>;
 	reclaimExpired?(input: { actor: string; expectedRevision: string; reason: string; idempotencyKey?: string }): Promise<DispatcherOperationResult>;
 }
 
@@ -116,11 +117,11 @@ export class PersistentDispatcher {
 			const workflow = this.store.loadWorkflow();
 			const results: DispatcherResult[] = [];
 			if (this.store.operations.reclaimExpired) {
-				const recovery = await withFreshRevision(this.store.operations.getDirection, workflow.primaryItemId ?? "", (expectedRevision) =>
+				const recovery = await withFreshRevision(this.store.operations.getDirection, "", (expectedRevision) =>
 					this.store.operations.reclaimExpired!({ actor: "system:dispatcher", expectedRevision, reason: "Recuperar claims expirados ao iniciar ciclo do dispatcher.", idempotencyKey: `reclaim:${new Date().toISOString().slice(0, 16)}` }),
 				);
 				if (recovery.outcome !== "accepted" && recovery.reasonCode !== "ITEM_NOT_CURRENT") {
-					this.options.onResult?.({ itemId: workflow.primaryItemId ?? "workspace", status: "failed", reason: recovery.reason });
+					this.options.onResult?.({ itemId: "workspace", status: "failed", reason: recovery.reason });
 				}
 			}
 			for (const item of workflow.items) {
@@ -165,6 +166,7 @@ export class PersistentDispatcher {
 					const result = {
 						itemId: item.id,
 						status: "offline" as const,
+						reasonCode: resolvedBinding?.reasonCode ?? "NO_COMPATIBLE_EXECUTOR",
 						reason: `${resolvedBinding?.reasonCode ?? "NO_COMPATIBLE_EXECUTOR"}: ${resolvedBinding?.reason ?? "nenhum executor registrado é compatível"}`,
 					};
 					results.push(result);
@@ -226,8 +228,8 @@ export class PersistentDispatcher {
 						latest = completed.nextDirection;
 						const handoff = execution.handoff;
 						if (handoff) {
-							const targetStage = workflow.stages.find((candidate) => (this.options.stageActors?.(candidate.id) ?? (candidate as typeof candidate & { agents?: string[] }).agents ?? []).includes(handoff.to));
-							if (targetStage && targetStage.id !== item.stage) {
+							const targetStage = workflow.stages.find((candidate) => candidate.id === item.stage && (this.options.stageActors?.(candidate.id) ?? (candidate as typeof candidate & { agents?: string[] }).agents ?? []).includes(actor));
+							if (targetStage && handoff.to !== actor) {
 								const validation = await withFreshRevision(this.store.operations.getDirection, item.id, (expectedRevision) => this.store.operations.validate({ actor, expectedRevision, reason: "Dispatcher executou a validação automatizada antes da transição." }));
 								if (validation.outcome !== "accepted") {
 									const failed = await withFreshRevision(this.store.operations.getDirection, item.id, (expectedRevision) => this.store.operations.event({ itemId: item.id, executorId: executor.id, actor, status: "failed", expectedRevision, reason: "Validação automatizada bloqueou a transição.", message: validation.reason, errorCode: validation.reasonCode, recovery: "retry", idempotencyKey: `${operationKey}:validation-failed` }));
@@ -236,12 +238,13 @@ export class PersistentDispatcher {
 									results.push(result); this.options.onResult?.(result); continue;
 								}
 								latest = validation.nextDirection;
-								const transition = await withFreshRevision(this.store.operations.getDirection, item.id, (expectedRevision) => this.store.operations.transition({ itemId: item.id, targetStageId: targetStage.id, actor, expectedRevision, reason: "Dispatcher avançou o item para o estágio do próximo actor.", idempotencyKey: `${operationKey}:transition` }));
-								if (transition.outcome !== "accepted") throw new Error(transition.reason);
-								latest = transition.nextDirection;
 							}
-							const handoffResult = await withFreshRevision(this.store.operations.getDirection, item.id, (expectedRevision) => this.store.operations.handoff({ itemId: item.id, to: handoff.to, executorId: executor.id, actor, summary: handoff.summary, evidence: handoff.evidence ?? evidences ?? [], expectedRevision, reason: "Dispatcher emitiu handoff pelo gateway canônico.", idempotencyKey: `${operationKey}:handoff` }));
-							if (handoffResult.outcome !== "accepted") throw new Error(handoffResult.reason);
+							const handoffResult = await withFreshRevision(this.store.operations.getDirection, item.id, (expectedRevision) => this.store.operations.passage({ itemId: item.id, ...(targetStage && handoff.to === actor ? { targetStageId: targetStage.id } : {}), to: handoff.to, executorId: executor.id, actor, summary: handoff.summary, evidence: handoff.evidence ?? evidences ?? [], expectedRevision, reason: "Dispatcher concluiu a passagem canônica pelo workflow.", idempotencyKey: `${operationKey}:passage` }));
+							if (handoffResult.outcome !== "accepted") {
+								const result = { itemId: item.id, status: "failed" as const, reason: handoffResult.reason, outcome: handoffResult.outcome, reasonCode: handoffResult.reasonCode };
+								results.push(result); this.options.onResult?.(result); continue;
+							}
+							latest = handoffResult.nextDirection;
 						}
 					} else {
 						const failed = await withFreshRevision(this.store.operations.getDirection, item.id, (expectedRevision) => this.store.operations.event({ itemId: item.id, executorId: executor.id, actor, status: "failed", expectedRevision, reason: "Registrar falha da execução autônoma.", message: execution.error ?? execution.output, errorCode: "EXECUTOR_FAILED", recovery: "release", idempotencyKey: `${operationKey}:failed` }));

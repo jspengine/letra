@@ -47,7 +47,13 @@ export function readAllowedContextFile(workspaceDir: string, file: string): stri
 	if (!allowedFiles.has(file)) return null;
 	const filePath = join(workspaceDir, file);
 	if (!existsSync(filePath)) return null;
-	return readFileSync(filePath, "utf-8");
+	const content = readFileSync(filePath, "utf-8");
+	return file === "context.md" ? stripSitrepSnapshots(content) : content;
+}
+
+/** Legacy sitrep blocks are operational snapshots and are excluded from curated context. */
+export function stripSitrepSnapshots(content: string): string {
+	return content.replace(/\r?\n?<!-- sitrep:start -->[\s\S]*?<!-- sitrep:end -->\r?\n?/g, "\n").trimEnd() + "\n";
 }
 
 export function writeSpec(workspaceDir: string, id: string, content: string): void {

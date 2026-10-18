@@ -10,7 +10,8 @@ import {
 } from "./service.js";
 import { resolveActiveFlow, resolveActiveFlowFor } from "../flow-definition/resolve.js";
 import { resolveAgentDirection } from "../agent-direction/service.js";
-import { claimOperation, requestTransitionOperation } from "../domain-operations/service.js";
+import { claimOperation, recordExecutionEvent, releaseClaimOperation, requestHandoffOperation, requestTransitionOperation } from "../domain-operations/service.js";
+import { readExecutionRuns } from "../execution-runs/store.js";
 import type { Workflow } from "../commands/flow-init.js";
 
 describe("Gap 5: Runtime using active version and execution pin", () => {
@@ -18,7 +19,8 @@ describe("Gap 5: Runtime using active version and execution pin", () => {
 
 	beforeEach(() => {
 		testDir = mkdtempSync(join(tmpdir(), "letra-runtime-pin-test-"));
-		mkdirSync(join(testDir, ".letra"), { recursive: true });
+		mkdirSync(join(testDir, ".letra", "identity"), { recursive: true });
+		writeFileSync(join(testDir, ".letra", "identity", "local.json"), JSON.stringify({ id: "human:supervisor", osUser: "supervisor", hostname: "test-host", createdAt: new Date().toISOString() }));
 	});
 
 	afterEach(() => {
@@ -95,7 +97,7 @@ describe("Gap 5: Runtime using active version and execution pin", () => {
 		};
 		writeFileSync(join(testDir, ".letra", "workflow.json"), JSON.stringify(workflow, null, 2), "utf-8");
 
-		const direction = resolveAgentDirection(testDir);
+		const direction = resolveAgentDirection(testDir, "ITEM-1");
 		expect(direction.source.workflowVersionId).toBe(published.id);
 		expect(direction.source.workflowVersionNumber).toBe(1);
 		expect(direction.item?.id).toBe("ITEM-1");
@@ -196,7 +198,7 @@ describe("Gap 5: Runtime using active version and execution pin", () => {
 				name: "Claim Pin Flow",
 				initialStageId: "work",
 				stages: [
-					{ id: "work", name: "Work", zone: "doing", final: false, allow: ["implementer"], transitions: [{ target: "done" }] },
+					{ id: "work", name: "Work", zone: "doing", final: false, allow: ["implementer", "reviewer"], transitions: [{ target: "done" }] },
 					{ id: "done", name: "Done", zone: "done", final: true },
 				],
 			},
@@ -229,7 +231,7 @@ describe("Gap 5: Runtime using active version and execution pin", () => {
 		};
 		writeFileSync(join(testDir, ".letra", "workflow.json"), JSON.stringify(workflow, null, 2), "utf-8");
 
-		const directionBefore = resolveAgentDirection(testDir);
+		const directionBefore = resolveAgentDirection(testDir, "ITEM-CLAIM");
 		const claimResult = await claimOperation(testDir, {
 			itemId: "ITEM-CLAIM",
 			actor: "implementer",
@@ -242,5 +244,36 @@ describe("Gap 5: Runtime using active version and execution pin", () => {
 		expect(claimResult.outcome).toBe("accepted");
 		expect(claimResult.nextDirection.item?.workflowVersionId).toBe(published.id);
 		expect(claimResult.nextDirection.item?.workflowVersionNumber).toBe(1);
+		const createdRun = readExecutionRuns(testDir).runs[0];
+		expect(createdRun).toMatchObject({ itemId: "ITEM-CLAIM", workflowVersionId: published.id, status: "running", binding: { executorId: "codex" }, authorization: { kind: "claim" } });
+
+		const handoff = await requestHandoffOperation(testDir, {
+			itemId: "ITEM-CLAIM", to: "reviewer", summary: "Implementation ready", evidence: ["tests passed"],
+			executorId: "codex", actor: "implementer", expectedRevision: claimResult.afterRevision,
+			reason: "Transfer the pinned Run for review.",
+		});
+		expect(handoff).toMatchObject({ outcome: "accepted", reasonCode: "HANDOFF_ACCEPTED" });
+		const waitingRun = readExecutionRuns(testDir).runs[0];
+		expect(waitingRun).toMatchObject({ id: createdRun?.id, status: "waiting-human", lease: null, cycle: { endedAt: expect.any(String) } });
+		expect(waitingRun?.handoffs[0]?.toActorId).toBe("reviewer");
+
+		const resumed = await claimOperation(testDir, {
+			itemId: "ITEM-CLAIM", actor: "reviewer", executorId: "codex", capability: "review_code",
+			expectedRevision: handoff.afterRevision, reason: "Accept the handoff in a new execution cycle.",
+		});
+		expect(resumed.outcome).toBe("accepted");
+		expect(readExecutionRuns(testDir).runs[0]).toMatchObject({ id: createdRun?.id, status: "running", workflowVersionId: published.id, revision: 3, cycle: { number: 2, endedAt: null }, binding: { actorId: "reviewer", executorId: "codex" }, authorization: { kind: "handoff" } });
+		const heartbeat = await recordExecutionEvent(testDir, {
+			itemId: "ITEM-CLAIM", actor: "reviewer", executorId: "codex", status: "heartbeat",
+			expectedRevision: resumed.afterRevision, reason: "Renew the delegated Run lease.",
+		});
+		expect(heartbeat).toMatchObject({ outcome: "accepted", reasonCode: "EVENT_RECORDED" });
+		expect(readExecutionRuns(testDir).runs[0]?.lease?.heartbeatAt).toBeTruthy();
+		const released = await releaseClaimOperation(testDir, {
+			itemId: "ITEM-CLAIM", actor: "reviewer", expectedRevision: heartbeat.afterRevision,
+			reason: "Release the completed Run cycle.",
+		});
+		expect(released).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_RELEASED" });
+		expect(readExecutionRuns(testDir).runs[0]).toMatchObject({ status: "completed", lease: null, result: { outcome: "cancelled" } });
 	});
 });

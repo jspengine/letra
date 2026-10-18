@@ -8,9 +8,10 @@ import type { writeWorkflow } from "../../commands/flow-init.js";
 import type { resolveActiveFlowFor } from "../../flow-definition/resolve.js";
 import { HttpBodyError, readJson, routeParam, sendError, sendJson } from "../http.js";
 import type { RouteHandler } from "../router.js";
-import { activateWorkOperation, claimOperation, createItemOperation, decideGateOperation, deleteItemOperation, releaseClaimOperation, requestReworkOperation, requestTransitionOperation, runValidationOperation, updateItemOperation } from "../../domain-operations/service.js";
+import { activateWorkOperation, claimOperation, createItemOperation, decideGateOperation, deleteItemOperation, releaseClaimOperation, requestPassageOperation, requestReworkOperation, requestTransitionOperation, runValidationOperation, updateItemOperation } from "../../domain-operations/service.js";
 import { resolveAgentDirection } from "../../agent-direction/service.js";
 import { resolveLocalIdentity } from "../../identity/service.js";
+import { signLocalOperation } from "../../identity/signing.js";
 import type { HumanSessionGateway } from "../human-session.js";
 
 export interface ItemRouteDependencies {
@@ -29,6 +30,7 @@ export interface ItemRouteDependencies {
 	claimOperation?: typeof claimOperation;
 	releaseClaimOperation?: typeof releaseClaimOperation;
 	requestTransitionOperation?: typeof requestTransitionOperation;
+	requestPassageOperation?: typeof requestPassageOperation;
 	activateWorkOperation?: typeof activateWorkOperation;
 	runValidationOperation?: typeof runValidationOperation;
 	requestReworkOperation?: typeof requestReworkOperation;
@@ -75,7 +77,7 @@ interface ClaimBody {
 }
 
 interface ActivateWorkBody { actor?: string; expectedRevision?: string; reason?: string; }
-interface ValidationOperationBody { actor?: string; expectedRevision?: string; reason?: string; }
+interface ValidationOperationBody { itemId?: string; actor?: string; expectedRevision?: string; reason?: string; }
 interface ReworkBody { actor?: string; expectedRevision?: string; reason?: string; acceptanceCriteria?: Array<{ id?: string; description?: string }>; }
 
 function resolveDecisionTarget(
@@ -102,6 +104,11 @@ function sendBodyError(error: unknown, res: Parameters<typeof sendError>[0]): vo
 export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHandler {
 	return async (context) => {
 		const { method, path, req, res, workspaceRoot, workflow } = context;
+		// Request bodies do not establish identity. A server-owned session is
+		// required even if the caller supplies an actor field.
+		const itemMutation = method !== "GET" && (path === "/api/operations/validate" || path === "/api/items" || path.startsWith("/api/items/"));
+		const sessionActor = itemMutation ? dependencies.resolveHumanActor?.(req) : null;
+		if (itemMutation && !sessionActor) { sendError(res, 403, "HUMAN_CONFIRMATION_REQUIRED"); return true; }
 		if (path === "/api/operations/validate" && method === "POST") {
 			try {
 				if (!dependencies.runValidationOperation) {
@@ -109,10 +116,12 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 					return true;
 				}
 				const data = await readJson<ValidationOperationBody>(req);
+				if (!data.expectedRevision && !data.itemId) { sendError(res, 400, "itemId or expectedRevision required"); return true; }
 				const operation = await dependencies.runValidationOperation(workspaceRoot, {
-					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
+					itemId: data.itemId,
+					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot, data.itemId).revision,
 					reason: data.reason?.trim() || "Validação solicitada pela UI.",
-					actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
+					actor: sessionActor!,
 				});
 				if (operation.outcome !== "accepted") {
 					sendError(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation.reason);
@@ -123,6 +132,19 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 			} catch (error) {
 				sendBodyError(error, res);
 			}
+			return true;
+		}
+		const passageMatch = method === "POST" ? path.match(/^\/api\/items\/([^/]+)\/passage$/) : null;
+		if (passageMatch) {
+			if (!dependencies.requestPassageOperation) { sendError(res, 503, "Canonical passage operation unavailable"); return true; }
+			try {
+				const data = await readJson<{ targetStageId: string; to: string; executorId: string; summary: string; evidence?: string[]; expectedRevision?: string; reason?: string; idempotencyKey?: string }>(req);
+				const itemId = decodeURIComponent(passageMatch[1]);
+				const operation = await dependencies.requestPassageOperation(workspaceRoot, { itemId, targetStageId: data.targetStageId, to: data.to, executorId: data.executorId, summary: data.summary, evidence: data.evidence ?? [], actor: sessionActor!, expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot, itemId).revision, reason: data.reason?.trim() || "Passagem solicitada pela UI.", idempotencyKey: data.idempotencyKey });
+				if (operation.outcome !== "accepted") { sendError(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation.reason); return true; }
+				dependencies.broadcast();
+				sendJson(res, 200, operation);
+			} catch (error) { sendBodyError(error, res); }
 			return true;
 		}
 
@@ -150,7 +172,7 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				if (!dependencies.createItemOperation) { sendError(res, 503, "Canonical item creation operation unavailable"); return true; }
 				const operation = await dependencies.createItemOperation(workspaceRoot, {
 					id: data.id, description: data.description, stage: data.stage,
-					actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
+					actor: sessionActor!,
 					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
 					reason: data.reason?.trim() || "Item criado pela UI.",
 					idempotencyKey: data.idempotencyKey,
@@ -193,12 +215,18 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 					return true;
 				}
 				{
+					const expectedRevision = data.expectedRevision ?? resolveAgentDirection(workspaceRoot, gateDecisionItemId).revision;
+					const operationReason = reason ?? "Aprovação humana registrada pela UI.";
+					const proof = signLocalOperation(workspaceRoot, sessionActor!, "gate.decision", {
+						itemId: gateDecisionItemId, decision: data.decision, expectedRevision, reason: operationReason,
+					});
 					const operation = await dependencies.decideGateOperation(workspaceRoot, {
 						itemId: gateDecisionItemId,
 						decision: data.decision,
-						actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
-						expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
-						reason: reason ?? "Aprovação humana registrada pela UI.",
+						actor: sessionActor!,
+						expectedRevision,
+						reason: operationReason,
+						proof,
 						idempotencyKey: data.idempotencyKey,
 					});
 					if (operation.outcome !== "accepted") {
@@ -223,8 +251,8 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				const data = await readJson<ActivateWorkBody>(req);
 				const operation = await dependencies.activateWorkOperation(workspaceRoot, {
 					itemId: activateItemId,
-					actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
-					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
+					actor: sessionActor!,
+					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot, activateItemId).revision,
 					reason: data.reason?.trim() || "Item priorizado para início do fluxo.",
 				});
 				if (operation.outcome !== "accepted") { sendError(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation.reason); return true; }
@@ -242,8 +270,8 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				const acceptanceCriteria = (data.acceptanceCriteria ?? []).map((criterion) => ({ id: criterion.id, description: criterion.description?.trim() ?? "" }));
 				const operation = await dependencies.requestReworkOperation(workspaceRoot, {
 					itemId: reworkItemId,
-					actor: data.actor ?? "reviewer",
-					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
+					actor: sessionActor!,
+					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot, reworkItemId).revision,
 					reason: data.reason?.trim() || "A revisão encontrou correções necessárias.",
 					acceptanceCriteria,
 				});
@@ -280,28 +308,14 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 					return true;
 				}
 				if (data.stage !== undefined && data.stage !== oldStage) {
-					if (!dependencies.requestTransitionOperation) { sendError(res, 503, "Canonical transition operation unavailable"); return true; }
-					const operation = await dependencies.requestTransitionOperation(workspaceRoot, {
-						itemId,
-						targetStageId: data.stage,
-						actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
-						expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
-						reason: "Transição solicitada pela UI.",
-						idempotencyKey: data.idempotencyKey,
-					});
-					if (operation.outcome !== "accepted") {
-						sendError(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation.reason);
-						return true;
-					}
-					dependencies.broadcast();
-					sendJson(res, 200, operation.nextDirection.item);
+					sendError(res, 422, "Stage changes require the canonical /passage operation with destination role, executor, summary and evidence.");
 					return true;
 				}
 				if (!dependencies.updateItemOperation) { sendError(res, 503, "Canonical item update operation unavailable"); return true; }
 				const operation = await dependencies.updateItemOperation(workspaceRoot, {
 					itemId, description: data.description, tasks: data.tasks,
-					actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
-					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
+					actor: sessionActor!,
+					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot, itemId).revision,
 					reason: "Alteração de item solicitada pela UI.", idempotencyKey: data.idempotencyKey,
 				});
 				if (operation.outcome !== "accepted") { sendError(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation.reason); return true; }
@@ -318,8 +332,8 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 			let data: Pick<UpdateItemBody, "actor" | "expectedRevision" | "idempotencyKey"> = {};
 			try { data = await readJson<typeof data>(req); } catch { /* empty body uses current revision */ }
 			const operation = await dependencies.deleteItemOperation(workspaceRoot, {
-				itemId, actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
-				expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
+				itemId, actor: sessionActor!,
+				expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot, itemId).revision,
 				reason: "Remoção de item solicitada pela UI.", idempotencyKey: data.idempotencyKey,
 			});
 			if (operation.outcome !== "accepted") { sendError(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation.reason); return true; }
@@ -335,10 +349,10 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				const data = await readJson<ClaimBody>(req);
 				const operation = await dependencies.claimOperation(workspaceRoot, {
 					itemId: claimId,
-					actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
+					actor: sessionActor!,
 					executorId: data.executorId ?? "web-ui",
 					capability: data.capability ?? "read_code",
-					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
+					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot, claimId).revision,
 					reason: "Claim solicitado pela UI.",
 					idempotencyKey: data.idempotencyKey,
 				});
@@ -360,8 +374,8 @@ export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHand
 				const data = await readJson<ClaimBody>(req);
 				const operation = await dependencies.releaseClaimOperation(workspaceRoot, {
 					itemId: releaseId,
-					actor: data.actor ?? dependencies.resolveHumanActor?.(req) ?? "human:web-ui",
-					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
+					actor: sessionActor!,
+					expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot, releaseId).revision,
 					reason: "Release solicitado pela UI.",
 					idempotencyKey: data.idempotencyKey,
 				});

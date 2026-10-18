@@ -8,6 +8,7 @@ import type {
 	ActivityKind,
 	BuildActivityContextOptions,
 } from "./types.js";
+import { resolveDirection } from "../agent-direction/service.js";
 
 function buildSignals(
 	activity: ActivityKind,
@@ -23,14 +24,14 @@ function buildSignals(
 		signals.push({
 			level: "warning",
 			code: "no-current-item",
-			message: "Nenhum item em andamento. Selecione um item no Kanban para começar.",
+			message: "Nenhuma execução atribuída. Aguarde uma atribuição ou selecione uma execução explicitamente.",
 		});
 	}
 	if (focusDiverged) {
 		signals.push({
 			level: "error",
 			code: "focus-diverged",
-			message: "Foco desatualizado. Atualize focus.md ou selecione o item correto.",
+			message: "O foco visual diverge da execução. A direção da execução permanece canônica.",
 		});
 	}
 	if (alertCount > 0) {
@@ -83,9 +84,25 @@ function buildRisks(
 
 export function buildActivityContext(options: BuildActivityContextOptions): ActivityContext {
 	const { activity, workspaceRoot } = options;
-	const sources = loadActivityContextSources(workspaceRoot);
+	const direction = resolveDirection(workspaceRoot, {
+		runId: options.runId,
+		executorId: options.executorId,
+		itemId: options.itemId,
+	});
+	const selectedRunId = options.runId ?? direction.assignment?.runId;
+	const selectedItemId = options.itemId ?? direction.item?.id;
+	const sources = loadActivityContextSources(workspaceRoot, selectedItemId, selectedRunId);
 	const intent = resolveActivityIntent(activity, sources);
-	const currentItem = sources.currentItem;
+	const currentItem = direction.item
+		? { id: direction.item.id, description: direction.item.description, stage: direction.item.stage, spec: direction.item.spec }
+		: null;
+	if (!currentItem) {
+		intent.objective = direction.assignment?.status === "selection-required"
+			? "Há múltiplas execuções; selecione uma antes de receber contexto de trabalho."
+			: "Nenhuma execução foi atribuída a esta sessão.";
+		intent.nextActions = [{ label: "Aguardar atribuição", description: "Uma execução ou item deve ser selecionado explicitamente antes de receber contexto de trabalho." }];
+		intent.mustRead = intent.mustRead.filter((reference) => !reference.path.includes("/specs/"));
+	}
 	const currentItemContext: ActivityContextCurrentItem | null = currentItem
 		? {
 				id: currentItem.id,
@@ -119,6 +136,8 @@ export function buildActivityContext(options: BuildActivityContextOptions): Acti
 
 	return {
 		activity,
+		assignment: direction.assignment,
+		directionRevision: direction.revision,
 		objective: intent.objective,
 		currentItem: currentItemContext,
 		stage,

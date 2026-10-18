@@ -8,6 +8,7 @@ dist/
 .letra/backups/
 .letra/workflow.v*.json
 .letra/snapshots/
+.letra/identity/
 .opencode/
 
 # Build / generated outputs (regenerable)

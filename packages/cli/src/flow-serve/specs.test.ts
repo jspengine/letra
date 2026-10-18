@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Workflow } from "../commands/flow-init.js";
-import { loadResolvedSpecs } from "./specs.js";
+import { loadResolvedSpecs, readAllowedContextFile, stripSitrepSnapshots } from "./specs.js";
 
 describe("resolved specs and catalog disposition", () => {
 	const roots: string[] = [];
@@ -33,5 +33,20 @@ describe("resolved specs and catalog disposition", () => {
 		}), "utf8");
 		const workflow = { specLinks: { "active-spec": { path: ".letra/specs/active-spec/spec.md" }, "archived-spec": { path: ".letra/specs/archived-spec/spec.md" } } } as unknown as Workflow;
 		expect(loadResolvedSpecs(root, workflow).map((spec) => spec.id)).toEqual(["active-spec"]);
+	});
+
+	it("excludes legacy sitrep snapshots when exposing curated context", () => {
+		const root = join(tmpdir(), `letra-curated-context-${Date.now()}`);
+		roots.push(root);
+		mkdirSync(join(root, ".letra"), { recursive: true });
+		const original = "# Context\n\nIntento durável.\n\n<!-- sitrep:start -->\n**Item atual**: ITEM-OLD\n<!-- sitrep:end -->\n";
+		writeFileSync(join(root, ".letra", "context.md"), original);
+
+		const exposed = readAllowedContextFile(join(root, ".letra"), "context.md");
+
+		expect(exposed).toBe("# Context\n\nIntento durável.\n");
+		expect(exposed).not.toContain("ITEM-OLD");
+		expect(stripSitrepSnapshots("# Context\n\nSem snapshot.\n")).toBe("# Context\n\nSem snapshot.\n");
+		expect(readAllowedContextFile(join(root, ".letra"), "glossary.md")).toBeNull();
 	});
 });

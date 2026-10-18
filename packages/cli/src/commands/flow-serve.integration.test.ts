@@ -1,13 +1,16 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { execSync } from "node:child_process";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { FlowServer } from "./flow-serve.js";
 import { saveWorkflow, type Item, type Workflow } from "./flow-init.js";
-import { resolveAgentDirection } from "../agent-direction/service.js";
+import { resolveAgentDirection, resolveDirection } from "../agent-direction/service.js";
+import { resolveLocalIdentity } from "../identity/service.js";
+import { createWorkflowDefinition, publishWorkflowDraft } from "../workflow-versions/service.js";
+import * as syncCommand from "./sync.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -114,11 +117,16 @@ async function sseWaitForEvent(
 }
 
 type HttpResponse = { status: number; body: unknown };
+const sessionCookies = new Map<string, string>();
 
 async function api(method: string, url: string, body?: unknown): Promise<HttpResponse> {
-	const opts: RequestInit = { method, headers: {} };
+	const origin = new URL(url).origin;
+	const headers: Record<string, string> = { Origin: origin };
+	const cookie = sessionCookies.get(origin);
+	if (cookie) headers.Cookie = cookie;
+	const opts: RequestInit = { method, headers };
 	if (body !== undefined) {
-		opts.headers = { "Content-Type": "application/json" };
+		headers["Content-Type"] = "application/json";
 		opts.body = JSON.stringify(body);
 	}
 	const res = await fetch(url, opts);
@@ -182,9 +190,14 @@ describe("FlowServer HTTP API integration", () => {
 		server = new FlowServer(tmpDir, port);
 		await server.start();
 		baseUrl = `http://localhost:${port}`;
+		const navigation = await fetch(baseUrl);
+		const cookie = navigation.headers.get("set-cookie")?.split(";")[0];
+		if (!cookie) throw new Error("Integration navigation did not establish a human session");
+		sessionCookies.set(baseUrl, cookie);
 	});
 
 	afterAll(() => {
+		sessionCookies.delete(baseUrl);
 		server.stop();
 		if (existsSync(tmpDir)) {
 			rmSync(tmpDir, { recursive: true, force: true });
@@ -196,7 +209,7 @@ describe("FlowServer HTTP API integration", () => {
 			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-claim-1"));
 			expect(status).toBe(200);
 			const item = (body as { nextDirection?: { item?: Record<string, unknown> } }).nextDirection?.item ?? {};
-			expect(item.claimedBy).toBe("implementer");
+			expect(item.claimedBy).toBe(resolveLocalIdentity(tmpDir).id);
 			expect(item.claimedAt).toEqual(expect.any(String));
 		});
 
@@ -211,6 +224,63 @@ describe("FlowServer HTTP API integration", () => {
 			const err = body as { error?: string };
 			expect(err.error).toMatch(/cannot claim a completed/i);
 		});
+	});
+
+	it("keeps two agent Runs isolated when workspace attention changes and adapter sync fails", async () => {
+		const root = mkdtempSync(join(tmpdir(), "letra-multiagent-e2e-"));
+		mkdirSync(join(root, ".letra", "specs", "auth"), { recursive: true });
+		writeFileSync(join(root, ".letra", "specs", "auth", "spec.md"), "# Auth\n\n## Outcome\nParallel run fixture.\n");
+		const isolatedServerPort = await findFreePort();
+		const isolatedServer = new FlowServer(root, isolatedServerPort);
+		const isolatedUrl = `http://localhost:${isolatedServerPort}`;
+		try {
+			const identity = resolveLocalIdentity(root);
+			const created = createWorkflowDefinition(root, {
+				name: "Parallel execution integration",
+				actor: identity.id,
+				content: { name: "Parallel execution integration", initialStageId: "code", stages: [{ id: "code", transitions: [{ target: "review" }] }, { id: "review", final: true }] },
+			});
+			const published = publishWorkflowDraft(root, created.definition.id, { expectedRevision: 1, actor: identity.id, reason: "Pin parallel integration Runs." });
+			const workflow = createTestWorkflow();
+			for (const [id, description] of [["ITEM-E2E-A", "Agent A task"], ["ITEM-E2E-B", "Agent B task"]]) {
+				workflow.items.push({ id, description, stage: "code", createdAt: new Date().toISOString(), spec: "auth", workflowVersionId: published.id } as Item);
+			}
+			saveWorkflow(root, workflow);
+			await isolatedServer.start();
+			const navigation = await fetch(isolatedUrl);
+			const cookie = navigation.headers.get("set-cookie")?.split(";")[0];
+			if (!cookie) throw new Error("Integration navigation did not establish a human session");
+			sessionCookies.set(isolatedUrl, cookie);
+			for (const [id, executorId, key] of [["ITEM-E2E-A", "executor-a", "e2e-claim-a"], ["ITEM-E2E-B", "executor-b", "e2e-claim-b"]]) {
+				const direction = resolveDirection(root, { itemId: id });
+				const claim = await api("POST", `${isolatedUrl}/api/items/${id}/claim`, { actor: "implementer", executorId, capability: "write_code", expectedRevision: direction.revision, idempotencyKey: key });
+				expect(claim.status).toBe(200);
+			}
+			const runsResponse = await api("GET", `${isolatedUrl}/api/runs`);
+			expect(runsResponse.status).toBe(200);
+			const runs = runsResponse.body as Array<{ id: string; itemId: string; binding: { executorId: string } }>;
+			const runA = runs.find((run) => run.itemId === "ITEM-E2E-A")!;
+			const runB = runs.find((run) => run.itemId === "ITEM-E2E-B")!;
+			expect(runA.binding.executorId).toBe("executor-a");
+			expect(runB.binding.executorId).toBe("executor-b");
+			const beforeA = resolveDirection(root, { runId: runA.id, executorId: "executor-a" });
+			const beforeB = resolveDirection(root, { runId: runB.id, executorId: "executor-b" });
+			const attention = await api("POST", `${isolatedUrl}/api/items/ITEM-3/focus`);
+			expect(attention.status).toBe(200);
+			vi.spyOn(syncCommand, "syncNow").mockRejectedValueOnce(new Error("simulated adapter write failure"));
+			const adapterFailure = await api("POST", `${isolatedUrl}/api/adapters`);
+			expect(adapterFailure.status).toBe(500);
+			const afterA = resolveDirection(root, { runId: runA.id, executorId: "executor-a" });
+			const afterB = resolveDirection(root, { runId: runB.id, executorId: "executor-b" });
+			expect(afterA.item?.id).toBe("ITEM-E2E-A");
+			expect(afterB.item?.id).toBe("ITEM-E2E-B");
+			expect(afterA.revision).toBe(beforeA.revision);
+			expect(afterB.revision).toBe(beforeB.revision);
+		} finally {
+			sessionCookies.delete(isolatedUrl);
+			isolatedServer.stop();
+			rmSync(root, { recursive: true, force: true });
+		}
 	});
 
 	describe("AC1.2 — Release via POST /api/items/:id/release", () => {
@@ -263,7 +333,7 @@ describe("FlowServer HTTP API integration", () => {
 			expect(wf.items).toBeDefined();
 			const item = wf.items?.find((i) => i.id === "ITEM-1");
 			expect(item).toBeDefined();
-			expect(item?.claimedBy).toBe("implementer");
+			expect(item?.claimedBy).toBe(resolveLocalIdentity(tmpDir).id);
 		});
 
 		it("should reflect release via GET", async () => {
@@ -388,16 +458,17 @@ describe("FlowServer HTTP API integration", () => {
 				`${baseUrl}/api/items/ITEM-1?workspace=${encodeURIComponent(secondaryRoot)}`,
 				{ description: "updated in secondary workspace" },
 			);
-			expect(update.status).toBe(200);
+			// A sessão foi emitida para o workspace primário; não pode autorizar
+			// mutação no workspace secundário selecionado apenas pela query string.
+			expect(update.status).toBe(422);
 			const secondaryWorkflow = JSON.parse(
 				readFileSync(join(secondaryRoot, ".letra", "workflow.json"), "utf-8"),
 			) as Workflow;
 			const primaryWorkflow = JSON.parse(
 				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
 			) as Workflow;
-			expect(secondaryWorkflow.items.find((item) => item.id === "ITEM-1")?.stage).toBe(
-				"secondary-stage",
-			);
+			expect(secondaryWorkflow.items.find((item) => item.id === "ITEM-1")?.stage).toBe("secondary-stage");
+			expect(secondaryWorkflow.items.find((item) => item.id === "ITEM-1")?.description).toBe("Secondary item");
 			expect(primaryWorkflow.items.find((item) => item.id === "ITEM-1")?.stage).toBe("code");
 		});
 	});

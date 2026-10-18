@@ -5,6 +5,8 @@ import type { Workflow } from "../../commands/flow-init.js";
 import { createRequestContext } from "../request-context.js";
 import { createItemRoutes, type ItemRouteDependencies } from "./item-routes.js";
 
+vi.mock("../../identity/signing.js", () => ({ signLocalOperation: vi.fn(() => ({ issuedAt: "2026-07-01T00:00:00.000Z", nonce: "a".repeat(32), signature: "test" })) }));
+
 function workflow(): Workflow {
 	return {
 		version: "1.0",
@@ -48,6 +50,7 @@ function dependencies() {
 	const deleteItemOperation = vi.fn().mockResolvedValue({ outcome: "accepted", reasonCode: "ITEM_DELETED", auditId: "log-item", nextDirection: {} });
 	const decideGateOperation = vi.fn();
 	const requestTransitionOperation = vi.fn().mockResolvedValue({ outcome: "accepted", reasonCode: "TRANSITION_COMPLETED", auditId: "log-transition", nextDirection: {} });
+	const requestPassageOperation = vi.fn().mockResolvedValue({ outcome: "accepted", reasonCode: "PASSAGE_COMPLETED", auditId: "log-passage", nextDirection: { item: { id: "ITEM-1", stage: "review" } } });
 	const claimOperation = vi.fn().mockResolvedValue({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED", auditId: "log-claim", nextDirection: {} });
 	const releaseClaimOperation = vi.fn().mockResolvedValue({ outcome: "accepted", reasonCode: "CLAIM_RELEASED", auditId: "log-release", nextDirection: {} });
 	const deps = {
@@ -63,11 +66,24 @@ function dependencies() {
 		deleteItemOperation,
 		decideGateOperation,
 		requestTransitionOperation,
+		requestPassageOperation,
 		claimOperation,
 		releaseClaimOperation,
+		resolveHumanActor: vi.fn().mockReturnValue("human:web-ui"),
 	} as unknown as ItemRouteDependencies;
-	return { deps, writeWorkflow, loadHealthRecord, logEntry, createItemOperation, decideGateOperation, requestTransitionOperation };
+	return { deps, writeWorkflow, loadHealthRecord, logEntry, createItemOperation, decideGateOperation, requestTransitionOperation, requestPassageOperation };
 }
+
+it("routes an explicit web passage through the canonical passage operation", async () => {
+	const { deps, requestPassageOperation } = dependencies();
+	const res = response();
+	const body = JSON.stringify({ targetStageId: "review", to: "reviewer", executorId: "codex", summary: "Ready", evidence: ["tests passed"], expectedRevision: "revision-1" });
+	const context = createRequestContext(request("POST", body), res, new URL("http://localhost/api/items/ITEM-1/passage"), { workspaceRoot: "C:\\workspace", workspaceDir: "C:\\workspace\\.letra", workflow: workflow() });
+	await createItemRoutes(deps)(context as any);
+	expect(requestPassageOperation).toHaveBeenCalledWith("C:\\workspace", expect.objectContaining({ itemId: "ITEM-1", targetStageId: "review", to: "reviewer", executorId: "codex", actor: "human:web-ui", expectedRevision: "revision-1" }));
+	expect(deps.broadcast).toHaveBeenCalledOnce();
+	expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+});
 
 function configureHumanGate(
 	deps: ItemRouteDependencies,
@@ -195,15 +211,16 @@ describe("item routes", () => {
 
 	it("persists item mutations in the request workspace", async () => {
 		const { deps, writeWorkflow, createItemOperation } = dependencies();
+		vi.mocked(deps.resolveHumanActor!).mockReturnValue("human:web-ui");
 		const res = response();
 		const context = createRequestContext(
-			request("POST", '{"id":"ITEM-9","description":"Extract routes","stage":"backlog"}'),
+			request("POST", '{"id":"ITEM-9","description":"Extract routes","stage":"backlog","expectedRevision":"sha256:create"}'),
 			res,
 			new URL("http://localhost/api/items"),
 			{
 				workspaceRoot: "C:\\workspace-b",
 				workspaceDir: "C:\\workspace-b\\.letra",
-				workflow: workflow(),
+			workflow: workflow(),
 			},
 		);
 
@@ -245,14 +262,15 @@ describe("item routes", () => {
 		deps.runValidationOperation = runValidationOperation;
 		const res = response();
 		const context = createRequestContext(
-			request("POST", '{"expectedRevision":"sha256:web","reason":"Validate before review"}'),
+			request("POST", '{"itemId":"ITEM-1","expectedRevision":"sha256:web","reason":"Validate before review"}'),
 			res,
 			new URL("http://localhost/api/operations/validate"),
 			{ workspaceRoot: "C:\\workspace-b", workspaceDir: "C:\\workspace-b\\.letra", workflow: workflow() },
 		);
 
 		await expect(createItemRoutes(deps)(context)).resolves.toBe(true);
-		expect(runValidationOperation).toHaveBeenCalledWith("C:\\workspace-b", {
+			expect(runValidationOperation).toHaveBeenCalledWith("C:\\workspace-b", {
+			itemId: "ITEM-1",
 			expectedRevision: "sha256:web",
 			reason: "Validate before review",
 			actor: "human:web-ui",
@@ -311,6 +329,21 @@ describe("item routes", () => {
 		expect(res.writeHead).toHaveBeenCalledWith(400, { "Content-Type": "application/json" });
 	});
 
+	it("rejects a forged actor in the request body without a human session", async () => {
+		const { deps, decideGateOperation } = dependencies();
+		vi.mocked(deps.resolveHumanActor!).mockReturnValue(null);
+		const res = response();
+		const context = createRequestContext(
+			request("POST", '{"decision":"approve","actor":"human:admin"}'),
+			res,
+			new URL("http://localhost/api/items/ITEM-1/gate-decisions"),
+			{ workspaceRoot: "C:\\workspace", workspaceDir: "C:\\workspace\\.letra", workflow: workflowAtGate() },
+		);
+		await expect(createItemRoutes(deps)(context)).resolves.toBe(true);
+		expect(decideGateOperation).not.toHaveBeenCalled();
+		expect(res.writeHead).toHaveBeenCalledWith(403, { "Content-Type": "application/json" });
+	});
+
 	it("rejects safely when the harness does not define decision targets", async () => {
 		const { deps, writeWorkflow, decideGateOperation } = dependencies();
 		configureHumanGate(deps, null);
@@ -357,7 +390,8 @@ describe("item routes", () => {
 		expect(writeWorkflow).not.toHaveBeenCalled();
 		expect(logEntry).not.toHaveBeenCalled();
 		expect(res.writeHead).toHaveBeenCalledWith(422, { "Content-Type": "application/json" });
-		expect(res.end).toHaveBeenCalledWith(expect.stringContaining("decisão humana explícita"));
+		expect(requestTransitionOperation).not.toHaveBeenCalled();
+		expect(res.end).toHaveBeenCalledWith(expect.stringContaining("canonical /passage operation"));
 	});
 
 	it("resolves the final human-approved gate to Done or back to Code", async () => {

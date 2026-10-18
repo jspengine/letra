@@ -34,6 +34,12 @@ export interface ActivityContextCurrentItem {
 
 export interface ActivityContext {
 	activity: ActivityKind;
+	assignment?: {
+		status: "assigned" | "unassigned" | "selection-required";
+		runId?: string;
+		candidateRunIds?: string[];
+	};
+	directionRevision?: string;
 	objective: string;
 	currentItem: ActivityContextCurrentItem | null;
 	stage: { id: string; name: string } | null;
@@ -47,4 +53,7 @@ export interface ActivityContext {
 export interface BuildActivityContextOptions {
 	activity: ActivityKind;
 	workspaceRoot: string;
+	runId?: string;
+	executorId?: string;
+	itemId?: string;
 }

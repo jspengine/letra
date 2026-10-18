@@ -22,7 +22,7 @@ export {
 	checkSpecContent,
 };
 
-type Format = "text" | "github-annotation" | "junit" | "silent";
+type Format = "text" | "github-annotation" | "junit" | "silent" | "json";
 
 export interface ValidationSummary {
 	passed: number;
@@ -51,9 +51,10 @@ function out(
 		return;
 	}
 	if (format === "junit") {
-		return;
-	}
-	const icon =
+			return;
+		}
+		if (format === "json") return;
+		const icon =
 		level === "pass"
 			? chalk.green("✓")
 			: level === "fail"
@@ -143,12 +144,27 @@ function flushResults(
 	}
 
 	if (format === "github-annotation") {
-		for (const r of results) {
-			out(format, r.level, r.spec, r.label, r.message, r.note);
+			for (const r of results) {
+				out(format, r.level, r.spec, r.label, r.message, r.note);
+			}
 		}
-	}
 
-	console.log(
+		if (format === "json") {
+			const groups: Record<string, { pass: number; fail: number; warning: number }> = {};
+			for (const [name, counts] of specGroups) {
+				groups[name] = counts;
+			}
+			console.log(
+				JSON.stringify(
+					{ passed: totalPass, failed: totalFail, warnings: totalWarning, specs: groups },
+					null,
+					2,
+				),
+			);
+			return;
+		}
+
+		console.log(
 		chalk.gray(
 			`\nResults: ${totalPass} passed, ${totalFail} failed${totalWarning > 0 ? `, ${totalWarning} warnings` : ""}`,
 		),

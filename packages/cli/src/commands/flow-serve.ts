@@ -83,7 +83,8 @@ import { resolveExecutionWorkspace } from "../orchestrator/execution-workspace.j
 import type { AgenticExecutor } from "../executor/executor.js";
 import { loadRuntimeAgentRegistry } from "../agents/service.js";
 import { resolveRuntimeBinding } from "../agents/runtime-binding.js";
-import { resolveAgentDirection } from "../agent-direction/service.js";
+import { resolveAgentDirection, resolveDirection } from "../agent-direction/service.js";
+import { readExecutionRuns } from "../execution-runs/store.js";
 import { inspectWorkspaceIntegrity } from "../workspace/integrity.js";
 import {
 	claimOperation,
@@ -91,6 +92,7 @@ import {
 	submitEvidenceOperation,
 	requestTransitionOperation,
 	requestHandoffOperation,
+	requestPassageOperation,
 	runValidationOperation,
 	decideGateOperation,
 	releaseClaimOperation,
@@ -203,6 +205,7 @@ export class FlowServer {
 						claimOperation: (root, input) => claimOperation(root, input),
 							releaseClaimOperation: (root, input) => releaseClaimOperation(root, input),
 						requestTransitionOperation: (root, input) => requestTransitionOperation(root, input),
+						requestPassageOperation: (root, input) => requestPassageOperation(root, input),
 						activateWorkOperation: (root, input) => activateWorkOperation(root, input),
 						requestReworkOperation: (root, input) => requestReworkOperation(root, input),
 						createItemOperation: (root, input) => createItemOperation(root, input),
@@ -336,6 +339,18 @@ export class FlowServer {
 			getExecutors: () => this.runtimeExecutors,
 			broadcast: () => this.broadcast(),
 		}));
+		this.router.register((context) => {
+			if (context.path !== "/api/runs" || context.method !== "GET") return false;
+			try {
+				const runs = readExecutionRuns(context.workspaceRoot).runs;
+				context.res.writeHead(200, { "Content-Type": "application/json" });
+				context.res.end(JSON.stringify(runs));
+			} catch (error) {
+				context.res.writeHead(500, { "Content-Type": "application/json" });
+				context.res.end(JSON.stringify({ error: error instanceof Error ? error.message : "RUN_STORE_UNAVAILABLE" }));
+			}
+			return true;
+		});
 		this.router.register(
 			createAutopilotRoutes({
 				getStatus: (workspaceRoot) => this.getAutopilotStatus(workspaceRoot),
@@ -421,7 +436,7 @@ export class FlowServer {
 					return workflow;
 				},
 				operations: {
-					getDirection: () => resolveAgentDirection(this.activeWorkspaceRoot),
+					getDirection: (itemId) => resolveDirection(this.activeWorkspaceRoot, itemId ? { itemId } : {}),
 					claim: (input) => claimOperation(this.activeWorkspaceRoot, { ...input, ttlMinutes: 30 }),
 					event: (input) => recordExecutionEvent(this.activeWorkspaceRoot, input),
 					evidence: (input) => submitEvidenceOperation(this.activeWorkspaceRoot, input),
@@ -429,6 +444,7 @@ export class FlowServer {
 					securityReview: (input) => runSecurityReviewOperation(this.activeWorkspaceRoot, input),
 					transition: (input) => requestTransitionOperation(this.activeWorkspaceRoot, input),
 					handoff: (input) => requestHandoffOperation(this.activeWorkspaceRoot, input),
+					passage: async (input) => requestPassageOperation(this.activeWorkspaceRoot, input),
 					release: (input) => releaseClaimOperation(this.activeWorkspaceRoot, input),
 					reclaimExpired: (input) => reclaimExpiredClaimsOperation(this.activeWorkspaceRoot, input),
 				},

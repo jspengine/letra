@@ -65,9 +65,8 @@ stages:
     description: Analyst analyzes spec, creates ACs, defines context.
     agents:
       - analyst
-    # Design is an internal analysis stage; human approval belongs at
-    # publication/activation, not at the design→code handoff.
-    gate: null
+    # Human approval moves the reviewed spec to Code; implementation ACs stay pending.
+    gate: gates/spec-approved.yaml
     preferredExecutor: opencode
     rework:
       target: backlog
@@ -129,6 +128,8 @@ stages:
       - implementer
     gate: code-reviewed
     preferredExecutor: opencode
+    transitions:
+      - target: review
     rework:
       target: design
       allowed_actors: [reviewer]
@@ -146,7 +147,7 @@ stages:
           description: Implement acceptance criteria
           actions:
             - type: command
-              cmd: "letra ac done <AC-ID>"
+              cmd: "letra ac done <AC-ID> --item <ITEM-ID>"
           transitions:
             - target: test
         test:
@@ -169,7 +170,7 @@ stages:
       implement:
         objective: "Implement acceptance criteria one by one."
         commands:
-          - command: "letra ac done <AC-ID>"
+          - command: "letra ac done <AC-ID> --item <ITEM-ID>"
             label: "Complete AC"
           - command: "letra flow handoff --to reviewer --summary 'Implementation complete.'"
             label: "Handoff to Reviewer"

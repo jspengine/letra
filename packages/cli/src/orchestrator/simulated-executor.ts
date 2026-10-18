@@ -18,14 +18,11 @@ export function createSimulatedExecutor(
 		heartbeat: async () => undefined,
 		async execute(context: ExecutionContext): Promise<ExecutionResult> {
 			const stages = Array.isArray((context.snapshot as { stages?: unknown[] })?.stages)
-				? ((context.snapshot as { stages: Array<{ id: string; order: number; agents?: string[] }> }).stages)
+				? ((context.snapshot as { stages: Array<{ id: string; order: number; agents?: string[]; transitions?: Array<{ target: string }> }> }).stages)
 				: [];
 			const current = stages.find((stage) => stage.id === context.stage);
-			const next = current
-				? stages
-						.filter((stage) => stage.order > current.order)
-						.sort((a, b) => a.order - b.order)[0]
-				: undefined;
+			const outgoing = new Set(current?.transitions?.map((transition) => transition.target) ?? []);
+			const next = current && outgoing.size === 1 ? stages.find((stage) => outgoing.has(stage.id)) : undefined;
 			const target = next?.agents?.[0] ?? "human";
 			const timestamp = new Date().toISOString();
 			return {

@@ -98,6 +98,30 @@ function resolveGate(
 	};
 }
 
+/**
+ * Older flow definitions place the human approval on a phase edge rather
+ * than on the stage itself. When that is the only blocking gate for the
+ * stage, expose it as the stage exit gate too so canonical stage transitions
+ * and the per-item gate decision use the same configured rule.
+ */
+function resolveStageGate(
+	harness: HarnessManifest | null,
+	stageDef: StageDef,
+	warnings: FlowDefinitionWarning[],
+	artifactRef: string,
+): ResolvedFlowGate | null {
+	const explicit = resolveGate(harness, stageDef.gate, warnings, artifactRef);
+	if (explicit || stageDef.gate || !harness) return explicit;
+	const configured = new Set(
+		Object.values(stageDef.phases?.states ?? {}).flatMap((phase) =>
+			(phase.transitions ?? []).flatMap((transition) => transition.gate ? [gateIdFromRef(transition.gate)] : []),
+		),
+	);
+	const blocking = [...configured].filter((id) => harness.gates[id]?.blocking === true);
+	if (blocking.length !== 1) return null;
+	return resolveGate(harness, blocking[0], warnings, `${artifactRef} phase gate`);
+}
+
 function resolveOperations(template: FlowTemplate): ResolvedFlowDefinition["operations"] {
 	return Object.fromEntries(Object.entries(template.operations ?? {}).map(([id, operation]) => [id, {
 		requiredCapability: operation.required_capability,
@@ -304,7 +328,8 @@ function mergeTemplateStage(
 		roleIds,
 		roles: resolveRoles(harness, roleIds, warnings, artifactRef),
 		agents: [...roleIds],
-		gate: resolveGate(harness, stageDef.gate, warnings, artifactRef),
+		gate: resolveStageGate(harness, stageDef, warnings, artifactRef),
+		transitions: stageDef.transitions?.map((transition) => ({ ...transition })) ?? workflowStage?.allow?.map((target) => ({ target })),
 		preferredExecutor: stageDef.preferredExecutor,
 		phases: resolvePhases(harness, stageDef.phases, warnings, stageDef.id),
 		activity: cloneActivity(stageDef.activity),
@@ -329,6 +354,7 @@ function workflowStageDefinition(
 		roles: [],
 		agents: [],
 		gate: null,
+		transitions: stage.allow?.map((target) => ({ target })),
 		preferredExecutor: undefined,
 		phases: resolvePhases(null, stage.phases, [], stage.id),
 		activity: undefined,
@@ -411,6 +437,7 @@ function resolveVersionTarget(
 			const match = versions.find((v) => v.id === options.workflowVersionId);
 			if (match) return match;
 		}
+		throw new Error(`WORKFLOW_VERSION_NOT_FOUND: ${options.workflowVersionId}`);
 	}
 
 	if (options?.itemId && workflow?.items) {
@@ -422,18 +449,7 @@ function resolveVersionTarget(
 				const match = versions.find((v) => v.id === item.workflowVersionId);
 				if (match) return match;
 			}
-		}
-	}
-
-	if (workflow?.primaryItemId && workflow.items) {
-		const primary = workflow.items.find((candidate) => candidate.id === workflow.primaryItemId);
-		if (primary?.workflowVersionId) {
-			const definitions = listWorkflowDefinitions(root);
-			for (const def of definitions) {
-				const versions = listWorkflowVersions(root, def.id);
-				const match = versions.find((v) => v.id === primary.workflowVersionId);
-				if (match) return match;
-			}
+			throw new Error(`WORKFLOW_VERSION_NOT_FOUND: ${item.workflowVersionId}`);
 		}
 	}
 
@@ -484,6 +500,7 @@ function resolveFromWorkflowVersion(
 				roles: resolveRoles(harness, roleIds, warnings, artifactRef),
 				agents: roleIds,
 				gate,
+				transitions: Array.isArray(stageDef.transitions) ? stageDef.transitions.map((transition: { target: string }) => ({ target: transition.target })) : undefined,
 				preferredExecutor: stageDef.preferredExecutor as string | undefined,
 				phases: stageDef.phases as ResolvedStagePhases | undefined,
 				activity: stageDef.activity as ResolvedFlowStage["activity"],
@@ -510,14 +527,13 @@ function resolveFromWorkflowVersion(
 				order: resolved?.order ?? (typeof stageDef.order === "number" ? stageDef.order : index),
 				zone: resolved?.zone,
 				phases: stageDef.phases as StagePhases | undefined,
-				allow: resolved?.roleIds,
+				allow: resolved?.transitions?.map((transition) => transition.target),
 				gate: resolved?.gate?.id ?? (typeof stageDef.gate === "string" ? stageDef.gate : stageDef.gate?.id) ?? null,
 			};
 		}),
 		items: workflow?.items ?? [],
 		tools: workflow?.tools ?? [],
 		webhooks: workflow?.webhooks,
-		primaryItemId: workflow?.primaryItemId,
 		state: workflow?.state,
 		template: version.workflowId,
 		harnessVersion:
@@ -612,7 +628,13 @@ export function resolveActiveFlowFor(
 		if (versionTarget) {
 			return resolveFromWorkflowVersion(versionTarget, workflow, harness);
 		}
-	} catch {
+		if (options?.workflowVersionId) {
+			throw new Error(`WORKFLOW_VERSION_NOT_FOUND: ${options.workflowVersionId}`);
+		}
+	} catch (error) {
+		if (options?.workflowVersionId) throw error;
+		const pinnedVersionId = options?.itemId ? workflow?.items.find((item) => item.id === options.itemId)?.workflowVersionId : undefined;
+		if (pinnedVersionId) throw error;
 		// Fallback to workflow/harness
 	}
 	return resolveActiveFlowFrom(workflow, harness);

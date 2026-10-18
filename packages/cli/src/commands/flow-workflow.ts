@@ -1,5 +1,6 @@
 import chalk from "chalk";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
 import {
 	createWorkflowDefinition,
 	createWorkflowDraft,
@@ -14,6 +15,7 @@ import {
 	updateWorkflowDraft,
 	validateWorkflowContent,
 } from "../workflow-versions/service.js";
+import { signLocalOperation } from "../identity/signing.js";
 
 function section(title: string): void {
 	console.log(`\n${chalk.bold(title)}`);
@@ -138,7 +140,8 @@ export function workflowPublishCommand(root: string, workflowId: string, actor: 
  */
 export function workflowRollbackCommand(root: string, workflowId: string, actor: string, versionNumber: number, reason: string): void {
 	try {
-		const restored = rollbackWorkflowVersion(root, workflowId, { versionNumber, actor, reason });
+		const proof = signLocalOperation(root, actor, "workflow.rollback", { workflowId, versionNumber, reason });
+		const restored = rollbackWorkflowVersion(root, workflowId, { versionNumber, actor, reason, proof });
 		section("Workflow rolled back");
 		console.log(`  New version:   ${restored.number}`);
 		console.log(`  Restored from: ${restored.restoredFromVersionId}`);
@@ -178,5 +181,103 @@ export function workflowDraftRevisionsCommand(root: string, workflowId: string):
 	section(`Draft revisions of ${workflowId}`);
 	for (const r of revisions) {
 		console.log(`  r${r.revision}  ${r.changeSummary ?? "(sem resumo)"}`);
+	}
+}
+
+/**
+ * Cria/atualiza workflow a partir de template.
+ */
+export function workflowTemplateCommand(
+	root: string,
+	workflowId: string,
+	actor: string,
+	template: string,
+	options: { name?: string; stages?: string[]; tools?: string[] },
+): void {
+	try {
+		const result = createWorkflowDefinition(root, {
+			name: options.name ?? template,
+			actor,
+			content: {
+				name: options.name ?? template,
+				stages: options.stages?.map((id, index) => ({ id, name: id, order: index })) ?? [],
+				...(options.tools && { tools: options.tools }),
+			},
+		});
+		console.log(chalk.green(`✓ Workflow criado: ${result.definition.id}`));
+		console.log(`  Draft: ${result.draft.revision}`);
+	} catch (error) {
+		console.log(chalk.red(`Erro: ${(error as Error).message}`));
+	}
+}
+
+/**
+ * Lista ou atualiza adapters do workflow.
+ */
+export function workflowAdaptersCommand(
+	root: string,
+	workflowId: string,
+	options: { tools?: string; list?: boolean },
+): void {
+	try {
+		const workflowPath = join(root, ".letra", "workflow.json");
+		const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
+
+		if (options.list || !options.tools) {
+			console.log(chalk.bold(`Adapters ativos: ${workflow.tools?.join(", ") ?? "nenhum"}`));
+			return;
+		}
+
+		workflow.tools = options.tools.split(",").map((t: string) => t.trim());
+		workflow.updatedAt = new Date().toISOString();
+		writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+		console.log(chalk.green(`✓ Adapters atualizados: ${workflow.tools.join(", ")}`));
+	} catch (error) {
+		console.log(chalk.red(`Erro: ${(error as Error).message}`));
+	}
+}
+
+/**
+ * Lista locations do workflow.
+ */
+export function workflowLocationsCommand(
+	root: string,
+	workflowId: string,
+	options: { add?: string; remove?: string; list?: boolean },
+): void {
+	try {
+		const workflowPath = join(root, ".letra", "workflow.json");
+		const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
+
+		if (options.list || (!options.add && !options.remove)) {
+			const locations = workflow.locations ?? [];
+			if (locations.length === 0) {
+				console.log(chalk.yellow("Nenhuma location configurada."));
+				return;
+			}
+			console.log(chalk.bold(`Locations (${locations.length}):`));
+			for (const loc of locations) {
+				console.log(`  ${loc.id ?? loc.path} — ${loc.label ?? loc.path}`);
+			}
+			return;
+		}
+
+		if (!workflow.locations) workflow.locations = [];
+
+		if (options.add) {
+			workflow.locations.push({ id: `${workflow.locations.length + 1}`, path: options.add, label: options.add });
+			workflow.updatedAt = new Date().toISOString();
+			writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+			console.log(chalk.green(`✓ Location adicionada: ${options.add}`));
+		}
+
+		if (options.remove) {
+			workflow.locations = workflow.locations.filter((l: any) => l.id !== options.remove && l.path !== options.remove);
+			workflow.updatedAt = new Date().toISOString();
+			writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+			console.log(chalk.green(`✓ Location removida: ${options.remove}`));
+		}
+	} catch (error) {
+		console.log(chalk.red(`Erro: ${(error as Error).message}`));
 	}
 }

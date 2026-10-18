@@ -105,6 +105,7 @@ export function createContextRoutes(dependencies: ContextRouteDependencies): Rou
 			const result = dependencies.queryLogWithMeta(workspaceRoot, {
 				all: url.searchParams.get("all") === "true",
 				itemId: url.searchParams.get("item") ?? undefined,
+				runId: url.searchParams.get("run") ?? undefined,
 				action: url.searchParams.get("action") ?? undefined,
 				since: url.searchParams.get("since") ?? undefined,
 				q: url.searchParams.get("q") ?? undefined,
@@ -124,11 +125,11 @@ export function createContextRoutes(dependencies: ContextRouteDependencies): Rou
 			try {
 				const { existsSync, readFileSync } = await import("node:fs");
 				const { join } = await import("node:path");
-				const { readFocusFile } = await import("../../adapters/focus-sync.js");
 				const { loadSessionLog } = await import("../../session-log.js");
 				const { loadHealthRecord, getActiveEntries } = await import(
 					"../../health-record.js"
 				);
+				const { stripSitrepSnapshots } = await import("../specs.js");
 
 				function readFile(relativePath: string): string {
 					const fp = join(workspaceDir, relativePath);
@@ -148,18 +149,16 @@ export function createContextRoutes(dependencies: ContextRouteDependencies): Rou
 				] as const;
 				const l1 = l1Files.map((f) => ({
 					path: `.letra/${f}`,
-					content: readFile(f),
+					content: f === "context.md" ? stripSitrepSnapshots(readFile(f)) : readFile(f),
 				}));
 
-				const focus = readFocusFile(workspaceRoot);
-				const focusContent = readFile("focus.md");
-				const specContent = focus?.specName
-					? readFile(`specs/${focus.specName}/spec.md`)
-					: "";
+				const direction = (await import("../../agent-direction/service.js")).resolveDirection(workspaceRoot);
+				const specName = direction.item?.spec ?? null;
+				const specContent = specName ? readFile(`specs/${specName}/spec.md`) : "";
 				const l2 = {
-					focus: focus ? { ...focus, content: focusContent } : null,
+					direction,
 					spec: specContent
-						? { path: `.letra/specs/${focus?.specName}/spec.md`, content: specContent }
+						? { path: `specs/${specName}/spec.md`, content: specContent }
 						: null,
 				};
 
@@ -200,10 +199,13 @@ export function createContextRoutes(dependencies: ContextRouteDependencies): Rou
 			return true;
 		}
 		if (path === "/api/activity-context" && method === "GET") {
+			const runId = url.searchParams.get("run");
+			const executorId = url.searchParams.get("executor");
+			const itemId = url.searchParams.get("item");
 			sendJson(
 				res,
 				200,
-				dependencies.buildActivityContext(workspaceRoot, url.searchParams.get("activity")),
+				dependencies.buildActivityContext(workspaceRoot, url.searchParams.get("activity"), runId, executorId, itemId),
 			);
 			return true;
 		}

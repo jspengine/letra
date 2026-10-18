@@ -84,6 +84,8 @@ describe("workflow routes", () => {
 	it("exposes the canonical draft, validation, publication and rollback lifecycle", async () => {
 		tmpRoot = join(tmpdir(), `letra-workflow-versions-route-${Date.now()}`);
 		mkdirSync(join(tmpRoot, ".letra"), { recursive: true });
+		mkdirSync(join(tmpRoot, ".letra", "identity"), { recursive: true });
+		writeFileSync(join(tmpRoot, ".letra", "identity", "local.json"), JSON.stringify({ id: "human:test-session", osUser: "test-session", hostname: "test-host", createdAt: new Date().toISOString() }));
 		const dependencies = deps();
 		const route = createWorkflowRoutes(dependencies);
 		const call = async (method: string, path: string, body?: unknown) => {
@@ -97,9 +99,13 @@ describe("workflow routes", () => {
 		const created = await call("POST", "/api/workflow-definitions", { name: "Visual", actor: "human:owner", content });
 		const id = created.body.definition.id as string;
 		expect(created.res.writeHead).toHaveBeenCalledWith(201, expect.anything());
+		expect(created.body.draft.createdBy).toBe("human:test-session");
+		const edited = await call("PATCH", `/api/workflow-definitions/${id}/draft`, { actor: "human:forged-body", expectedRevision: 1, content: { ...content, stages: [{ ...content.stages[0], name: "Draft" }, content.stages[1]] } });
+		expect(edited.body.revision).toBe(2);
+		expect(edited.body.content.stages[0].name).toBe("Draft");
 		const validation = await call("POST", `/api/workflow-definitions/${id}/validate`);
 		expect(validation.body).toEqual({ valid: true, errors: [] });
-		const published = await call("POST", `/api/workflow-definitions/${id}/publish`, { actor: "human:owner", expectedRevision: 1, reason: "Initial publication" });
+		const published = await call("POST", `/api/workflow-definitions/${id}/publish`, { actor: "human:owner", expectedRevision: 2, reason: "Initial publication" });
 		expect(published.body.number).toBe(1);
 		const rollback = await call("POST", `/api/workflow-definitions/${id}/rollback`, { actor: "human:owner", versionNumber: 1, reason: "Audit rollback" });
 		expect(rollback.body).toMatchObject({ number: 2, restoredFromVersionId: published.body.id });
@@ -107,11 +113,10 @@ describe("workflow routes", () => {
 		expect(history.body).toHaveLength(2);
 	});
 
-	it("rejects publish when no server-side human actor is resolved", async () => {
+	it("rejects workflow mutations when no server-side human actor is resolved", async () => {
 		tmpRoot = join(tmpdir(), `letra-workflow-human-actor-route-${Date.now()}`);
 		mkdirSync(join(tmpRoot, ".letra"), { recursive: true });
 		const dependencies = deps();
-		vi.mocked(dependencies.resolveHumanActor!).mockReturnValue(null);
 		const route = createWorkflowRoutes(dependencies);
 		const call = async (method: string, path: string, body?: unknown) => {
 			const req = request(method, body === undefined ? "" : JSON.stringify(body));
@@ -123,11 +128,22 @@ describe("workflow routes", () => {
 		const content = { name: "Visual", initialStageId: "draft", stages: [{ id: "draft", transitions: [{ target: "done" }] }, { id: "done", final: true }] };
 		const created = await call("POST", "/api/workflow-definitions", { name: "Visual", actor: "human:owner", content });
 		const id = created.body.definition.id as string;
+		vi.mocked(dependencies.resolveHumanActor!).mockReturnValue(null);
+
+		const create = await call("POST", "/api/workflow-definitions", { name: "Forged", actor: "human:forged-body", content });
+		expect(create.res.writeHead).toHaveBeenCalledWith(403, expect.anything());
+		expect(create.body).toEqual({ error: "HUMAN_CONFIRMATION_REQUIRED" });
+		const draft = await call("POST", `/api/workflow-definitions/${id}/draft`, { actor: "human:forged-body" });
+		expect(draft.res.writeHead).toHaveBeenCalledWith(403, expect.anything());
+		expect(draft.body).toEqual({ error: "HUMAN_CONFIRMATION_REQUIRED" });
 
 		const published = await call("POST", `/api/workflow-definitions/${id}/publish`, { actor: "human:forged-body", expectedRevision: 1, reason: "Try forged body actor" });
 
 		expect(published.res.writeHead).toHaveBeenCalledWith(403, expect.anything());
 		expect(published.body).toEqual({ error: "HUMAN_CONFIRMATION_REQUIRED" });
+		const edit = await call("PATCH", `/api/workflow-definitions/${id}/draft`, { actor: "human:forged-body", expectedRevision: 1, content });
+		expect(edit.res.writeHead).toHaveBeenCalledWith(403, expect.anything());
+		expect(edit.body).toEqual({ error: "HUMAN_CONFIRMATION_REQUIRED" });
 		expect(dependencies.broadcast).not.toHaveBeenCalled();
 	});
 

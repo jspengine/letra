@@ -112,6 +112,18 @@ describe("ac command", () => {
 			const pendings = listPendingACs(lines);
 			expect(pendings).toHaveLength(0);
 		});
+
+		it("preserves named AC ids with em dashes and does not invent ids for prose checkboxes", () => {
+			const lines = [
+				"- [ ] **AC1 — Run canônica**: entidade durável",
+				"- [ ] **AC2 — Resolvedor único**: consumidores alinhados",
+				"- [ ] Nota de implementação sem identificador de AC",
+			];
+			expect(listPendingACs(lines)).toEqual([
+				{ lineIdx: 0, id: "AC1", text: "entidade durável" },
+				{ lineIdx: 1, id: "AC2", text: "consumidores alinhados" },
+			]);
+		});
 	});
 
 	describe("markAcById", () => {

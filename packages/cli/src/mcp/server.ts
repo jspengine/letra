@@ -1,10 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import type { ResolvedFlowRole } from "@letra/types";
-import { resolveAgentDirection } from "../agent-direction/service.js";
+import { resolveAgentDirection, resolveDirection } from "../agent-direction/service.js";
 import { loadWorkflow } from "../commands/flow-init.js";
 import { loadHarnessForWorkflow, resolveActiveFlowFor } from "../flow-definition/resolve.js";
 import { getActiveEntries, loadHealthRecord } from "../health-record.js";
@@ -18,8 +19,10 @@ import {
 	activityOperation,
 	submitEvidenceOperation,
 	requestHandoffOperation,
+	requestPassageOperation,
 	requestReworkOperation,
 	runSecurityReviewOperation,
+	migrateRunWorkflowOperation,
 } from "../domain-operations/service.js";
 import { logEntry } from "../session-log.js";
 import {
@@ -38,6 +41,8 @@ import {
 import { createWorkspaceBoundary, type WorkspaceBoundary } from "../security/workspace-boundary.js";
 import { readSpecCatalog } from "../spec-catalog/service.js";
 import { getLetraDir, resolveWorkspaceRoot } from "./../workspace/resolver.js";
+import { signLocalOperation } from "../identity/signing.js";
+import { assertOperationLevel } from "../identity/guard.js";
 import { invalidWorkspaceDiagnostic } from "../workspace/integrity.js";
 
 interface ActiveSpecPayload {
@@ -52,13 +57,18 @@ function jsonText(value: unknown) {
 	};
 }
 
-function safeActiveSpec(root: string, boundary: WorkspaceBoundary): ActiveSpecPayload {
-	const direction = resolveAgentDirection(root);
+function safeActiveSpec(
+	root: string,
+	boundary: WorkspaceBoundary,
+	direction = resolveDirection(root),
+): ActiveSpecPayload {
 	const name = direction.item?.spec ?? null;
 	if (!name || !/^[a-zA-Z0-9._-]+$/.test(name)) {
 		return { name, path: null, content: null };
 	}
-	const specsRoot = resolve(getLetraDir(root), "specs");
+	const workspace = resolveWorkspaceRoot(root);
+	const candidateRoots = [resolve(workspace.dataDir, "specs"), resolve(workspace.workspaceRoot, "specs"), resolve(getLetraDir(root), "specs")];
+	const specsRoot = candidateRoots.find((candidate) => existsSync(resolve(candidate, name, "spec.md")) || existsSync(resolve(candidate, name, "acceptance.md"))) ?? candidateRoots[0]!;
 	const specDir = resolve(specsRoot, name);
 	if (
 		specDir !== specsRoot &&
@@ -115,7 +125,7 @@ function resourceText(uri: string, text: string, mimeType = "application/json") 
 	};
 }
 
-export function createLetraMcpServer(root: string): McpServer {
+export function createLetraMcpServer(root: string, options: { resolveBoundHumanActor?: () => string | null } = {}): McpServer {
 	const resolution = resolveWorkspaceRoot(root);
 	const workspaceDir = resolution.workspaceDir;
 	// An invalid link may point at a directory that no longer exists. Build the
@@ -132,6 +142,18 @@ export function createLetraMcpServer(root: string): McpServer {
 	// canonical or local projection. A valid link continues to use its
 	// canonical workspace root.
 	const operationRoot = workspaceRoot;
+	// MCP is an agent transport. It never creates a human identity or derives one
+	// from local filesystem access; a trusted host must explicitly bind a session.
+	const mcpActor = () => {
+		const client = server.server.getClientVersion();
+		return client?.name ? `mcp:${client.name}` : "mcp:unknown";
+	};
+	const requireHumanActor = () => {
+		const actor = options.resolveBoundHumanActor?.();
+		if (!actor?.startsWith("human:") || !existsSync(join(getLetraDir(workspaceRoot), "identity", "local.json"))) throw new Error("HUMAN_SESSION_REQUIRED");
+		assertOperationLevel(workspaceRoot, actor, "local");
+		return actor;
+	};
 	const auditedReads = new Set<string>();
 	const server = new McpServer({
 		name: "letra",
@@ -157,26 +179,19 @@ export function createLetraMcpServer(root: string): McpServer {
 	};
 	const expectedRevision = z.string().regex(/^sha256:[a-f0-9]{64}$/);
 	const reason = z.string().trim().min(1).max(500);
-	const clientIdentity = () => {
-		const client = server.server.getClientVersion();
-		return {
-			actor: client?.name ? `mcp:${client.name}` : "mcp:unknown",
-			clientVersion: client?.version ?? null,
-		};
-	};
+	const auditActor = mcpActor;
 	const auditRead = (resource: string, direction = resolveAgentDirection(workspaceRoot)) => {
 		if (invalidWorkspaceDiagnostic(workspaceRoot)) return direction;
 		const key = `${resource}:${direction.revision}`;
 		if (auditedReads.has(key)) return direction;
-		const client = clientIdentity();
+		const client = auditActor();
 		try {
 			logEntry(workspaceRoot, "agent_direction_read", `MCP read: ${resource}`, {
 				itemId: direction.item?.id,
 				acId: direction.pendingAC?.id,
 				details: {
 					adapter: "codex",
-					by: client.actor,
-					clientVersion: client.clientVersion,
+					by: client,
 					resource,
 					revision: direction.revision,
 					reason: "Consulta de contexto pelo transporte MCP.",
@@ -205,25 +220,42 @@ export function createLetraMcpServer(root: string): McpServer {
 		{
 			description:
 				"Retorna a direção vigente e versionada do harness para o workspace atual.",
+			inputSchema: {
+				runId: z.string().optional(),
+				executorId: z.string().optional(),
+				itemId: z.string().optional(),
+			},
 			annotations: readOnlyAnnotations,
 		},
-		async () => {
+		async (args: { runId?: string; executorId?: string; itemId?: string }) => {
 			const blocked = blockedRead();
 			if (blocked) return jsonText(blocked);
-			return jsonText(auditRead("direction"));
+			try {
+				return jsonText(auditRead("direction", resolveDirection(workspaceRoot, args)));
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				return jsonText({ reasonCode: message.split(":")[0], message });
+			}
 		},
 	);
 	server.registerTool(
 		"get_active_spec",
 		{
 			description: "Retorna a spec ativa e seus critérios de aceitação.",
+			inputSchema: { runId: z.string().optional(), executorId: z.string().optional(), itemId: z.string().optional() },
 			annotations: readOnlyAnnotations,
 		},
-		async () => {
+		async (args: { runId?: string; executorId?: string; itemId?: string }) => {
 			const blocked = blockedRead();
 			if (blocked) return jsonText(blocked);
-			auditRead("active-spec");
-			return jsonText(safeActiveSpec(workspaceRoot, boundary));
+			try {
+				const direction = resolveDirection(workspaceRoot, args);
+				auditRead("active-spec", direction);
+				return jsonText(safeActiveSpec(workspaceRoot, boundary, direction));
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				return jsonText({ reasonCode: message.split(":")[0], message });
+			}
 		},
 	);
 	server.registerTool(
@@ -244,6 +276,7 @@ export function createLetraMcpServer(root: string): McpServer {
 		{
 			description: "Valida o workspace pela implementação canônica e registra o resultado.",
 			inputSchema: {
+				itemId: z.string().regex(/^ITEM-\d+$/i).optional(),
 				expectedRevision,
 				reason,
 				idempotencyKey: z.string().trim().min(1).max(200).optional(),
@@ -254,7 +287,7 @@ export function createLetraMcpServer(root: string): McpServer {
 			jsonText(
 				await runValidationOperation(operationRoot, {
 					...input,
-					actor: clientIdentity().actor,
+					actor: mcpActor(),
 				}),
 			),
 	);
@@ -263,6 +296,7 @@ export function createLetraMcpServer(root: string): McpServer {
 		{
 			description: "Conclui o AC vigente após validar revisão e evidência de regressão.",
 			inputSchema: {
+				itemId: z.string().regex(/^ITEM-\d+$/i),
 				acId: z.string().regex(/^AC\d+(?:\.\d+)*$/i),
 				executorId: z.string().trim().min(1).optional(),
 				expectedRevision,
@@ -276,7 +310,7 @@ export function createLetraMcpServer(root: string): McpServer {
 			jsonText(
 				completeAcOperation(operationRoot, {
 					...input,
-					actor: clientIdentity().actor,
+					actor: mcpActor(),
 				}),
 			),
 	);
@@ -297,7 +331,7 @@ export function createLetraMcpServer(root: string): McpServer {
 			jsonText(
 				await requestTransitionOperation(operationRoot, {
 					...input,
-					actor: clientIdentity().actor,
+					actor: mcpActor(),
 				}),
 			),
 	);
@@ -323,12 +357,29 @@ export function createLetraMcpServer(root: string): McpServer {
 		auditRead("spec-catalog");
 		return jsonText(readSpecCatalog(workspaceRoot));
 	});
-	server.registerTool("claim", { description: "Solicita claim exclusivo.", inputSchema: { itemId: z.string(), executorId: z.string(), capability: z.string(), expectedRevision, reason, ttlMinutes: z.number().optional(), idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await claimOperation(operationRoot, { ...input, actor: clientIdentity().actor })));
-	server.registerTool("execution_event", { description: "Registra started, heartbeat, succeeded ou failed.", inputSchema: { itemId: z.string(), status: z.enum(["started", "heartbeat", "succeeded", "failed"]), executorId: z.string(), expectedRevision, reason, message: z.string().optional(), recovery: z.enum(["retry", "release", "handoff", "human"]).optional(), errorCode: z.string().optional(), idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await recordExecutionEvent(operationRoot, { ...input, actor: clientIdentity().actor })));
-	server.registerTool("submit_evidence", { description: "Registra evidência estruturada confinada.", inputSchema: { itemId: z.string(), executorId: z.string(), expectedRevision, reason, evidence: z.array(z.object({ kind: z.enum(["diff", "file", "command", "test", "artifact"]), value: z.string(), source: z.string(), observedAt: z.string().optional(), sha256: z.string().optional(), exitCode: z.number().optional() })), idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await submitEvidenceOperation(operationRoot, { ...input, actor: clientIdentity().actor })));
-	server.registerTool("security_review", { description: "Executa a revisão de Security escopada ao item, usando baseline e política do harness.", inputSchema: { itemId: z.string(), executorId: z.string(), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await runSecurityReviewOperation(operationRoot, { ...input, actor: clientIdentity().actor })));
-	server.registerTool("request_handoff", { description: "Solicita handoff atômico.", inputSchema: { itemId: z.string(), to: z.string(), executorId: z.string(), summary: z.string(), evidence: z.array(z.string()), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await requestHandoffOperation(operationRoot, { ...input, actor: clientIdentity().actor })));
-	server.registerTool("request_rework", { description: "Solicita retrabalho conforme a configuração declarativa do estágio.", inputSchema: { itemId: z.string(), expectedRevision, reason, acceptanceCriteria: z.array(z.object({ id: z.string().optional(), description: z.string().min(1) })).default([]) }, annotations: mutationAnnotations }, async (input) => jsonText(await requestReworkOperation(operationRoot, { ...input, actor: clientIdentity().actor })));
+	server.registerTool("load_reference", { description: "Carrega uma referência da direção e verifica seu hash SHA-256 atual.", inputSchema: { id: z.string(), runId: z.string().optional(), executorId: z.string().optional(), itemId: z.string().optional(), expectedSha256: z.string().regex(/^[a-f0-9]{64}$/).optional() }, annotations: readOnlyAnnotations }, async ({ id, runId, executorId, itemId, expectedSha256 }) => {
+		const blocked = blockedRead();
+		if (blocked) return jsonText(blocked);
+		let direction: ReturnType<typeof resolveDirection>;
+		try { direction = resolveDirection(workspaceRoot, { runId, executorId, itemId }); }
+		catch (error) { const message = error instanceof Error ? error.message : String(error); return jsonText({ reasonCode: message.split(":")[0], message }); }
+		const reference = direction.references?.find((entry) => entry.id === id);
+		if (!reference) return jsonText({ reasonCode: "REFERENCE_NOT_FOUND", id });
+		const path = boundary.assertPath(join(getLetraDir(workspaceRoot), reference.path));
+		if (!reference.available || !existsSync(path)) return jsonText({ status: "unavailable", reasonCode: "REFERENCE_UNAVAILABLE", id, path: reference.path });
+		const content = readFileSync(path, "utf8");
+		const sha256 = createHash("sha256").update(content).digest("hex");
+		const expected = expectedSha256 ?? reference.sha256;
+		const verified = expected === sha256;
+		return jsonText({ id, path: reference.path, status: verified ? "current" : "stale", reasonCode: verified ? null : "REFERENCE_STALE", expectedSha256: expected, sha256, verified, content });
+	});
+	server.registerTool("claim", { description: "Solicita claim exclusivo.", inputSchema: { itemId: z.string(), executorId: z.string(), capability: z.string(), expectedRevision, reason, ttlMinutes: z.number().optional(), idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await claimOperation(operationRoot, { ...input, actor: mcpActor() })));
+	server.registerTool("execution_event", { description: "Registra started, heartbeat, succeeded ou failed.", inputSchema: { itemId: z.string(), status: z.enum(["started", "heartbeat", "succeeded", "failed"]), executorId: z.string(), expectedRevision, reason, message: z.string().optional(), recovery: z.enum(["retry", "release", "handoff", "human"]).optional(), errorCode: z.string().optional(), idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await recordExecutionEvent(operationRoot, { ...input, actor: mcpActor() })));
+	server.registerTool("submit_evidence", { description: "Registra evidência estruturada confinada.", inputSchema: { itemId: z.string(), executorId: z.string(), expectedRevision, reason, evidence: z.array(z.object({ kind: z.enum(["diff", "file", "command", "test", "artifact"]), value: z.string(), source: z.string(), observedAt: z.string().optional(), sha256: z.string().optional(), exitCode: z.number().optional() })), idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await submitEvidenceOperation(operationRoot, { ...input, actor: mcpActor() })));
+	server.registerTool("security_review", { description: "Executa a revisão de Security escopada ao item, usando baseline e política do harness.", inputSchema: { itemId: z.string(), executorId: z.string(), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await runSecurityReviewOperation(operationRoot, { ...input, actor: mcpActor() })));
+	server.registerTool("request_handoff", { description: "Solicita handoff atômico.", inputSchema: { itemId: z.string(), to: z.string(), executorId: z.string(), summary: z.string(), evidence: z.array(z.string()), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await requestHandoffOperation(operationRoot, { ...input, actor: mcpActor() })));
+	server.registerTool("request_passage", { description: "Valida e comita transição, handoff e Run pela operação canônica.", inputSchema: { itemId: z.string(), targetStageId: z.string(), to: z.string(), executorId: z.string(), summary: z.string(), evidence: z.array(z.string()), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await requestPassageOperation(operationRoot, { ...input, actor: mcpActor() })));
+	server.registerTool("request_rework", { description: "Solicita retrabalho conforme a configuração declarativa do estágio.", inputSchema: { itemId: z.string(), expectedRevision, reason, acceptanceCriteria: z.array(z.object({ id: z.string().optional(), description: z.string().min(1) })).default([]) }, annotations: mutationAnnotations }, async (input) => jsonText(await requestReworkOperation(operationRoot, { ...input, actor: mcpActor() })));
 
 	server.registerResource(
 		"direction",
@@ -404,14 +455,13 @@ export function createLetraMcpServer(root: string): McpServer {
 		const key = `harness:${resource}:${direction.revision}`;
 		if (auditedReads.has(key)) return;
 		auditedReads.add(key);
-		const client = clientIdentity();
+		const client = auditActor();
 		logEntry(workspaceRoot, "agent_harness_read", `MCP harness read: ${resource}`, {
 			itemId: direction.item?.id,
 			acId: direction.pendingAC?.id,
 			details: {
 				adapter: "codex",
-				by: client.actor,
-				clientVersion: client.clientVersion,
+				by: client,
 				resource,
 				revision: direction.revision,
 				outcome: "accepted",
@@ -581,13 +631,28 @@ export function createLetraMcpServer(root: string): McpServer {
 		);
 
 		server.registerTool(
+			"run_migrate_workflow",
+			{
+				description: "Migra uma Run para uma versão publicada de workflow com autorização humana assinada.",
+				inputSchema: { runId: z.string(), toWorkflowVersionId: z.string(), toStageId: z.string(), expectedRunRevision: z.number().int().positive(), expectedRevision, reason },
+				annotations: mutationAnnotations,
+			},
+			async (input) => {
+				const actor = requireHumanActor();
+				const details = { runId: input.runId, toWorkflowVersionId: input.toWorkflowVersionId, toStageId: input.toStageId, expectedRunRevision: input.expectedRunRevision, expectedDirectionRevision: input.expectedRevision, reason: input.reason };
+				const proof = signLocalOperation(workspaceRoot, actor, "run.workflow.migrate", details);
+				return jsonText(migrateRunWorkflowOperation(operationRoot, { ...input, actor, proof }));
+			},
+		);
+
+		server.registerTool(
 					"workflow_create_definition",
 					{
 						description: "Cria uma nova definição de workflow.",
-						inputSchema: { name: z.string(), description: z.string().optional(), actor: z.string() },
+						inputSchema: { name: z.string(), description: z.string().optional() },
 						annotations: mutationAnnotations,
 					},
-					async (input) => jsonText(createWorkflowDefinition(workspaceRoot, { ...input, actor: input.actor ?? clientIdentity().actor })),
+					async (input) => jsonText(createWorkflowDefinition(workspaceRoot, { ...input, actor: requireHumanActor() })),
 				);
 
 				server.registerTool(
@@ -597,7 +662,7 @@ export function createLetraMcpServer(root: string): McpServer {
 						inputSchema: { workflowId: z.string(), basedOnVersionNumber: z.number().optional() },
 						annotations: mutationAnnotations,
 					},
-					async ({ workflowId, basedOnVersionNumber }) => jsonText(createWorkflowDraft(workspaceRoot, workflowId, clientIdentity().actor, basedOnVersionNumber)),
+					async ({ workflowId, basedOnVersionNumber }) => jsonText(createWorkflowDraft(workspaceRoot, workflowId, requireHumanActor(), basedOnVersionNumber)),
 				);
 
 				server.registerTool(
@@ -612,7 +677,7 @@ export function createLetraMcpServer(root: string): McpServer {
 					},
 					annotations: mutationAnnotations,
 				},
-				async (input) => jsonText(updateWorkflowDraft(workspaceRoot, input.workflowId, { actor: clientIdentity().actor, expectedRevision: input.expectedRevision, content: input.content as Parameters<typeof updateWorkflowDraft>[2]["content"], changeSummary: input.changeSummary })),
+				async (input) => jsonText(updateWorkflowDraft(workspaceRoot, input.workflowId, { actor: requireHumanActor(), expectedRevision: input.expectedRevision, content: input.content as Parameters<typeof updateWorkflowDraft>[2]["content"], changeSummary: input.changeSummary })),
 			);
 
 			server.registerTool(
@@ -628,7 +693,7 @@ export function createLetraMcpServer(root: string): McpServer {
 					inputSchema: { workflowId: z.string(), expectedRevision: z.number(), reason },
 					annotations: mutationAnnotations,
 				},
-				async (input) => jsonText(publishWorkflowDraft(workspaceRoot, input.workflowId, { expectedRevision: input.expectedRevision, actor: clientIdentity().actor, reason: input.reason })),
+				async (input) => jsonText(publishWorkflowDraft(workspaceRoot, input.workflowId, { expectedRevision: input.expectedRevision, actor: requireHumanActor(), reason: input.reason })),
 			);
 
 			server.registerTool(
@@ -638,7 +703,7 @@ export function createLetraMcpServer(root: string): McpServer {
 							inputSchema: { workflowId: z.string(), versionNumber: z.number(), reason },
 							annotations: mutationAnnotations,
 						},
-						async (input) => jsonText(rollbackWorkflowVersion(workspaceRoot, input.workflowId, { versionNumber: input.versionNumber, actor: clientIdentity().actor, reason: input.reason })),
+						async (input) => { const actor = requireHumanActor(); const proof = signLocalOperation(workspaceRoot, actor, "workflow.rollback", { workflowId: input.workflowId, versionNumber: input.versionNumber, reason: input.reason }); return jsonText(rollbackWorkflowVersion(workspaceRoot, input.workflowId, { versionNumber: input.versionNumber, actor, reason: input.reason, proof })); },
 					);
 
 					return server;

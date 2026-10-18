@@ -105,6 +105,10 @@ export interface PhaseTransition {
 	auto?: boolean;
 }
 
+export interface StageTransition {
+	target: string;
+}
+
 export type PhaseAction =
 	| { type: "agent-prompt"; prompt: string }
 	| { type: "command"; cmd: string }
@@ -144,6 +148,7 @@ export interface StageDef {
 	agents: string[];
 	gate: string | null;
 	preferredExecutor?: string;
+	transitions?: StageTransition[];
 	phases?: StagePhases;
 	activity?: StageActivityContextConfig;
 	rework?: {

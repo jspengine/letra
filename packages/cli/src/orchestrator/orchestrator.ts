@@ -18,7 +18,7 @@ import type { HandoffEventPayload } from "../flow-serve/events.js";
 import { loadWorkflow } from "../commands/flow-init.js";
 import { logEntry } from "../session-log.js";
 import { GateChecker } from "../harness/gate-checker.js";
-import { resolveAgentDirection } from "../agent-direction/service.js";
+import { resolveDirection } from "../agent-direction/service.js";
 import { loadHarness, resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "../harness/loader.js";
 import { getLetraDir } from "../workspace/resolver.js";
 import {
@@ -237,7 +237,7 @@ export class Orchestrator {
 		const item = workflow.items.find((i) => i.id === itemId);
 		if (!item) return null;
 
-		const snapshot = resolveAgentDirection(this.root);
+		const snapshot = resolveDirection(this.root, { itemId });
 		let specContent: string | null = null;
 		if (item.spec) {
 			const specPath = join(getLetraDir(this.root), "specs", item.spec, "spec.md");

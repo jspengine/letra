@@ -25,6 +25,8 @@ import { status } from "./commands/status.js";
 import gateCommand from "./commands/gate.js";
 import { checkDs } from "./commands/check-ds.js";
 import doctorCommand from "./commands/doctor.js";
+import specLintCommand from "./commands/spec-lint.js";
+import specMigrateFrontmatterCommand from "./commands/spec-migrate-frontmatter.js";
 import securityCommand from "./commands/security.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -136,8 +138,10 @@ program
 	.command("validate [path]")
 	.option("--watch", "Watch specs and re-validate on change")
 	.option("--format <type>", "Output format: text, github-annotation, junit")
+	.option("--json", "Output results as JSON (equivalent to --format json)")
 	.description("Check if artifacts meet acceptance criteria")
 	.action(async (path, options) => {
+		if (options.json) options.format = "json";
 		await validate(path, { ...options });
 	});
 
@@ -168,6 +172,8 @@ program.addCommand(syncCommand());
 program.addCommand(migrateCommand());
 program.addCommand(gateCommand());
 program.addCommand(doctorCommand());
+program.addCommand(specLintCommand());
+program.addCommand(specMigrateFrontmatterCommand());
 program.addCommand(securityCommand());
 
 program.parse();

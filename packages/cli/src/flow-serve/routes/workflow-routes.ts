@@ -20,6 +20,7 @@ import {
 	getActiveWorkflowVersion,
 	listWorkflowDraftRevisions,
 } from "../../workflow-versions/service.js";
+import { signLocalOperation } from "../../identity/signing.js";
 
 export interface WorkflowRouteDependencies {
 	writeWorkflow: typeof writeWorkflow;
@@ -104,8 +105,10 @@ export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): R
 		}
 		if (path === "/api/workflow-definitions" && method === "POST") {
 			try {
-				const data = await readJson<{ name: string; description?: string; actor: string; content?: WorkflowDefinitionContent; duplicateFrom?: { workflowId: string; versionNumber: number } }>(req);
-				sendJson(res, 201, createWorkflowDefinition(workspaceRoot, data));
+				const actor = dependencies.resolveHumanActor?.(req);
+				if (!actor) { sendError(res, 403, "HUMAN_CONFIRMATION_REQUIRED"); return true; }
+				const data = await readJson<{ name: string; description?: string; content?: WorkflowDefinitionContent; duplicateFrom?: { workflowId: string; versionNumber: number } }>(req);
+				sendJson(res, 201, createWorkflowDefinition(workspaceRoot, { ...data, actor }));
 			} catch (error) { sendBodyError(error, res); }
 			return true;
 		}
@@ -119,11 +122,16 @@ export function createWorkflowRoutes(dependencies: WorkflowRouteDependencies): R
 				else if (action === "draft" && method === "GET") sendJson(res, 200, getWorkflowDraft(workspaceRoot, workflowId));
 				else if (action === "draft-revisions" && method === "GET") sendJson(res, 200, listWorkflowDraftRevisions(workspaceRoot, workflowId));
 				else if (action === "active" && method === "GET") sendJson(res, 200, getActiveWorkflowVersion(workspaceRoot, workflowId));
-				else if (action === "draft" && method === "POST") { const data = await readJson<{ actor: string; basedOnVersionNumber?: number }>(req); sendJson(res, 201, createWorkflowDraft(workspaceRoot, workflowId, data.actor, data.basedOnVersionNumber)); }
-				else if (action === "draft" && method === "PATCH") { const data = await readJson<{ actor: string; expectedRevision: number; content: WorkflowDefinitionContent; changeSummary?: string }>(req); sendJson(res, 200, updateWorkflowDraft(workspaceRoot, workflowId, data)); }
+				else if (action === "draft" && method === "POST") { const actor = dependencies.resolveHumanActor?.(req); if (!actor) { sendError(res, 403, "HUMAN_CONFIRMATION_REQUIRED"); return true; } const data = await readJson<{ basedOnVersionNumber?: number }>(req); sendJson(res, 201, createWorkflowDraft(workspaceRoot, workflowId, actor, data.basedOnVersionNumber)); }
+				else if (action === "draft" && method === "PATCH") {
+					const actor = dependencies.resolveHumanActor?.(req);
+					if (!actor) { sendError(res, 403, "HUMAN_CONFIRMATION_REQUIRED"); return true; }
+					const data = await readJson<{ expectedRevision: number; content: WorkflowDefinitionContent; changeSummary?: string }>(req);
+					sendJson(res, 200, updateWorkflowDraft(workspaceRoot, workflowId, { ...data, actor }));
+				}
 				else if (action === "validate" && method === "POST") sendJson(res, 200, validateWorkflowContent(getWorkflowDraft(workspaceRoot, workflowId).content));
 				else if (action === "publish" && method === "POST") { const data = await readJson<{ expectedRevision: number; reason: string }>(req); const actor = dependencies.resolveHumanActor?.(req); if (!actor) { sendError(res, 403, "HUMAN_CONFIRMATION_REQUIRED"); return true; } sendJson(res, 201, publishWorkflowDraft(workspaceRoot, workflowId, { ...data, actor })); dependencies.broadcast(); }
-				else if (action === "rollback" && method === "POST") { const data = await readJson<{ versionNumber: number; reason: string }>(req); const actor = dependencies.resolveHumanActor?.(req); if (!actor) { sendError(res, 403, "HUMAN_CONFIRMATION_REQUIRED"); return true; } sendJson(res, 201, rollbackWorkflowVersion(workspaceRoot, workflowId, { ...data, actor })); dependencies.broadcast(); }
+				else if (action === "rollback" && method === "POST") { const data = await readJson<{ versionNumber: number; reason: string }>(req); const actor = dependencies.resolveHumanActor?.(req); if (!actor) { sendError(res, 403, "HUMAN_CONFIRMATION_REQUIRED"); return true; } const proof = signLocalOperation(workspaceRoot, actor, "workflow.rollback", { workflowId, versionNumber: data.versionNumber, reason: data.reason }); sendJson(res, 201, rollbackWorkflowVersion(workspaceRoot, workflowId, { ...data, actor, proof })); dependencies.broadcast(); }
 				else return false;
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);

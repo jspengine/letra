@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveFallbackDirection } from "./fallback.js";
-import { resolveAgentDirection } from "./service.js";
+import { resolveAgentDirection, resolveDirection } from "./service.js";
 import * as sessionLog from "../session-log.js";
 
 const roots: string[] = [];
@@ -52,13 +52,14 @@ describe("direction fallback", () => {
 	it("preserves canonical direction while declaring live context unavailable", () => {
 		const root = fixture();
 		const canonical = resolveAgentDirection(root);
+		const unassigned = resolveDirection(root);
 		const fallback = resolveFallbackDirection(root);
 
 		expect(fallback).toMatchObject({
 			mode: "degraded",
-			revision: canonical.revision,
-			item: canonical.item,
-			pendingAC: canonical.pendingAC,
+			revision: unassigned.revision,
+			item: null,
+			pendingAC: null,
 			warnings: expect.arrayContaining([
 				{
 					code: "LIVE_CONTEXT_UNAVAILABLE",
@@ -71,6 +72,7 @@ describe("direction fallback", () => {
 				code: "LIVE_CONTEXT_UNAVAILABLE",
 			}),
 		);
+		expect(canonical.item).toBeNull();
 	});
 
 	it("does not duplicate the fallback warning when canonical state is already degraded", () => {
@@ -78,6 +80,14 @@ describe("direction fallback", () => {
 		expect(
 			fallback.warnings.filter((warning) => warning.code === "LIVE_CONTEXT_UNAVAILABLE"),
 		).toHaveLength(1);
+	});
+
+	it("resolves an explicit Run through the same canonical contract and preserves typed failures", () => {
+		const root = fixture();
+		const selected = resolveFallbackDirection(root, { itemId: "ITEM-1" });
+		expect(selected.item?.id).toBe("ITEM-1");
+		expect(selected.mode).toBe("degraded");
+		expect(() => resolveFallbackDirection(root, { runId: "RUN-MISSING" })).toThrow("RUN_NOT_FOUND");
 	});
 
 	it("retries audit on a later read after a sink failure", () => {

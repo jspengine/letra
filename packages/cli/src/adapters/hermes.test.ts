@@ -139,6 +139,7 @@ describe("hermes adapter", () => {
 	});
 
 	it("formatAdapterContent produces Hermes-compatible text format", () => {
+		writeFileSync(join(tmpDir, ".letra", "workflow.json"), JSON.stringify({ name: "test", stages: [{ id: "code", name: "Code", order: 0 }], items: [{ id: "ITEM-1", description: "Task A", stage: "code" }], tools: [] }));
 		const snapshot = buildHarnessSnapshot(tmpDir, {
 			source: "flow-move",
 			workflow: {

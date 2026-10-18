@@ -15,6 +15,7 @@ import type {
 	PhaseDef,
 	PhaseHarnessConfig,
 	PhaseTransition,
+	StageTransition,
 	ReviewExpectationConfig,
 	StageDef,
 	StageActivityContextConfig,
@@ -95,6 +96,18 @@ function normalizePhaseTransitions(value: unknown): PhaseTransition[] | undefine
 			};
 		})
 		.filter((entry): entry is PhaseTransition => entry !== null);
+	return transitions.length > 0 ? transitions : undefined;
+}
+
+function normalizeStageTransitions(value: unknown): StageTransition[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const transitions = value
+		.map((entry): StageTransition | null => {
+			if (!entry || typeof entry !== "object") return null;
+			const target = (entry as Record<string, unknown>).target;
+			return typeof target === "string" && target.trim() ? { target: target.trim() } : null;
+		})
+		.filter((entry): entry is StageTransition => entry !== null);
 	return transitions.length > 0 ? transitions : undefined;
 }
 
@@ -344,6 +357,7 @@ export function loadHarness(root: string): HarnessManifest | null {
 					gate: typeof s.gate === "string" && s.gate.trim() ? s.gate.trim() : null,
 					preferredExecutor:
 						typeof s.preferredExecutor === "string" ? s.preferredExecutor : undefined,
+					transitions: normalizeStageTransitions(s.transitions),
 					phases: normalizeStagePhases(s.phases),
 					activity: normalizeStageActivity(s.activity),
 							rework: s.rework

@@ -10,10 +10,7 @@ export type HermesOptions = {
 
 export function buildHermesSnapshot(root: string) {
 	const workflow = loadWorkflow(root);
-	if (!workflow) {
-		return buildHarnessSnapshot(root, { source: "init" });
-	}
-
+	if (!workflow) return buildHarnessSnapshot(root, { source: "init" });
 	const activeItemId = workflow.primaryItemId || workflow.items[0]?.id;
 	const activeItem = workflow.items.find((item) => item.id === activeItemId) || null;
 

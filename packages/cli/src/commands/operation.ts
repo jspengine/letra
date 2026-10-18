@@ -1,7 +1,8 @@
 import { resolve } from "node:path";
 import { Command, Option } from "commander";
 import { resolveLocalIdentity } from "../identity/service.js";
-import { activityOperation } from "../domain-operations/service.js";
+import { activityOperation, migrateRunWorkflowOperation } from "../domain-operations/service.js";
+import { signLocalOperation } from "../identity/signing.js";
 
 function collectEvidence(value: string, previous: string[]): string[] {
 	return [...previous, value];
@@ -15,6 +16,37 @@ export default function operationCommand(): Command {
 	const command = new Command("operation").description(
 		"Execute controlled harness operations with structured JSON results",
 	);
+
+	command.command("run-migrate-workflow <run-id>")
+		.requiredOption("--to-version <version-id>", "Published workflow version ID")
+		.requiredOption("--to-stage <stage-id>", "Destination stage ID")
+		.requiredOption("--run-revision <revision>", "Expected Run revision", (value) => Number(value))
+		.requiredOption("--expected-revision <revision>", "Direction revision")
+		.requiredOption("--reason <reason>", "Audited migration reason")
+		.action((runId: string, options: { toVersion: string; toStage: string; runRevision: number; expectedRevision: string; reason: string }) => {
+			const root = resolve(process.cwd());
+			const actor = resolveLocalIdentity(root).id;
+			const details = { runId, toWorkflowVersionId: options.toVersion, toStageId: options.toStage, expectedRunRevision: options.runRevision, expectedDirectionRevision: options.expectedRevision, reason: options.reason };
+			const proof = signLocalOperation(root, actor, "run.workflow.migrate", details);
+			printJson(migrateRunWorkflowOperation(root, { ...details, expectedRevision: options.expectedRevision, actor, proof }));
+		});
+
+	command.command("reclaim-expired-claims")
+		.option("--item <item-id>", "Recover only this explicitly selected item")
+		.requiredOption("--expected-revision <revision>", "Direction revision returned by Letra")
+		.requiredOption("--reason <reason>", "Audited recovery reason")
+		.option("--actor <actor>", "System recovery actor", "system:cli-recovery")
+		.option("--idempotency-key <key>", "Idempotency key")
+		.action(async (options: { item?: string; expectedRevision: string; reason: string; actor: string; idempotencyKey?: string }) => {
+			const { reclaimExpiredClaimsOperation } = await import("../domain-operations/service.js");
+			printJson(await reclaimExpiredClaimsOperation(resolve(process.cwd()), {
+				itemId: options.item,
+				expectedRevision: options.expectedRevision,
+				reason: options.reason,
+				actor: options.actor,
+				idempotencyKey: options.idempotencyKey,
+			}));
+		});
 
 	command
 		.command("event <item-id>")
@@ -61,11 +93,26 @@ export default function operationCommand(): Command {
 		.command("validate")
 		.requiredOption("--expected-revision <revision>", "Direction revision returned by Letra")
 		.requiredOption("--reason <reason>", "Reason for the operation")
-		.action(async (options: { expectedRevision: string; reason: string }) => {
+		.option("--item <item-id>", "Item alvo quando não há Run selecionada")
+		.action(async (options: { expectedRevision: string; reason: string; item?: string }) => {
 			const { runValidationOperation } = await import("../domain-operations/service.js");
-			printJson(await runValidationOperation(resolve(process.cwd()), options));
+			printJson(await runValidationOperation(resolve(process.cwd()), { ...options, itemId: options.item }));
 		});
 	command.command("activity [item-id]").action((itemId?: string) => printJson(activityOperation(resolve(process.cwd()), itemId)));
+	command
+		.command("gate-decision <item-id>")
+		.addOption(new Option("--decision <decision>", "approve, request-changes ou reject").choices(["approve", "request-changes", "reject"]).makeOptionMandatory())
+		.requiredOption("--expected-revision <revision>", "Direction revision returned by Letra")
+		.requiredOption("--reason <reason>", "Audited human decision reason")
+		.action(async (itemId: string, options: { decision: "approve" | "request-changes" | "reject"; expectedRevision: string; reason: string }) => {
+			const root = resolve(process.cwd());
+			const actor = resolveLocalIdentity(root).id;
+			const details = { itemId, decision: options.decision, expectedRevision: options.expectedRevision, reason: options.reason };
+			const proof = signLocalOperation(root, actor, "gate.decision", details);
+			const { decideGateOperation } = await import("../domain-operations/service.js");
+			printJson(await decideGateOperation(root, { ...details, actor, proof }));
+		});
+
 	command.command("evidence <item-id>")
 		.requiredOption("--executor <executor-id>", "Executor externo")
 		.requiredOption("--expected-revision <revision>", "Direction revision")
@@ -99,6 +146,7 @@ export default function operationCommand(): Command {
 
 	command
 		.command("complete-ac <ac-id>")
+		.requiredOption("--item <item-id>", "Explicit target item ID")
 		.requiredOption("--expected-revision <revision>", "Direction revision returned by Letra")
 		.requiredOption("--reason <reason>", "Reason for completing the criterion")
 		.option("--executor <executor-id>", "Executor que produziu a evidência")
@@ -113,6 +161,7 @@ export default function operationCommand(): Command {
 			async (
 				acId: string,
 				options: {
+					item: string;
 					expectedRevision: string;
 					reason: string;
 					evidence: string[];
@@ -122,7 +171,7 @@ export default function operationCommand(): Command {
 				},
 			) => {
 				const { completeAcOperation } = await import("../domain-operations/service.js");
-				printJson(completeAcOperation(resolve(process.cwd()), { acId, executorId: options.executor, ...options }));
+				printJson(completeAcOperation(resolve(process.cwd()), { acId, itemId: options.item, executorId: options.executor, ...options }));
 			},
 		);
 
@@ -130,9 +179,9 @@ export default function operationCommand(): Command {
 		.command("request-transition <item-id>")
 		.requiredOption("--to <stage-id>", "Target stage ID")
 		.requiredOption("--expected-revision <revision>", "Direction revision returned by Letra")
-			.requiredOption("--reason <reason>", "Reason for requesting the transition")
-			.option("--actor <actor>", "Identidade do actor", "agent:codex")
-			.option("--idempotency-key <key>", "Chave idempotente da operação")
+		.requiredOption("--reason <reason>", "Reason for requesting the transition")
+		.option("--actor <actor>", "Identidade do actor", "agent:codex")
+		.option("--idempotency-key <key>", "Chave idempotente da operação")
 		.action(
 			async (
 				itemId: string,
@@ -144,9 +193,7 @@ export default function operationCommand(): Command {
 					idempotencyKey?: string;
 				},
 			) => {
-				const { requestTransitionOperation } = await import(
-					"../domain-operations/service.js"
-				);
+				const { requestTransitionOperation } = await import("../domain-operations/service.js");
 				printJson(
 					await requestTransitionOperation(resolve(process.cwd()), {
 						itemId,
@@ -159,6 +206,21 @@ export default function operationCommand(): Command {
 				);
 			},
 		);
+
+	command.command("passage <item-id>")
+		.requiredOption("--stage <stage-id>", "Configured destination stage")
+		.requiredOption("--to <actor>", "Configured destination role")
+		.requiredOption("--executor <executor-id>", "Source executor")
+		.requiredOption("--summary <summary>", "Handoff summary")
+		.requiredOption("--expected-revision <revision>", "Direction revision")
+		.requiredOption("--reason <reason>", "Reason")
+		.addOption(new Option("--evidence <evidence>", "Verifiable evidence").argParser(collectEvidence).default([]))
+		.option("--actor <actor>", "Source role", "agent:codex")
+		.option("--idempotency-key <key>", "Idempotency key")
+		.action(async (itemId: string, options: { stage: string; to: string; executor: string; summary: string; expectedRevision: string; reason: string; evidence: string[]; actor: string; idempotencyKey?: string }) => {
+			const { requestPassageOperation } = await import("../domain-operations/service.js");
+			printJson(await requestPassageOperation(resolve(process.cwd()), { itemId, targetStageId: options.stage, to: options.to, executorId: options.executor, summary: options.summary, evidence: options.evidence, expectedRevision: options.expectedRevision, reason: options.reason, actor: options.actor, idempotencyKey: options.idempotencyKey }));
+		});
 
 	command
 		.command("release <item-id>")

@@ -10,11 +10,20 @@ import type {
 	ResolvedFlowDefinition,
 	ResolvedFlowStage,
 } from "@letra/types";
-import { readFocusFile } from "../adapters/focus-sync.js";
 import { loadWorkflow, type Item, type Workflow } from "../commands/flow-init.js";
 import { resolveActiveFlow, resolveActiveFlowFor } from "../flow-definition/resolve.js";
 import { getLetraDir, resolveWorkspaceRoot } from "./../workspace/resolver.js";
 import { invalidWorkspaceDiagnostic } from "../workspace/integrity.js";
+import { readExecutionRuns } from "../execution-runs/store.js";
+import { createWorkspaceBoundary } from "../security/workspace-boundary.js";
+import { withWorkspaceTransactionLockSync } from "../domain-operations/workspace-transaction.js";
+
+export interface ResolveDirectionOptions {
+	runId?: string;
+	executorId?: string;
+	itemId?: string;
+	workflowVersionId?: string;
+}
 
 export interface CreateAgentDirectionSnapshotInput {
 	workspaceRoot: string;
@@ -39,25 +48,11 @@ function slug(value: string): string {
 
 function findCurrentItem(workflow: Workflow, currentItemId?: string | null): Item | null {
 	const items = Array.isArray(workflow.items) ? workflow.items : [];
-	const stages = Array.isArray(workflow.stages) ? workflow.stages : [];
 	if (currentItemId) {
 		const explicit = items.find((item) => item.id === currentItemId);
 		if (explicit) return explicit;
 	}
-	if (workflow.primaryItemId) {
-		const primary = items.find((item) => item.id === workflow.primaryItemId);
-		if (primary) return primary;
-	}
-	const doingStages = new Set(
-		stages
-			.filter(
-				(stage, index) =>
-					stage.zone === "doing" ||
-					(!stage.zone && index > 0 && index < stages.length - 1),
-			)
-			.map((stage) => stage.id),
-	);
-	return items.find((item) => doingStages.has(item.stage)) ?? null;
+	return null;
 }
 
 function firstPendingAC(content: string | null): AgentDirectionSnapshot["pendingAC"] {
@@ -70,10 +65,10 @@ function firstPendingAC(content: string | null): AgentDirectionSnapshot["pending
 	if (!match) return null;
 	const label = (match[1] ?? match[2] ?? "").trim();
 	const description = (match[3] ?? "").trim();
-	const id = label.match(/\bAC[\s-]?(\d+)\b/i);
+	const id = label.match(/\bAC(?:[\s-]?gap[\s-]?(\d+(?:\.\d+)*)|[\s-]?(\d+(?:\.\d+)*))\b/i);
 	if (!id) return null;
 	return {
-		id: `AC${id[1]}`,
+		id: id[1] ? `AC-gap-${id[1]}` : `AC${id[2]}`,
 		description: description || label.replace(/^AC[\s-]?\d+\s*[—-]?\s*/i, "").trim(),
 	};
 }
@@ -169,6 +164,9 @@ export function createAgentDirectionSnapshot(
 			objective: null,
 			pendingAC: null,
 			commands: [],
+		operations: [],
+		gates: [],
+		references: [],
 			prohibitions: [],
 			requiredEvidence: [],
 			nextActions: [],
@@ -211,6 +209,22 @@ export function createAgentDirectionSnapshot(
 			: "active";
 	const allowedStageIds = [...new Set(stage?.roles.flatMap((role) => role.allowedStages) ?? [])];
 	const gateEvidence = stage?.activity?.gate?.evidence;
+	const operations = Object.entries(input.flow?.operations ?? {}).map(([id, operation]) => ({
+		id,
+		description: operation.description,
+		requiredCapability: operation.requiredCapability,
+		requiresClaim: operation.requiresClaim === true,
+		allowedInStages: [...operation.allowedInStages],
+		allowedActors: [...operation.allowedActors],
+	}));
+	const gates = [...new Map((input.flow?.stages ?? []).flatMap((flowStage) => flowStage.gate ? [[flowStage.gate.id, {
+		id: flowStage.gate.id,
+		name: flowStage.gate.name,
+		type: flowStage.gate.type,
+		blocking: flowStage.gate.blocking,
+		policyRef: flowStage.gate.policyRef,
+		checkType: flowStage.gate.checkType,
+	}] as const] : []).map(([id, gate]) => [id, gate])).values()];
 
 	// Constitution governance
 	const constitutionPath = join(getLetraDir(input.workspaceRoot), "constitution.md");
@@ -238,6 +252,25 @@ export function createAgentDirectionSnapshot(
 			message: "Constitution file not found in workspace",
 		});
 	}
+	const referenceCandidates = [
+		...(item?.spec ? [{ path: `specs/${item.spec}/spec.md`, reason: "Acceptance criteria and task context" }] : []),
+		...(hint?.mustRead ?? []).map((reference) => ({ path: reference.path, reason: reference.reason })),
+		{ path: "constitution.md", reason: "Workspace governance" },
+	];
+	const references = [...new Map(referenceCandidates.map((reference) => {
+		const safeRelativePath = reference.path.replace(/\\/g, "/");
+		const boundary = createWorkspaceBoundary(getLetraDir(input.workspaceRoot));
+		let absolutePath: string | null = null;
+		try { absolutePath = boundary.assertPath(join(getLetraDir(input.workspaceRoot), safeRelativePath)); } catch { /* Invalid references remain unavailable. */ }
+		const content = absolutePath && existsSync(absolutePath) ? readFileSync(absolutePath) : null;
+		return [safeRelativePath, {
+			id: slug(safeRelativePath),
+			path: safeRelativePath,
+			reason: reference.reason,
+			sha256: content ? createHash("sha256").update(content).digest("hex") : null,
+			available: content !== null,
+		}] as const;
+	})).values()];
 
 	const semantic = {
 		schemaVersion: "1" as const,
@@ -279,6 +312,9 @@ export function createAgentDirectionSnapshot(
 		objective: hint?.objective ?? null,
 		pendingAC,
 		commands: resolveCommands(hint, item, pendingAC, nextStageId),
+		operations,
+		gates,
+		references,
 		prohibitions: [...(hint?.mustNotDo ?? [])],
 		requiredEvidence: gateEvidence ? [gateEvidence] : [],
 		nextActions: resolveActions(hint),
@@ -295,16 +331,24 @@ export function createAgentDirectionSnapshot(
 
 function readActiveSpec(root: string, specName: string | null): string | null {
 	if (!specName) return null;
-	const specDir = join(getLetraDir(root), "specs", specName);
+	const workspace = resolveWorkspaceRoot(root);
+	const specCandidates = [
+		join(workspace.dataDir, "specs", specName),
+		join(workspace.workspaceRoot, "specs", specName),
+		join(getLetraDir(root), "specs", specName),
+	];
+	const specDir = specCandidates.find((candidate) =>
+		existsSync(join(candidate, "spec.md")) || existsSync(join(candidate, "acceptance.md")),
+	) ?? specCandidates[0]!;
 	const acceptancePath = join(specDir, "acceptance.md");
 	const specPath = join(specDir, "spec.md");
 	// spec.md is the canonical narrative and is where request_rework appends
 	// new criteria. acceptance.md is a projection kept for tools that need a
 	// compact checklist. Reading the projection first made a valid rework look
 	// like it had no pending AC whenever a legacy acceptance.md was stale.
-	if (existsSync(specPath)) return readFileSync(specPath, "utf-8");
-	if (existsSync(acceptancePath)) return readFileSync(acceptancePath, "utf-8");
-	return null;
+	const spec = existsSync(specPath) ? readFileSync(specPath, "utf-8") : null;
+	const acceptance = existsSync(acceptancePath) ? readFileSync(acceptancePath, "utf-8") : null;
+	return [spec, acceptance].filter((content): content is string => content !== null).join("\n") || null;
 }
 
 function readConstitutionVersion(root: string): string | null {
@@ -315,35 +359,140 @@ function readConstitutionVersion(root: string): string | null {
 	return versionMatch ? versionMatch[1].trim() : null;
 }
 
-export function resolveAgentDirection(
+function resolveAgentDirectionUnderLock(
 	root: string,
 	currentItemId?: string | null,
+	options: { runId?: string | null; workflowVersionId?: string | null } = {},
 ): AgentDirectionSnapshot {
-	const focus = readFocusFile(root);
+	const selectedRun = options.runId
+		? readExecutionRuns(root).runs.find((run) => run.id === options.runId) ?? null
+		: null;
+	if (options.runId && !selectedRun) throw new Error(`RUN_NOT_FOUND: ${options.runId}`);
+	if (selectedRun && selectedRun.workspaceId !== resolveWorkspaceRoot(root).workspaceRoot) {
+		throw new Error(`RUN_WORKSPACE_MISMATCH: ${options.runId}`);
+	}
 	const initialWorkflow = loadWorkflow(root);
-	const focusedItem =
-		initialWorkflow && focus?.itemId && Array.isArray(initialWorkflow.items)
-			? (initialWorkflow.items.find((item) => item.id === focus.itemId) ?? null)
-			: null;
 	const selectedItem =
-		(currentItemId ? initialWorkflow?.items?.find((item) => item.id === currentItemId) : null) ??
-		focusedItem ??
-		(initialWorkflow && Array.isArray(initialWorkflow.items) ? findCurrentItem(initialWorkflow) : null);
+		(selectedRun ? initialWorkflow?.items?.find((item) => item.id === selectedRun.itemId) : null) ??
+		(currentItemId ? initialWorkflow?.items?.find((item) => item.id === currentItemId) : null) ?? null;
+	if (selectedRun && !selectedItem) throw new Error(`RUN_ITEM_NOT_FOUND: ${selectedRun.itemId}`);
 
 	const resolution = resolveActiveFlowFor(root, initialWorkflow, {
 		itemId: selectedItem?.id,
-		workflowVersionId: selectedItem?.workflowVersionId,
+		workflowVersionId: selectedRun?.workflowVersionId ?? options.workflowVersionId ?? selectedItem?.workflowVersionId,
 	});
 	const workflow = resolution.workflow;
 	const activeItem =
 		(selectedItem ? workflow?.items.find((item) => item.id === selectedItem.id) : null) ??
-		(workflow && Array.isArray(workflow.items) ? findCurrentItem(workflow) : null);
-	const specName = activeItem?.spec ?? focus?.specName ?? null;
-	return createAgentDirectionSnapshot({
+		null;
+	if (selectedRun && activeItem && selectedRun.workflowStageId) activeItem.stage = selectedRun.workflowStageId;
+	const specName = activeItem?.spec ?? null;
+	const snapshot = createAgentDirectionSnapshot({
 		workspaceRoot: root,
 		workflow,
 		flow: resolution.flow,
 		specContent: readActiveSpec(root, specName),
 		currentItemId: activeItem?.id ?? null,
 	});
+	if (!selectedRun) return snapshot;
+	const semantic = {
+		schemaVersion: snapshot.schemaVersion,
+		source: snapshot.source,
+		mode: snapshot.mode,
+		run: {
+			id: selectedRun.id,
+			itemId: selectedRun.itemId,
+			executorId: selectedRun.binding.executorId,
+			workflowVersionId: selectedRun.workflowVersionId,
+			status: selectedRun.status,
+		},
+		item: snapshot.item,
+		roleIds: snapshot.roleIds,
+		allowedStageIds: snapshot.allowedStageIds,
+		objective: snapshot.objective,
+		pendingAC: snapshot.pendingAC,
+		commands: snapshot.commands,
+		operations: snapshot.operations,
+		gates: snapshot.gates,
+		references: snapshot.references,
+		prohibitions: snapshot.prohibitions,
+		requiredEvidence: snapshot.requiredEvidence,
+		nextActions: snapshot.nextActions,
+		warnings: snapshot.warnings,
+		governanceReferences: snapshot.governanceReferences,
+		constitutionVersion: snapshot.constitutionVersion,
+	};
+	return {
+		...snapshot,
+		run: semantic.run,
+		revision: semanticRevision(semantic),
+	};
+}
+
+/** Read workflow, Run and spec projections under one workspace lock to avoid mixed snapshots during passage commits. */
+export function resolveAgentDirection(
+	root: string,
+	currentItemId?: string | null,
+	options: { runId?: string | null; workflowVersionId?: string | null } = {},
+): AgentDirectionSnapshot {
+	return withWorkspaceTransactionLockSync(root, () => resolveAgentDirectionUnderLock(root, currentItemId, options));
+}
+
+/** Resolve a read direction from durable Runs without selecting an arbitrary item. */
+function resolveDirectionUnderLock(root: string, options: ResolveDirectionOptions = {}): AgentDirectionSnapshot {
+	const runs = readExecutionRuns(root).runs.filter((run) => {
+		if (!(run.status === "running" || run.status === "queued" || run.status === "waiting-human")) return false;
+		if (run.lease && Date.parse(run.lease.expiresAt) <= Date.now()) return false;
+		return !options.executorId || run.binding.executorId === options.executorId;
+	});
+	if (options.runId) {
+		const allRuns = readExecutionRuns(root).runs;
+		const selected = runs.find((run) => run.id === options.runId);
+		if (!selected) {
+			const existing = allRuns.find((run) => run.id === options.runId);
+			if (!existing) throw new Error(`RUN_NOT_FOUND: ${options.runId}`);
+			if (options.executorId && existing.binding.executorId !== options.executorId) {
+				throw new Error(`RUN_UNAUTHORIZED: executor is not bound to ${options.runId}`);
+			}
+			throw new Error(`RUN_INACTIVE: ${options.runId}`);
+		}
+		return withAssignment(resolveAgentDirection(root, undefined, { runId: selected.id }), {
+			status: "assigned",
+			runId: selected.id,
+		});
+	}
+	if (options.itemId) {
+		const selectedItem = resolveAgentDirection(root, options.itemId, { workflowVersionId: options.workflowVersionId });
+		if (!selectedItem.item) throw new Error(`ITEM_NOT_FOUND: ${options.itemId}`);
+		return selectedItem;
+	}
+	if (runs.length === 1) {
+		return withAssignment(resolveAgentDirection(root, undefined, { runId: runs[0]!.id }), {
+			status: "assigned",
+			runId: runs[0]!.id,
+		});
+	}
+	const empty = createAgentDirectionSnapshot({ workspaceRoot: root, workflow: null, flow: null, specContent: null });
+	return withAssignment(empty, runs.length === 0
+		? { status: "unassigned" }
+		: { status: "selection-required", candidateRunIds: runs.map((run) => run.id).sort() });
+}
+
+/** Select and resolve a Run from the same locked snapshot. */
+export function resolveDirection(root: string, options: ResolveDirectionOptions = {}): AgentDirectionSnapshot {
+	return withWorkspaceTransactionLockSync(root, () => resolveDirectionUnderLock(root, options));
+}
+
+function withAssignment(
+	snapshot: AgentDirectionSnapshot,
+	assignment: NonNullable<AgentDirectionSnapshot["assignment"]>,
+): AgentDirectionSnapshot {
+	const semantic = { ...snapshot, assignment };
+	delete (semantic as Partial<AgentDirectionSnapshot>).revision;
+	delete (semantic as Partial<AgentDirectionSnapshot>).generatedAt;
+	return {
+		...snapshot,
+		assignment,
+		revision: semanticRevision(semantic as Omit<AgentDirectionSnapshot, "revision" | "generatedAt">),
+	};
 }

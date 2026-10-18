@@ -107,13 +107,15 @@ function makeHarness(): HarnessManifest {
 describe("resolveActiveFlowFrom", () => {
 	it("resolves flow from workflow template and harness", () => {
 		const workflow = makeWorkflow({ template: "sdlc" });
+		const harness = makeHarness();
+		harness.flows.sdlc.stages[1]!.transitions = [{ target: "done" }];
 		workflow.stages[1] = {
 			...workflow.stages[1],
 			name: "Legacy Design",
 			order: 99,
 			zone: "todo",
 		};
-		const result = resolveActiveFlowFrom(workflow, makeHarness());
+		const result = resolveActiveFlowFrom(workflow, harness);
 		expect(result.flow?.source).toBe("workflow-template");
 		expect(result.flow?.id).toBe("sdlc");
 		expect(result.flow?.stages[1].name).toBe("Design");
@@ -121,6 +123,7 @@ describe("resolveActiveFlowFrom", () => {
 		expect(result.flow?.stages[1].zone).toBe("doing");
 		expect(result.flow?.stages[1].gate?.id).toBe("spec-review");
 		expect(result.flow?.stages[1].agents).toEqual(["analyst"]);
+		expect(result.flow?.stages[1].transitions).toEqual([{ target: "done" }]);
 		expect(result.flow?.stages[1].roleIds).toEqual(["analyst"]);
 		expect(result.flow?.stages[1].phases?.initialState).toBe("draft");
 		expect(result.flow?.stages[1].phases?.states.draft.transitions?.[0].gate?.id).toBe(
@@ -130,6 +133,17 @@ describe("resolveActiveFlowFrom", () => {
 		expect(result.flow?.stages[1].activity?.design?.objective).toBe(
 			"Define the solution from harness metadata",
 		);
+	});
+
+	it("uses the unique blocking phase gate as the stage exit gate fallback", () => {
+		const harness = makeHarness();
+		harness.flows.sdlc.stages[1]!.gate = null;
+		const result = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness);
+		expect(result.flow?.stages[1]?.gate).toMatchObject({
+			id: "spec-review",
+			type: "human",
+			blocking: true,
+		});
 	});
 
 	it("falls back to workflow instance when no template exists", () => {

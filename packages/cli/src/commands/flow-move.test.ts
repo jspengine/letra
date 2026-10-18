@@ -43,6 +43,13 @@ describe("flow-move", () => {
 	});
 
 	describe("flowMove", () => {
+		it("uses the workspace local identity when no actor is supplied", async () => {
+			writeFileSync(join(tmpDir, "workflow.json"), JSON.stringify(createTestWorkflow()), "utf8");
+			await flowMove(tmpDir, "ITEM-1", "design");
+			const identity = JSON.parse(readFileSync(join(tmpDir, "identity", "local.json"), "utf-8"));
+			expect(identity.id).toMatch(/^human:local:/);
+		});
+
 		it("should move item to target stage by id", () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);

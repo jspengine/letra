@@ -1,5 +1,6 @@
 import type { AgentDirectionSnapshot } from "@letra/types";
-import { resolveAgentDirection } from "./service.js";
+import { resolveDirection, type ResolveDirectionOptions } from "./service.js";
+import { loadWorkflow } from "../commands/flow-init.js";
 import { logEntry } from "../session-log.js";
 
 const FALLBACK_WARNING = {
@@ -8,9 +9,9 @@ const FALLBACK_WARNING = {
 		"O contexto vivo por MCP não está sendo usado. Execute letra direction --json antes de agir e novamente antes de concluir.",
 };
 
-export function resolveFallbackDirection(root: string): AgentDirectionSnapshot {
-	const canonical = resolveAgentDirection(root);
-	const mode = canonical.mode === "unconfigured" ? "unconfigured" : "degraded";
+export function resolveFallbackDirection(root: string, options: ResolveDirectionOptions = {}): AgentDirectionSnapshot {
+	const canonical = resolveDirection(root, options);
+	const mode = !loadWorkflow(root) ? "unconfigured" : "degraded";
 	if (mode === "degraded") {
 		try {
 			logEntry(root, "adapter_degraded", "MCP não está disponível; modo degradado ativado.", {
