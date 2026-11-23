@@ -4,8 +4,10 @@ export interface GraphStage {
 	zone?: string;
 	order?: number;
 	final?: boolean;
-	transitions?: Array<{ target: string }>;
+	transitions?: Array<{ target: string; allowPendingAcceptanceCriteria?: boolean }>;
 	gate?: string | { id: string; type?: string } | null;
+	roleIds?: string[];
+	allow?: string[];
 }
 
 export interface GraphNode { stage: GraphStage; x: number; y: number }
@@ -108,4 +110,24 @@ export function workflowImpact(workflow: unknown, nextStageIds: string[]): { com
 		else result.compatible.push(item.id);
 	}
 	return result;
+}
+
+/**
+ * Copies template stages into a versioned draft. Harness templates move items
+ * by stage order and mark the end with `zone: "done"`; versioned workflows only
+ * move through explicit `transitions` and need a `final` stage. Stages that
+ * already declare transitions keep them.
+ */
+export function stagesFromTemplate<T extends GraphStage>(source: T[]): T[] {
+	const ordered = [...source].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+	return ordered.map((stage, order) => {
+		const copy = { ...structuredClone(stage), order };
+		const final = copy.final ?? copy.zone === "done";
+		if (final) copy.final = true;
+		const next = ordered[order + 1];
+		if (!final && !copy.transitions?.length && next) copy.transitions = [{ target: next.id }];
+		// Versioned workflows authorize roles through `allow` ("Quem atua").
+		if (!copy.allow?.length && copy.roleIds?.length) copy.allow = [...copy.roleIds];
+		return copy;
+	});
 }

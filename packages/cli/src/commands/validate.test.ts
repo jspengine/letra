@@ -8,6 +8,7 @@ import {
 	checkEmptySections,
 	checkLowConfidence,
 	checkSpecContent,
+	validate,
 } from "./validate.js";
 
 describe("validate - checkSpecContent", () => {
@@ -272,6 +273,44 @@ Test.
 
 		const result = checkSpecContent(specDir, "Unknown Label", "test");
 		expect(result).toBeNull();
+	});
+});
+
+describe("validate resolves linked specs from the workspace data directory", () => {
+	it("ignores a stale project-local .letra projection", async () => {
+		const root = join(tmpdir(), `letra-validate-linked-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+		const dataDir = join(tmpdir(), `letra-validate-data-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+		mkdirSync(root, { recursive: true });
+		mkdirSync(join(dataDir, "specs", "canonical"), { recursive: true });
+		writeFileSync(join(root, ".letra-link"), `${dataDir}\n`);
+		writeFileSync(join(dataDir, "workflow.json"), JSON.stringify({ version: "1", name: "Linked", stages: [], items: [], tools: [] }));
+		mkdirSync(join(root, ".letra", "specs", "stale"), { recursive: true });
+		writeFileSync(join(root, ".letra", "specs", "stale", "spec.md"), "invalid local projection");
+		writeFileSync(join(dataDir, "specs", "canonical", "spec.md"), `# Spec: canonical
+
+## Outcome
+A valid canonical workspace specification with enough detail for validation.
+
+## Constraints
+Preserve the data directory as the governance authority.
+
+## Exclusions
+No project-local governance copies.
+
+## Acceptance Criteria
+- [ ] **Canonical path**: The external specification is validated.
+
+## Context
+This fixture proves linked workspace resolution.
+`);
+
+		try {
+			const result = await validate(root, { exit: false, log: false });
+			expect(result.failed).toBe(0);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+			rmSync(dataDir, { recursive: true, force: true });
+		}
 	});
 });
 

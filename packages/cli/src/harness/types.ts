@@ -107,6 +107,7 @@ export interface PhaseTransition {
 
 export interface StageTransition {
 	target: string;
+	allowPendingAcceptanceCriteria?: boolean;
 }
 
 export type PhaseAction =

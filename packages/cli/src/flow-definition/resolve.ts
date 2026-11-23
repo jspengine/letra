@@ -466,7 +466,7 @@ function resolveVersionTarget(
 	return getActiveWorkflowVersion(root, targetDef.id);
 }
 
-function resolveFromWorkflowVersion(
+export function resolveFromWorkflowVersion(
 	version: WorkflowVersion,
 	workflow: Workflow | null,
 	harness: HarnessManifest | null,
@@ -479,7 +479,14 @@ function resolveFromWorkflowVersion(
 		.map((rawStage, index) => {
 			const stageDef = rawStage as Record<string, any>;
 			const zone = stageDef.zone ?? (stageDef.final ? "done" : index === 0 ? "todo" : "doing");
-			const roleIds = Array.isArray(stageDef.allow) ? (stageDef.allow as string[]) : [];
+			// `allow` is the editor's authorization field. Stages copied from a harness
+			// template before the copy filled `allow` only carry `roleIds`; read them
+			// so those published versions keep the roles they were meant to have.
+			const roleIds = Array.isArray(stageDef.allow) && stageDef.allow.length > 0
+				? (stageDef.allow as string[])
+				: Array.isArray(stageDef.roleIds)
+					? (stageDef.roleIds as string[])
+					: [];
 			const artifactRef = `version stage "${stageDef.id}"`;
 			const gate = stageDef.gate
 				? resolveGate(
@@ -500,7 +507,7 @@ function resolveFromWorkflowVersion(
 				roles: resolveRoles(harness, roleIds, warnings, artifactRef),
 				agents: roleIds,
 				gate,
-				transitions: Array.isArray(stageDef.transitions) ? stageDef.transitions.map((transition: { target: string }) => ({ target: transition.target })) : undefined,
+				transitions: Array.isArray(stageDef.transitions) ? stageDef.transitions.map((transition: { target: string; allowPendingAcceptanceCriteria?: boolean; repetition?: unknown }) => ({ target: transition.target, ...(typeof transition.allowPendingAcceptanceCriteria === "boolean" ? { allowPendingAcceptanceCriteria: transition.allowPendingAcceptanceCriteria } : {}), ...(transition.repetition !== undefined ? { repetition: transition.repetition as ResolvedFlowStage["transitions"] extends Array<infer T> ? T extends { repetition?: infer R } ? R : never : never } : {}) })) : undefined,
 				preferredExecutor: stageDef.preferredExecutor as string | undefined,
 				phases: stageDef.phases as ResolvedStagePhases | undefined,
 				activity: stageDef.activity as ResolvedFlowStage["activity"],
@@ -548,7 +555,14 @@ function resolveFromWorkflowVersion(
 		name: content.name ?? "Workflow",
 		stages,
 		roles: harness ? Object.values(harness.roles).map(cloneRole) : [],
-		operations: (content.operations as ResolvedFlowDefinition["operations"]) ?? {},
+		// Versions copied from a harness template carry its stage hooks but not the
+		// flow-level operation registry; fall back to the template's registry so
+		// hooks such as `security_review` stay resolvable.
+		operations:
+			(content.operations as ResolvedFlowDefinition["operations"]) ??
+			(typeof content.template === "string" && harness?.flows?.[content.template]
+				? resolveOperations(harness.flows[content.template]!)
+				: {}),
 		warnings,
 		workflowVersionId: version.id,
 		workflowVersionNumber: version.number,

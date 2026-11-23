@@ -22,6 +22,14 @@ function emptyStore(): ExecutionRunStore {
 	return { schemaVersion: STORE_SCHEMA_VERSION, runs: [] };
 }
 
+/** A Run with an expired lease is durable history, not a selectable live direction. */
+export function isRunActiveForDirection(run: RunEntity, now = Date.now()): boolean {
+	if (!(run.status === "running" || run.status === "queued" || run.status === "waiting-human")) return false;
+	if (!run.lease) return true;
+	const expiresAt = Date.parse(run.lease.expiresAt);
+	return Number.isFinite(expiresAt) && expiresAt > now;
+}
+
 export function readExecutionRuns(root: string): ExecutionRunStore {
 	recoverWorkspaceTransaction(root);
 	const path = runStorePath(root);

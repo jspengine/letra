@@ -358,9 +358,11 @@ describe("AgentDirectionService", () => {
 		const legacy = resolveAgentDirection(root);
 		const direction = resolveDirection(root);
 		expect(legacy.item).toBeNull();
-		expect(legacy.references.some((reference) => reference.path.includes("adapter-platform-v2"))).toBe(false);
+		expect(legacy.references?.some((reference) => reference.path.includes("adapter-platform-v2"))).toBe(false);
 		expect(direction.item).toBeNull();
 		expect(direction.assignment).toEqual({ status: "unassigned" });
+		expect(direction.source).toEqual(legacy.source);
+		expect(direction.mode).toBe(legacy.mode);
 	});
 
 	it("reconstructs the same Run direction after restart from durable state only", () => {

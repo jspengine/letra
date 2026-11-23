@@ -1,9 +1,9 @@
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, cpSync, readFileSync, rmSync, writeFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveAgentDirection } from "../agent-direction/service.js";
-import { getLetraDir } from "../workspace/resolver.js";
+import { resolveAgentDirection, resolveDirection } from "../agent-direction/service.js";
+import { clearWorkspaceCache, getLetraDir } from "../workspace/resolver.js";
 import { loadSessionLog } from "../session-log.js";
 import {
 	completeAcOperation,
@@ -17,6 +17,7 @@ import {
 	requestReworkOperation,
 	runValidationOperation,
 	claimOperation,
+	linkItemSpecOperation,
 	recordExecutionEvent,
 	runSecurityReviewOperation,
 	decideGateOperation,
@@ -28,6 +29,8 @@ import { createExecutionRun, readExecutionRuns, updateExecutionRun } from "../ex
 import { createWorkflowDefinition, createWorkflowDraft, publishWorkflowDraft, updateWorkflowDraft } from "../workflow-versions/service.js";
 import { commitWorkspaceTransaction, setWorkspaceTransactionFailureInjectorForTests } from "./workspace-transaction.js";
 import { createHash, randomUUID } from "node:crypto";
+import type { RepetitionPolicy } from "../workflow-versions/repetition-policy.js";
+import { captureSecurityBaseline } from "../security/scoped-review.js";
 
 const roots: string[] = [];
 
@@ -46,7 +49,7 @@ function fixture(): string {
 				createdAt: "2026-07-04T00:00:00.000Z",
 				updatedAt: "2026-07-04T00:00:00.000Z",
 				stages: [
-					{ id: "code", name: "Code", order: 0, zone: "doing" },
+					{ id: "code", name: "Code", order: 0, zone: "doing", transitions: [{ target: "review" }] },
 					{ id: "review", name: "Review", order: 1, zone: "doing" },
 				],
 				items: [
@@ -148,8 +151,8 @@ function configurePassageRuntimeBindings(root: string, includeDestination = true
 		runtimeBindings: [
 			{ version: "1", id: "implementer:implementer:codex", identityId: "implementer", roleId: "implementer", executorId: "codex", capabilities: ["read_code", "write_code", "run_tests"], stageIds: ["code"], availability: "online-required", harnessVersion: "v0.2.0" },
 			...(includeDestination ? [
-				{ version: "1", id: `${destinationIdentityId}:reviewer:opencode`, identityId: destinationIdentityId, roleId: "reviewer", executorId: "opencode", capabilities: ["read_code", "review_code", "run_tests"], stageIds: ["review"], availability: "online-required", harnessVersion: "v0.2.0" },
-				{ version: "1", id: `${destinationIdentityId}:reviewer:codex`, identityId: destinationIdentityId, roleId: "reviewer", executorId: "codex", capabilities: ["read_code", "review_code", "run_tests"], stageIds: ["review"], availability: "online-required", harnessVersion: "v0.2.0" },
+			{ version: "1", id: `${destinationIdentityId}:reviewer:opencode`, identityId: destinationIdentityId, roleId: "reviewer", executorId: "opencode", capabilities: ["read_code", "review_code", "run_tests"], stageIds: ["review", "done"], availability: "online-required", harnessVersion: "v0.2.0" },
+			{ version: "1", id: `${destinationIdentityId}:reviewer:codex`, identityId: destinationIdentityId, roleId: "reviewer", executorId: "codex", capabilities: ["read_code", "review_code", "run_tests"], stageIds: ["review", "done"], availability: "online-required", harnessVersion: "v0.2.0" },
 			] : []),
 		],
 	}, null, 2));
@@ -157,7 +160,7 @@ function configurePassageRuntimeBindings(root: string, includeDestination = true
 
 function authorizedPassageFixture(
 	claim: { actor?: string; capability?: string } = {},
-	options: { operations?: Record<string, unknown>; includeDestination?: boolean; destinationIdentityId?: string } = {},
+	options: { operations?: Record<string, unknown>; includeDestination?: boolean; destinationIdentityId?: string; allowPending?: boolean; repetition?: RepetitionPolicy; reviewReturnPolicy?: RepetitionPolicy; timeoutExit?: boolean } = {},
 ) {
 	const root = fixture();
 	configureHarness(root);
@@ -170,8 +173,14 @@ function authorizedPassageFixture(
 			operations: options.operations,
 			initialStageId: "code",
 			stages: [
-				{ id: "code", allow: ["implementer"], transitions: [{ target: "review" }] },
-				{ id: "review", allow: ["reviewer"], preferredExecutor: "opencode", transitions: [{ target: "done" }] },
+				{ id: "code", allow: ["implementer"], transitions: [
+					{ target: "review", ...(options.allowPending === undefined ? {} : { allowPendingAcceptanceCriteria: options.allowPending }), ...(options.repetition ? { repetition: options.repetition } : {}) },
+					...(options.timeoutExit ? [{ target: "done" }] : []),
+				] },
+				{ id: "review", allow: ["reviewer"], preferredExecutor: "opencode", transitions: [
+					...(options.reviewReturnPolicy ? [{ target: "code", repetition: options.reviewReturnPolicy }] : []),
+					{ target: "done" },
+				] },
 				{ id: "done", allow: ["reviewer"], final: true },
 			],
 		},
@@ -179,7 +188,7 @@ function authorizedPassageFixture(
 	const published = publishWorkflowDraft(root, created.definition.id, { expectedRevision: 1, actor: "human:owner", reason: "Publish role-separated passage." });
 	const rolesRoot = join(root, ".letra", "harness", "v0.2.0", "roles");
 	writeFileSync(join(rolesRoot, "implementer.yaml"), "id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - read_code\n  - write_code\n  - run_tests\n");
-	writeFileSync(join(rolesRoot, "reviewer.yaml"), "id: reviewer\nlabel: Reviewer\nallowedStages:\n  - review\ncapabilities:\n  - read_code\n  - review_code\n  - run_tests\n");
+	writeFileSync(join(rolesRoot, "reviewer.yaml"), "id: reviewer\nlabel: Reviewer\nallowedStages:\n  - review\n  - done\ncapabilities:\n  - read_code\n  - review_code\n  - run_tests\n");
 	const workflowPath = join(root, ".letra", "workflow.json");
 	const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
 	Object.assign(workflow.items[0], {
@@ -219,6 +228,122 @@ afterEach(() => {
 });
 
 describe("domain operations", () => {
+	it("creates an item against the current unassigned direction revision", async () => {
+		const root = fixture();
+		const before = resolveDirection(root);
+		expect(before.assignment).toEqual({ status: "unassigned" });
+		expect(before.revision).not.toBe(resolveAgentDirection(root).revision);
+
+		const result = await createItemOperation(root, {
+			id: "ITEM-2",
+			description: "Create an item from the unassigned direction.",
+			stage: "code",
+			expectedRevision: before.revision,
+			reason: "Create item with the revision returned by get_direction.",
+			actor: "human:owner",
+		});
+
+		expect(result).toMatchObject({ outcome: "accepted", reasonCode: "ITEM_CREATED", beforeRevision: before.revision });
+		expect(JSON.parse(readFileSync(join(root, ".letra", "workflow.json"), "utf8")).items).toEqual(
+			expect.arrayContaining([expect.objectContaining({ id: "ITEM-2", stage: "code" })]),
+		);
+	});
+
+	it("reclaims an expired Run using the same item direction revision returned by get_direction", async () => {
+		const { root, pinnedVersionId } = authorizedPassageFixture();
+		const workflowPath = join(root, ".letra", "workflow.json");
+		const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
+		workflow.items[0].claimExpiresAt = new Date(Date.now() - 60_000).toISOString();
+		writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+		const now = new Date(Date.now() - 60_000).toISOString();
+		const runId = "run-expired-claim-resume";
+		createExecutionRun(root, {
+			id: runId,
+			workspaceId: root,
+			itemId: "ITEM-1",
+			binding: { actorId: "implementer", identityId: "implementer", roleId: "implementer", executorId: "codex" },
+			authorization: { kind: "claim", actorId: "implementer", referenceId: "expired-claim", grantedAt: now, revision: "sha256:expired" },
+			workflowVersionId: pinnedVersionId,
+			workflowStageId: "code",
+			cycle: { number: 1, startedAt: now, endedAt: null },
+			lease: { expiresAt: now, heartbeatAt: now, ttlMinutes: 30 },
+			revision: 1,
+			directionRevision: "sha256:expired",
+			createdAt: now,
+			updatedAt: now,
+			result: null,
+			handoffs: [],
+			gateDecisions: [],
+			evidence: [],
+			status: "running",
+		});
+		const before = resolveDirection(root, { itemId: "ITEM-1" });
+
+		const result = await claimOperation(root, {
+			itemId: "ITEM-1",
+			actor: "implementer",
+			executorId: "codex",
+			capability: "write_code",
+			expectedRevision: before.revision,
+			reason: "Resume the selected item after its prior Run lease expired.",
+		});
+
+		expect(result).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED" });
+		expect(readExecutionRuns(root).runs).toEqual([expect.objectContaining({ id: runId, status: "running", lease: expect.objectContaining({ expiresAt: expect.any(String) }) })]);
+		expect(result.afterRevision).toBe(resolveDirection(root, { runId, executorId: "codex" }).revision);
+	});
+
+	it("links a spec with the same assigned Run revision returned by get_direction", async () => {
+		const { root } = authorizedPassageFixture();
+		mkdirSync(join(root, ".letra", "specs", "link-target"), { recursive: true });
+		writeFileSync(join(root, ".letra", "specs", "link-target", "spec.md"), "# Link target\n\n## Outcome\n\nLinked spec.\n");
+		const beforeClaim = resolveDirection(root, { itemId: "ITEM-1" });
+		const claimed = await claimOperation(root, {
+			itemId: "ITEM-1", actor: "implementer", executorId: "codex", capability: "write_code",
+			expectedRevision: beforeClaim.revision, reason: "Acquire the code-stage Run before linking the spec.",
+		});
+		expect(claimed).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED" });
+		const runId = readExecutionRuns(root).runs[0]!.id;
+		const beforeLink = resolveDirection(root, { runId, executorId: "codex" });
+		const linked = await linkItemSpecOperation(root, {
+			itemId: "ITEM-1", specId: "link-target", runId, executorId: "codex",
+			actor: "mcp:codex-mcp-client", expectedRevision: beforeLink.revision,
+			reason: "Link the existing spec through the revision-aware operation.",
+		});
+		expect(linked).toMatchObject({ outcome: "accepted", reasonCode: "SPEC_LINKED", linkedSpec: "link-target" });
+		expect(linked.beforeRevision).toBe(beforeLink.revision);
+		expect(linked.afterRevision).toBe(resolveDirection(root, { runId, executorId: "codex" }).revision);
+		expect(JSON.parse(readFileSync(join(root, ".letra", "workflow.json"), "utf8")).specLinks["link-target"].path)
+			.toBe("specs/link-target/spec.md");
+	});
+
+	it("links a spec that lives in an externalized workspace data directory", async () => {
+		const { root } = authorizedPassageFixture();
+		const external = mkdtempSync(join(tmpdir(), "letra-external-workspace-"));
+		const dataDir = join(external, "letra-mvp");
+		cpSync(join(root, ".letra"), dataDir, { recursive: true });
+		rmSync(join(root, ".letra"), { recursive: true, force: true });
+		writeFileSync(join(root, ".letra-link"), `${dataDir}\n`, "utf8");
+		clearWorkspaceCache();
+		mkdirSync(join(dataDir, "specs", "link-target"), { recursive: true });
+		writeFileSync(join(dataDir, "specs", "link-target", "spec.md"), "# Link target\n\n## Outcome\n\nLinked spec.\n");
+		const beforeClaim = resolveDirection(root, { itemId: "ITEM-1" });
+		const claimed = await claimOperation(root, {
+			itemId: "ITEM-1", actor: "implementer", executorId: "codex", capability: "write_code",
+			expectedRevision: beforeClaim.revision, reason: "Acquire the Run in an externalized workspace.",
+		});
+		expect(claimed).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED" });
+		const runId = readExecutionRuns(root).runs[0]!.id;
+		const beforeLink = resolveDirection(root, { runId, executorId: "codex" });
+		const linked = await linkItemSpecOperation(root, {
+			itemId: "ITEM-1", specId: "link-target", runId, executorId: "codex",
+			actor: "mcp:codex-mcp-client", expectedRevision: beforeLink.revision,
+			reason: "Specs live in the data directory, outside the project folder.",
+		});
+		expect(linked).toMatchObject({ outcome: "accepted", reasonCode: "SPEC_LINKED", linkedSpec: "link-target" });
+		rmSync(external, { recursive: true, force: true });
+	});
+
 	it("authorizes the source role independently from an eligible destination role", () => {
 		const { root, input } = authorizedPassageFixture();
 
@@ -228,11 +353,88 @@ describe("domain operations", () => {
 			reasonCode: "PASSAGE_COMPLETED",
 			nextDirection: { item: { stage: "review" } },
 		});
-		expect(JSON.parse(readFileSync(join(root, ".letra", "workflow.json"), "utf8")).items[0].handoff).toMatchObject({ executorId: "codex", targetExecutorId: "opencode" });
+		expect(JSON.parse(readFileSync(join(root, ".letra", "workflow.json"), "utf8")).items[0].handoff).toMatchObject({ executorId: "codex", to: "reviewer" });
+		expect(JSON.parse(readFileSync(join(root, ".letra", "workflow.json"), "utf8")).items[0].handoff).not.toHaveProperty("targetExecutorId");
 		expect(readExecutionRuns(root).runs).toHaveLength(0);
 	});
 
-	it("allows only the selected destination executor to claim a passage from a different source executor", async () => {
+	it("persists a successful finite-loop traversal and rejects the next attempt without a partial passage", () => {
+		const { root, input, pinnedVersionId } = authorizedPassageFixture({}, {
+			repetition: { mode: "finite", maxTraversals: 1 },
+			reviewReturnPolicy: { mode: "finite", maxTraversals: 1 },
+		});
+		const passed = requestPassageOperation(root, input);
+		expect(passed).toMatchObject({ outcome: "accepted", reasonCode: "PASSAGE_COMPLETED", nextDirection: { item: { stage: "review" } } });
+		const workflowPath = join(root, ".letra", "workflow.json");
+		const persisted = JSON.parse(readFileSync(workflowPath, "utf8"));
+		const edgeKey = JSON.stringify([pinnedVersionId, "code", "review"]);
+		expect(persisted.items[0].repetitionState[edgeKey]).toMatchObject({ count: 1 });
+
+		const { root: retryRoot, input: retryInput, pinnedVersionId: retryVersionId } = authorizedPassageFixture({}, {
+			repetition: { mode: "finite", maxTraversals: 1 },
+			reviewReturnPolicy: { mode: "finite", maxTraversals: 1 },
+		});
+		const retryPath = join(retryRoot, ".letra", "workflow.json");
+		const retryWorkflow = JSON.parse(readFileSync(retryPath, "utf8"));
+		retryWorkflow.items[0].repetitionState = {
+			[JSON.stringify([retryVersionId, "code", "review"])]: { count: 1, firstTraversalAt: new Date().toISOString() },
+		};
+		writeFileSync(retryPath, JSON.stringify(retryWorkflow, null, 2));
+		const rejected = requestPassageOperation(retryRoot, { ...retryInput, expectedRevision: resolveAgentDirection(retryRoot, "ITEM-1").revision });
+		expect(rejected).toMatchObject({ outcome: "rejected", reasonCode: "TRANSITION_REPETITION_LIMIT_REACHED" });
+		const unchanged = JSON.parse(readFileSync(retryPath, "utf8"));
+		expect(unchanged.items[0].stage).toBe("code");
+		expect(unchanged.items[0].handoff).toBeUndefined();
+		expect(readExecutionRuns(retryRoot).runs).toHaveLength(0);
+	});
+
+	it("records an explicit timeout wait-human result on the active Run atomically", () => {
+		const { root, input, pinnedVersionId } = authorizedPassageFixture({}, {
+			repetition: { mode: "timeout", timeoutMs: 100, timeoutResult: { type: "wait-human" } },
+			reviewReturnPolicy: { mode: "finite", maxTraversals: 1 },
+		});
+		const workflowPath = join(root, ".letra", "workflow.json");
+		const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
+		workflow.items[0].repetitionState = {
+			[JSON.stringify([pinnedVersionId, "code", "review"])]: { count: 1, firstTraversalAt: new Date(Date.now() - 1_000).toISOString() },
+		};
+		writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+		const now = new Date().toISOString();
+		const runId = "run-timeout-wait-human";
+		createExecutionRun(root, {
+			id: runId, workspaceId: root, itemId: "ITEM-1",
+			binding: { actorId: "implementer", identityId: "implementer", roleId: "implementer", executorId: "codex" },
+			authorization: { kind: "manual", actorId: "human:owner", referenceId: "fixture", grantedAt: now, revision: "sha256:fixture" },
+			workflowVersionId: pinnedVersionId, workflowStageId: "code",
+			cycle: { number: 1, startedAt: now, endedAt: null },
+			lease: { expiresAt: new Date(Date.now() + 60_000).toISOString(), heartbeatAt: null, ttlMinutes: 1 },
+			revision: 1, directionRevision: "sha256:fixture", createdAt: now, updatedAt: now,
+			result: null, handoffs: [], gateDecisions: [], evidence: [], status: "running",
+		});
+		const before = resolveDirection(root, { runId, executorId: "codex" });
+		const result = requestPassageOperation(root, { ...input, runId, expectedRevision: before.revision });
+		expect(result).toMatchObject({ outcome: "accepted", reasonCode: "REPETITION_TIMEOUT_WAITING_HUMAN", nextDirection: { run: { id: runId, status: "waiting-human" } } });
+		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0]).toMatchObject({ stage: "code", handoff: { to: "human" } });
+		expect(readExecutionRuns(root).runs[0]).toMatchObject({ status: "waiting-human", lease: null, revision: 2 });
+	});
+
+	it("routes a timeout only through its separately declared destination", () => {
+		const { root, input, pinnedVersionId } = authorizedPassageFixture({}, {
+			repetition: { mode: "timeout", timeoutMs: 100, timeoutResult: { type: "transition", target: "done" } },
+			reviewReturnPolicy: { mode: "finite", maxTraversals: 1 },
+			timeoutExit: true,
+		});
+		const workflowPath = join(root, ".letra", "workflow.json");
+		const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
+		workflow.items[0].repetitionState = {
+			[JSON.stringify([pinnedVersionId, "code", "review"])]: { count: 1, firstTraversalAt: new Date(Date.now() - 1_000).toISOString() },
+		};
+		writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+		const result = requestPassageOperation(root, { ...input, expectedRevision: resolveAgentDirection(root, "ITEM-1").revision });
+		expect(result).toMatchObject({ outcome: "accepted", reasonCode: "PASSAGE_COMPLETED", nextDirection: { item: { stage: "done" } } });
+	});
+
+	it("allows any executor to claim the workflow role named by a handoff", async () => {
 		const { root, input } = authorizedPassageFixture();
 		const passage = requestPassageOperation(root, input);
 		expect(passage).toMatchObject({ outcome: "accepted", nextDirection: { item: { stage: "review" } } });
@@ -240,7 +442,8 @@ describe("domain operations", () => {
 		configureHarness(claimRoot);
 		const workflowPath = join(root, ".letra", "workflow.json");
 		const persisted = JSON.parse(readFileSync(workflowPath, "utf8"));
-		expect(persisted.items[0].handoff).toMatchObject({ executorId: "codex", targetExecutorId: "opencode" });
+		expect(persisted.items[0].handoff).toMatchObject({ executorId: "codex", to: "reviewer" });
+		expect(persisted.items[0].handoff).not.toHaveProperty("targetExecutorId");
 		const claimWorkflowPath = join(claimRoot, ".letra", "workflow.json");
 		const claimWorkflow = JSON.parse(readFileSync(claimWorkflowPath, "utf8"));
 		claimWorkflow.items[0].handoff = {
@@ -257,7 +460,7 @@ describe("domain operations", () => {
 
 		const destinationClaim = await claimOperation(claimRoot, {
 			itemId: "ITEM-1", actor: "reviewer", executorId: "opencode", capability: "review_code",
-			expectedRevision: resolveAgentDirection(claimRoot, "ITEM-1").revision, reason: "Accept passage on the selected destination executor.",
+			expectedRevision: resolveAgentDirection(claimRoot, "ITEM-1").revision, reason: "Accept the configured role on an available executor.",
 		});
 		expect(destinationClaim).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED", nextDirection: { item: { claimExecutorId: "opencode" } } });
 
@@ -268,34 +471,36 @@ describe("domain operations", () => {
 		writeFileSync(claimWorkflowPath, JSON.stringify(claimed, null, 2));
 		const sourceRetry = await claimOperation(claimRoot, {
 			itemId: "ITEM-1", actor: "reviewer", executorId: "codex", capability: "review_code",
-			expectedRevision: resolveAgentDirection(claimRoot, "ITEM-1").revision, reason: "The source executor cannot consume the destination handoff.",
+			expectedRevision: resolveAgentDirection(claimRoot, "ITEM-1").revision, reason: "A different available executor can also claim the configured destination role.",
 		});
-		expect(sourceRetry).toMatchObject({ outcome: "rejected", reasonCode: "ACTOR_NOT_ALLOWED" });
+		expect(sourceRetry).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED", nextDirection: { item: { claimExecutorId: "codex" } } });
+		expect(JSON.parse(readFileSync(claimWorkflowPath, "utf8")).items[0].claimExecutorId).toBe("codex");
 	});
 
-	it("preserves the selected destination identity when identityId differs from the role", async () => {
+	it("does not pin a destination identity; the winning claim records its executor", async () => {
 		const { root, input } = authorizedPassageFixture({}, { destinationIdentityId: "reviewer-instance" });
 		const passage = requestPassageOperation(root, input);
 		expect(passage).toMatchObject({ outcome: "accepted", nextDirection: { item: { stage: "review" } } });
 		const workflowPath = join(root, ".letra", "workflow.json");
-		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0].handoff).toMatchObject({ to: "reviewer", targetExecutorId: "opencode", targetIdentityId: "reviewer-instance" });
+		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0].handoff).toMatchObject({ to: "reviewer" });
+		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0].handoff).not.toHaveProperty("targetIdentityId");
 
 		const claim = await claimOperation(root, {
-			itemId: "ITEM-1", actor: "reviewer", executorId: "opencode", capability: "review_code",
-			expectedRevision: passage.nextDirection!.revision, reason: "Claim with the identity bound to the passage.",
+			itemId: "ITEM-1", actor: "reviewer", executorId: "codex", capability: "review_code",
+			expectedRevision: passage.nextDirection!.revision, reason: "Claim from an executor other than the legacy destination hint.",
 		});
 		expect(claim).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED" });
-		expect(readExecutionRuns(root).runs[0].binding).toMatchObject({ actorId: "reviewer", roleId: "reviewer", identityId: "reviewer-instance", executorId: "opencode" });
+		expect(readExecutionRuns(root).runs[0].binding).toMatchObject({ actorId: "reviewer", roleId: "reviewer", identityId: "reviewer", executorId: "codex" });
 	});
 
-	it("rejects the passage when the destination role has no compatible configured executor binding", () => {
+	it("allows a passage when the destination role has no pre-bound executor", () => {
 		const { root, input } = authorizedPassageFixture({}, { includeDestination: false });
 
-		expect(requestPassageOperation(root, input)).toMatchObject({ outcome: "rejected", reasonCode: "DESTINATION_EXECUTOR_NOT_ELIGIBLE" });
-		expect(JSON.parse(readFileSync(join(root, ".letra", "workflow.json"), "utf8")).items[0].stage).toBe("code");
+		expect(requestPassageOperation(root, input)).toMatchObject({ outcome: "accepted", reasonCode: "PASSAGE_COMPLETED" });
+		expect(JSON.parse(readFileSync(join(root, ".letra", "workflow.json"), "utf8")).items[0]).toMatchObject({ stage: "review", handoff: { to: "reviewer" } });
 	});
 
-	it("chooses a destination executor from the item-pinned workflow version", () => {
+	it("does not preselect an executor from the item-pinned workflow version", () => {
 		const { root, input, workflowId, pinnedVersionId } = authorizedPassageFixture();
 		const draft = createWorkflowDraft(root, workflowId, "human:owner");
 		const latestContent = structuredClone(draft.content);
@@ -306,24 +511,46 @@ describe("domain operations", () => {
 
 		const passage = requestPassageOperation(root, input);
 		expect(passage).toMatchObject({ outcome: "accepted", reasonCode: "PASSAGE_COMPLETED" });
-		expect(JSON.parse(readFileSync(join(root, ".letra", "workflow.json"), "utf8")).items[0].handoff).toMatchObject({ targetExecutorId: "opencode" });
+		expect(JSON.parse(readFileSync(join(root, ".letra", "workflow.json"), "utf8")).items[0].handoff).not.toHaveProperty("targetExecutorId");
 	});
 
 	it("enforces configured handoff actors and required capabilities", () => {
 		const actorRestricted = authorizedPassageFixture({}, { operations: { handoff: { requiresClaim: true, allowedInStages: ["*"], allowedActors: ["reviewer"] } } });
 		expect(requestPassageOperation(actorRestricted.root, actorRestricted.input)).toMatchObject({ outcome: "rejected", reasonCode: "ACTOR_NOT_ALLOWED" });
+		const actorAllowed = authorizedPassageFixture({}, { operations: { handoff: { requiresClaim: true, allowedInStages: ["*"], allowedActors: ["human:operator"] } } });
+		expect(requestPassageOperation(actorAllowed.root, { ...actorAllowed.input, actor: "human:operator" })).toMatchObject({ outcome: "accepted", reasonCode: "PASSAGE_COMPLETED" });
 
 		const capabilityRestricted = authorizedPassageFixture({}, { operations: { handoff: { requiresClaim: true, requiredCapability: "review_code", allowedInStages: ["*"], allowedActors: [] } } });
 		expect(requestPassageOperation(capabilityRestricted.root, capabilityRestricted.input)).toMatchObject({ outcome: "rejected", reasonCode: "CAPABILITY_INVALID" });
 	});
 
-	it("rejects a source actor that is not assigned to the current stage", () => {
-		const { root, input } = authorizedPassageFixture({ actor: "reviewer" });
+	it("allows an authenticated requester distinct from the claim holder when workflow policy permits it", () => {
+		const { root, input } = authorizedPassageFixture();
 
-		expect(requestPassageOperation(root, input)).toMatchObject({
-			outcome: "rejected",
-			reasonCode: "ACTOR_NOT_ALLOWED",
+		expect(requestPassageOperation(root, { ...input, actor: "human:operator" })).toMatchObject({
+			outcome: "accepted",
+			reasonCode: "PASSAGE_COMPLETED",
 		});
+		expect(JSON.parse(readFileSync(join(root, ".letra", "workflow.json"), "utf8")).items[0].handoff.from).toBe("implementer");
+	});
+
+	it("blocks pending AC on an omitted or false edge policy and allows it only on an enabled edge", () => {
+		for (const allowPending of [undefined, false, true] as const) {
+			const { root, input } = authorizedPassageFixture({}, { allowPending });
+			const specPath = join(root, ".letra", "specs", "controlled-operation", "spec.md");
+			writeFileSync(specPath, readFileSync(specPath, "utf8").replace("- [x] **AC1**", "- [ ] **AC1**"));
+			const result = requestPassageOperation(root, {
+				...input,
+				actor: "human:operator",
+				expectedRevision: resolveAgentDirection(root, "ITEM-1").revision,
+			});
+			if (allowPending === true) {
+				expect(result).toMatchObject({ outcome: "accepted", reasonCode: "PASSAGE_COMPLETED" });
+			} else {
+				expect(result).toMatchObject({ outcome: "rejected", reasonCode: "PENDING_ACCEPTANCE_CRITERIA" });
+				expect(JSON.parse(readFileSync(join(root, ".letra", "workflow.json"), "utf8")).items[0].stage).toBe("code");
+			}
+		}
 	});
 
 	it("rejects a source claim capability that the current role does not have", () => {
@@ -369,9 +596,9 @@ describe("domain operations", () => {
 			evidence: [],
 			status: "running",
 		});
-		input.expectedRevision = resolveAgentDirection(root, undefined, { runId }).revision;
+		const passageInput = { ...input, runId, expectedRevision: resolveDirection(root, { runId, executorId: "codex" }).revision };
 
-		expect(requestPassageOperation(root, input)).toMatchObject({
+		expect(requestPassageOperation(root, passageInput)).toMatchObject({
 			outcome: "rejected",
 			reasonCode: "RUN_BINDING_MISMATCH",
 		});
@@ -431,13 +658,13 @@ describe("domain operations", () => {
 		const now = new Date().toISOString();
 		const run = { id: "run-passage", workspaceId: root, itemId: "ITEM-1", binding: { actorId: "implementer", identityId: "implementer", roleId: "implementer", executorId: "codex" }, authorization: { kind: "manual" as const, actorId: "human:owner", referenceId: "grant-passage", grantedAt: now, revision: "sha256:grant" }, workflowVersionId: published.id, workflowStageId: "code", cycle: { number: 1, startedAt: now, endedAt: null }, lease: { owner: "codex", expiresAt: new Date(Date.now() + 60_000).toISOString(), heartbeatAt: null, ttlMinutes: 1 }, revision: 1, directionRevision: "sha256:direction", createdAt: now, updatedAt: now, result: null, handoffs: [], gateDecisions: [], evidence: [], status: "running" as const };
 		createExecutionRun(root, run);
-		const before = resolveAgentDirection(root, undefined, { runId: run.id });
-		const input = { itemId: "ITEM-1", targetStageId: "review", to: "reviewer", actor: "implementer", executorId: "codex", summary: "Ready for review", evidence: ["tests passed"], expectedRevision: before.revision, reason: "Implementation is complete.", idempotencyKey: "passage-once" };
+		const before = resolveDirection(root, { runId: run.id, executorId: "codex" });
+		const input = { itemId: "ITEM-1", targetStageId: "review", to: "reviewer", actor: "implementer", executorId: "codex", runId: run.id, summary: "Ready for review", evidence: ["tests passed"], expectedRevision: before.revision, reason: "Implementation is complete.", idempotencyKey: "passage-once" };
 		const passed = requestPassageOperation(root, input);
 		expect(passed).toMatchObject({ outcome: "accepted", reasonCode: "PASSAGE_COMPLETED", nextDirection: { item: { stage: "review" }, run: { id: run.id, status: "queued" } } });
 		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0]).toMatchObject({ stage: "review", handoff: { to: "reviewer" } });
 		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0]).not.toHaveProperty("claimedBy");
-		expect(readExecutionRuns(root).runs[0]).toMatchObject({ revision: 2, workflowStageId: "review", status: "queued", lease: null, binding: { actorId: "reviewer", identityId: "reviewer", roleId: "reviewer", executorId: "opencode" }, handoffs: [{ toActorId: "reviewer" }] });
+		expect(readExecutionRuns(root).runs[0]).toMatchObject({ revision: 2, workflowStageId: "review", status: "queued", lease: null, binding: { actorId: "implementer", identityId: "implementer", roleId: "implementer", executorId: "codex" }, handoffs: [{ toActorId: "reviewer" }] });
 		const replay = requestPassageOperation(root, input);
 		expect(replay).toEqual(passed);
 		const concurrentReplays = await Promise.all([input, input].map(async () => requestPassageOperation(root, input)));
@@ -499,8 +726,8 @@ describe("domain operations", () => {
 		const now = new Date().toISOString();
 		const run = { id: "run-recovery", workspaceId: root, itemId: "ITEM-1", binding: { actorId: "implementer", identityId: "implementer", roleId: "implementer", executorId: "codex" }, authorization: { kind: "manual" as const, actorId: "human:owner", referenceId: "grant-recovery", grantedAt: now, revision: "sha256:grant" }, workflowVersionId: published.id, workflowStageId: "code", cycle: { number: 1, startedAt: now, endedAt: null }, lease: null, revision: 1, directionRevision: "sha256:direction", createdAt: now, updatedAt: now, result: null, handoffs: [], gateDecisions: [], evidence: [], status: "running" as const };
 		createExecutionRun(root, run);
-		const before = resolveAgentDirection(root, undefined, { runId: run.id });
-		const input = { itemId: "ITEM-1", targetStageId: "review", to: "reviewer", actor: "implementer", executorId: "codex", summary: "Ready", evidence: ["passed"], expectedRevision: before.revision, reason: "Recover committed passage.", idempotencyKey: "passage-post-marker" };
+		const before = resolveDirection(root, { runId: run.id, executorId: "codex" });
+		const input = { itemId: "ITEM-1", targetStageId: "review", to: "reviewer", actor: "implementer", executorId: "codex", runId: run.id, summary: "Ready", evidence: ["passed"], expectedRevision: before.revision, reason: "Recover committed passage.", idempotencyKey: "passage-post-marker" };
 		setWorkspaceTransactionFailureInjectorForTests((point) => { if (point === "after-commit-marker") throw new Error("INJECTED_AFTER_MARKER"); });
 		let outcome: ReturnType<typeof requestPassageOperation>;
 		try { outcome = requestPassageOperation(root, input); }
@@ -527,13 +754,13 @@ describe("domain operations", () => {
 		const now = new Date().toISOString();
 		const run = { id: "run-failed-passage", workspaceId: root, itemId: "ITEM-1", binding: { actorId: "implementer", identityId: "implementer", roleId: "implementer", executorId: "codex" }, authorization: { kind: "manual" as const, actorId: "human:owner", referenceId: "grant-passage", grantedAt: now, revision: "sha256:grant" }, workflowVersionId: published.id, workflowStageId: "code", cycle: { number: 1, startedAt: now, endedAt: null }, lease: null, revision: 1, directionRevision: "sha256:direction", createdAt: now, updatedAt: now, result: null, handoffs: [], gateDecisions: [], evidence: [], status: "running" as const };
 		createExecutionRun(root, run);
-		const before = resolveAgentDirection(root, undefined, { runId: run.id });
+		const before = resolveDirection(root, { runId: run.id, executorId: "codex" });
 		const workflowBefore = readFileSync(workflowPath, "utf8");
 		const runsBefore = readFileSync(join(root, ".letra", "runtime", "runs.json"), "utf8");
 		const auditCount = loadSessionLog(root).entries.length;
 		setWorkspaceTransactionFailureInjectorForTests(() => { throw new Error("INJECTED_PRECOMMIT_FAILURE"); });
 		let outcome: ReturnType<typeof requestPassageOperation>;
-		const input = { itemId: "ITEM-1", targetStageId: "review", to: "reviewer", actor: "implementer", executorId: "codex", summary: "Ready", evidence: ["tests passed"], expectedRevision: before.revision, reason: "Fail before commit.", idempotencyKey: "passage-retry" };
+		const input = { itemId: "ITEM-1", targetStageId: "review", to: "reviewer", actor: "implementer", executorId: "codex", runId: run.id, summary: "Ready", evidence: ["tests passed"], expectedRevision: before.revision, reason: "Fail before commit.", idempotencyKey: "passage-retry" };
 		try { outcome = requestPassageOperation(root, input); }
 		finally { setWorkspaceTransactionFailureInjectorForTests(undefined); }
 		expect(outcome!).toMatchObject({ outcome: "rejected", reasonCode: "PASSAGE_COMMIT_FAILED" });
@@ -643,6 +870,38 @@ describe("domain operations", () => {
 		const deniedRevision = resolveAgentDirection(root, "ITEM-1").revision;
 		const denied = await runSecurityReviewOperation(root, { itemId: "ITEM-1", executorId: "scanner", actor: "security", expectedRevision: deniedRevision, reason: "Role name must not authorize." });
 		expect(denied).toMatchObject({ outcome: "rejected", reasonCode: "SECURITY_STAGE_REQUIRED" });
+	});
+
+	it("runs the claim's security_review hook against the revision the claim produced", async () => {
+		const root = fixture();
+		configureHarness(root);
+		writeFileSync(join(root, ".letra", "harness", "v0.2.0", "roles", "security.yaml"), "id: security\nlabel: Security\nallowedStages:\n  - security\ncapabilities:\n  - security_scan\n");
+		const created = createWorkflowDefinition(root, {
+			name: "Security hook",
+			actor: "human:owner",
+			content: {
+				name: "Security hook",
+				initialStageId: "security",
+				operations: { security_review: { requiredCapability: "security_scan", requiresClaim: true, allowedInStages: ["security"], allowedActors: [] } },
+				stages: [
+					{ id: "security", allow: ["security"], hooks: { on_enter: [{ action: "security_review", auto: true, requiresClaim: true }] }, transitions: [{ target: "done" }] },
+					{ id: "done", final: true },
+				],
+			},
+		});
+		const published = publishWorkflowDraft(root, created.definition.id, { expectedRevision: 1, actor: "human:owner", reason: "Publish security hook flow." });
+		const workflowPath = join(root, ".letra", "workflow.json");
+		const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
+		Object.assign(workflow.items[0], { stage: "security", workflowVersionId: published.id, workflowVersionNumber: published.number, securityBaseline: captureSecurityBaseline(root) });
+		writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+		const before = resolveDirection(root, { itemId: "ITEM-1" });
+		const claimed = await claimOperation(root, {
+			itemId: "ITEM-1", actor: "security", executorId: "scanner", capability: "security_scan",
+			expectedRevision: before.revision, reason: "Claim triggers the security_review hook.",
+		});
+		expect([claimed.reasonCode, claimed.reason]).not.toContain("DIRECTION_STALE");
+		// The hook ran its scan (the fixture is not a git checkout, so its baseline is partial).
+		expect(claimed.reason).toBe("Hook automático on_enter: security_review");
 	});
 
 	it("permits rework without creating ACs when create_ac is false", async () => {
@@ -787,6 +1046,24 @@ describe("domain operations", () => {
 		});
 	});
 
+	it("completes an AC using the selected Run revision and resolves MCP actor to its stage role", async () => {
+		const root = fixture();
+		configureHarness(root);
+		const created = createWorkflowDefinition(root, { name: "AC Run", actor: "human:owner", content: { name: "AC Run", initialStageId: "code", stages: [{ id: "code", allow: ["implementer"], transitions: [{ target: "review" }] }, { id: "review", allow: ["reviewer"], final: true }] } });
+		const published = publishWorkflowDraft(root, created.definition.id, { expectedRevision: 1, actor: "human:owner", reason: "Publish AC Run flow." });
+		const workflowPath = join(root, ".letra", "workflow.json");
+		const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
+		Object.assign(workflow.items[0], { workflowVersionId: published.id, claimedBy: "implementer", claimExecutorId: "codex", claimExpiresAt: new Date(Date.now() + 60_000).toISOString() });
+		writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+		writeFileSync(join(root, ".letra", "agents.json"), JSON.stringify({ version: "1", updatedAt: new Date().toISOString(), agents: [], runtimeBindings: [{ version: "1", id: "binding-implementer-codex", identityId: "implementer", roleId: "implementer", executorId: "codex", capabilities: ["write_code"], stageIds: ["code"], availability: "online-required", harnessVersion: "v0.2.0" }] }));
+		const now = new Date().toISOString();
+		const run = { id: "run-complete-ac", workspaceId: root, itemId: "ITEM-1", binding: { actorId: "implementer", identityId: "implementer", roleId: "implementer", executorId: "codex" }, authorization: { kind: "manual" as const, actorId: "human:owner", referenceId: "grant-complete-ac", grantedAt: now, revision: "sha256:grant" }, workflowVersionId: published.id, workflowStageId: "code", cycle: { number: 1, startedAt: now, endedAt: null }, lease: null, revision: 1, directionRevision: "sha256:direction", createdAt: now, updatedAt: now, result: null, handoffs: [], gateDecisions: [], evidence: [], status: "running" as const };
+		createExecutionRun(root, run);
+		const direction = resolveDirection(root, { runId: run.id, executorId: "codex" });
+		const completed = completeAcOperation(root, { itemId: "ITEM-1", acId: "AC1", runId: run.id, executorId: "codex", expectedRevision: direction.revision, evidence: ["selected Run completion regression"], reason: "Complete the assigned criterion.", actor: "mcp:codex" });
+		expect(completed).toMatchObject({ outcome: "accepted", reasonCode: "AC_COMPLETED", beforeRevision: direction.revision });
+	});
+
 	it("completes a gap criterion stored only in acceptance.md", async () => {
 		const root = fixture();
 		const specDir = join(root, ".letra", "specs", "controlled-operation");
@@ -829,15 +1106,16 @@ describe("domain operations", () => {
 
 	it("rejects transition with pending ACs and requires passage after completion", async () => {
 		const root = fixture();
+		configureHarness(root);
 		const initial = resolveAgentDirection(root, "ITEM-1");
-		const claim = await claimOperation(root, { itemId: "ITEM-1", executorId: "test", capability: "write_code", actor: "agent:test", expectedRevision: initial.revision, reason: "Claim para teste." });
+		const claim = await claimOperation(root, { itemId: "ITEM-1", executorId: "codex", capability: "write_code", actor: "implementer", expectedRevision: initial.revision, reason: "Claim para teste." });
 		expect(claim).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED" });
 		const rejected = await requestTransitionOperation(root, {
 			itemId: "ITEM-1",
 			targetStageId: "review",
 			expectedRevision: claim.afterRevision,
 			reason: "Request review.",
-			actor: "agent:test",
+			actor: "implementer",
 		});
 		expect(rejected).toMatchObject({
 			outcome: "rejected",
@@ -851,15 +1129,15 @@ describe("domain operations", () => {
 			expectedRevision: claim.afterRevision,
 			evidence: ["Regression suite passed"],
 			reason: "Criterion verified.",
-			actor: "agent:test",
-			executorId: "test",
+			actor: "implementer",
+			executorId: "codex",
 		});
 		const accepted = await requestTransitionOperation(root, {
 			itemId: "ITEM-1",
 			targetStageId: "review",
 			expectedRevision: completed.afterRevision,
 			reason: "Request review.",
-			actor: "agent:test",
+			actor: "implementer",
 		});
 
 		expect(accepted).toMatchObject({ outcome: "rejected", beforeRevision: completed.afterRevision, reasonCode: "CANONICAL_PASSAGE_REQUIRED" });
@@ -869,6 +1147,7 @@ describe("domain operations", () => {
 
 	it("requires canonical passage for agent stage changes and leaves workflow untouched", async () => {
 		const root = fixture();
+		configureHarness(root);
 		const before = resolveAgentDirection(root, "ITEM-1");
 		const claimed = await claimOperation(root, { itemId: "ITEM-1", executorId: "test", capability: "write_code", actor: "agent:test", expectedRevision: before.revision, reason: "Claim for canonical passage regression." });
 		const workflowPath = join(root, ".letra", "workflow.json");
@@ -880,6 +1159,7 @@ describe("domain operations", () => {
 
 	it("allows an audited human administrative transition without completing pending ACs", async () => {
 		const root = fixture();
+		configureHarness(root);
 		const before = resolveAgentDirection(root, "ITEM-1");
 		const accepted = await requestTransitionOperation(root, {
 			itemId: "ITEM-1",
@@ -928,6 +1208,8 @@ describe("domain operations", () => {
 			"    order: 1",
 			"    zone: doing",
 			"    agents: [\"analyst\"]",
+			"    transitions:",
+			"      - target: code",
 			"    gate: null",
 			"    phases:",
 			"      initialState: define",
@@ -1141,6 +1423,28 @@ describe("domain operations", () => {
 		expect(result).toMatchObject({ outcome: "rejected", reasonCode: "ACTOR_NOT_ALLOWED" });
 	});
 
+	it("lets an MCP executor assume the sole workflow role allowed at the stage", async () => {
+		const root = fixture();
+		configureHarness(root);
+		configurePassageRuntimeBindings(root);
+		const rolesDir = join(root, ".letra", "harness", "v0.2.0", "roles");
+		writeFileSync(join(rolesDir, "implementer.yaml"), "id: implementer\nlabel: Implementer\nallowedStages:\n  - code\ncapabilities:\n  - read_code\n  - write_code\n  - run_tests\n");
+		const agentsPath = join(root, ".letra", "agents.json");
+		const agents = JSON.parse(readFileSync(agentsPath, "utf8"));
+		agents.runtimeBindings = [];
+		writeFileSync(agentsPath, JSON.stringify(agents, null, 2));
+		const before = resolveAgentDirection(root, "ITEM-1");
+		const result = await claimOperation(root, {
+			itemId: "ITEM-1", actor: "mcp:codex-mcp-client", executorId: "codex", capability: "write_code",
+			expectedRevision: before.revision, reason: "MCP executor acquires the configured code-stage role.",
+		});
+		expect(result).toMatchObject({
+			outcome: "accepted",
+			reasonCode: "CLAIM_ACCEPTED",
+			nextDirection: { item: { claimedBy: "implementer", claimExecutorId: "codex" } },
+		});
+	});
+
 	it("allows only the current handoff recipient to claim before the stage transition", async () => {
 		const root = fixture();
 		configureHarness(root);
@@ -1177,9 +1481,10 @@ describe("domain operations", () => {
 		const mismatchRevision = resolveAgentDirection(root, "ITEM-1").revision;
 		const mismatchedExecutor = await claimOperation(root, {
 			itemId: "ITEM-1", actor: "reviewer", executorId: "other", capability: "review_code",
-			expectedRevision: mismatchRevision, reason: "A different executor must not consume the handoff.",
+			expectedRevision: mismatchRevision, reason: "The winner may use its own executor instead of the legacy handoff executor.",
 		});
-		expect(mismatchedExecutor).toMatchObject({ outcome: "rejected", reasonCode: "ACTOR_NOT_ALLOWED" });
+		expect(mismatchedExecutor).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED", nextDirection: { item: { claimExecutorId: "other" } } });
+		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0].claimExecutorId).toBe("other");
 	});
 
 	it("does not allow the recipient to claim an expired handoff", async () => {
@@ -1193,6 +1498,18 @@ describe("domain operations", () => {
 		const rejectedClaim = await claimOperation(root, { itemId: "ITEM-1", actor: "implementer", executorId: "codex", capability: "write_code", expectedRevision: before.revision, reason: "Expired handoffs cannot be claimed." });
 		expect(rejectedClaim).toMatchObject({ outcome: "rejected", reasonCode: "HANDOFF_EXPIRED", beforeRevision: before.revision, afterRevision: before.revision });
 		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0].handoff.status).toBe("pending");
+	});
+
+	it("lets the recipient renew its claim after an accepted handoff expires", async () => {
+		const root = fixture();
+		configureHarness(root);
+		const workflowPath = join(root, ".letra", "workflow.json");
+		const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
+		workflow.items[0].handoff = { from: "implementer", to: "implementer", summary: "Accepted", evidence: [], timestamp: "2026-09-10T10:00:00.000Z", expiresAt: "2026-09-10T10:01:00.000Z", status: "accepted" };
+		writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+		const before = resolveAgentDirection(root, "ITEM-1");
+		const renewed = await claimOperation(root, { itemId: "ITEM-1", actor: "implementer", executorId: "codex", capability: "write_code", expectedRevision: before.revision, reason: "An accepted handoff no longer gates the recipient." });
+		expect(renewed).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED" });
 	});
 
 	it("records a cancelled handoff in history when the source rolls it back", async () => {
@@ -1239,6 +1556,7 @@ describe("domain operations", () => {
 		const workflow = JSON.parse(readFileSync(workflowPath, "utf-8"));
 		workflow.template = "security-flow";
 		workflow.harnessVersion = "v0.2.0";
+		workflow.stages[0].allow = ["security"];
 		workflow.stages.push({ id: "security", name: "Security", order: 1, zone: "doing" });
 		writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
 		const harness = join(root, ".letra", "harness", "v0.2.0");
@@ -1246,7 +1564,7 @@ describe("domain operations", () => {
 		mkdirSync(join(harness, "gates"), { recursive: true });
 		writeFileSync(join(harness, "flows", "security-flow.yaml"), [
 			"id: security-flow", "version: 1.0.0", "name: Security Flow", "description: test", "defaultPolicy: default", "stages:",
-			"  - id: code", "    name: Code", "    order: 0", "    zone: doing", "    agents: [agent:test]", "    gate: null",
+			"  - id: code", "    name: Code", "    order: 0", "    zone: doing", "    agents: [agent:test]", "    gate: null", "    transitions:", "      - target: security",
 			"  - id: security", "    name: Security", "    order: 1", "    zone: doing", "    agents: [security]", "    gate: human-approved",
 		].join("\n"));
 		writeFileSync(join(harness, "gates", "human-approved.yaml"), "id: human-approved\nname: Human Approved\ntype: human\nblocking: true\nblocksHandoff: true\ndecisions:\n  approve: done\n");
@@ -1403,6 +1721,8 @@ it("allows a backward correction via rework operation without the destination ex
 				"    order: 0",
 				"    zone: doing",
 				"    gate: gates/human-review.yaml",
+				"    transitions:",
+				"      - target: review",
 				"  - id: review",
 				"    name: Review",
 				"    order: 1",
@@ -1459,6 +1779,7 @@ it("allows a backward correction via rework operation without the destination ex
 		const draft = createWorkflowDraft(root, created.definition.id, "human:owner");
 		const content = structuredClone(draft.content);
 		content.stages.find((stage) => stage.id === "code")!.gate = "human-review";
+		content.stages.find((stage) => stage.id === "review")!.hooks = { on_enter: [{ action: "capture_baseline", auto: true, requiresClaim: false }] };
 		const gateDir = join(root, ".letra", "harness", "v0.2.0", "gates");
 		mkdirSync(gateDir, { recursive: true });
 		writeFileSync(join(gateDir, "human-review.yaml"), "id: human-review\nname: Human Review\ntype: human\nblocking: true\ndescription: Explicit human approval\ndecisions:\n  approve: review\n");
@@ -1481,7 +1802,9 @@ it("allows a backward correction via rework operation without the destination ex
 		const proof = signLocalOperation(root, decision.actor, "gate.decision", { itemId: decision.itemId, decision: decision.decision, expectedRevision: decision.expectedRevision, reason: decision.reason });
 		const approved = await decideGateOperation(root, { ...decision, proof });
 		expect(approved).toMatchObject({ outcome: "accepted", reasonCode: "GATE_DECISION_RECORDED", nextDirection: { item: { stage: "review" } } });
-		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0].handoff).toMatchObject({ to: "reviewer", targetExecutorId: "opencode", targetIdentityId: "reviewer" });
+		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0].handoff).toMatchObject({ to: "reviewer" });
+		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0].handoff).not.toHaveProperty("targetExecutorId");
+		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0].securityBaseline).toMatchObject({ version: "1", capturedAt: expect.any(String) });
 		const waitingRun = readExecutionRuns(root).runs[0];
 		expect(waitingRun).toMatchObject({ id: run.id, status: "queued", revision: 2, workflowStageId: "review", cycle: { number: 1, endedAt: expect.any(String) }, gateDecisions: [{ gateId: "human-review", decision: "approve", decidedBy: "human:owner" }] });
 
@@ -1619,6 +1942,23 @@ it("allows a backward correction via rework operation without the destination ex
 			actor: "agent:test",
 		});
 		expect(transition).toMatchObject({ outcome: "rejected", reasonCode: "CANONICAL_PASSAGE_REQUIRED" });
+	});
+
+	it("validates against the explicitly selected Run direction", async () => {
+		const root = fixture();
+		configureHarness(root);
+		const created = createWorkflowDefinition(root, { name: "Validation Run", actor: "human:owner", content: { name: "Validation Run", initialStageId: "code", stages: [{ id: "code", allow: ["implementer"], transitions: [{ target: "review" }] }, { id: "review", allow: ["reviewer"], final: true }] } });
+		const published = publishWorkflowDraft(root, created.definition.id, { expectedRevision: 1, actor: "human:owner", reason: "Publish validation flow." });
+		const workflowPath = join(root, ".letra", "workflow.json");
+		const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
+		Object.assign(workflow.items[0], { workflowVersionId: published.id, claimedBy: "implementer", claimExecutorId: "codex", claimExpiresAt: new Date(Date.now() + 60_000).toISOString() });
+		writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+		const now = new Date().toISOString();
+		const run = { id: "run-validation", workspaceId: root, itemId: "ITEM-1", binding: { actorId: "implementer", identityId: "implementer", roleId: "implementer", executorId: "codex" }, authorization: { kind: "manual" as const, actorId: "human:owner", referenceId: "grant-validation", grantedAt: now, revision: "sha256:grant" }, workflowVersionId: published.id, workflowStageId: "code", cycle: { number: 1, startedAt: now, endedAt: null }, lease: null, revision: 1, directionRevision: "sha256:direction", createdAt: now, updatedAt: now, result: null, handoffs: [], gateDecisions: [], evidence: [], status: "running" as const };
+		createExecutionRun(root, run);
+		const direction = resolveDirection(root, { runId: run.id });
+		const validation = await runValidationOperation(root, { itemId: run.itemId, runId: run.id, expectedRevision: direction.revision, reason: "Validate the explicitly selected Run.", actor: "implementer" });
+		expect(validation).toMatchObject({ outcome: "accepted", reasonCode: "VALIDATION_COMPLETED" });
 	});
 
 	it("uses the same validation operation through the CLI command", async () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Workflow } from "../commands/flow-init.js";
 import type { HarnessManifest } from "../harness/types.js";
-import { resolveActiveFlowFrom } from "./resolve.js";
+import { resolveActiveFlowFrom, resolveFromWorkflowVersion } from "./resolve.js";
 
 function makeWorkflow(overrides?: Partial<Workflow>): Workflow {
 	return {
@@ -108,7 +108,7 @@ describe("resolveActiveFlowFrom", () => {
 	it("resolves flow from workflow template and harness", () => {
 		const workflow = makeWorkflow({ template: "sdlc" });
 		const harness = makeHarness();
-		harness.flows.sdlc.stages[1]!.transitions = [{ target: "done" }];
+		harness.flows.sdlc.stages[1]!.transitions = [{ target: "done", allowPendingAcceptanceCriteria: true }];
 		workflow.stages[1] = {
 			...workflow.stages[1],
 			name: "Legacy Design",
@@ -123,7 +123,7 @@ describe("resolveActiveFlowFrom", () => {
 		expect(result.flow?.stages[1].zone).toBe("doing");
 		expect(result.flow?.stages[1].gate?.id).toBe("spec-review");
 		expect(result.flow?.stages[1].agents).toEqual(["analyst"]);
-		expect(result.flow?.stages[1].transitions).toEqual([{ target: "done" }]);
+		expect(result.flow?.stages[1].transitions).toEqual([{ target: "done", allowPendingAcceptanceCriteria: true }]);
 		expect(result.flow?.stages[1].roleIds).toEqual(["analyst"]);
 		expect(result.flow?.stages[1].phases?.initialState).toBe("draft");
 		expect(result.flow?.stages[1].phases?.states.draft.transitions?.[0].gate?.id).toBe(
@@ -537,5 +537,68 @@ describe("resolveActiveFlowFrom", () => {
 		expect(flow?.operations.inspect).toMatchObject({ requiredCapability: "scan", requiresClaim: true, allowedInStages: ["design"], allowedActors: ["auditor"] });
 		expect(flow?.stages[1].hooks?.on_enter?.[0]).toMatchObject({ action: "capture_baseline", auto: true, requiresClaim: true });
 		expect(flow?.stages[1].gate).toMatchObject({ preCheck: "spec-linked", checkType: "acceptance-complete" });
+	});
+});
+
+describe("resolveFromWorkflowVersion", () => {
+	it("authorizes stage roles from roleIds when a published stage has no allow", () => {
+		const version = {
+			id: "version-1",
+			workflowId: "workflow-1",
+			number: 1,
+			status: "published",
+			basedOnVersionId: null,
+			schemaVersion: "1",
+			contentHash: "hash",
+			revision: 1,
+			createdBy: "human:owner",
+			createdAt: "2026-11-22T00:00:00.000Z",
+			content: {
+				name: "copied from template",
+				initialStageId: "design",
+				stages: [
+					{ id: "design", roleIds: ["analyst"], transitions: [{ target: "code" }] },
+					{ id: "code", roleIds: ["analyst"], allow: ["implementer"], transitions: [{ target: "done" }] },
+					{ id: "done", final: true },
+				],
+			},
+		} as Parameters<typeof resolveFromWorkflowVersion>[0];
+
+		const { flow } = resolveFromWorkflowVersion(version, makeWorkflow(), makeHarness());
+
+		expect(flow?.stages.map((stage) => [stage.id, stage.agents])).toEqual([
+			["design", ["analyst"]],
+			["code", ["implementer"]],
+			["done", []],
+		]);
+	});
+});
+
+describe("resolveFromWorkflowVersion operations", () => {
+	function version(content: Record<string, unknown>) {
+		return {
+			id: "version-1", workflowId: "workflow-1", number: 1, status: "published", basedOnVersionId: null,
+			schemaVersion: "1", contentHash: "hash", revision: 1, createdBy: "human:owner", createdAt: "2026-11-22T00:00:00.000Z",
+			content: { name: "copied", stages: [{ id: "design", transitions: [{ target: "done" }] }, { id: "done", final: true }], ...content },
+		} as Parameters<typeof resolveFromWorkflowVersion>[0];
+	}
+
+	function harnessWithOperations(): HarnessManifest {
+		const harness = makeHarness();
+		harness.flows.sdlc.operations = {
+			security_review: { description: "scan", required_capability: "security_scan", requires_claim: true, allowed_in_stages: ["security"] },
+		} as HarnessManifest["flows"][string]["operations"];
+		return harness;
+	}
+
+	it("falls back to the template's operations when the version declares none", () => {
+		const { flow } = resolveFromWorkflowVersion(version({ template: "sdlc" }), makeWorkflow(), harnessWithOperations());
+		expect(flow?.operations.security_review).toMatchObject({ requiredCapability: "security_scan", requiresClaim: true });
+	});
+
+	it("keeps the operations the version declares", () => {
+		const own = { approve: { requiresClaim: false } };
+		const { flow } = resolveFromWorkflowVersion(version({ template: "sdlc", operations: own }), makeWorkflow(), harnessWithOperations());
+		expect(flow?.operations).toEqual(own);
 	});
 });

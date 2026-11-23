@@ -280,6 +280,29 @@ describe("spec catalog", () => {
 		]));
 	});
 
+	it("allows a registered archived directory to preserve non-spec artifacts without spec.md", () => {
+		writeSpecCatalog(root, workflow);
+		const specs = join(root, ".letra", "specs");
+		mkdirSync(join(specs, "archived-mockup"), { recursive: true });
+		writeFileSync(join(specs, "archived-mockup", "mockup.md"), "# Historical mockup\n", "utf8");
+		const dispositionPath = join(root, ".letra", "spec-dispositions.json");
+		const dispositions = JSON.parse(readFileSync(dispositionPath, "utf8"));
+		dispositions.records.push({
+			specId: "archived-mockup",
+			disposition: "archived",
+			canonicalSpecId: null,
+			rationale: "Historical visual proposal retained as mockup.",
+			decidedAt: new Date().toISOString(),
+			rollbackRef: "specs/archived-mockup",
+			preservedPaths: ["specs/archived-mockup/mockup.md"],
+		});
+		writeFileSync(dispositionPath, JSON.stringify(dispositions, null, 2), "utf8");
+		const result = validateSpecCatalog(root, workflow);
+		expect(result.issues).not.toEqual(expect.arrayContaining([
+			expect.objectContaining({ code: "SPEC_FILE_MISSING", specId: "archived-mockup" }),
+		]));
+	});
+
 	it("AC10 — consolidation cycle produces structured diagnostic", () => {
 		const config: SpecCatalogConfig = {
 			...DEFAULT_CATALOG_CONFIG,

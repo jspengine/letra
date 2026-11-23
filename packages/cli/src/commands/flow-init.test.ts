@@ -1,7 +1,15 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Isolate from the developer's ~/.letra: a globally installed harness would
+// otherwise change which stages `flowInit --quick` produces.
+vi.mock("node:os", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("node:os")>();
+	return { ...actual, homedir: () => actual.tmpdir() + "/letra-flow-init-empty-home" };
+});
+
 import {
 	type Workflow,
 	detectExistingTools,

@@ -165,6 +165,7 @@ export interface Item {
 	lastFailure?: { code: string; message: string; recovery: string; at: string };
 	validation?: ValidationEvidence;
 	currentPhase?: string;
+	repetitionState?: Record<string, { count: number; firstTraversalAt: string }>;
 	handoff?: {
 		from: string;
 		to: string;
@@ -508,7 +509,7 @@ export interface ResolvedFlowStage {
 	/** @deprecated Use roleIds and roles. */
 	agents: string[];
 	gate: ResolvedFlowGate | null;
-	transitions?: Array<{ target: string }>;
+	transitions?: Array<{ target: string; allowPendingAcceptanceCriteria?: boolean; repetition?: { mode: "finite"; maxTraversals: number } | { mode: "exit-condition"; condition: { field: string; operator: "eq" | "neq" | "gt" | "gte" | "lt" | "lte"; value: string | number | boolean | null } } | { mode: "timeout"; timeoutMs: number; timeoutResult: { type: "wait-human" } | { type: "transition"; target: string } } }>;
 	preferredExecutor?: string;
 	phases?: ResolvedStagePhases;
 	activity?: ResolvedFlowActivity;

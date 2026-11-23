@@ -69,7 +69,7 @@ function compatibilityReferences(
 	}
 	if (context.specName) {
 		references.push({
-			path: `.letra/specs/${context.specName}/spec.md`,
+			path: `specs/${context.specName}/spec.md`,
 			reason: "Spec e critérios do trabalho atual",
 		});
 	}

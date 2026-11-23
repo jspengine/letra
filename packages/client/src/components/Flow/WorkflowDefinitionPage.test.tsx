@@ -133,6 +133,24 @@ describe("WorkflowDefinitionPage", () => {
 		expect(JSON.parse(request?.[1]?.body as string)).toEqual({ expectedRevision: 2, reason: "Fluxo revisado" });
 	});
 
+	it("edits the pending acceptance criteria policy on a single transition edge", async () => {
+		const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
+			if (url === "/api/workflow-definitions") return jsonResponse([{ id: "main", name: "Flow", activeVersionId: null, draftVersionId: "draft" }]);
+			if (url === "/api/workflow-definitions/main/draft" && options?.method === "PATCH") return jsonResponse({ number: null, revision: 2, content: JSON.parse(options.body as string).content });
+			if (url === "/api/workflow-definitions/main/draft") return jsonResponse({ number: null, revision: 1, content: { name: "Flow", initialStageId: "start", stages: [{ id: "start", name: "Start", transitions: [{ target: "done" }] }, { id: "done", name: "Done", final: true }] } });
+			return new Response(null, { status: 404 });
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		const user = userEvent.setup();
+		render(<WorkflowDefinitionPage onBack={vi.fn()} />);
+		const policy = await screen.findByRole("checkbox", { name: "Permitir passagem com critérios de aceite pendentes" });
+		await user.click(policy);
+		await user.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+		await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/workflow-definitions/main/draft", expect.objectContaining({ method: "PATCH" })));
+		const request = fetchMock.mock.calls.find(([url, options]) => url === "/api/workflow-definitions/main/draft" && options?.method === "PATCH");
+		expect(JSON.parse(request?.[1]?.body as string).content.stages[0].transitions).toEqual([{ target: "done", allowPendingAcceptanceCriteria: true }]);
+	});
+
 	it("edits roles and the preferred executor from available registries in the draft", async () => {
 		const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
 			if (url === "/api/workflow-definitions") return jsonResponse([{ id: "main", name: "Flow", activeVersionId: null, draftVersionId: "draft" }]);

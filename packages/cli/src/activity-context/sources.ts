@@ -94,7 +94,7 @@ export function loadSpecMeta(root: string, specName: string | null): SpecMeta | 
 	if (!existsSync(specPath)) {
 		return {
 			name: specName,
-			path: `.letra/specs/${specName}/spec.md`,
+			path: `specs/${specName}/spec.md`,
 			outcome: null,
 			acs: { pending: 0, done: 0, total: 0 },
 		};
@@ -102,7 +102,7 @@ export function loadSpecMeta(root: string, specName: string | null): SpecMeta | 
 	const content = readFileSync(specPath, "utf-8");
 	return {
 		name: specName,
-		path: `.letra/specs/${specName}/spec.md`,
+		path: `specs/${specName}/spec.md`,
 		outcome: extractOutcome(content),
 		acs: countSpecACs(content),
 	};
@@ -140,7 +140,7 @@ export function loadActivityContextSources(root: string, itemId?: string | null,
 		activePhaseHarness?.gate ??
 		activeFlowStage?.activity?.gate ??
 		null;
-	const focusDiverged = !!(focus && currentItem?.spec && focus.specName !== currentItem.spec);
+	const focusDiverged = false;
 	const specName = currentItem?.spec ?? null;
 	const spec = loadSpecMeta(root, specName);
 	const activeAlerts = getActiveEntries(loadHealthRecord(root));

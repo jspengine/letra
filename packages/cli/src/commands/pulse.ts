@@ -283,7 +283,7 @@ function renderPulseText(data: PulseData, focusDiverged = false, statePath?: str
 		if (ci.spec) {
 			const specReference = statePath
 				? pathToFileURL(join(statePath, "specs", ci.spec, "spec.md")).href
-				: `.letra/specs/${ci.spec}/spec.md`;
+				: `specs/${ci.spec}/spec.md`;
 			console.log(`    ${chalk.gray(`Spec: ${specReference}`)}`);
 		} else {
 			console.log(`    ${chalk.yellow("⚠ sem spec associada")}`);

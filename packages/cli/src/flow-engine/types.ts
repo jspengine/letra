@@ -4,6 +4,7 @@
  * These types define the YAML schema for flows that the engine interprets.
  * The engine contains zero if-statements referencing stage/role/operation names.
  */
+import type { ConfiguredStageTransition } from "../workflow-versions/repetition-policy.js";
 
 // ============================================================
 // Operations — Who can do what
@@ -145,6 +146,7 @@ export interface FlowStage {
 	agents: string[];
 	gate: string | null;
 	preferredExecutor?: string;
+	transitions?: ConfiguredStageTransition[];
 	rework?: FlowRework;
 	hooks?: {
 		on_enter?: FlowHook[];
@@ -205,3 +207,4 @@ export interface GateCheckResult {
 	passed: boolean;
 	reason?: string;
 }
+

@@ -14,7 +14,9 @@ import {
 	rollbackWorkflowVersion,
 	updateWorkflowDraft,
 	validateWorkflowContent,
+	type WorkflowDefinitionContent,
 } from "../workflow-versions/service.js";
+import { loadHarness, resolveHarnessRoot } from "../harness/loader.js";
 import { signLocalOperation } from "../identity/signing.js";
 
 function section(title: string): void {
@@ -195,19 +197,40 @@ export function workflowTemplateCommand(
 	options: { name?: string; stages?: string[]; tools?: string[] },
 ): void {
 	try {
-		const result = createWorkflowDefinition(root, {
-			name: options.name ?? template,
-			actor,
-			content: {
-				name: options.name ?? template,
-				stages: options.stages?.map((id, index) => ({ id, name: id, order: index })) ?? [],
+		const name = options.name ?? template;
+		let content: WorkflowDefinitionContent;
+		if (options.stages) {
+			content = {
+				name,
+				stages: options.stages.map((id, index) => ({ id, name: id, order: index })),
 				...(options.tools && { tools: options.tools }),
-			},
-		});
+			};
+		} else {
+			if (!template.trim()) throw new Error("Informe o template com --template <nome>.");
+			const available = Object.keys(loadHarness(resolveHarnessRoot(root))?.flows ?? {});
+			if (!available.includes(template)) {
+				const known = available.length > 0 ? available.join(", ") : "nenhum (harness indisponível)";
+				throw new Error(`Template "${template}" não existe no harness. Disponíveis: ${known}.`);
+			}
+			// No `stages` on purpose: the board editor offers to copy the template's
+			// stages, connections, gates and rules only for drafts shaped like this.
+			content = {
+				name,
+				template,
+				...(options.tools && { tools: options.tools }),
+			} as unknown as WorkflowDefinitionContent;
+		}
+		const result = createWorkflowDefinition(root, { name, actor, content });
 		console.log(chalk.green(`✓ Workflow criado: ${result.definition.id}`));
 		console.log(`  Draft: ${result.draft.revision}`);
+		if (!options.stages) {
+			console.log(
+				`  Próximo passo: no board, abra Configurações → Fluxo, use "Usar estágios como ponto de partida", valide e publique.`,
+			);
+		}
 	} catch (error) {
 		console.log(chalk.red(`Erro: ${(error as Error).message}`));
+		process.exitCode = 1;
 	}
 }
 

@@ -181,6 +181,8 @@ describe("Letra MCP read-only server", () => {
 						"get_spec_catalog",
 						"load_reference",
 						"claim",
+						"create_item",
+						"link_item_spec",
 						"execution_event",
 						"submit_evidence",
 						"security_review",
@@ -207,11 +209,11 @@ describe("Letra MCP read-only server", () => {
 				).toBe(14);
 			expect(
 						tools.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length,
-			).toBe(17);
+				).toBe(19);
 			expect(
 						tools.tools.filter((tool) => tool.inputSchema?.additionalProperties === false)
 						.length,
-			).toBe(25);
+				).toBe(27);
 
 			const direction = toolJson(
 				await client.callTool({ name: "get_direction", arguments: { itemId: "ITEM-1" } }),

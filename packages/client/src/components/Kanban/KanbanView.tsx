@@ -3,6 +3,7 @@ import type { ResolvedSpec, Workflow } from "@letra/types";
 import { Card, CardContent } from "@letra/ui";
 import { Icon, Progress, Button } from "@letra/ui";
 import { cn } from "../../lib/utils";
+import { selectPassageRecipient } from "../../lib/passage-recipient";
 import { MarchingBorder } from "./MarchingBorder";
 import type { Item } from "@letra/types";
 import {
@@ -13,7 +14,6 @@ import {
 	type ItemType,
 } from "../../lib/item-utils";
 import {
-	humanGateStageIds,
 	orderedStages,
 	stagePresentation,
 	type ActiveFlowDefinition,
@@ -170,16 +170,29 @@ export default function KanbanView({
 		if (onDropItem) {
 			onDropItem(itemId, targetStageId);
 		} else {
-			const p = fetch(`/api/items/${itemId}`, {
-				method: "PATCH",
+			const destination = orderedStages(workflow, activeFlow).find((stage) => stage.id === targetStageId);
+			const recipients = destination?.roleIds?.length ? destination.roleIds : destination?.agents ?? [];
+			if (destination?.gate?.type === "human" && destination.gate.blocking) {
+				window.alert("Este estágio exige uma decisão explícita no painel do gate.");
+				return;
+			}
+			if (!item.claimExecutorId) {
+				window.alert("Não há claim ativa para fazer a passagem. Adquira a claim e tente novamente.");
+				return;
+			}
+			const selection = selectPassageRecipient(recipients, destination?.name ?? targetStageId, (message, initial) => window.prompt(message, initial));
+			if (selection.error) { window.alert(selection.error); return; }
+			const to = selection.recipient;
+			if (!to) return;
+			fetch(`/api/items/${itemId}/passage`, {
+				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ stage: targetStageId }),
-			});
-			const releaseP =
-				item.claimedBy && humanGateStageIds(workflow, activeFlow).has(targetStageId)
-					? fetch(`/api/items/${itemId}/release`, { method: "POST" })
-					: Promise.resolve();
-			Promise.all([p, releaseP]).then(debouncedMove).catch(console.warn);
+				body: JSON.stringify({ targetStageId, to, executorId: item.claimExecutorId, summary: `Passagem solicitada pela interface para ${destination?.name ?? targetStageId}.`, evidence: [] }),
+			}).then(async (response) => {
+				const data = await response.json();
+				if (!response.ok) throw new Error([data.code, data.reason ?? data.error, ...(data.recoveryActions ?? [])].filter(Boolean).join(" — "));
+				debouncedMove();
+			}).catch((error) => window.alert(error instanceof Error ? error.message : "Falha ao fazer passagem."));
 		}
 	}
 

@@ -22,7 +22,7 @@ export const focusStaleDetector: Detector = {
 				id: `focus-stale_missing-dir_${focusSpec}`,
 				type: "warning",
 				title: `focusSpec "${focusSpec}" não encontrada em disco`,
-				description: `focus.md referencia a spec "${focusSpec}" mas o diretório .letra/specs/${focusSpec}/ não existe. Use 'letra focus --clear' para limpar o foco.`,
+				description: `focus.md referencia a spec "${focusSpec}" mas o diretório specs/${focusSpec}/ do workspace não existe. Use 'letra focus --clear' para limpar o foco.`,
 				certainty: 1.0,
 				detector: "focus-stale",
 			});

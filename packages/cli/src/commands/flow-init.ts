@@ -82,6 +82,7 @@ export interface Item {
 	retryCount?: number;
 	lastOperationKey?: string;
 	currentPhase?: string;
+	repetitionState?: Record<string, { count: number; firstTraversalAt: string }>;
 	handoff?: ItemHandoff;
 	handoffHistory?: ItemHandoff[];
 }
@@ -370,6 +371,8 @@ export type WriteWorkflowSource =
 	| "orchestrator-gateway"
 	| "orchestrator-reclaim"
 	| "orchestrator-retry"
+	| "mcp-create-item"
+	| "mcp-link-item-spec"
 	| "init"
 	| "stage-drift"
 	| "web-ui"
@@ -447,13 +450,19 @@ async function writeWorkflowUnlocked(
 		return { ok: false, filesUpdated: [], error: "workflow.stages must be an array" };
 	}
 	if (options.expectedRevision) {
-		const { resolveAgentDirection } = await import("../agent-direction/service.js");
+		const { resolveAgentDirection, resolveDirection } = await import("../agent-direction/service.js");
+		const runStore = await import("../execution-runs/store.js");
 		const activeRuns = primaryItemId
-			? (await import("../execution-runs/store.js")).readExecutionRuns(root).runs.filter((run) => run.itemId === primaryItemId && (run.status === "running" || run.status === "queued" || run.status === "waiting-human"))
+			? runStore.readExecutionRuns(root).runs.filter((run) => run.itemId === primaryItemId && runStore.isRunActiveForDirection(run))
 			: [];
+		const existingTarget = primaryItemId
+			? loadWorkflow(root)?.items.some((item) => item.id === primaryItemId) === true
+			: false;
 		const currentRevision = activeRuns.length === 1
 			? resolveAgentDirection(root, undefined, { runId: activeRuns[0]!.id }).revision
-			: resolveAgentDirection(root, primaryItemId ?? null).revision;
+			: existingTarget
+				? resolveAgentDirection(root, primaryItemId).revision
+				: resolveDirection(root).revision;
 		if (currentRevision !== options.expectedRevision) {
 			return { ok: false, filesUpdated: [], error: `DIRECTION_STALE: expected ${options.expectedRevision}, current ${currentRevision}` };
 		}

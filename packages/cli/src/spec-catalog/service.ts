@@ -342,7 +342,7 @@ export function buildSpecCatalog(root: string, workflow: Workflow | null, option
 			: null;
 		return {
 			id,
-			path: `.letra/specs/${id}/spec.md`,
+			path: `specs/${id}/spec.md`,
 			status: !valid ? "invalid" : active ? "active" : linked.length > 0 ? "completed" : "unlinked",
 			valid,
 			itemIds: linked.map((item) => item.id).sort(),
@@ -361,12 +361,12 @@ export function buildSpecCatalog(root: string, workflow: Workflow | null, option
 		schemaVersion: SPEC_CATALOG_SCHEMA_VERSION,
 		generatedAt: new Date().toISOString(),
 		source: {
-			workflowPath: `.letra/workflow.json`,
-			specsPath: `.letra/specs/`,
-			focusPath: `.letra/focus.md`,
+			workflowPath: `workflow.json`,
+			specsPath: `specs/`,
+			focusPath: `focus.md`,
 		},
 		currentFocus: { spec: focusSpec, itemId: focusItem },
-		dispositionsPath: `.letra/${SPEC_DISPOSITIONS_FILE}`,
+		dispositionsPath: SPEC_DISPOSITIONS_FILE,
 		specs,
 		items: items.map((item): SpecCatalogItemEntry => {
 			const itemSpec = item.spec;
@@ -534,6 +534,10 @@ export function validateSpecCatalog(root: string, workflow: Workflow | null = nu
 	for (const dir of directories) {
 		const specFile = join(specsDir, dir, "spec.md");
 		if (!existsSync(specFile)) {
+			const disposition = recordById.get(dir)?.disposition;
+			// Archived directories may intentionally preserve historical artifacts
+			// (for example mockups) without pretending they are executable specs.
+			if (disposition === "archived") continue;
 			issues.push({ code: "SPEC_FILE_MISSING", message: `Diretório de spec ${dir} existe mas não contém spec.md.`, specId: dir });
 		}
 	}

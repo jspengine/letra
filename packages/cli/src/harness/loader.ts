@@ -22,19 +22,29 @@ import type {
 	StagePhases,
 } from "./types";
 import { getLetraDir } from "./../workspace/resolver.js";
+import { getHarnessPath, getLegacyHarnessPath, isHarnessDir } from "../workspace/resolution.js";
 export { ensureSharedHarness } from "../workspace/resolution.js";
 
 export const DEFAULT_HARNESS_VERSION = "v0.2.0";
 
+/**
+ * Resolve the harness directory for a workspace. The first candidate is the
+ * workspace-local harness; when none of the candidates exists, it is returned
+ * anyway so callers keep their "no harness" fallback behavior.
+ *
+ * Available global locations:
+ *   - getLegacyHarnessPath(version) → ~/.letra/harness/{version}  (installed by `letra init --workspace`)
+ *   - getHarnessPath(version)       → ~/.letra/shared-harness/{version}  (bootstrapped by `flow serve`)
+ */
 export function resolveHarnessRoot(cwd: string, version = DEFAULT_HARNESS_VERSION): string {
-	const candidates = [
-		join(getLetraDir(cwd), "harness", version),
-		join(cwd, "..", ".leta", "harness", version),
-	];
-	for (const p of candidates) {
-		if (existsSync(p)) return p;
-	}
-	return candidates[0];
+	const local = join(getLetraDir(cwd), "harness", version);
+	if (existsSync(local)) return local;
+	// Externalized shared harness is the source of truth outside the workspace;
+	// the legacy location is kept only for workspaces created before it.
+	// Global directories must hold a usable harness: an empty one (left by a
+	// failed bootstrap) must not shadow a complete fallback.
+	const globals = [getHarnessPath(version), getLegacyHarnessPath(version)];
+	return globals.find((candidate) => isHarnessDir(candidate)) ?? local;
 }
 
 function unwrapStages(value: unknown): any[] {
@@ -104,8 +114,12 @@ function normalizeStageTransitions(value: unknown): StageTransition[] | undefine
 	const transitions = value
 		.map((entry): StageTransition | null => {
 			if (!entry || typeof entry !== "object") return null;
-			const target = (entry as Record<string, unknown>).target;
-			return typeof target === "string" && target.trim() ? { target: target.trim() } : null;
+			const raw = entry as Record<string, unknown>;
+			const target = raw.target;
+			return typeof target === "string" && target.trim() ? {
+				target: target.trim(),
+				...(typeof raw.allowPendingAcceptanceCriteria === "boolean" ? { allowPendingAcceptanceCriteria: raw.allowPendingAcceptanceCriteria } : {}),
+			} : null;
 		})
 		.filter((entry): entry is StageTransition => entry !== null);
 	return transitions.length > 0 ? transitions : undefined;

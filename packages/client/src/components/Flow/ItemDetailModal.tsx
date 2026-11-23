@@ -27,6 +27,7 @@ import {
 import { cn } from "../../lib/utils";
 import { createEventSourceWithReconnect } from "../../lib/withReconnect";
 import { computeSlug, countACs } from "../../lib/item-utils";
+import { selectPassageRecipient } from "../../lib/passage-recipient";
 import { translateTerm } from "../../lib/term-translations";
 import {
 	itemOperationalState,
@@ -232,15 +233,31 @@ export default function ItemDetailModal({
 
 	const handleMove = useCallback(() => {
 		if (!moveTarget) return;
-		fetch(`/api/items/${item.id}`, {
-			method: "PATCH",
+		const destination = resolvedStages.find((stage) => stage.id === moveTarget);
+		const recipients = destination?.roleIds?.length ? destination.roleIds : destination?.agents ?? [];
+		if (destination?.gate?.type === "human" && destination.gate.blocking) {
+			window.alert("Este estágio exige uma decisão explícita no painel do gate.");
+			return;
+		}
+		if (!item.claimExecutorId) {
+			window.alert("Não há claim ativa para fazer a passagem. Adquira a claim e tente novamente.");
+			return;
+		}
+		const selection = selectPassageRecipient(recipients, destination?.name ?? moveTarget, (message, initial) => window.prompt(message, initial));
+		if (selection.error) { window.alert(selection.error); return; }
+		const to = selection.recipient;
+		if (!to) return;
+		fetch(`/api/items/${item.id}/passage`, {
+			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ stage: moveTarget }),
-		}).then(() => {
+			body: JSON.stringify({ targetStageId: moveTarget, to, executorId: item.claimExecutorId, summary: `Passagem solicitada pela interface para ${destination?.name ?? moveTarget}.`, evidence: [] }),
+		}).then(async (response) => {
+			const data = await response.json();
+			if (!response.ok) throw new Error([data.code, data.reason ?? data.error, ...(data.recoveryActions ?? [])].filter(Boolean).join(" — "));
 			onItemMoved();
 			setMoveTarget("");
-		});
-	}, [item.id, moveTarget, onItemMoved]);
+		}).catch((error) => window.alert(error instanceof Error ? error.message : "Falha ao fazer passagem."));
+	}, [item.id, item.claimExecutorId, moveTarget, onItemMoved, resolvedStages]);
 
 	const handleDelete = useCallback(() => {
 		fetch(`/api/items/${item.id}`, { method: "DELETE" }).then(() => {

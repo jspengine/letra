@@ -225,7 +225,7 @@ function writeFocus(
 		[
 			`# Focus: ${specName}`,
 			"",
-			`**Path**: .letra/specs/${specName}/`,
+			`**Path**: specs/${specName}/`,
 			`**Item**: ${itemId}`,
 			`**Outcome**: ${outcome}`,
 		].join("\n"),

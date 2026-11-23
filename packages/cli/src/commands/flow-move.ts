@@ -1,9 +1,10 @@
 import { resolve } from "node:path";
 import chalk from "chalk";
 import { loadWorkflow } from "./flow-init.js";
-import { requestTransitionOperation } from "../domain-operations/service.js";
+import { requestPassageOperation } from "../domain-operations/service.js";
 import { resolveAgentDirection } from "../agent-direction/service.js";
 import { resolveLocalIdentity } from "../identity/service.js";
+import { resolveActiveFlow } from "../flow-definition/resolve.js";
 
 function resolveStage(
 	workflow: { stages: Array<{ id: string; name: string }> },
@@ -17,7 +18,7 @@ export async function flowMove(
 	root: string,
 	itemId: string,
 	targetStageInput: string,
-	options?: { auto?: boolean; force?: boolean; actor?: string; reason?: string },
+	options?: { auto?: boolean; force?: boolean; actor?: string; reason?: string; run?: string },
 ): Promise<void> {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
@@ -54,20 +55,35 @@ export async function flowMove(
 	}
 	const fromStage = workflow.stages.find((stage) => stage.id === item.stage)?.name ?? item.stage;
 	const toStage = workflow.stages.find((stage) => stage.id === targetStageId)?.name ?? targetStageId;
-	if (options?.force && (!options.actor?.trim() || !options.reason?.trim())) {
-		console.log(chalk.red("--force requires both --actor <human:identity> and --reason <text>"));
+	if (!item.claimExecutorId) {
+		console.log(chalk.red(`Cannot move ${itemId}: item não possui claim ativa; adquira uma claim antes da passagem.`));
 		return;
 	}
-	const operation = await requestTransitionOperation(root, {
+	const activeFlow = resolveActiveFlow(root, { itemId: item.id, workflowVersionId: item.workflowVersionId }).flow;
+	const destination = activeFlow?.stages.find((stage) => stage.id === targetStageId);
+	const recipients = destination?.roleIds?.length ? destination.roleIds : destination?.agents ?? [];
+	if (!recipients.length) {
+		console.log(chalk.red(`Cannot move ${itemId}: estágio ${targetStageId} sem papel/destinatário configurado.`));
+		return;
+	}
+	if (recipients.length > 1) {
+		console.log(chalk.red(`Cannot move ${itemId}: múltiplos destinatários configurados (${recipients.join(", ")}); escolha explícita ainda não está disponível neste comando.`));
+		return;
+	}
+	const operation = await requestPassageOperation(root, {
 		itemId,
 		targetStageId,
+		runId: options?.run,
+		to: recipients[0],
+		executorId: item.claimExecutorId,
+		summary: `Passagem solicitada pela CLI: ${fromStage} → ${toStage}.`,
+		evidence: [],
 		actor: options?.actor?.trim() || resolveLocalIdentity(root).id,
-		expectedRevision: resolveAgentDirection(root).revision,
+		expectedRevision: resolveAgentDirection(root, item.id, { runId: options?.run }).revision,
 		reason: options?.reason?.trim() || `Transição solicitada pela CLI: ${fromStage} → ${toStage}.`,
-		force: options?.force === true,
 	});
 	if (operation.outcome !== "accepted") {
-		console.log(chalk.red(`Cannot move ${itemId}: ${operation.reason}`));
+		console.log(chalk.red(`Cannot move ${itemId} [${operation.reasonCode}]: ${operation.reason}${operation.recoveryActions?.length ? `\nRecuperação: ${operation.recoveryActions.join("; ")}` : ""}`));
 		return;
 	}
 	console.log(`  ${chalk.green("✓")} Item ${chalk.cyan(itemId)} moved: ${chalk.yellow(fromStage)} → ${chalk.green(toStage)}`);
@@ -83,7 +99,7 @@ function normalizeItemId(input: string): string {
 export function flowMoveAction(
 	targetPath: string | undefined,
 	itemId: string,
-	options: { to?: string; auto?: boolean; force?: boolean; actor?: string; reason?: string },
+	options: { to?: string; auto?: boolean; force?: boolean; actor?: string; reason?: string; run?: string },
 ): void {
 	const root = resolve(process.cwd(), targetPath || ".");
 	void flowMove(root, normalizeItemId(itemId), options.to || "", options);

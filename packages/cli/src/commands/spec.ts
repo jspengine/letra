@@ -266,13 +266,13 @@ export function specLink(itemId: string, specName: string): void {
 
 	const specDir = join(getLetraDir(root), "specs", specName);
 	if (!existsSync(specDir)) {
-		console.log(chalk.red(`Spec "${specName}" not found at .letra/specs/${specName}/`));
+		console.log(chalk.red(`Spec "${specName}" not found at ${join(getLetraDir(root), "specs", specName)}/`));
 		return;
 	}
 
 	item.spec = specName;
 	if (!workflow.specLinks) workflow.specLinks = {};
-	workflow.specLinks[specName] = { path: `.letra/specs/${specName}/spec.md` };
+	workflow.specLinks[specName] = { path: `specs/${specName}/spec.md` };
 	workflow.updatedAt = new Date().toISOString();
 
 	writeWorkflow(root, { workflow, source: "flow-edit", skipSitrep: true });
@@ -346,7 +346,7 @@ Por que estamos construindo isso. Trade-offs considerados.
 			writeFileSync(join(specDir, "acceptance.md"), acceptanceContent);
 		}
 
-		spinner.succeed(chalk.green(`Spec "${name}" created at .letra/specs/${name}/`));
+		spinner.succeed(chalk.green(`Spec "${name}" created at ${join(letraDir, "specs", name)}/`));
 	} catch (error) {
 		spinner.fail(chalk.red("Failed to create spec"));
 		process.exit(1);

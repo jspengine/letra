@@ -5,9 +5,10 @@ import { getLetraDir } from "../workspace/resolver.js";
 import { logEntry } from "../session-log.js";
 import { assertOperationLevel, OPERATION_REQUIRED_LEVELS } from "../identity/guard.js";
 import type { SignedOperationProof } from "../identity/signing.js";
+import { validateTransitionRepetition, type ConfiguredStageTransition, type RepetitionStage } from "./repetition-policy.js";
 
 export type WorkflowVersionStatus = "draft" | "published" | "superseded";
-export interface WorkflowDefinitionContent { name: string; description?: string; initialStageId?: string; stages: Array<{ id: string; final?: boolean; transitions?: Array<{ target: string }>; [key: string]: unknown }>; [key: string]: unknown }
+export interface WorkflowDefinitionContent { name: string; description?: string; initialStageId?: string; stages: Array<{ id: string; final?: boolean; transitions?: ConfiguredStageTransition[]; [key: string]: unknown }>; [key: string]: unknown }
 
 export interface WorkflowVersion { id: string; workflowId: string; number: number | null; status: WorkflowVersionStatus; basedOnVersionId: string | null; restoredFromVersionId?: string; schemaVersion: "1"; content: WorkflowDefinitionContent; contentHash: string; revision: number; changeSummary?: string; createdBy: string; createdAt: string; publishedBy?: string; publishedAt?: string }
 export interface WorkflowDefinition { id: string; name: string; description?: string; activeVersionId: string | null; draftVersionId: string | null; nextVersionNumber: number; createdAt: string; updatedAt: string }
@@ -234,11 +235,16 @@ export function validateWorkflowContent(
 	// Validate stage transitions
 	for (const [index, stage] of stages.entries()) {
 		for (const transition of stage.transitions ?? []) {
+			if (transition.allowPendingAcceptanceCriteria !== undefined && typeof transition.allowPendingAcceptanceCriteria !== "boolean") {
+				errors.push({ code: "TRANSITION_PENDING_AC_POLICY_INVALID", message: "allowPendingAcceptanceCriteria must be a boolean", path: `stages.${index}.transitions` });
+			}
 			if (!ids.has(transition.target)) {
 				errors.push({ code: "TRANSITION_TARGET_NOT_FOUND", message: `transition target ${transition.target} does not exist`, path: `stages.${index}.transitions` });
 			}
 		}
 	}
+
+	errors.push(...validateTransitionRepetition(stages as RepetitionStage[]));
 
 	// Validate reachability from initial stage
 	if (content.initialStageId && ids.has(content.initialStageId)) {

@@ -1,16 +1,15 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, cpSync } from "node:fs";
-import { join, relative } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import chalk from "chalk";
-import { resolveWorkspaceRoot, getSpecsDir, isWorkspaceMode } from "../workspace/resolver.js";
+import { resolveWorkspaceRoot, isWorkspaceMode, LINK_FILE } from "../workspace/resolver.js";
 import { loadWorkflow } from "./flow-init.js";
 import { generateAdapters } from "../adapters/generate.js";
-import { getLetraDir } from "./../workspace/resolver.js";
 
 export async function push(
 	targetPath?: string,
 	options?: { dryRun?: boolean; quiet?: boolean },
 ): Promise<void> {
-	const cwd = targetPath ? join(process.cwd(), targetPath) : process.cwd();
+	const cwd = targetPath ? resolve(process.cwd(), targetPath) : process.cwd();
 	const resolution = resolveWorkspaceRoot(cwd);
 
 	if (!isWorkspaceMode(resolution)) {
@@ -40,17 +39,19 @@ export async function push(
 
 	const files: string[] = [];
 
-	// Copy specs to target
-	const specsDir = getSpecsDir(resolution.workspaceDir);
-	if (existsSync(specsDir)) {
-		const targetSpecs = join(getLetraDir(targetDir), "specs");
-		if (!existsSync(targetSpecs)) mkdirSync(targetSpecs, { recursive: true });
-		if (!dryRun) {
-			cpSync(specsDir, targetSpecs, { recursive: true, force: true });
-		}
-		const specFiles = readdirSyncSimple(specsDir);
-		for (const f of specFiles) {
-			files.push(`.letra/specs/${relative(specsDir, f)}`);
+	// A project location contains only a lightweight pointer; governance stays
+	// in the workspace data directory and is never copied into the code checkout.
+	if (resolve(targetDir) !== resolve(workspaceDir)) {
+		const linkPath = join(targetDir, LINK_FILE);
+		if (existsSync(linkPath)) {
+			const linkedTarget = readFileSync(linkPath, "utf8").trim().split("\n")[0] ?? "";
+			if (!linkedTarget || resolve(targetDir, linkedTarget) !== resolve(workspaceDir)) {
+				console.log(chalk.red(`  Conflito: ${LINK_FILE} já aponta para outro workspace; nada foi alterado.`));
+				return;
+			}
+		} else {
+			files.push(LINK_FILE);
+			if (!dryRun) writeFileSync(linkPath, `${workspaceDir}\n`, "utf8");
 		}
 	}
 
@@ -70,29 +71,27 @@ export async function push(
 			? targetConfig.adapters
 			: workflow.tools;
 
-	// Generate adapters in target
-	if (effectiveTools && effectiveTools.length > 0 && !dryRun) {
+	// Generate adapter artifacts in the external governance directory, never in
+	// the project checkout.
+	if (effectiveTools && effectiveTools.length > 0) {
 		const activeStage = workflow.primaryItemId
 			? workflow.items.find((i) => i.id === workflow.primaryItemId)?.stage
 			: workflow.items[0]?.stage;
-		generateAdapters(targetDir, effectiveTools, {
-			source: "flow-move",
-			workflow: {
-				name: workflow.name,
-				stages: workflow.stages,
-				items: workflow.items,
-			},
-			activeStageId: activeStage || workflow.stages[0]?.id || "backlog",
-			primaryItemId: workflow.primaryItemId || workflow.items[0]?.id,
-			workspaceDir,
-		});
-		files.push(
-			"AGENTS.md",
-			".cursorrules",
-			"CLAUDE.md",
-			".windsurfrules",
-			".github/copilot-instructions.md",
-		);
+		for (const tool of effectiveTools) {
+			files.push(`adapters/${tool}/`);
+			if (!dryRun) generateAdapters(join(workspaceDir, "adapters", tool), [tool], {
+				source: "flow-move",
+				workflow: {
+					name: workflow.name,
+					stages: workflow.stages,
+					items: workflow.items,
+				},
+				activeStageId: activeStage || workflow.stages[0]?.id || "backlog",
+				primaryItemId: workflow.primaryItemId || workflow.items[0]?.id,
+				workspaceDir,
+				contentRoot: workspaceDir,
+			});
+		}
 	}
 
 	if (!quiet) {
@@ -109,13 +108,5 @@ export async function push(
 			}
 			console.log();
 		}
-	}
-}
-
-function readdirSyncSimple(dir: string): string[] {
-	try {
-		return require("node:fs").readdirSync(dir, { recursive: true }) as string[];
-	} catch {
-		return [];
 	}
 }

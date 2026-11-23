@@ -38,6 +38,8 @@ export interface GenerateAdaptersOptions extends GenerateOptions {
 	quiet?: boolean;
 	verb?: "Created" | "Updated";
 	confineWrites?: boolean;
+	/** Workspace data root used to load agent registry when output goes under adapters/. */
+	contentRoot?: string;
 }
 
 export interface RenderedAdapterFile {
@@ -76,7 +78,7 @@ export function renderAdapterFiles(
 	}
 
 	const files: RenderedAdapterFile[] = [];
-	const agents = loadAgents(root).agents;
+	const agents = loadAgents(options.contentRoot ?? root).agents;
 	for (const artifact of instructionArtifactsForAdapters(tools)) {
 		let content = stableAdapterBootstrap();
 		if (agents.length) {

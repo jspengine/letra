@@ -221,7 +221,7 @@ describe("adapters", () => {
 				displayName: "OpenCode",
 			});
 			expect(content).toContain("PASSO OBRIGATÓRIO #1");
-			expect(content).toContain("Sem Run ou item explicitamente selecionado");
+			expect(content).toContain("Sem item atribuído, aguarde atribuição ou selecione um item pela operação canônica");
 			expect(content).not.toContain("Identifique o item ativo via `letra pulse`");
 			expect(content).not.toContain("Trabalhe no item ativo");
 		});

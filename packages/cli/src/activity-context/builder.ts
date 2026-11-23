@@ -115,7 +115,7 @@ export function buildActivityContext(options: BuildActivityContextOptions): Acti
 						: currentItem.stage),
 				currentPhase: sources.currentPhase ?? undefined,
 				spec: currentItem.spec ?? null,
-				outcome: sources.spec?.outcome ?? sources.focus?.outcome ?? null,
+				outcome: sources.spec?.outcome ?? null,
 				acs: sources.spec?.acs ?? { pending: 0, done: 0, total: 0 },
 			}
 		: null;

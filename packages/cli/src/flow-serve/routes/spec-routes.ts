@@ -59,7 +59,7 @@ export function createSpecRoutes(dependencies: SpecRouteDependencies): RouteHand
 				dependencies.writeSpec(workspaceDir, id, content);
 				if (workflow) {
 					workflow.specLinks ??= {};
-					workflow.specLinks[id] = { path: `.letra/specs/${id}/spec.md` };
+					workflow.specLinks[id] = { path: `specs/${id}/spec.md` };
 					workflow.updatedAt = new Date().toISOString();
 					dependencies.writeWorkflow(workspaceRoot, {
 						workflow,

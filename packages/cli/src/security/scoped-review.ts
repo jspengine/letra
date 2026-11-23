@@ -302,6 +302,11 @@ function workspaceFiles(root: string): string[] {
 	return [...new Set([...tracked, ...untracked, ...required])];
 }
 
+const DELETED_FILE_DIGEST = "deleted";
+// Tracked directories are gitlinks (submodules or committed worktrees): their
+// content belongs to another repository, so only their presence is recorded.
+const DIRECTORY_DIGEST = "directory";
+
 function fileSnapshot(root: string): { files: Record<string, string>; complete: boolean; error?: string } {
 	const result: Record<string, string> = {};
 	let files: string[];
@@ -309,6 +314,16 @@ function fileSnapshot(root: string): { files: Record<string, string>; complete: 
 		return { files: {}, complete: false, error: error instanceof Error ? error.message : String(error) };
 	}
 	for (const file of files) {
+		// A tracked file deleted from the working tree is a known state, not a
+		// read failure; record it so pending deletions don't leave the baseline partial.
+		if (!existsSync(join(root, file))) {
+			result[file] = DELETED_FILE_DIGEST;
+			continue;
+		}
+		if (statSync(join(root, file)).isDirectory()) {
+			result[file] = DIRECTORY_DIGEST;
+			continue;
+		}
 		try {
 			result[file] = sha256(readFileSync(join(root, file)));
 		} catch {
@@ -363,6 +378,8 @@ export function changedWorkspaceFiles(root: string, baseline: SecurityBaseline):
 		return Object.keys(baseline.files).sort();
 	}
 	for (const file of files) {
+		if (!existsSync(join(root, file))) { current.set(file, DELETED_FILE_DIGEST); continue; }
+		if (statSync(join(root, file)).isDirectory()) { current.set(file, DIRECTORY_DIGEST); continue; }
 		try { current.set(file, sha256(readFileSync(join(root, file)))); }
 		catch { current.set(file, "unreadable"); }
 	}
@@ -604,6 +621,15 @@ export function parseSecurityAuditOutput(output: string, context: SecurityReview
 	}));
 }
 
+/**
+ * Runs a package manager with fixed, code-defined arguments. On Windows npm,
+ * yarn and pnpm are `.cmd` shims that Node (>= 20) refuses to spawn without a
+ * shell; the arguments never come from user input, so the shell is safe here.
+ */
+function runPackageManager(executable: string, args: string[], root: string, stdio: "pipe" | ["ignore", "pipe", "pipe"] = "pipe"): string {
+	return execFileSync(executable, args, { cwd: root, encoding: "utf8", stdio, shell: process.platform === "win32" });
+}
+
 function parseAuditFindings(root: string, context: SecurityReviewContext, manager: DependencyManager): { findings: SecurityFindingInput[]; errors: string[]; command: string; version: string | null } {
 	const commandArgs: Record<DependencyManager, string[]> = {
 		npm: ["audit", "--omit=dev", "--json"],
@@ -616,7 +642,7 @@ function parseAuditFindings(root: string, context: SecurityReviewContext, manage
 	if (manager === "unknown") return { findings: [], errors: ["Nenhum gerenciador de dependências suportado para auditoria."], command, version: null };
 	let output = "";
 	try {
-		output = execFileSync(executable, commandArgs[manager], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+		output = runPackageManager(executable, commandArgs[manager], root, ["ignore", "pipe", "pipe"]);
 	} catch (error) {
 		// npm exits with code 1 when vulnerabilities are found. Its stdout is
 		// still the authoritative JSON report and must not be discarded.
@@ -626,11 +652,11 @@ function parseAuditFindings(root: string, context: SecurityReviewContext, manage
 	}
 	try {
 		let version: string | null = null;
-		try { version = execFileSync(executable, ["--version"], { cwd: root, encoding: "utf8" }).trim() || null; } catch { /* evidence records missing version */ }
+		try { version = runPackageManager(executable, ["--version"], root).trim() || null; } catch { /* evidence records missing version */ }
 		return { findings: parseSecurityAuditOutput(output, context), errors: [], command, version };
 	} catch (error) {
 		let version: string | null = null;
-		try { version = execFileSync(executable, ["--version"], { cwd: root, encoding: "utf8" }).trim() || null; } catch { /* evidence records missing version */ }
+		try { version = runPackageManager(executable, ["--version"], root).trim() || null; } catch { /* evidence records missing version */ }
 		return { findings: [], errors: [`${executable} audit não retornou JSON válido: ${error instanceof Error ? error.message : String(error)}`], command, version };
 	}
 }

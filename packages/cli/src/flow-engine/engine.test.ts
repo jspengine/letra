@@ -51,7 +51,7 @@ function createTestFlow(): FlowDefinition {
 			},
 		],
 		stages: [
-			{ id: "backlog", name: "Backlog", order: 0, zone: "todo", agents: [], gate: null },
+			{ id: "backlog", name: "Backlog", order: 0, zone: "todo", agents: [], gate: null, transitions: [{ target: "design", repetition: { mode: "finite", maxTraversals: 5 } }] },
 			{
 				id: "design",
 				name: "Design",
@@ -60,6 +60,10 @@ function createTestFlow(): FlowDefinition {
 				agents: ["analyst"],
 				gate: "spec-approved",
 				rework: { target: "backlog", allowed_actors: ["analyst"] },
+				transitions: [
+					{ target: "backlog", repetition: { mode: "finite", maxTraversals: 5 } },
+					{ target: "code", repetition: { mode: "finite", maxTraversals: 5 } },
+				],
 				hooks: {
 					on_exit: [{ action: "capture_baseline", auto: true }],
 				},
@@ -72,6 +76,10 @@ function createTestFlow(): FlowDefinition {
 				agents: ["implementer"],
 				gate: "code-reviewed",
 				rework: { target: "design", allowed_actors: ["reviewer"], create_ac: true },
+				transitions: [
+					{ target: "design", repetition: { mode: "finite", maxTraversals: 5 } },
+					{ target: "review", repetition: { mode: "finite", maxTraversals: 5 } },
+				],
 				hooks: {
 					on_enter: [{ action: "capture_baseline", auto: true }],
 					on_exit: [{ action: "capture_baseline", auto: true }],
@@ -85,6 +93,11 @@ function createTestFlow(): FlowDefinition {
 				agents: ["reviewer"],
 				gate: null,
 				rework: { target: "code", allowed_actors: ["reviewer"], create_ac: true },
+				transitions: [
+					{ target: "backlog", repetition: { mode: "finite", maxTraversals: 5 } },
+					{ target: "code", repetition: { mode: "finite", maxTraversals: 5 } },
+					{ target: "security", repetition: { mode: "finite", maxTraversals: 5 } },
+				],
 				phases: {
 					initialState: "review",
 					states: {
@@ -122,6 +135,10 @@ function createTestFlow(): FlowDefinition {
 				agents: ["security"],
 				gate: "human-approved",
 				rework: { target: "code", allowed_actors: ["security"] },
+				transitions: [
+					{ target: "code", repetition: { mode: "finite", maxTraversals: 5 } },
+					{ target: "done" },
+				],
 				hooks: {
 					on_enter: [{ action: "security_review", auto: true, requires_claim: true }],
 				},
@@ -169,6 +186,99 @@ describe("FlowEngine", () => {
 
 		expect(result.ok).toBe(true);
 		expect(result.item?.stage).toBe("design");
+	});
+
+	it("rejects an existing stage when the source does not declare an edge", async () => {
+		const item: FlowItem = { id: "ITEM-1", stage: "backlog" };
+		const ctx = createMockContext();
+		let persisted = item;
+		ctx.loadItem = async () => persisted;
+		ctx.saveItem = async (next) => { persisted = next; };
+		const result = await new FlowEngine(createTestFlow(), ctx).transition("ITEM-1", "done", "analyst");
+		expect(result).toMatchObject({ ok: false, reasonCode: "TRANSITION_NOT_ALLOWED" });
+		expect(item.stage).toBe("backlog");
+	});
+
+	it("enforces the configured finite loop limit without a partial stage change", async () => {
+		const flow = createTestFlow();
+		flow.stages.find((stage) => stage.id === "code")!.transitions!.find((edge) => edge.target === "review")!.repetition = { mode: "finite", maxTraversals: 1 };
+		flow.stages.find((stage) => stage.id === "review")!.transitions!.find((edge) => edge.target === "code")!.repetition = { mode: "finite", maxTraversals: 1 };
+		const item: FlowItem = { id: "ITEM-1", stage: "code" };
+		const ctx = createMockContext();
+		let persisted = item;
+		ctx.loadItem = async () => persisted;
+		ctx.saveItem = async (next) => { persisted = next; };
+		const engine = new FlowEngine(flow, ctx);
+		expect((await engine.transition("ITEM-1", "review", "implementer")).ok).toBe(true);
+		expect((await engine.transition("ITEM-1", "code", "reviewer", "rework")).ok).toBe(true);
+		const rejected = await engine.transition("ITEM-1", "review", "implementer");
+		expect(rejected).toMatchObject({ ok: false, reasonCode: "TRANSITION_REPETITION_LIMIT_REACHED" });
+		expect(item.stage).toBe("code");
+	});
+
+	it("stops auto-transition cycles at the configured edge limit without an implicit runtime cap", async () => {
+		const flow = createTestFlow();
+		flow.stages = [
+			{ id: "start", name: "Start", order: 0, zone: "todo", agents: [], gate: null, transitions: [{ target: "loop" }] },
+			{ id: "loop", name: "Loop", order: 1, zone: "doing", agents: [], gate: null,
+				transitions: [{ target: "loop", repetition: { mode: "finite", maxTraversals: 2 } }],
+				auto_transitions: [{ when: "always", target: "loop", actor: "system:auto" }],
+			},
+		];
+		let persisted: FlowItem = { id: "ITEM-1", stage: "start" };
+		const ctx = createMockContext({ loadItem: async () => persisted, saveItem: async (item) => { persisted = item; }, evaluateCondition: async () => true });
+		const result = await new FlowEngine(flow, ctx).transition("ITEM-1", "loop", "analyst");
+		expect(result).toMatchObject({ ok: false, reasonCode: "TRANSITION_REPETITION_LIMIT_REACHED" });
+		expect(persisted.stage).toBe("start");
+	});
+
+	it("fails an auto-transition timeout without a Run handler and without persistence", async () => {
+		const flow = createTestFlow();
+		flow.stages = [
+			{ id: "start", name: "Start", order: 0, zone: "todo", agents: [], gate: null, transitions: [{ target: "loop" }] },
+			{ id: "loop", name: "Loop", order: 1, zone: "doing", agents: [], gate: null,
+				transitions: [{ target: "loop", repetition: { mode: "timeout", timeoutMs: 1, timeoutResult: { type: "wait-human" } } }],
+				auto_transitions: [{ when: "always", target: "loop", actor: "system:auto" }],
+			},
+		];
+		let persisted: FlowItem = { id: "ITEM-1", stage: "start", repetitionState: { [JSON.stringify([flow.version, "loop", "loop"])]: { count: 1, firstTraversalAt: new Date(Date.now() - 10).toISOString() } } };
+		const ctx = createMockContext({ loadItem: async () => persisted, saveItem: async (item) => { persisted = item; }, evaluateCondition: async () => true });
+		const result = await new FlowEngine(flow, ctx).transition("ITEM-1", "loop", "analyst");
+		expect(result).toMatchObject({ ok: false, reasonCode: "REPETITION_TIMEOUT_RUN_HANDLER_REQUIRED" });
+		expect(persisted.stage).toBe("start");
+	});
+
+	it("atomically commits candidate item and Run when an auto-transition times out after an initial move", async () => {
+		const flow = createTestFlow();
+		flow.stages = [
+			{ id: "start", name: "Start", order: 0, zone: "todo", agents: [], gate: null, transitions: [{ target: "middle" }] },
+			{ id: "middle", name: "Middle", order: 1, zone: "doing", agents: [], gate: null,
+				transitions: [{ target: "loop", repetition: { mode: "timeout", timeoutMs: 1, timeoutResult: { type: "wait-human" } } }],
+				auto_transitions: [{ when: "ready", target: "loop", actor: "system:auto" }],
+			},
+			{ id: "loop", name: "Loop", order: 2, zone: "doing", agents: [], gate: null,
+				transitions: [{ target: "middle", repetition: { mode: "finite", maxTraversals: 2 } }],
+			},
+		];
+		let persisted: FlowItem = {
+			id: "ITEM-1", stage: "start",
+			repetitionState: { [JSON.stringify([flow.version, "middle", "loop"])]: { count: 1, firstTraversalAt: new Date(Date.now() - 10).toISOString() } },
+		};
+		let runStatus = "running";
+		const ctx = createMockContext({
+			loadItem: async () => persisted,
+			saveItem: async (item) => { persisted = item; },
+			evaluateCondition: async () => true,
+			commitRunWaitingHuman: async (candidate, reason) => {
+				expect(reason).toContain("human decision");
+				persisted = candidate;
+				runStatus = "waiting-human";
+			},
+		});
+		const result = await new FlowEngine(flow, ctx).transition("ITEM-1", "middle", "analyst");
+		expect(result).toMatchObject({ ok: true, reasonCode: "REPETITION_TIMEOUT_WAITING_HUMAN" });
+		expect(persisted.stage).toBe("middle");
+		expect(runStatus).toBe("waiting-human");
 	});
 
 	it("validates operation against allowed_in_stages", async () => {

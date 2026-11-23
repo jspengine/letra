@@ -14,7 +14,7 @@ import { loadWorkflow, type Item, type Workflow } from "../commands/flow-init.js
 import { resolveActiveFlow, resolveActiveFlowFor } from "../flow-definition/resolve.js";
 import { getLetraDir, resolveWorkspaceRoot } from "./../workspace/resolver.js";
 import { invalidWorkspaceDiagnostic } from "../workspace/integrity.js";
-import { readExecutionRuns } from "../execution-runs/store.js";
+import { isRunActiveForDirection, readExecutionRuns } from "../execution-runs/store.js";
 import { createWorkspaceBoundary } from "../security/workspace-boundary.js";
 import { withWorkspaceTransactionLockSync } from "../domain-operations/workspace-transaction.js";
 
@@ -441,8 +441,7 @@ export function resolveAgentDirection(
 /** Resolve a read direction from durable Runs without selecting an arbitrary item. */
 function resolveDirectionUnderLock(root: string, options: ResolveDirectionOptions = {}): AgentDirectionSnapshot {
 	const runs = readExecutionRuns(root).runs.filter((run) => {
-		if (!(run.status === "running" || run.status === "queued" || run.status === "waiting-human")) return false;
-		if (run.lease && Date.parse(run.lease.expiresAt) <= Date.now()) return false;
+		if (!isRunActiveForDirection(run)) return false;
 		return !options.executorId || run.binding.executorId === options.executorId;
 	});
 	if (options.runId) {
@@ -472,8 +471,8 @@ function resolveDirectionUnderLock(root: string, options: ResolveDirectionOption
 			runId: runs[0]!.id,
 		});
 	}
-	const empty = createAgentDirectionSnapshot({ workspaceRoot: root, workflow: null, flow: null, specContent: null });
-	return withAssignment(empty, runs.length === 0
+	const unassigned = resolveAgentDirectionUnderLock(root);
+	return withAssignment(unassigned, runs.length === 0
 		? { status: "unassigned" }
 		: { status: "selection-required", candidateRunIds: runs.map((run) => run.id).sort() });
 }

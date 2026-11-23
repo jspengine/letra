@@ -5,6 +5,7 @@ import KanbanBoard from "./KanbanBoard";
 import ActivityTimeline from "./ActivityTimeline";
 import ItemDetailModal from "./ItemDetailModal";
 import { cn } from "../../lib/utils";
+import { selectPassageRecipient } from "../../lib/passage-recipient";
 import {
 	Button,
 	ButtonGroup,
@@ -185,10 +186,10 @@ export default function FlowView({
 		: null;
 
 	function allowMoveToStage(item: Workflow["items"][0], targetStageId: string): boolean {
-		const srcStage = workflow.stages.find((s) => s.id === item.stage);
-		if (!srcStage || !srcStage.allow || srcStage.allow.length === 0) return true;
-		if (!srcStage.allow.includes(targetStageId)) return false;
-		if (humanGateStages.has(targetStageId)) return false;
+		if (humanGateStages.has(targetStageId)) {
+			toast(`O estágio ${targetStageId} exige uma decisão explícita no painel do gate.`, "error");
+			return false;
+		}
 		return true;
 	}
 
@@ -201,35 +202,32 @@ export default function FlowView({
 
 	function doMoveItem(itemId: string, targetStage: string) {
 		if (humanGateStages.has(targetStage)) {
-			fetch(`/api/items/${itemId}/gate-decisions`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ decision: "approve" }),
-			})
-				.then((r) => r.json().then((data) => ({ ok: r.ok, data })))
-				.then(({ ok, data }) => {
-					if (!ok) {
-						toast(data.error || "Não foi possível registrar a decisão.", "error");
-						return;
-					}
-					toast("Decisão aprovada e registrada.", "success");
-					onItemMoved();
-					if (selectedItemId === itemId) setSelectedItemId(null);
-				})
-				.catch(() => toast("Erro ao registrar decisão.", "error"));
+			toast("Este estágio exige uma decisão explícita no painel do gate.", "error");
 			return;
 		}
-		fetch(`/api/items/${itemId}`, {
-			method: "PATCH",
+		const item = workflow.items.find((entry) => entry.id === itemId);
+		const destination = resolvedStages.find((stage) => stage.id === targetStage);
+		const recipients = destination?.roleIds?.length ? destination.roleIds : destination?.agents ?? [];
+		if (!item?.claimExecutorId) {
+			toast("Não há claim ativa para fazer a passagem. Adquira a claim e tente novamente.", "error");
+			return;
+		}
+		const selection = selectPassageRecipient(recipients, destination?.name ?? targetStage, (message, initial) => window.prompt(message, initial));
+		if (selection.error) { toast(`${selection.error} Configure um papel de destino no workflow.`, "error"); return; }
+		const to = selection.recipient;
+		if (!to) return;
+		fetch(`/api/items/${itemId}/passage`, {
+			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ stage: targetStage }),
+			body: JSON.stringify({ targetStageId: targetStage, to, executorId: item.claimExecutorId, summary: `Passagem solicitada pela interface para ${destination?.name ?? targetStage}.`, evidence: [] }),
 		})
-			.then((r) => {
-				if (!r.ok) throw new Error("Falha ao mover item");
+			.then(async (r) => {
+				const data = await r.json();
+				if (!r.ok) throw new Error([data.code, data.reason ?? data.error, ...(data.recoveryActions ?? [])].filter(Boolean).join(" — "));
 				onItemMoved();
 				if (selectedItemId === itemId) setSelectedItemId(null);
 			})
-			.catch(() => toast("Erro ao mover item.", "error"));
+			.catch((error) => toast(error instanceof Error ? error.message : "Erro ao mover item.", "error"));
 	}
 
 	function handleDropItem(itemId: string, targetStage: string) {

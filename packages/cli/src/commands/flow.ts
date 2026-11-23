@@ -56,9 +56,10 @@ export default function flowCommand() {
 	backlog
 		.command("add <description>")
 		.option("--spec <name>", "Spec name to link")
+		.option("--id <item-id>", "Use a specific ITEM-N identifier instead of the next sequential ID")
 		.description("Add item to the first stage")
-		.action((description: string, options: { spec?: string }) => {
-			backlogActionAdd(undefined, description, options.spec);
+		.action(async (description: string, options: { spec?: string; id?: string }) => {
+			await backlogActionAdd(undefined, description, options.spec, options.id);
 		});
 
 	backlog
@@ -90,11 +91,12 @@ export default function flowCommand() {
 	cmd.command("move <item-id>")
 		.option("--to <stage>", "Target stage id or name")
 		.option("--auto", "Automatically discover next stage by order")
-		.option("--force", "Administratively bypass pending AC validation")
+		.option("--force", "Deprecated; does not bypass workflow passage rules")
 		.option("--actor <actor>", "Auditable human identity required with --force")
 		.option("--reason <reason>", "Auditable reason required with --force")
+		.option("--run <run-id>", "Select the active Run for this item")
 		.description("Move item to another stage and regenerate adapters")
-		.action((itemId: string, options: { to?: string; auto?: boolean; force?: boolean; actor?: string; reason?: string }) => {
+		.action((itemId: string, options: { to?: string; auto?: boolean; force?: boolean; actor?: string; reason?: string; run?: string }) => {
 			if (!options.to && !options.auto) {
 				console.log(chalk.red("Either --to or --auto is required"));
 				process.exit(1);

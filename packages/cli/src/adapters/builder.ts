@@ -195,12 +195,12 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 	const parsedFocus = readFocusFile(root);
 	if (parsedFocus) {
 		focusSpec = parsedFocus.specName;
-		focusPath = `${isWorkspace ? "specs/" : ".letra/specs/"}${parsedFocus.specName}/`;
+		focusPath = `specs/${parsedFocus.specName}/`;
 	} else {
 		const primaryItem = items.find((i) => i.id === primaryItemId);
 		if (primaryItem?.spec) {
 			focusSpec = primaryItem.spec;
-			focusPath = `${isWorkspace ? "specs/" : ".letra/specs/"}${primaryItem.spec}/`;
+			focusPath = `specs/${primaryItem.spec}/`;
 		}
 	}
 

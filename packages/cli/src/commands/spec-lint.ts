@@ -34,7 +34,7 @@ export default function specLintCommand(): Command {
       const { results, hasErrors } = validateAllSpecsFrontmatter(workspaceRoot);
 
       if (results.size === 0) {
-        console.log("ℹ️  Nenhuma spec encontrada em .letra/specs/");
+        console.log("ℹ️  Nenhuma spec encontrada em specs/ no diretório de dados do workspace");
         return;
       }
 

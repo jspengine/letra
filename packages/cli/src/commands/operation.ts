@@ -77,6 +77,28 @@ export default function operationCommand(): Command {
 			const { claimOperation } = await import("../domain-operations/service.js");
 			printJson(await claimOperation(resolve(process.cwd()), { itemId, executorId: options.executor, capability: options.capability, expectedRevision: options.expectedRevision, reason: options.reason, actor: options.actor, ttlMinutes: options.ttl, idempotencyKey: options.idempotencyKey }));
 		});
+	command
+		.command("link-item-spec <item-id>")
+		.requiredOption("--spec <spec-id>", "Existing spec ID under workspace data directory")
+		.requiredOption("--run <run-id>", "Selected Run ID")
+		.requiredOption("--executor <executor-id>", "Executor that owns the selected Run")
+		.requiredOption("--expected-revision <revision>", "Direction revision returned by Letra")
+		.requiredOption("--reason <reason>", "Reason for linking the spec")
+		.option("--actor <actor>", "Stage actor", "agent:codex")
+		.option("--idempotency-key <key>", "Idempotency key")
+		.action(async (itemId: string, options: { spec: string; run: string; executor: string; expectedRevision: string; reason: string; actor: string; idempotencyKey?: string }) => {
+			const { linkItemSpecOperation } = await import("../domain-operations/service.js");
+			printJson(await linkItemSpecOperation(resolve(process.cwd()), {
+				itemId,
+				specId: options.spec,
+				runId: options.run,
+				executorId: options.executor,
+				expectedRevision: options.expectedRevision,
+				reason: options.reason,
+				actor: options.actor,
+				idempotencyKey: options.idempotencyKey,
+			}));
+		});
 
 	command
 		.command("activate-work <item-id>")
@@ -94,9 +116,10 @@ export default function operationCommand(): Command {
 		.requiredOption("--expected-revision <revision>", "Direction revision returned by Letra")
 		.requiredOption("--reason <reason>", "Reason for the operation")
 		.option("--item <item-id>", "Item alvo quando não há Run selecionada")
-		.action(async (options: { expectedRevision: string; reason: string; item?: string }) => {
+		.option("--run <run-id>", "Seleciona o Run cuja direção foi consultada")
+		.action(async (options: { expectedRevision: string; reason: string; item?: string; run?: string }) => {
 			const { runValidationOperation } = await import("../domain-operations/service.js");
-			printJson(await runValidationOperation(resolve(process.cwd()), { ...options, itemId: options.item }));
+			printJson(await runValidationOperation(resolve(process.cwd()), { ...options, itemId: options.item, runId: options.run }));
 		});
 	command.command("activity [item-id]").action((itemId?: string) => printJson(activityOperation(resolve(process.cwd()), itemId)));
 	command
@@ -150,6 +173,7 @@ export default function operationCommand(): Command {
 		.requiredOption("--expected-revision <revision>", "Direction revision returned by Letra")
 		.requiredOption("--reason <reason>", "Reason for completing the criterion")
 		.option("--executor <executor-id>", "Executor que produziu a evidência")
+		.option("--run <run-id>", "Run cuja direção foi consultada")
 		.option("--actor <actor>", "Identidade do actor", "agent:codex")
 		.option("--idempotency-key <key>", "Chave idempotente da operação")
 		.addOption(
@@ -166,12 +190,13 @@ export default function operationCommand(): Command {
 					reason: string;
 					evidence: string[];
 					executor?: string;
+				run?: string;
 					actor: string;
 					idempotencyKey?: string;
 				},
 			) => {
 				const { completeAcOperation } = await import("../domain-operations/service.js");
-				printJson(completeAcOperation(resolve(process.cwd()), { acId, itemId: options.item, executorId: options.executor, ...options }));
+				printJson(completeAcOperation(resolve(process.cwd()), { acId, itemId: options.item, executorId: options.executor, runId: options.run, ...options }));
 			},
 		);
 
@@ -214,12 +239,13 @@ export default function operationCommand(): Command {
 		.requiredOption("--summary <summary>", "Handoff summary")
 		.requiredOption("--expected-revision <revision>", "Direction revision")
 		.requiredOption("--reason <reason>", "Reason")
+		.option("--run <run-id>", "Run cuja direção foi consultada")
 		.addOption(new Option("--evidence <evidence>", "Verifiable evidence").argParser(collectEvidence).default([]))
 		.option("--actor <actor>", "Source role", "agent:codex")
 		.option("--idempotency-key <key>", "Idempotency key")
-		.action(async (itemId: string, options: { stage: string; to: string; executor: string; summary: string; expectedRevision: string; reason: string; evidence: string[]; actor: string; idempotencyKey?: string }) => {
+		.action(async (itemId: string, options: { stage: string; to: string; executor: string; summary: string; expectedRevision: string; reason: string; evidence: string[]; actor: string; run?: string; idempotencyKey?: string }) => {
 			const { requestPassageOperation } = await import("../domain-operations/service.js");
-			printJson(await requestPassageOperation(resolve(process.cwd()), { itemId, targetStageId: options.stage, to: options.to, executorId: options.executor, summary: options.summary, evidence: options.evidence, expectedRevision: options.expectedRevision, reason: options.reason, actor: options.actor, idempotencyKey: options.idempotencyKey }));
+			printJson(await requestPassageOperation(resolve(process.cwd()), { itemId, targetStageId: options.stage, to: options.to, executorId: options.executor, runId: options.run, summary: options.summary, evidence: options.evidence, expectedRevision: options.expectedRevision, reason: options.reason, actor: options.actor, idempotencyKey: options.idempotencyKey }));
 		});
 
 	command

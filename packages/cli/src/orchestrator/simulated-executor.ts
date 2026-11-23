@@ -18,7 +18,7 @@ export function createSimulatedExecutor(
 		heartbeat: async () => undefined,
 		async execute(context: ExecutionContext): Promise<ExecutionResult> {
 			const stages = Array.isArray((context.snapshot as { stages?: unknown[] })?.stages)
-				? ((context.snapshot as { stages: Array<{ id: string; order: number; agents?: string[]; transitions?: Array<{ target: string }> }> }).stages)
+			? ((context.snapshot as { stages: Array<{ id: string; order: number; agents?: string[]; transitions?: Array<{ target: string; allowPendingAcceptanceCriteria?: boolean }> }> }).stages)
 				: [];
 			const current = stages.find((stage) => stage.id === context.stage);
 			const outgoing = new Set(current?.transitions?.map((transition) => transition.target) ?? []);

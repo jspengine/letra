@@ -23,6 +23,8 @@ import {
 	requestReworkOperation,
 	runSecurityReviewOperation,
 	migrateRunWorkflowOperation,
+	createItemOperation,
+	linkItemSpecOperation,
 } from "../domain-operations/service.js";
 import { logEntry } from "../session-log.js";
 import {
@@ -157,7 +159,7 @@ export function createLetraMcpServer(root: string, options: { resolveBoundHumanA
 	const auditedReads = new Set<string>();
 	const server = new McpServer({
 		name: "letra",
-		version: "0.5.3",
+		version: "0.6.2",
 	});
 	const readOnlyAnnotations = {
 		readOnlyHint: true,
@@ -277,6 +279,8 @@ export function createLetraMcpServer(root: string, options: { resolveBoundHumanA
 			description: "Valida o workspace pela implementação canônica e registra o resultado.",
 			inputSchema: {
 				itemId: z.string().regex(/^ITEM-\d+$/i).optional(),
+				runId: z.string().trim().min(1).optional(),
+				executorId: z.string().trim().min(1).optional(),
 				expectedRevision,
 				reason,
 				idempotencyKey: z.string().trim().min(1).max(200).optional(),
@@ -299,6 +303,7 @@ export function createLetraMcpServer(root: string, options: { resolveBoundHumanA
 				itemId: z.string().regex(/^ITEM-\d+$/i),
 				acId: z.string().regex(/^AC\d+(?:\.\d+)*$/i),
 				executorId: z.string().trim().min(1).optional(),
+				runId: z.string().trim().min(1).optional(),
 				expectedRevision,
 				evidence: z.array(z.string().trim().min(1).max(500)).max(20),
 				reason,
@@ -374,11 +379,13 @@ export function createLetraMcpServer(root: string, options: { resolveBoundHumanA
 		return jsonText({ id, path: reference.path, status: verified ? "current" : "stale", reasonCode: verified ? null : "REFERENCE_STALE", expectedSha256: expected, sha256, verified, content });
 	});
 	server.registerTool("claim", { description: "Solicita claim exclusivo.", inputSchema: { itemId: z.string(), executorId: z.string(), capability: z.string(), expectedRevision, reason, ttlMinutes: z.number().optional(), idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await claimOperation(operationRoot, { ...input, actor: mcpActor() })));
+	server.registerTool("create_item", { description: "Cria item no primeiro estágio usando a operação canônica. O ID incremental é padrão; itemId permite escolher ITEM-N.", inputSchema: { description: z.string().trim().min(1).max(4000), itemId: z.string().trim().optional(), spec: z.string().trim().optional(), runId: z.string(), executorId: z.string(), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async ({ description, itemId, spec, runId, executorId, expectedRevision: revision, reason: why, idempotencyKey }) => jsonText(await createItemOperation(operationRoot, { id: itemId, description, spec, runId, executorId, expectedRevision: revision, reason: why, idempotencyKey, actor: mcpActor() })));
+	server.registerTool("link_item_spec", { description: "Vincula uma spec existente e seus ACs ao item pela operação canônica revision-aware.", inputSchema: { itemId: z.string(), specId: z.string().trim().min(1), runId: z.string(), executorId: z.string(), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await linkItemSpecOperation(operationRoot, { ...input, actor: mcpActor() })));
 	server.registerTool("execution_event", { description: "Registra started, heartbeat, succeeded ou failed.", inputSchema: { itemId: z.string(), status: z.enum(["started", "heartbeat", "succeeded", "failed"]), executorId: z.string(), expectedRevision, reason, message: z.string().optional(), recovery: z.enum(["retry", "release", "handoff", "human"]).optional(), errorCode: z.string().optional(), idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await recordExecutionEvent(operationRoot, { ...input, actor: mcpActor() })));
 	server.registerTool("submit_evidence", { description: "Registra evidência estruturada confinada.", inputSchema: { itemId: z.string(), executorId: z.string(), expectedRevision, reason, evidence: z.array(z.object({ kind: z.enum(["diff", "file", "command", "test", "artifact"]), value: z.string(), source: z.string(), observedAt: z.string().optional(), sha256: z.string().optional(), exitCode: z.number().optional() })), idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await submitEvidenceOperation(operationRoot, { ...input, actor: mcpActor() })));
 	server.registerTool("security_review", { description: "Executa a revisão de Security escopada ao item, usando baseline e política do harness.", inputSchema: { itemId: z.string(), executorId: z.string(), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await runSecurityReviewOperation(operationRoot, { ...input, actor: mcpActor() })));
 	server.registerTool("request_handoff", { description: "Solicita handoff atômico.", inputSchema: { itemId: z.string(), to: z.string(), executorId: z.string(), summary: z.string(), evidence: z.array(z.string()), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await requestHandoffOperation(operationRoot, { ...input, actor: mcpActor() })));
-	server.registerTool("request_passage", { description: "Valida e comita transição, handoff e Run pela operação canônica.", inputSchema: { itemId: z.string(), targetStageId: z.string(), to: z.string(), executorId: z.string(), summary: z.string(), evidence: z.array(z.string()), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await requestPassageOperation(operationRoot, { ...input, actor: mcpActor() })));
+	server.registerTool("request_passage", { description: "Valida e comita transição, handoff e Run pela operação canônica.", inputSchema: { itemId: z.string(), targetStageId: z.string(), to: z.string(), executorId: z.string(), runId: z.string().trim().min(1).optional(), summary: z.string(), evidence: z.array(z.string()), expectedRevision, reason, idempotencyKey: z.string().trim().min(1).max(200).optional() }, annotations: mutationAnnotations }, async (input) => jsonText(await requestPassageOperation(operationRoot, { ...input, actor: mcpActor() })));
 	server.registerTool("request_rework", { description: "Solicita retrabalho conforme a configuração declarativa do estágio.", inputSchema: { itemId: z.string(), expectedRevision, reason, acceptanceCriteria: z.array(z.object({ id: z.string().optional(), description: z.string().min(1) })).default([]) }, annotations: mutationAnnotations }, async (input) => jsonText(await requestReworkOperation(operationRoot, { ...input, actor: mcpActor() })));
 
 	server.registerResource(

@@ -85,6 +85,18 @@ it("routes an explicit web passage through the canonical passage operation", asy
 	expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
 });
 
+it("preserves the passage reason code and recovery actions in HTTP errors", async () => {
+	const { deps, requestPassageOperation } = dependencies();
+	vi.mocked(requestPassageOperation).mockResolvedValue({ outcome: "rejected", reasonCode: "CLAIM_EXPIRED", reason: "Claim expirado.", recoveryActions: ["Adquira nova claim."] } as any);
+	const res = response();
+	const body = JSON.stringify({ targetStageId: "review", to: "reviewer", executorId: "codex", summary: "Ready", expectedRevision: "revision-1" });
+	const context = createRequestContext(request("POST", body), res, new URL("http://localhost/api/items/ITEM-1/passage"), { workspaceRoot: "C:\\workspace", workspaceDir: "C:\\workspace\\.letra", workflow: workflow() });
+	await createItemRoutes(deps)(context as any);
+	expect(res.writeHead).toHaveBeenCalledWith(422, expect.any(Object));
+	expect(res.end).toHaveBeenCalledWith(expect.stringContaining("CLAIM_EXPIRED"));
+	expect(res.end).toHaveBeenCalledWith(expect.stringContaining("Adquira nova claim."));
+});
+
 function configureHumanGate(
 	deps: ItemRouteDependencies,
 	decisions: Record<string, string> | null = {

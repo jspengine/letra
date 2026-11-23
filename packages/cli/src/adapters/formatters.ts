@@ -68,11 +68,11 @@ function formatProtocol(snapshot: HarnessSnapshot): string | null {
 
 	if (snapshot.focusSpec) {
 		lines.push(
-			`PASSO OBRIGATÓRIO #4: Leia a seção relevante de .letra/specs/${snapshot.focusSpec}/spec.md — ACs do item`,
+			`PASSO OBRIGATÓRIO #4: Leia a seção relevante de specs/${snapshot.focusSpec}/spec.md no diretório de dados do workspace — ACs do item`,
 		);
 	} else if (primaryItem?.spec) {
 		lines.push(
-			`PASSO OBRIGATÓRIO #4: Leia a seção relevante de .letra/specs/${primaryItem.spec}/spec.md — ACs do item`,
+			`PASSO OBRIGATÓRIO #4: Leia a seção relevante de specs/${primaryItem.spec}/spec.md no diretório de dados do workspace — ACs do item`,
 		);
 	} else {
 		lines.push(
@@ -142,7 +142,7 @@ function formatProhibitionRules(): string {
 		"**Violação = Erro Grave**",
 		"",
 		"- Não edite workflow.json manualmente — use `letra flow` e `letra focus`",
-		"- Não crie specs fora de .letra/specs/ — use `letra spec new`",
+		"- Crie specs no diretório de dados do workspace, em `specs/`, usando `letra spec new`",
 		"- Não pule os passos obrigatórios de início acima",
 		"- Execute `letra validate` antes de mover item entre estágios",
 		"- Siga a constitution.md rigorosamente",
@@ -587,7 +587,7 @@ function formatHandoff(snapshot: HarnessSnapshot): string | null {
 function formatRulesText(): string {
 	return [
 		"# Rules",
-		"- Always read specs in .letra/specs/ before writing code",
+		"- Always read specs in the workspace data directory under specs/ before writing code",
 		"- Run `letra validate` to check acceptance criteria",
 		"- Execute `letra ac done <ID> --item <ITEM-ID>` after implementing each AC",
 		"- Follow the constitution.md rules strictly",

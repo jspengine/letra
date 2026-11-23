@@ -10,8 +10,19 @@ import { getLetraDir as getHomeLetraDir } from "./index.js";
  * (vitest) it resolves to `src/harness/default/{version}`.
  */
 function getDefaultHarnessSource(version: string): string {
-	const distDir = dirname(fileURLToPath(import.meta.url));
-	return join(distDir, "..", "harness", "default", version);
+	const moduleDir = dirname(fileURLToPath(import.meta.url));
+	const candidates = [
+		// bundled CLI: dist/index.js → dist/harness/default/{version}
+		join(moduleDir, "harness", "default", version),
+		// sources (vitest): src/workspace/resolution.ts → src/harness/default/{version}
+		join(moduleDir, "..", "harness", "default", version),
+	];
+	return candidates.find((candidate) => isHarnessDir(candidate)) ?? candidates[0];
+}
+
+/** A harness directory is usable only when it ships at least one flow. */
+export function isHarnessDir(path: string): boolean {
+	return existsSync(join(path, "flows"));
 }
 
 /**
@@ -36,13 +47,13 @@ export function getLegacyHarnessPath(version: string): string {
  */
 export function ensureSharedHarness(version: string): string {
 	const harnessPath = getHarnessPath(version);
-	if (existsSync(harnessPath)) return harnessPath;
+	// An empty directory left by an earlier failed bootstrap is repaired, not trusted.
+	if (isHarnessDir(harnessPath)) return harnessPath;
 	const source = getDefaultHarnessSource(version);
+	if (!isHarnessDir(source)) return harnessPath;
 	mkdirSync(harnessPath, { recursive: true });
-	if (existsSync(source)) {
-		for (const entry of readdirSync(source)) {
-			cpSync(join(source, entry), join(harnessPath, entry), { recursive: true, force: true });
-		}
+	for (const entry of readdirSync(source)) {
+		cpSync(join(source, entry), join(harnessPath, entry), { recursive: true, force: true });
 	}
 	return harnessPath;
 }

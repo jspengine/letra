@@ -68,7 +68,7 @@ export const acStaleDetector: Detector = {
 							return {
 								files: [
 									{
-										path: `.letra/specs/${dir.name}/spec.md`,
+										path: `specs/${dir.name}/spec.md`,
 										before,
 										after: newContent,
 									},
