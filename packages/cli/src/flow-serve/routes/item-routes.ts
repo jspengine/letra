@@ -431,9 +431,11 @@ export function createItemRoutes(
           {
             itemId: activateItemId,
             actor: sessionActor!,
+            // The revision activateWorkOperation compares (ITEM-39).
             expectedRevision:
               data.expectedRevision ??
-              resolveAgentDirection(workspaceRoot, activateItemId).revision,
+              directionForOperation(workspaceRoot, { itemId: activateItemId })
+                .revision,
             reason:
               data.reason?.trim() || "Item priorizado para início do fluxo.",
           },

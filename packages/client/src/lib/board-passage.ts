@@ -13,6 +13,29 @@ export function stageExitRequiresGateDecision(source: ActiveFlowStage | undefine
 	return Boolean(source?.gate?.blocking && source.gate.type === "human");
 }
 
+/**
+ * Leaving the backlog is not a passage between roles: it is the human
+ * activation (activateWorkOperation), which prioritizes the item and hands
+ * it to the first working role. The backlog has no role to claim for, so the
+ * passage path can never succeed there.
+ */
+export function isBacklogActivation(source: ActiveFlowStage | undefined | null): boolean {
+	return source?.zone === "todo";
+}
+
+/** Human activation from the board; the server records the session as actor. */
+export async function activateFromBoard(itemId: string, fetcher: typeof fetch = fetch): Promise<void> {
+	const response = await fetcher(`/api/items/${encodeURIComponent(itemId)}/activate`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ reason: "Item priorizado e iniciado pelo board." }),
+	});
+	if (!response.ok) {
+		const data = (await response.json().catch(() => ({}))) as { error?: string };
+		throw new Error(data.error || "Falha ao iniciar o item.");
+	}
+}
+
 export function gateDecisionRequiredMessage(source: ActiveFlowStage): string {
 	return `O estágio ${source.name} exige uma decisão explícita no painel do gate para avançar.`;
 }

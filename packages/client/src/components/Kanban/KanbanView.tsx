@@ -4,7 +4,7 @@ import { Card, CardContent } from "@letra/ui";
 import { Icon, Progress, Button } from "@letra/ui";
 import { cn } from "../../lib/utils";
 import { selectPassageRecipient } from "../../lib/passage-recipient";
-import { boardClaimRequest, gateDecisionRequiredMessage, stageExitRequiresGateDecision } from "../../lib/board-passage";
+import { activateFromBoard, boardClaimRequest, gateDecisionRequiredMessage, isBacklogActivation, stageExitRequiresGateDecision } from "../../lib/board-passage";
 import { MarchingBorder } from "./MarchingBorder";
 import type { Item } from "@letra/types";
 import {
@@ -177,6 +177,12 @@ export default function KanbanView({
 			// Gates guard the exit of their own stage; entering a gated stage is a passage.
 			if (source && stageExitRequiresGateDecision(source)) {
 				window.alert(gateDecisionRequiredMessage(source));
+				return;
+			}
+			if (isBacklogActivation(source)) {
+				activateFromBoard(itemId)
+					.then(() => debouncedMove())
+					.catch((error) => window.alert(error instanceof Error ? error.message : "Falha ao iniciar o item."));
 				return;
 			}
 			if (!item.claimExecutorId) {

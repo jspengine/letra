@@ -28,7 +28,7 @@ import { cn } from "../../lib/utils";
 import { createEventSourceWithReconnect } from "../../lib/withReconnect";
 import { computeSlug, countACs } from "../../lib/item-utils";
 import { selectPassageRecipient } from "../../lib/passage-recipient";
-import { boardClaimRequest, gateDecisionRequiredMessage, stageExitRequiresGateDecision } from "../../lib/board-passage";
+import { activateFromBoard, boardClaimRequest, gateDecisionRequiredMessage, isBacklogActivation, stageExitRequiresGateDecision } from "../../lib/board-passage";
 import { translateTerm } from "../../lib/term-translations";
 import {
 	itemOperationalState,
@@ -239,6 +239,12 @@ export default function ItemDetailModal({
 		// The gate of the CURRENT stage guards its exit; entering a gated stage is a passage.
 		if (curStage && stageExitRequiresGateDecision(curStage)) {
 			window.alert(gateDecisionRequiredMessage(curStage));
+			return;
+		}
+		if (isBacklogActivation(curStage)) {
+			activateFromBoard(item.id)
+				.then(() => { onItemMoved(); setMoveTarget(""); })
+				.catch((error) => window.alert(error instanceof Error ? error.message : "Falha ao iniciar o item."));
 			return;
 		}
 		if (!item.claimExecutorId) {

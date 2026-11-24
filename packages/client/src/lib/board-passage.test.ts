@@ -1,6 +1,23 @@
 import type { Item, ResolvedFlowDefinition, ResolvedFlowStage } from "@letra/types";
-import { describe, expect, it } from "vitest";
-import { BOARD_EXECUTOR_ID, boardClaimRequest, stageExitRequiresGateDecision } from "./board-passage";
+import { describe, expect, it, vi } from "vitest";
+import { BOARD_EXECUTOR_ID, activateFromBoard, boardClaimRequest, isBacklogActivation, stageExitRequiresGateDecision } from "./board-passage";
+
+describe("backlog activation", () => {
+	it("treats leaving a todo-zone stage as activation, not a passage", () => {
+		expect(isBacklogActivation(stage({ id: "backlog", zone: "todo" }))).toBe(true);
+		expect(isBacklogActivation(stage({ id: "design", zone: "doing" }))).toBe(false);
+		expect(isBacklogActivation(null)).toBe(false);
+	});
+
+	it("posts the human activation and surfaces the server refusal", async () => {
+		const ok = vi.fn(async () => new Response("{}", { status: 200 }));
+		await activateFromBoard("ITEM-39", ok as unknown as typeof fetch);
+		expect(ok).toHaveBeenCalledWith("/api/items/ITEM-39/activate", expect.objectContaining({ method: "POST" }));
+
+		const refused = vi.fn(async () => new Response(JSON.stringify({ error: "HUMAN_CONFIRMATION_REQUIRED" }), { status: 403 }));
+		await expect(activateFromBoard("ITEM-39", refused as unknown as typeof fetch)).rejects.toThrow("HUMAN_CONFIRMATION_REQUIRED");
+	});
+});
 
 const reviewer = { id: "reviewer", label: "Reviewer", description: "", allowedStages: ["review"], capabilities: ["read_code", "review_code"] };
 const security = { id: "security", label: "Security", description: "", allowedStages: ["security"], capabilities: ["read_code", "security_scan"] };

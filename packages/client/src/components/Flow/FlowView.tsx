@@ -6,7 +6,7 @@ import ActivityTimeline from "./ActivityTimeline";
 import ItemDetailModal from "./ItemDetailModal";
 import { cn } from "../../lib/utils";
 import { selectPassageRecipient } from "../../lib/passage-recipient";
-import { gateDecisionRequiredMessage, stageExitRequiresGateDecision } from "../../lib/board-passage";
+import { activateFromBoard, gateDecisionRequiredMessage, isBacklogActivation, stageExitRequiresGateDecision } from "../../lib/board-passage";
 import {
 	Button,
 	ButtonGroup,
@@ -212,6 +212,16 @@ export default function FlowView({
 		if (!item || !guardMove(item, targetStage)) return;
 		const destination = resolvedStages.find((stage) => stage.id === targetStage);
 		const recipients = destination?.roleIds?.length ? destination.roleIds : destination?.agents ?? [];
+		const source = resolvedStages.find((stage) => stage.id === item.stage);
+		if (isBacklogActivation(source)) {
+			activateFromBoard(itemId)
+				.then(() => {
+					onItemMoved();
+					if (selectedItemId === itemId) setSelectedItemId(null);
+				})
+				.catch((error) => toast(error instanceof Error ? error.message : "Erro ao iniciar o item.", "error"));
+			return;
+		}
 		if (!item.claimExecutorId) {
 			toast("Não há claim ativa para fazer a passagem. Abra o item e use \"Reivindicar como papel\".", "error");
 			return;
