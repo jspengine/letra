@@ -28,7 +28,20 @@ describe("versioned workflow definitions", () => {
 	it("creates an isolated draft without activating a version", () => { const created = createWorkflowDefinition(root(), { name: "New", actor: "human:owner" }); expect(created.definition.activeVersionId).toBeNull(); expect(created.draft.status).toBe("draft"); });
 	it("updates drafts optimistically and keeps published snapshots immutable", () => { const workspace = root(); const created = createWorkflowDefinition(workspace, { name: "Main", actor: "human:owner", content: valid() }); const updated = updateWorkflowDraft(workspace, created.definition.id, { expectedRevision: 1, actor: "human:owner", content: valid("Changed") }); expect(updated.revision).toBe(2); expect(() => updateWorkflowDraft(workspace, created.definition.id, { expectedRevision: 1, actor: "human:owner", content: valid("Lost") })).toThrow(/DRAFT_REVISION_CONFLICT/); const published = publishWorkflowDraft(workspace, created.definition.id, { expectedRevision: 2, actor: "human:owner", reason: "Release" }); createWorkflowDraft(workspace, created.definition.id, "human:owner"); const next = getWorkflowDraft(workspace, created.definition.id); updateWorkflowDraft(workspace, created.definition.id, { expectedRevision: next.revision, actor: "human:owner", content: valid("Next") }); expect(getWorkflowVersion(workspace, created.definition.id, published.number!).content.name).toBe("Changed"); });
 	it("blocks invalid publication and leaves active state unchanged", () => { const workspace = root(); const created = createWorkflowDefinition(workspace, { name: "Broken", actor: "human:owner" }); expect(validateWorkflowContent(created.draft.content).valid).toBe(false); expect(() => publishWorkflowDraft(workspace, created.definition.id, { expectedRevision: 1, actor: "human:owner", reason: "Bad" })).toThrow(/WORKFLOW_INVALID/); const index = JSON.parse(readFileSync(join(workspace, ".letra", "workflow-definitions", created.definition.id, "index.json"), "utf8")); expect(index.activeVersionId).toBeNull(); expect(existsSync(join(workspace, ".letra", "workflow-definitions", created.definition.id, "draft.json"))).toBe(true); });
-	it("publishes immutable sequential versions with hashes and human audit identity", () => { const workspace = root(); const created = createWorkflowDefinition(workspace, { name: "Main", actor: "human:owner", content: valid() }); const version = publishWorkflowDraft(workspace, created.definition.id, { expectedRevision: 1, actor: "human:publisher", reason: "Approved" }); expect(version).toMatchObject({ number: 1, status: "published", publishedBy: "human:publisher", changeSummary: "Approved" }); expect(version.contentHash).toMatch(/^[a-f0-9]{64}$/); expect(listWorkflowVersions(workspace, created.definition.id)).toHaveLength(1); });
+	// Publication requires the verifiable local identity (identity gap2): a
+	// fixed actor such as "human:publisher" is refused, and the audit records
+	// the local identity that published.
+	it("publishes immutable sequential versions with hashes and human audit identity", () => {
+		const workspace = root();
+		const created = createWorkflowDefinition(workspace, { name: "Main", actor: "human:owner", content: valid() });
+		expect(() => publishWorkflowDraft(workspace, created.definition.id, { expectedRevision: 1, actor: "human:publisher", reason: "Approved" })).toThrow(/OPERATION_LEVEL_REQUIRED/);
+		expect(listWorkflowVersions(workspace, created.definition.id)).toHaveLength(0);
+		const publisher = resolveLocalIdentity(workspace).id;
+		const version = publishWorkflowDraft(workspace, created.definition.id, { expectedRevision: 1, actor: publisher, reason: "Approved" });
+		expect(version).toMatchObject({ number: 1, status: "published", publishedBy: "human:owner", changeSummary: "Approved" });
+		expect(version.contentHash).toMatch(/^[a-f0-9]{64}$/);
+		expect(listWorkflowVersions(workspace, created.definition.id)).toHaveLength(1);
+	});
 	it("rolls back by publishing a new version without modifying history", () => {
 		const workspace = root();
 		const created = createWorkflowDefinition(workspace, { name: "Main", actor: "human:owner", content: valid("V1") });

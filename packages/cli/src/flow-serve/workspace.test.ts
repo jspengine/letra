@@ -99,10 +99,12 @@ describe("workspace smart setup", () => {
 
 		expect(plan.operations).toEqual(
 			expect.arrayContaining([
+				// Generated adapters are the stable live-direction bootstrap
+				// (f62e36d90), so the update adds it instead of "Letra Context".
 				expect.objectContaining({
 					kind: "update",
 					path: expect.stringContaining("CLAUDE.md"),
-					diff: expect.stringContaining("+ # Letra Context"),
+					diff: expect.stringContaining("+ # Letra Agent Bootstrap"),
 				}),
 				expect.objectContaining({
 					kind: "conflict",
