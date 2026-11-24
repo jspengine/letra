@@ -1,8 +1,10 @@
 import { resolve } from "node:path";
 import chalk from "chalk";
 import { loadWorkflow } from "./flow-init.js";
-import { requestPassageOperation } from "../domain-operations/service.js";
-import { resolveAgentDirection } from "../agent-direction/service.js";
+import {
+	directionForRunAwareOperation,
+	requestPassageOperation,
+} from "../domain-operations/service.js";
 import { resolveLocalIdentity } from "../identity/service.js";
 import { resolveActiveFlow } from "../flow-definition/resolve.js";
 
@@ -79,7 +81,13 @@ export async function flowMove(
 		summary: `Passagem solicitada pela CLI: ${fromStage} → ${toStage}.`,
 		evidence: [],
 		actor: options?.actor?.trim() || resolveLocalIdentity(root).id,
-		expectedRevision: resolveAgentDirection(root, item.id, { runId: options?.run }).revision,
+		// The revision requestPassageOperation compares (run-aware, bound to
+		// the claim's executor); resolveAgentDirection diverges once a Run exists.
+		expectedRevision: directionForRunAwareOperation(root, {
+			itemId: item.id,
+			runId: options?.run,
+			executorId: item.claimExecutorId,
+		}).revision,
 		reason: options?.reason?.trim() || `Transição solicitada pela CLI: ${fromStage} → ${toStage}.`,
 	});
 	if (operation.outcome !== "accepted") {

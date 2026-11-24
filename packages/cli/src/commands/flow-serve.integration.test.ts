@@ -7,6 +7,9 @@ import { fileURLToPath } from "node:url";
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { FlowServer } from "./flow-serve.js";
 import { saveWorkflow, type Item, type Workflow } from "./flow-init.js";
+import { directionForOperation } from "../domain-operations/service.js";
+import { claimCanonically } from "../test/canonical-claim.js";
+import { ensureSharedHarness } from "../workspace/resolution.js";
 import { resolveAgentDirection, resolveDirection } from "../agent-direction/service.js";
 import { resolveLocalIdentity } from "../identity/service.js";
 import { createWorkflowDefinition, publishWorkflowDraft } from "../workflow-versions/service.js";
@@ -140,12 +143,18 @@ async function api(method: string, url: string, body?: unknown): Promise<HttpRes
 	return { status: res.status, body: parsed };
 }
 
-function executorBody(root: string, idempotencyKey: string) {
+// The revision the item operations compare: the item's direction (which
+// accounts for its active Run), not the item-less workspace direction.
+function itemRevision(root: string, itemId: string): string {
+	return directionForOperation(root, { itemId }).revision;
+}
+
+function executorBody(root: string, itemId: string, idempotencyKey: string) {
 	return {
 		actor: "implementer",
 		executorId: "web-ui",
 		capability: "write_code",
-		expectedRevision: resolveAgentDirection(root).revision,
+		expectedRevision: itemRevision(root, itemId),
 		idempotencyKey,
 	};
 }
@@ -206,7 +215,7 @@ describe("FlowServer HTTP API integration", () => {
 
 	describe("AC1.1 — Claim via POST /api/items/:id/claim", () => {
 		it("should populate claimedBy and claimedAt on claim", async () => {
-			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-claim-1"));
+			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "ITEM-1", "integration-claim-1"));
 			expect(status).toBe(200);
 			const item = (body as { nextDirection?: { item?: Record<string, unknown> } }).nextDirection?.item ?? {};
 			expect(item.claimedBy).toBe(resolveLocalIdentity(tmpDir).id);
@@ -214,12 +223,12 @@ describe("FlowServer HTTP API integration", () => {
 		});
 
 		it("should return 404 for non-existent item", async () => {
-			const { status } = await api("POST", `${baseUrl}/api/items/ITEM-999/claim`, executorBody(tmpDir, "integration-claim-missing"));
+			const { status } = await api("POST", `${baseUrl}/api/items/ITEM-999/claim`, executorBody(tmpDir, "ITEM-999", "integration-claim-missing"));
 			expect(status).toBe(404);
 		});
 
 		it("should return 400 when claiming a done-zone item", async () => {
-			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-3/claim`, executorBody(tmpDir, "integration-claim-done"));
+			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-3/claim`, executorBody(tmpDir, "ITEM-3", "integration-claim-done"));
 			expect(status).toBe(400);
 			const err = body as { error?: string };
 			expect(err.error).toMatch(/cannot claim a completed/i);
@@ -285,9 +294,9 @@ describe("FlowServer HTTP API integration", () => {
 
 	describe("AC1.2 — Release via POST /api/items/:id/release", () => {
 		it("should clear claimedBy and claimedAt", async () => {
-			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-release-claim"));
+			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "ITEM-1", "integration-release-claim"));
 
-			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/release`, { actor: "implementer", expectedRevision: resolveAgentDirection(tmpDir).revision, idempotencyKey: "integration-release" });
+			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/release`, { actor: "implementer", expectedRevision: itemRevision(tmpDir, "ITEM-1"), idempotencyKey: "integration-release" });
 			expect(status).toBe(200);
 			const item = body as Record<string, unknown>;
 			expect(item.claimedBy).toBeUndefined();
@@ -326,7 +335,7 @@ describe("FlowServer HTTP API integration", () => {
 
 	describe("GET /api/workflow", () => {
 		it("should return the full workflow with item state", async () => {
-			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-workflow-claim"));
+			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "ITEM-1", "integration-workflow-claim"));
 			const { status, body } = await api("GET", `${baseUrl}/api/workflow`);
 			expect(status).toBe(200);
 			const wf = body as { items?: Array<Record<string, unknown>> };
@@ -337,8 +346,8 @@ describe("FlowServer HTTP API integration", () => {
 		});
 
 		it("should reflect release via GET", async () => {
-			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-workflow-release-claim"));
-			await api("POST", `${baseUrl}/api/items/ITEM-1/release`, { actor: "implementer", expectedRevision: resolveAgentDirection(tmpDir).revision, idempotencyKey: "integration-workflow-release" });
+			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "ITEM-1", "integration-workflow-release-claim"));
+			await api("POST", `${baseUrl}/api/items/ITEM-1/release`, { actor: "implementer", expectedRevision: itemRevision(tmpDir, "ITEM-1"), idempotencyKey: "integration-workflow-release" });
 
 			const { body } = await api("GET", `${baseUrl}/api/workflow`);
 			const wf = body as { items?: Array<Record<string, unknown>> };
@@ -488,15 +497,15 @@ describe("FlowServer HTTP API integration", () => {
 	describe("AC1.8 — SSE broadcast verification", () => {
 		it("should broadcast workflow-updated after claim", async () => {
 			const received = await sseWaitForEvent(baseUrl, "workflow-updated", async () => {
-				await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-sse-claim"));
+				await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "ITEM-1", "integration-sse-claim"));
 			});
 			expect(received).toBe(true);
 		});
 
 		it("should broadcast workflow-updated after release", async () => {
-			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "integration-sse-release-claim"));
+			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "ITEM-1", "integration-sse-release-claim"));
 			const received = await sseWaitForEvent(baseUrl, "workflow-updated", async () => {
-				await api("POST", `${baseUrl}/api/items/ITEM-1/release`, { actor: "implementer", expectedRevision: resolveAgentDirection(tmpDir).revision, idempotencyKey: "integration-sse-release" });
+				await api("POST", `${baseUrl}/api/items/ITEM-1/release`, { actor: "implementer", expectedRevision: itemRevision(tmpDir, "ITEM-1"), idempotencyKey: "integration-sse-release" });
 			});
 			expect(received).toBe(true);
 		});
@@ -518,8 +527,10 @@ describe("FlowServer HTTP API integration", () => {
 	});
 
 	describe("GET /api/activity-context", () => {
+		// The context never infers work from workflow position (contract in
+		// activity-context/builder.test.ts); the item is selected explicitly.
 		it("should return default implement context", async () => {
-			const { status, body } = await api("GET", `${baseUrl}/api/activity-context`);
+			const { status, body } = await api("GET", `${baseUrl}/api/activity-context?item=ITEM-1`);
 			expect(status).toBe(200);
 			const context = body as {
 				activity?: string;
@@ -536,7 +547,7 @@ describe("FlowServer HTTP API integration", () => {
 		it("should return requested activity context", async () => {
 			const { status, body } = await api(
 				"GET",
-				`${baseUrl}/api/activity-context?activity=review`,
+				`${baseUrl}/api/activity-context?activity=review&item=ITEM-1`,
 			);
 			expect(status).toBe(200);
 			const context = body as {
@@ -603,7 +614,12 @@ describe("CLI integration (AC1.5 — focus)", () => {
 describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
 	let tmpDir: string;
 
-	beforeAll(() => {
+	// `flow move` is a canonical passage: it needs the harness flow (the
+	// destination role comes from `flow-main`) and a claim obtained through the
+	// claim operation. The test home is isolated, so the harness is installed
+	// explicitly.
+	beforeAll(async () => {
+		ensureSharedHarness("v0.2.0");
 		tmpDir = join(tmpdir(), `letra-cli-move-int-${Date.now()}`);
 		mkdirSync(join(tmpDir, ".letra", "specs", "auth"), { recursive: true });
 		writeFileSync(
@@ -616,6 +632,8 @@ describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
 			name: "test",
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
+			harnessVersion: "v0.2.0",
+			template: "flow-main",
 			stages: [
 				{ id: "backlog", name: "Backlog", order: 0, zone: "todo" },
 				{ id: "code", name: "Code", order: 1, zone: "doing" },
@@ -634,6 +652,12 @@ describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
 			tools: [],
 		};
 		saveWorkflow(tmpDir, workflow);
+		await claimCanonically(tmpDir, {
+			itemId: "ITEM-1",
+			actor: "implementer",
+			executorId: "cli",
+			capability: "write_code",
+		});
 	});
 
 	afterAll(() => {
@@ -642,18 +666,19 @@ describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
 		}
 	});
 
-	it("flow move ITEM-X --to review syncs focus via focus.md", () => {
-		runCLI(["flow", "move", "ITEM-1", "--to", "review"], tmpDir);
-
-		const focusFile = join(tmpDir, ".letra", "focus.md");
-		expect(existsSync(focusFile)).toBe(true);
-
-		const content = readFileSync(focusFile, "utf-8");
-		expect(content).toContain("**Item**: ITEM-1");
-		expect(content).toContain("# Focus: auth");
+	// Since e5accae95 the live direction assigns work and focus.md is only
+	// workspace attention: a canonical passage moves the item and must not
+	// rewrite focus (previously "flow move syncs focus via focus.md").
+	it("flow move ITEM-X --to review moves through canonical passage without touching focus", () => {
+		const result = runCLI(["flow", "move", "ITEM-1", "--to", "review"], tmpDir);
+		expect(result.stdout).toContain("ITEM-1");
+		expect(result.stdout).toContain("moved");
 
 		const wf = JSON.parse(readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"));
 		const item = wf.items.find((i: Item) => i.id === "ITEM-1");
 		expect(item.stage).toBe("review");
+		expect(item.handoff?.to).toBe("reviewer");
+
+		expect(existsSync(join(tmpDir, ".letra", "focus.md"))).toBe(false);
 	}, 20000);
 });

@@ -10,7 +10,7 @@ import {
 } from "./service.js";
 import { resolveActiveFlow, resolveActiveFlowFor } from "../flow-definition/resolve.js";
 import { resolveAgentDirection } from "../agent-direction/service.js";
-import { claimOperation, recordExecutionEvent, releaseClaimOperation, requestHandoffOperation, requestTransitionOperation } from "../domain-operations/service.js";
+import { claimOperation, directionForOperation, recordExecutionEvent, releaseClaimOperation, requestHandoffOperation, requestTransitionOperation } from "../domain-operations/service.js";
 import { readExecutionRuns } from "../execution-runs/store.js";
 import type { Workflow } from "../commands/flow-init.js";
 
@@ -252,9 +252,13 @@ describe("Gap 5: Runtime using active version and execution pin", () => {
 			executorId: "codex", actor: "implementer", expectedRevision: claimResult.afterRevision,
 			reason: "Transfer the pinned Run for review.",
 		});
-		expect(handoff).toMatchObject({ outcome: "accepted", reasonCode: "HANDOFF_ACCEPTED" });
+		// Handoff is the canonical passage (requestHandoffOperation delegates to
+		// requestPassageOperation); a role recipient completes the passage.
+		expect(handoff).toMatchObject({ outcome: "accepted", reasonCode: "PASSAGE_COMPLETED" });
+		// A passage to a role queues the Run for that role ("waiting-human" is
+		// for human recipients); same contract as domain-operations/service.test.
 		const waitingRun = readExecutionRuns(testDir).runs[0];
-		expect(waitingRun).toMatchObject({ id: createdRun?.id, status: "waiting-human", lease: null, cycle: { endedAt: expect.any(String) } });
+		expect(waitingRun).toMatchObject({ id: createdRun?.id, status: "queued", lease: null, cycle: { endedAt: expect.any(String) } });
 		expect(waitingRun?.handoffs[0]?.toActorId).toBe("reviewer");
 
 		const resumed = await claimOperation(testDir, {
@@ -263,14 +267,20 @@ describe("Gap 5: Runtime using active version and execution pin", () => {
 		});
 		expect(resumed.outcome).toBe("accepted");
 		expect(readExecutionRuns(testDir).runs[0]).toMatchObject({ id: createdRun?.id, status: "running", workflowVersionId: published.id, revision: 3, cycle: { number: 2, endedAt: null }, binding: { actorId: "reviewer", executorId: "codex" }, authorization: { kind: "handoff" } });
+		// Events and release compare directionForOperation, while the claim
+		// returns the assigned Run direction as afterRevision; chaining them
+		// directly is ITEM-39. Consult the direction the operation compares,
+		// as the product dispatcher does before each call.
 		const heartbeat = await recordExecutionEvent(testDir, {
 			itemId: "ITEM-CLAIM", actor: "reviewer", executorId: "codex", status: "heartbeat",
-			expectedRevision: resumed.afterRevision, reason: "Renew the delegated Run lease.",
+			expectedRevision: directionForOperation(testDir, { itemId: "ITEM-CLAIM" }).revision,
+			reason: "Renew the delegated Run lease.",
 		});
 		expect(heartbeat).toMatchObject({ outcome: "accepted", reasonCode: "EVENT_RECORDED" });
 		expect(readExecutionRuns(testDir).runs[0]?.lease?.heartbeatAt).toBeTruthy();
 		const released = await releaseClaimOperation(testDir, {
-			itemId: "ITEM-CLAIM", actor: "reviewer", expectedRevision: heartbeat.afterRevision,
+			itemId: "ITEM-CLAIM", actor: "reviewer",
+			expectedRevision: directionForOperation(testDir, { itemId: "ITEM-CLAIM" }).revision,
 			reason: "Release the completed Run cycle.",
 		});
 		expect(released).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_RELEASED" });

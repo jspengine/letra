@@ -59,12 +59,19 @@ export interface SpecParseWarning {
 export interface SpecParseError {
   code: string;
   message: string;
+  /** Frontmatter field the error refers to, when there is one. */
+  field?: string;
 }
 
 export interface SpecParseResult {
   data: SpecFrontmatter | null;
   warnings: SpecParseWarning[];
   errors: SpecParseError[];
+  /**
+   * True when the spec has no YAML frontmatter and `data` was inferred by the
+   * transitional legacy heuristic. Legacy specs are reported as warnings.
+   */
+  legacy?: boolean;
 }
 
 export type SpecSchemaVersion = "1";

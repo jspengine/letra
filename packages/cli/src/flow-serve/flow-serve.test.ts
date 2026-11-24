@@ -20,7 +20,7 @@ function createWorkflow(root: string): void {
 	mkdirSync(join(harnessDir, "executors"), { recursive: true });
 	writeFileSync(
 		join(harnessDir, "flows", "flow-main.yaml"),
-		"id: flow-main\nversion: 1\nname: Flow\ndescription: test\ndefaultPolicy: default\nstages:\n  - id: code\n    name: Code\n    order: 1\n    zone: doing\n    agents:\n      - implementer\n    gate: null\n  - id: review\n    name: Review\n    order: 2\n    zone: doing\n    agents:\n      - reviewer\n    gate: null\n  - id: security\n    name: Security\n    order: 3\n    zone: doing\n    agents:\n      - security\n    gate: human-approved\n",
+		"id: flow-main\nversion: 1\nname: Flow\ndescription: test\ndefaultPolicy: default\nstages:\n  - id: code\n    name: Code\n    order: 1\n    zone: doing\n    agents:\n      - implementer\n    gate: null\n    transitions:\n      - target: review\n  - id: review\n    name: Review\n    order: 2\n    zone: doing\n    agents:\n      - reviewer\n    gate: human-approved\n  - id: security\n    name: Security\n    order: 3\n    zone: doing\n    agents:\n      - security\n    gate: null\n",
 	);
 	writeFileSync(join(harnessDir, "gates", "human-approved.yaml"), "id: human-approved\nname: Human approval\ntype: human\nblocking: true\nblocksHandoff: true\ndescription: test\n");
 	for (const [id, stage, capability] of [["implementer", "code", "write_code"], ["reviewer", "review", "review_code"], ["security", "security", "security_scan"]]) {
@@ -99,7 +99,7 @@ describe("FlowServer SSE + Orchestrator Integration", () => {
 
 		// Get the orchestrator and emit a handoff
 		const orchestrator = (server as any).orchestrator;
-		orchestrator.emitHandoff({
+		await orchestrator.emitHandoff({
 			itemId: "ITEM-1",
 			from: "opencode",
 			to: "reviewer",
@@ -142,9 +142,21 @@ describe("FlowServer SSE + Orchestrator Integration", () => {
 		};
 		saveWorkflow(root, workflow);
 		const server = new FlowServer(root, 3004, { autopilot: true, dispatcherIntervalMs: 60_000, executorFactory: (_root, capabilities) => [createSimulatedExecutor("codex", [...capabilities, "write_code", "review_code", "security_scan"])] });
+		// Two dispatch cycles: start() runs the first immediately (code ->
+		// reviewer); the manual dispatch runs the second (review is the last
+		// stage of this workflow, so the executor hands off to a person, which
+		// the review stage's blocking human gate allows as an auditable pause).
+		// Wait for the first cycle deterministically instead of sleeping:
+		// while it runs, dispatch() returns [] and the assertions race it.
 		await server.start();
-		await new Promise((resolve) => setTimeout(resolve, 250));
-		const dispatchResult = await (server as any).dispatcher.dispatch();
+		const dispatcher = (server as any).dispatcher;
+		const deadline = Date.now() + 15_000;
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		while (dispatcher.running && Date.now() < deadline) {
+			await new Promise((resolve) => setTimeout(resolve, 25));
+		}
+		expect(dispatcher.running).toBe(false);
+		const dispatchResult = await dispatcher.dispatch();
 		expect(dispatchResult[0]?.reason).toBeUndefined();
 		server.stop();
 		const updated = loadWorkflow(root)!;

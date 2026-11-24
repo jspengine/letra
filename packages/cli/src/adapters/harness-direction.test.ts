@@ -188,7 +188,8 @@ stages:
 			tmpDir,
 			buildOptions({
 				activeStageId: "empty-stage",
-				primaryItemId: undefined,
+				// Explicit: adapters no longer infer the first stage item.
+				primaryItemId: "ITEM-2",
 				workflow: {
 					name: "Test",
 					stages: [{ id: "empty-stage", name: "Empty", order: 0 }],

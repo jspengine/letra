@@ -32,15 +32,16 @@ describe("harness-stale detector", () => {
 		);
 	}
 
-	function writeAdapter(path: string, hasL1: boolean) {
+	// "Current" means the stable bootstrap that sends agents to the live
+	// direction; the legacy L1 references alone no longer make an adapter current.
+	function writeAdapter(path: string, isCurrent: boolean) {
 		const fullPath = join(tmpDir, path);
 		mkdirSync(join(fullPath, ".."), { recursive: true });
-		const isAt = path === ".cursorrules" || path === ".windsurfrules";
-		if (hasL1) {
-			const refs = isAt
-				? "- @.letra/context.md\n- @.letra/constitution.md\n"
-				: "- .letra/context.md\n- .letra/constitution.md\n";
-			writeFileSync(fullPath, `# Adapter\n\nRead:\n${refs}`);
+		if (isCurrent) {
+			writeFileSync(
+				fullPath,
+				"# Letra Agent Bootstrap\n\n1. Query `get_direction` or run `letra direction --json` before acting.\n",
+			);
 		} else {
 			writeFileSync(fullPath, "# Adapter\n\nNo references here.\n");
 		}
@@ -86,7 +87,18 @@ describe("harness-stale detector", () => {
 		expect(results).toHaveLength(1);
 	});
 
-	it("autoFix should regenerate adapters with L1 refs", async () => {
+	it("flags legacy adapters that only carry L1 refs", async () => {
+		writeWorkflow(["opencode"]);
+		writeFileSync(
+			join(tmpDir, "AGENTS.md"),
+			"# Adapter\n\nRead:\n- .letra/context.md\n- .letra/constitution.md\n",
+		);
+
+		const results = await harnessStaleDetector.run(tmpDir);
+		expect(results).toHaveLength(1);
+	});
+
+	it("autoFix regenerates the bootstrap and clears the alert", async () => {
 		writeWorkflow(["cursor", "opencode"]);
 		writeAdapter(".cursorrules", false);
 		writeAdapter("AGENTS.md", false);
@@ -101,15 +113,19 @@ describe("harness-stale detector", () => {
 
 		for (const file of applied.files) {
 			expect(file.before).toContain("No references here");
-			expect(file.after).toContain(".letra/context.md");
-			expect(file.after).toContain(".letra/constitution.md");
+			expect(file.after).toContain("# Letra Agent Bootstrap");
+			expect(file.after).toContain("letra direction --json");
 		}
 
 		const cursorContent = readFileSync(join(tmpDir, ".cursorrules"), "utf-8");
-		expect(cursorContent).toContain(".letra/context.md");
+		expect(cursorContent).toContain("# Letra Agent Bootstrap");
 
 		const agentsContent = readFileSync(join(tmpDir, "AGENTS.md"), "utf-8");
-		expect(agentsContent).toContain(".letra/context.md");
+		expect(agentsContent).toContain("# Letra Agent Bootstrap");
+
+		// The regenerated adapters must satisfy the detector, so the alert does
+		// not come back on the next scan.
+		expect(await harnessStaleDetector.run(tmpDir)).toHaveLength(0);
 	});
 
 	it("autoFix should not modify adapters that were already fresh", async () => {

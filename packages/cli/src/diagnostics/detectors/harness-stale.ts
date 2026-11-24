@@ -5,6 +5,7 @@ import type { Detector, DiagnosticResult } from "../types.js";
 import { getLetraDir } from "./../../workspace/resolver.js";
 
 const ADAPTER_FILES = adapterDiagnosticFiles();
+const BOOTSTRAP_MARKERS = ["# Letra Agent Bootstrap", "letra direction --json"];
 
 export const harnessStaleDetector: Detector = {
 	name: "harness-stale",
@@ -44,24 +45,12 @@ export const harnessStaleDetector: Detector = {
 			const filePath = join(rootDir, info.path);
 			if (!existsSync(filePath)) continue;
 
+			// Current adapters are the stable bootstrap that sends agents to the
+			// live direction. The old L1 references (.letra/context.md) are no
+			// longer generated, so checking them flagged every fresh adapter and
+			// the autoFix could never clear the alert.
 			const content = readFileSync(filePath, "utf-8");
-			let isStale = false;
-
-			if (info.format === "at") {
-				if (
-					!content.includes("@.letra/context.md") ||
-					!content.includes("@.letra/constitution.md")
-				) {
-					isStale = true;
-				}
-			} else {
-				if (
-					!content.includes(".letra/context.md") ||
-					!content.includes(".letra/constitution.md")
-				) {
-					isStale = true;
-				}
-			}
+			const isStale = !BOOTSTRAP_MARKERS.every((marker) => content.includes(marker));
 
 			if (isStale) staleTools.push(tool);
 		}
@@ -93,7 +82,7 @@ export const harnessStaleDetector: Detector = {
 				id: "harness-stale_all",
 				type: "info",
 				title: `Adaptadores desatualizados: ${staleTools.join(", ")}`,
-				description: `Regenerando ${staleTools.length} adaptador(es) sem referências L1.`,
+				description: `Regenerando ${staleTools.length} adaptador(es) sem o bootstrap de direção viva.`,
 				certainty: 1.0,
 				detector: "harness-stale",
 				autoFix: async () => {

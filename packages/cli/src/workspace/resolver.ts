@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, statSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, isAbsolute, resolve, dirname } from "node:path";
+import { join, isAbsolute, resolve, dirname, delimiter } from "node:path";
 import { getWorkspacePath, detectManifest, ensureLetraDirs } from "./index.js";
 
 export interface WorkspaceResolution {
@@ -18,6 +18,33 @@ export interface WorkspaceResolution {
 }
 
 const ENV_KEY = "LETRA_WORKSPACE";
+/**
+ * Directories the upward workspace search never enters, like Git's
+ * GIT_CEILING_DIRECTORIES (list separated by the platform path delimiter).
+ * The starting directory itself is always examined.
+ */
+const CEILING_ENV_KEY = "LETRA_CEILING_DIRECTORIES";
+
+function ceilingDirectories(): Set<string> {
+	const raw = process.env[CEILING_ENV_KEY];
+	if (!raw) return new Set();
+	return new Set(
+		raw
+			.split(delimiter)
+			.map((entry) => entry.trim())
+			.filter(Boolean)
+			.map((entry) => normalizeForCompare(resolve(entry))),
+	);
+}
+
+function normalizeForCompare(path: string): string {
+	return process.platform === "win32" ? path.toLowerCase() : path;
+}
+
+/** The home directory is never a project root: its markers are ignored. */
+function isHomeDirectory(dir: string): boolean {
+	return normalizeForCompare(resolve(dir)) === normalizeForCompare(resolve(homedir()));
+}
 export const LINK_FILE = ".letra-link";
 export const LETRA_FOLDER = ".letra";
 
@@ -142,9 +169,11 @@ export function resolveWorkspaceRoot(cwd?: string): WorkspaceResolution {
 
 	let dir = start;
 	const originalCwd = start; // targetDir is the directory resolution started from
+	const ceilings = ceilingDirectories();
 
 	const result = (function walk(): WorkspaceResolution {
 		while (dir) {
+			if (dir !== start && ceilings.has(normalizeForCompare(dir))) break;
 			// 1. Environment variable
 			const envWs = getEnvWorkspace();
 			if (envWs) {
@@ -173,6 +202,17 @@ export function resolveWorkspaceRoot(cwd?: string): WorkspaceResolution {
 						type: "flag",
 					});
 				}
+			}
+
+			// The home directory holds Letra's global data, never a project:
+			// a stray ~/.letra-link, manifest or workflow.json there would
+			// capture every directory below home (including the OS temp dir on
+			// Windows). Only reached while walking up; an explicit start is kept.
+			if (dir !== start && isHomeDirectory(dir)) {
+				const parent = dirname(dir);
+				if (parent === dir) break;
+				dir = parent;
+				continue;
 			}
 
 			// 3. Direct data directory

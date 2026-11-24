@@ -55,7 +55,7 @@ function formatProtocol(snapshot: HarnessSnapshot): string | null {
 
 	const primaryItem = snapshot.primaryItemId
 		? snapshot.items.find((i) => i.id === snapshot.primaryItemId)
-		: snapshot.items[0];
+		: undefined;
 
 	const acLine =
 		snapshot.totalACs > 0 ? `ACs: ${snapshot.pendingACs}/${snapshot.totalACs} pendentes` : "";
@@ -89,7 +89,7 @@ function formatFocus(snapshot: HarnessSnapshot): string | null {
 
 	const primaryItem = snapshot.primaryItemId
 		? snapshot.items.find((i) => i.id === snapshot.primaryItemId)
-		: snapshot.items[0];
+		: undefined;
 
 	if (!primaryItem) return null;
 
@@ -278,7 +278,7 @@ function formatHarnessDirection(snapshot: HarnessSnapshot, format: AdapterFormat
 
 	// Resolve placeholders: <AC-ID> and <ITEM-ID>
 	const pendingIds = dir.pendingACIds ?? [];
-	const resolvedItemId = dir.primaryItemId ?? snapshot.primaryItemId ?? snapshot.items[0]?.id;
+	const resolvedItemId = dir.primaryItemId ?? snapshot.primaryItemId;
 
 	const resolvedCommands: typeof aggCommands = [];
 	for (const cmd of aggCommands) {

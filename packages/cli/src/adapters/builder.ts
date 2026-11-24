@@ -174,11 +174,13 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 		}
 	}
 
+	// The adapter never infers an assignment: without an explicit primary item
+	// in the active stage, it shows no current item and agents must ask the
+	// live direction. Falling back to the first stage item made generated
+	// adapters point at the wrong item.
 	let primaryItemId: string | null = null;
 	if (options.primaryItemId && stageItems.some((item) => item.id === options.primaryItemId)) {
 		primaryItemId = options.primaryItemId;
-	} else if (stageItems.length > 0) {
-		primaryItemId = stageItems[0]!.id;
 	}
 
 	const items: HarnessItem[] = stageItems.map((item) => ({

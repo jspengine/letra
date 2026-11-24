@@ -3,8 +3,12 @@ import chalk from "chalk";
 import { resolveLocalIdentity } from "../identity/service.js";
 import { type Item, loadWorkflow } from "./flow-init.js";
 import { loadHarness, resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "../harness/loader.js";
-import { resolveAgentDirection } from "../agent-direction/service.js";
-import { requestHandoffOperation, rollbackHandoffOperation } from "../domain-operations/service.js";
+import {
+	directionForOperation,
+	directionForRunAwareOperation,
+	requestHandoffOperation,
+	rollbackHandoffOperation,
+} from "../domain-operations/service.js";
 
 const DEFAULT_HANDOFF_TTL_MINUTES = 30;
 
@@ -51,7 +55,9 @@ export async function handoffItem(
 		const operation = await rollbackHandoffOperation(root, {
 			itemId,
 			actor,
-			expectedRevision: resolveAgentDirection(root).revision,
+			// The item's direction, as the operation compares it; the item-less
+			// workspace direction has a different revision.
+			expectedRevision: directionForOperation(root, { itemId }).revision,
 			reason: options.summary ?? "Rollback solicitado pela CLI.",
 		});
 		if (operation.outcome !== "accepted") {
@@ -93,15 +99,18 @@ export async function handoffItem(
 		console.log(chalk.red("Cannot handoff: item has no active claim"));
 		process.exit(1);
 	}
+	const executorId = options.executor ?? item.claimExecutorId ?? "cli";
 	const operation = await requestHandoffOperation(root, {
 		itemId,
 		to: options.to,
 		actor: from,
-		executorId: options.executor ?? item.claimExecutorId ?? "cli",
+		executorId,
 		summary: options.summary,
 		evidence: options.evidence || [],
 		ttlMinutes,
-		expectedRevision: resolveAgentDirection(root).revision,
+		// Handoff is a canonical passage: it compares the run-aware direction
+		// of this item, not the item-less workspace direction.
+		expectedRevision: directionForRunAwareOperation(root, { itemId, executorId }).revision,
 		reason: options.summary,
 	});
 	if (operation.outcome !== "accepted") {

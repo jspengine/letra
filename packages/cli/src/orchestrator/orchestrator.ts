@@ -126,7 +126,7 @@ export class Orchestrator {
 		return null;
 	}
 
-	emitHandoff(payload: HandoffPayload): { success: boolean; reason?: string } {
+	async emitHandoff(payload: HandoffPayload): Promise<{ success: boolean; reason?: string }> {
 		const workflow = loadWorkflow(this.root);
 		if (!workflow) {
 			return { success: false, reason: "No workflow found" };
@@ -150,7 +150,7 @@ export class Orchestrator {
 			}
 		}
 
-		const persisted = this.gateway.emitHandoff(this.root, payload);
+		const persisted = await this.gateway.emitHandoff(this.root, payload);
 		if (!persisted.ok) return { success: false, reason: persisted.reason };
 		this.writeHandoffFile({ ...item, handoff: payload });
 
@@ -171,11 +171,11 @@ export class Orchestrator {
 		return { success: true };
 	}
 
-	autoClaim(
+	async autoClaim(
 		itemId: string,
 		executorId: string,
 		agentId: string,
-	): { success: boolean; reason?: string } {
+	): Promise<{ success: boolean; reason?: string }> {
 		const workflow = loadWorkflow(this.root);
 		if (!workflow) {
 			return { success: false, reason: "No workflow found" };
@@ -209,7 +209,7 @@ export class Orchestrator {
 
 		const handoffData =
 			item.handoff && item.handoff.to === agentId ? { ...item.handoff } : null;
-		const persisted = this.gateway.claim(this.root, { itemId, executorId, agentId });
+		const persisted = await this.gateway.claim(this.root, { itemId, executorId, agentId });
 		if (!persisted.ok) return { success: false, reason: persisted.reason };
 		if (handoffData) this.removeHandoffFile(itemId);
 
@@ -288,7 +288,7 @@ export class Orchestrator {
 		});
 	}
 
-	reclaimStaleItems(): string[] {
+	async reclaimStaleItems(): Promise<string[]> {
 		const workflow = loadWorkflow(this.root);
 		if (!workflow) return [];
 
@@ -320,7 +320,7 @@ export class Orchestrator {
 		}
 
 		if (reclaimed.length > 0) {
-			const persisted = this.gateway.reclaim(this.root, reclaimed);
+			const persisted = await this.gateway.reclaim(this.root, reclaimed);
 			if (!persisted.ok) return [];
 		}
 
@@ -330,7 +330,8 @@ export class Orchestrator {
 	startReclaimTimer(): void {
 		if (this.reclaimTimer) return;
 		this.reclaimTimer = setInterval(() => {
-			this.reclaimStaleItems();
+			// The timer cannot await; a failed reclaim is retried on the next tick.
+			void this.reclaimStaleItems().catch(() => undefined);
 		}, RECLAIM_INTERVAL);
 	}
 
@@ -426,7 +427,9 @@ export class Orchestrator {
 		}
 	}
 
-	retryHandoff(itemId: string): { success: boolean; reason?: string; reEmittedTo?: string } {
+	async retryHandoff(
+		itemId: string,
+	): Promise<{ success: boolean; reason?: string; reEmittedTo?: string }> {
 		const workflow = loadWorkflow(this.root);
 		if (!workflow) {
 			return { success: false, reason: "No workflow found" };
@@ -456,7 +459,7 @@ export class Orchestrator {
 				timestamp: now.toISOString(),
 				expiresAt: new Date(now.getTime() + 24 * 60 * 60_000).toISOString(),
 			};
-			const persisted = this.gateway.retry(this.root, { itemId, deadLetter: true, handoff: deadLetter, retryCount });
+			const persisted = await this.gateway.retry(this.root, { itemId, deadLetter: true, handoff: deadLetter, retryCount });
 			if (!persisted.ok) return { success: false, reason: persisted.reason };
 			this.writeHandoffFile({ ...item, handoff: deadLetter });
 			return { success: true, reEmittedTo: "human" };
@@ -503,7 +506,7 @@ export class Orchestrator {
 			expiresAt: expiresAt.toISOString(),
 			executorId: nextExecutor.id,
 		};
-		const persisted = this.gateway.retry(this.root, {
+		const persisted = await this.gateway.retry(this.root, {
 			itemId,
 			handoff: nextHandoff,
 			retryCount: retryCount + 1,
@@ -532,7 +535,6 @@ export class Orchestrator {
 	getPendingHandoffFiles(): { itemId: string; to: string; expiresAt: string }[] {
 		const dir = this.getHandoffsDir();
 		if (!existsSync(dir)) return [];
-		const { readdirSync } = require("node:fs");
 		const files: string[] = readdirSync(dir).filter((f: string) => f.endsWith(".json"));
 		const now = new Date();
 		return files.flatMap((file: string) => {

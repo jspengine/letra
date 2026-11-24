@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from "vitest";
 import { validateSpecFrontmatter, validateAllSpecsFrontmatter } from "./validate.js";
-import { mkdtempSync, writeFileSync, existsSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -15,6 +15,7 @@ function createTempWorkspace(): string {
 
 function setupSpec(workspaceRoot: string, specId: string, frontmatter: string, acceptance?: string): void {
   const specDir = join(workspaceRoot, "specs", specId);
+  mkdirSync(specDir, { recursive: true });
   writeFileSync(join(specDir, "spec.md"), frontmatter);
   if (acceptance) {
     writeFileSync(join(specDir, "acceptance.md"), acceptance);
@@ -131,7 +132,7 @@ describe("validateSpecFrontmatter", () => {
 
   it("reporta spec sem frontmatter como legado (warning)", () => {
     const ws = createTempWorkspace();
-    writeFileSync(join(ws, "specs", "legacy-spec", "spec.md"), [
+    setupSpec(ws, "legacy-spec", [
       "# Spec: Legacy",
       "",
       "Sem frontmatter YAML.",

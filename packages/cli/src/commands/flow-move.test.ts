@@ -4,21 +4,18 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Workflow, saveWorkflow } from "./flow-init.js";
 import { flowMove } from "./flow-move.js";
-import { requestPassageOperation } from "../domain-operations/service.js";
+import { directionForRunAwareOperation, requestPassageOperation } from "../domain-operations/service.js";
 import { resolveActiveFlow } from "../flow-definition/resolve.js";
-import { resolveAgentDirection } from "../agent-direction/service.js";
 
 vi.mock("../domain-operations/service.js", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../domain-operations/service.js")>()),
 	requestPassageOperation: vi.fn(async () => ({ outcome: "accepted", reasonCode: "PASSAGE_COMPLETED" })),
+	// The revision passage compares: run-aware and bound to the claim's executor.
+	directionForRunAwareOperation: vi.fn(() => ({ revision: "sha256:item-revision" })),
 }));
 vi.mock("../flow-definition/resolve.js", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../flow-definition/resolve.js")>()),
 	resolveActiveFlow: vi.fn(() => ({ flow: { stages: [{ id: "backlog", roleIds: [], agents: [] }, { id: "design", roleIds: ["designer"], agents: ["designer"] }, { id: "code", roleIds: ["builder", "reviewer"], agents: ["builder", "reviewer"] }, { id: "review", roleIds: ["reviewer"], agents: ["reviewer"] }, { id: "done", roleIds: ["reviewer"], agents: ["reviewer"] }] } })),
-}));
-vi.mock("../agent-direction/service.js", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../agent-direction/service.js")>()),
-	resolveAgentDirection: vi.fn(() => ({ revision: "sha256:item-revision" })),
 }));
 
 function createTestWorkflow(): Workflow {
@@ -49,12 +46,12 @@ describe("flow-move uses canonical passage", () => {
 			itemId: "ITEM-1", targetStageId: "design", to: "designer", executorId: "codex", expectedRevision: "sha256:item-revision",
 			summary: expect.stringContaining("Backlog → Design"),
 		}));
-		expect(resolveAgentDirection).toHaveBeenCalledWith(root, "ITEM-1", { runId: undefined });
+		expect(directionForRunAwareOperation).toHaveBeenCalledWith(root, { itemId: "ITEM-1", runId: undefined, executorId: "codex" });
 	});
 
 	it("requires an explicit Run when selecting the revision", async () => {
 		await flowMove(root, "ITEM-1", "design", { run: "run-123" });
-		expect(resolveAgentDirection).toHaveBeenCalledWith(root, "ITEM-1", { runId: "run-123" });
+		expect(directionForRunAwareOperation).toHaveBeenCalledWith(root, { itemId: "ITEM-1", runId: "run-123", executorId: "codex" });
 		expect(requestPassageOperation).toHaveBeenCalledWith(root, expect.objectContaining({ runId: "run-123" }));
 	});
 

@@ -88,6 +88,7 @@ import { readExecutionRuns } from "../execution-runs/store.js";
 import { inspectWorkspaceIntegrity } from "../workspace/integrity.js";
 import {
 	claimOperation,
+	directionForOperation,
 	recordExecutionEvent,
 	submitEvidenceOperation,
 	requestTransitionOperation,
@@ -436,7 +437,11 @@ export class FlowServer {
 					return workflow;
 				},
 				operations: {
-					getDirection: (itemId) => resolveDirection(this.activeWorkspaceRoot, itemId ? { itemId } : {}),
+					// Must be the direction the operations compare: it accounts for
+					// the item's active Run. resolveDirection(root, { itemId }) does
+					// not, so with a Run active every retry stayed DIRECTION_STALE.
+					getDirection: (itemId) =>
+						directionForOperation(this.activeWorkspaceRoot, itemId ? { itemId } : {}),
 					claim: (input) => claimOperation(this.activeWorkspaceRoot, { ...input, ttlMinutes: 30 }),
 					event: (input) => recordExecutionEvent(this.activeWorkspaceRoot, input),
 					evidence: (input) => submitEvidenceOperation(this.activeWorkspaceRoot, input),
@@ -455,6 +460,10 @@ export class FlowServer {
 				stageActors: (stageId) => {
 					const templateId = this.loadWorkflow()?.template ?? "flow-main";
 					return manifest?.flows[templateId]?.stages.find((stage) => stage.id === stageId)?.agents ?? [];
+				},
+				stageTransitions: (stageId) => {
+					const templateId = this.loadWorkflow()?.template ?? "flow-main";
+					return manifest?.flows[templateId]?.stages.find((stage) => stage.id === stageId)?.transitions;
 				},
 				stageCapability: (stage) => {
 					const templateId = this.loadWorkflow()?.template ?? "flow-main";

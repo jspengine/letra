@@ -70,6 +70,12 @@ export interface DispatcherOptions {
 	blocksHandoff?: (stage: Workflow["stages"][number], item: Item) => boolean;
 	/** Resolve actors from the harness when workflow instances omit them. */
 	stageActors?: (stageId: string) => string[];
+	/**
+	 * Resolve outgoing transitions from the harness flow. Workflow instances
+	 * do not store them, and executors pick the next role from them; without
+	 * this every executor handoff fell back to "human".
+	 */
+	stageTransitions?: (stageId: string) => Array<{ target: string; allowPendingAcceptanceCriteria?: boolean }> | undefined;
 	stageCapability?: (stage: Workflow["stages"][number], item: Item) => string;
 	executorPreference?: (stage: Workflow["stages"][number], item: Item) => string[];
 	/** Resolve and verify the code location before a durable claim is created. */
@@ -149,7 +155,14 @@ export class PersistentDispatcher {
 				}
 				const capability = this.options.stageCapability?.(stage, item) ?? stage.id;
 				const actor = item.handoff.to;
-				const operationKey = `dispatch:${item.id}:${item.handoff.timestamp}`;
+				// One key family per attempt. A failed attempt persists
+				// `lastFailure` and releases the claim for retry; reusing the same
+				// keys would make every retry an IDEMPOTENCY_KEY_CONFLICT (new
+				// revision, same key), so the handoff could never run again. An
+				// attempt that crashed before persisting a failure keeps its keys
+				// and is replayed idempotently.
+				const attempt = item.lastFailure?.at ?? "first";
+				const operationKey = `dispatch:${item.id}:${item.handoff.timestamp}:${attempt}`;
 				const allExecutors = this.executors();
 				const resolvedBinding = this.options.resolveBinding?.(stage, item, actor, capability, allExecutors);
 				const online = allExecutors.filter((entry) => entry.status !== "offline");
@@ -203,7 +216,7 @@ export class PersistentDispatcher {
 						void this.store.operations.event({ itemId: item.id, executorId: executor.id, actor, status: "heartbeat", expectedRevision: revision, reason: "Renovar lease durante execução longa.", idempotencyKey: `${operationKey}:heartbeat:${Date.now()}` }).catch(() => undefined);
 					}, Math.max(5_000, Math.min(30_000, this.intervalMs)));
 					try {
-						execution = await executor.execute({ itemId: claimed.id, item: claimed, agent: resolvedBinding?.identity?.displayName ?? actor, stage: item.stage, spec: claimed.spec ?? null, diff: null, snapshot: { stages: workflow.stages.map((entry) => ({ ...entry, agents: this.options.stageActors?.(entry.id) ?? (entry as typeof entry & { agents?: string[] }).agents })), executionWorkspace: executionWorkspace?.ok ? executionWorkspace.root : undefined, persona: resolvedBinding?.identity ? { id: resolvedBinding.identity.id, displayName: resolvedBinding.identity.displayName, role: resolvedBinding.binding?.roleId, skills: resolvedBinding.identity.skills, adapterHints: resolvedBinding.identity.adapterHints, stageBindings: resolvedBinding.identity.stageBindings, binding: resolvedBinding.binding } : undefined }, sessionLog: [], commands: [], prohibitions: [], promptTemplate: resolvedBinding?.binding?.promptTemplate ?? null } satisfies ExecutionContext);
+						execution = await executor.execute({ itemId: claimed.id, item: claimed, agent: resolvedBinding?.identity?.displayName ?? actor, stage: item.stage, spec: claimed.spec ?? null, diff: null, snapshot: { stages: workflow.stages.map((entry) => ({ ...entry, agents: this.options.stageActors?.(entry.id) ?? (entry as typeof entry & { agents?: string[] }).agents, transitions: this.options.stageTransitions?.(entry.id) ?? (entry as typeof entry & { transitions?: Array<{ target: string }> }).transitions })), executionWorkspace: executionWorkspace?.ok ? executionWorkspace.root : undefined, persona: resolvedBinding?.identity ? { id: resolvedBinding.identity.id, displayName: resolvedBinding.identity.displayName, role: resolvedBinding.binding?.roleId, skills: resolvedBinding.identity.skills, adapterHints: resolvedBinding.identity.adapterHints, stageBindings: resolvedBinding.identity.stageBindings, binding: resolvedBinding.binding } : undefined }, sessionLog: [], commands: [], prohibitions: [], promptTemplate: resolvedBinding?.binding?.promptTemplate ?? null } satisfies ExecutionContext);
 					} finally {
 						clearInterval(heartbeatTimer);
 					}
@@ -230,7 +243,9 @@ export class PersistentDispatcher {
 						if (handoff) {
 							const targetStage = workflow.stages.find((candidate) => candidate.id === item.stage && (this.options.stageActors?.(candidate.id) ?? (candidate as typeof candidate & { agents?: string[] }).agents ?? []).includes(actor));
 							if (targetStage && handoff.to !== actor) {
-								const validation = await withFreshRevision(this.store.operations.getDirection, item.id, (expectedRevision) => this.store.operations.validate({ actor, expectedRevision, reason: "Dispatcher executou a validação automatizada antes da transição." }));
+								// Validation is workspace-scoped (no itemId): it compares the workspace
+								// direction, so the revision must come from getDirection(""), not the item.
+								const validation = await withFreshRevision(this.store.operations.getDirection, "", (expectedRevision) => this.store.operations.validate({ actor, expectedRevision, reason: "Dispatcher executou a validação automatizada antes da transição." }));
 								if (validation.outcome !== "accepted") {
 									const failed = await withFreshRevision(this.store.operations.getDirection, item.id, (expectedRevision) => this.store.operations.event({ itemId: item.id, executorId: executor.id, actor, status: "failed", expectedRevision, reason: "Validação automatizada bloqueou a transição.", message: validation.reason, errorCode: validation.reasonCode, recovery: "retry", idempotencyKey: `${operationKey}:validation-failed` }));
 									if (failed.outcome === "accepted") await withFreshRevision(this.store.operations.getDirection, item.id, (expectedRevision) => this.store.operations.release({ itemId: item.id, actor, expectedRevision, reason: "Liberar claim após falha de validação.", idempotencyKey: `${operationKey}:release-validation` }));

@@ -9,22 +9,44 @@ import { logEntry } from "../session-log.js";
  * Keeping this boundary explicit prevents the legacy coordinator from
  * becoming a second state machine.
  */
+export interface GatewayResult {
+	ok: boolean;
+	reason?: string;
+}
+
+/**
+ * Every method settles only after the workflow is persisted under the
+ * workspace transaction lock. Reporting `ok` before the write (the previous
+ * behaviour) let callers read stale state and silently dropped write errors.
+ */
 export interface OrchestratorGateway {
-	emitHandoff(root: string, payload: HandoffPayload): { ok: boolean; reason?: string };
-	claim(root: string, input: { itemId: string; executorId: string; agentId: string }): { ok: boolean; reason?: string };
-	reclaim(root: string, itemIds: string[]): { ok: boolean; reason?: string };
+	emitHandoff(root: string, payload: HandoffPayload): Promise<GatewayResult>;
+	claim(root: string, input: { itemId: string; executorId: string; agentId: string }): Promise<GatewayResult>;
+	reclaim(root: string, itemIds: string[]): Promise<GatewayResult>;
 	retry(root: string, input: {
 		itemId: string;
 		deadLetter?: boolean;
 		handoff: HandoffPayload;
 		retryCount: number;
 		lastOperationKey?: string;
-	}): { ok: boolean; reason?: string };
+	}): Promise<GatewayResult>;
+}
+
+async function persist(
+	root: string,
+	options: Parameters<typeof writeWorkflow>[1],
+): Promise<GatewayResult> {
+	try {
+		await writeWorkflow(root, options);
+		return { ok: true };
+	} catch (error) {
+		return { ok: false, reason: error instanceof Error ? error.message : String(error) };
+	}
 }
 
 /** Canonical persistence adapter for the legacy coordinator's compatibility API. */
 export class CanonicalOrchestratorGateway implements OrchestratorGateway {
-	emitHandoff(root: string, payload: HandoffPayload): { ok: boolean; reason?: string } {
+	async emitHandoff(root: string, payload: HandoffPayload): Promise<GatewayResult> {
 		const workflow = loadWorkflow(root);
 		const item = workflow?.items.find((entry) => entry.id === payload.itemId);
 		if (!workflow || !item) return { ok: false, reason: `Item ${payload.itemId} not found` };
@@ -38,7 +60,7 @@ export class CanonicalOrchestratorGateway implements OrchestratorGateway {
 			executorId: payload.executorId,
 		};
 		workflow.updatedAt = new Date().toISOString();
-		const result = writeWorkflow(root, {
+		const persisted = await persist(root, {
 			workflow,
 			source: "orchestrator-gateway",
 			primaryItemId: item.id,
@@ -47,7 +69,7 @@ export class CanonicalOrchestratorGateway implements OrchestratorGateway {
 			quiet: true,
 			confineAdapterWrites: true,
 		});
-		void result.catch(() => undefined);
+		if (!persisted.ok) return persisted;
 		logEntry(root, "handoff_emitted", `Handoff emitted to ${payload.to}`, {
 			itemId: payload.itemId,
 			from: payload.from,
@@ -58,7 +80,7 @@ export class CanonicalOrchestratorGateway implements OrchestratorGateway {
 		return { ok: true };
 	}
 
-	claim(root: string, input: { itemId: string; executorId: string; agentId: string }): { ok: boolean; reason?: string } {
+	async claim(root: string, input: { itemId: string; executorId: string; agentId: string }): Promise<GatewayResult> {
 		const workflow = loadWorkflow(root);
 		const item = workflow?.items.find((entry) => entry.id === input.itemId);
 		if (!workflow || !item) return { ok: false, reason: `Item ${input.itemId} not found` };
@@ -68,7 +90,7 @@ export class CanonicalOrchestratorGateway implements OrchestratorGateway {
 		item.claimedAt = now;
 		if (handoff) item.handoff = undefined;
 		workflow.updatedAt = now;
-		const result = writeWorkflow(root, {
+		const persisted = await persist(root, {
 			workflow,
 			source: "orchestrator-gateway",
 			primaryItemId: input.itemId,
@@ -77,7 +99,7 @@ export class CanonicalOrchestratorGateway implements OrchestratorGateway {
 			quiet: true,
 			confineAdapterWrites: true,
 		});
-		void result.catch(() => undefined);
+		if (!persisted.ok) return persisted;
 		logEntry(root, "item_claim", `Claimed by ${input.executorId}`, {
 			itemId: input.itemId,
 			executorId: input.executorId,
@@ -86,7 +108,7 @@ export class CanonicalOrchestratorGateway implements OrchestratorGateway {
 		return { ok: true };
 	}
 
-	reclaim(root: string, itemIds: string[]): { ok: boolean; reason?: string } {
+	async reclaim(root: string, itemIds: string[]): Promise<GatewayResult> {
 		if (itemIds.length === 0) return { ok: true };
 		const workflow = loadWorkflow(root);
 		if (!workflow) return { ok: false, reason: "No workflow found" };
@@ -104,7 +126,7 @@ export class CanonicalOrchestratorGateway implements OrchestratorGateway {
 			logEntry(root, "item_reclaim", "Item reclaimed after persisted lease expiry", { itemId });
 		}
 		workflow.updatedAt = now;
-		const result = writeWorkflow(root, {
+		const persisted = await persist(root, {
 			workflow,
 			source: "orchestrator-gateway",
 			skipSitrep: true,
@@ -112,11 +134,11 @@ export class CanonicalOrchestratorGateway implements OrchestratorGateway {
 			quiet: true,
 			confineAdapterWrites: true,
 		});
-		void result.catch(() => undefined);
+		if (!persisted.ok) return persisted;
 		return { ok: true };
 	}
 
-	retry(root: string, input: { itemId: string; deadLetter?: boolean; handoff: HandoffPayload; retryCount: number; lastOperationKey?: string }): { ok: boolean; reason?: string } {
+	async retry(root: string, input: { itemId: string; deadLetter?: boolean; handoff: HandoffPayload; retryCount: number; lastOperationKey?: string }): Promise<GatewayResult> {
 		const workflow = loadWorkflow(root);
 		const item = workflow?.items.find((entry) => entry.id === input.itemId);
 		if (!workflow || !item) return { ok: false, reason: `Item ${input.itemId} not found` };
@@ -132,7 +154,7 @@ export class CanonicalOrchestratorGateway implements OrchestratorGateway {
 		item.retryCount = input.retryCount;
 		if (input.lastOperationKey) item.lastOperationKey = input.lastOperationKey;
 		workflow.updatedAt = input.handoff.timestamp;
-		const result = writeWorkflow(root, {
+		const persisted = await persist(root, {
 			workflow,
 			source: "orchestrator-gateway",
 			primaryItemId: input.itemId,
@@ -141,7 +163,7 @@ export class CanonicalOrchestratorGateway implements OrchestratorGateway {
 			quiet: true,
 			confineAdapterWrites: true,
 		});
-		void result.catch(() => undefined);
+		if (!persisted.ok) return persisted;
 		logEntry(root, "handoff_emitted", input.deadLetter ? "Retry dead-lettered to human" : "Handoff re-emitted after retry", {
 			itemId: input.itemId,
 			details: { retry: true, deadLetter: Boolean(input.deadLetter), executorId: input.handoff.executorId },

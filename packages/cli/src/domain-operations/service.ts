@@ -430,9 +430,17 @@ function inputFingerprint(input: OperationContext): string {
     .update(JSON.stringify(input, Object.keys(input).sort()))
     .digest("hex");
 }
-function directionForOperation(
+// Only reads the run/item selectors from the input, so the revision and
+// reason of OperationContext are optional here: callers that compute the
+// revision itself (e.g. the board's passage route) have no revision yet.
+// Exported so callers send the same revision the operation will compare.
+export function directionForOperation(
   root: string,
-  input: OperationContext,
+  input: Partial<OperationContext> & {
+    itemId?: string;
+    id?: string;
+    runId?: string;
+  },
 ): AgentDirectionSnapshot {
   return withWorkspaceTransactionLockSync(root, () => {
     const requestedRunId =
@@ -466,7 +474,7 @@ function directionForOperation(
 
 export function directionForRunAwareOperation(
   root: string,
-  input: OperationContext & {
+  input: Partial<OperationContext> & {
     itemId: string;
     runId?: string;
     executorId?: string;

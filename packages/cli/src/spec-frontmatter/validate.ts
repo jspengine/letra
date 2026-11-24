@@ -5,7 +5,8 @@
  * e inconsistências óbvias entre frontmatter e acceptance.
  */
 
-import { readFileSync } from "node:fs";
+// ESM imports: `require` does not exist in the published ESM bundle.
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   parseSpecFrontmatter,
@@ -51,7 +52,7 @@ export function validateSpecFrontmatter(
 
   const specPath = join(workspaceRoot, "specs", specId, "spec.md");
 
-  if (!require("node:fs").existsSync?.(specPath)) {
+  if (!existsSync(specPath)) {
     result.issues.push({
       code: "SPEC_FILE_MISSING",
       message: `arquivo specs/${specId}/spec.md não encontrado`,
@@ -78,12 +79,34 @@ export function validateSpecFrontmatter(
 
   const parseResult: SpecParseResult = parseSpecFrontmatter(content);
 
-  // Propagate parse errors
-  for (const err of parseResult.errors) {
+  // No YAML frontmatter: the parser inferred data by heuristic. Legacy specs
+  // are a warning, never an error, and the inferred data is not frontmatter.
+  if (parseResult.legacy) {
     result.issues.push({
-      code: "FRONTMATTER_INVALID",
+      code: "LEGACY_NO_FRONTMATTER",
+      message: `spec ${specId} não possui frontmatter YAML estruturado (modo legado com heurística)`,
+      specId,
+      severity: "warning",
+    });
+    return result;
+  }
+
+  // Propagate parse errors, keeping the field of a missing required field so
+  // `letra validate` can say which one is missing.
+  for (const err of parseResult.errors) {
+    const missingField = err.code === "MISSING_REQUIRED_FIELD" ? err.field : undefined;
+    if (
+      missingField &&
+      result.issues.some(
+        (issue) => issue.code === "REQUIRED_FIELD_MISSING" && issue.field === missingField,
+      )
+    )
+      continue;
+    result.issues.push({
+      code: missingField ? "REQUIRED_FIELD_MISSING" : "FRONTMATTER_INVALID",
       message: err.message,
       specId,
+      ...(missingField ? { field: missingField } : {}),
       severity: "error",
     });
     result.valid = false;
@@ -104,7 +127,10 @@ export function validateSpecFrontmatter(
 
     // Check required fields
     for (const field of SPEC_FRONTMATTER_REQUIRED_FIELDS_V1) {
-      if (!(field in parseResult.data)) {
+      const alreadyReported = result.issues.some(
+        (issue) => issue.code === "REQUIRED_FIELD_MISSING" && issue.field === field,
+      );
+      if (!alreadyReported && !(field in parseResult.data)) {
         result.issues.push({
           code: "REQUIRED_FIELD_MISSING",
           message: `campo obrigatório '${field}' ausente no frontmatter`,
@@ -156,7 +182,7 @@ function checkDrift(
 ): void {
   const acceptancePath = join(workspaceRoot, "specs", specId, "acceptance.md");
 
-  if (!require("node:fs").existsSync?.(acceptancePath)) {
+  if (!existsSync(acceptancePath)) {
     return;
   }
 
@@ -169,7 +195,8 @@ function checkDrift(
 
   // Check: frontmatter says status "done" but acceptance has pending ACs
   if (frontmatter.status === "done") {
-    const pendingACs = (acceptanceContent.match(/^- \[ \]\s*\*\*/g) || []).length;
+    // `m`: ACs are list lines anywhere in the file, not only at its start.
+    const pendingACs = (acceptanceContent.match(/^- \[ \]\s*\*\*/gm) || []).length;
     if (pendingACs > 0) {
       result.issues.push({
         code: "DRIFT_FRONTMATTER_ACCEPTANCE",
@@ -186,7 +213,7 @@ function checkDrift(
     typeof frontmatter.acCount === "number" &&
     frontmatter.acCount > 0
   ) {
-    const actualResolved = (acceptanceContent.match(/^- \[x\]\s*\*\*/g) || []).length;
+    const actualResolved = (acceptanceContent.match(/^- \[x\]\s*\*\*/gm) || []).length;
     if (actualResolved !== frontmatter.acResolved) {
       result.issues.push({
         code: "DRIFT_FRONTMATTER_ACCEPTANCE",
@@ -207,16 +234,16 @@ export function validateAllSpecsFrontmatter(
   const specsDir = join(workspaceRoot, "specs");
   const results = new Map<string, SpecValidationResult>();
 
-  if (!require("node:fs").existsSync?.(specsDir)) {
+  if (!existsSync(specsDir)) {
     return { results, hasErrors: false };
   }
 
-  const specDirs = require("node:fs").readdirSync(specsDir);
+  const specDirs = readdirSync(specsDir);
   let hasErrors = false;
 
   for (const specId of specDirs) {
     const specPath = join(specsDir, specId, "spec.md");
-    if (!require("node:fs").existsSync?.(specPath)) continue;
+    if (!existsSync(specPath)) continue;
 
     const result = validateSpecFrontmatter(workspaceRoot, specId);
     results.set(specId, result);

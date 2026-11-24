@@ -52,6 +52,7 @@ export function parseSpecFrontmatter(specText: string): SpecParseResult {
         "spec.md não possui frontmatter YAML — modo legado com heurística transitória",
     });
     const legacy = extractLegacyMetadata(specText);
+    result.legacy = true;
     result.data = legacy.data as SpecFrontmatter;
     for (const w of legacy.warnings) {
       result.warnings.push({ message: w });
@@ -98,6 +99,7 @@ export function parseSpecFrontmatter(specText: string): SpecParseResult {
         result.errors.push({
           code: "MISSING_REQUIRED_FIELD",
           message: `campo obrigatório '${field}' ausente no frontmatter`,
+          field,
         });
       }
     }
@@ -118,6 +120,7 @@ export function parseSpecFrontmatter(specText: string): SpecParseResult {
       result.errors.push({
         code: "MISSING_REQUIRED_FIELD",
         message: `campo obrigatório '${field}' ausente no frontmatter`,
+        field,
       });
     }
   }

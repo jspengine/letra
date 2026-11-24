@@ -119,8 +119,8 @@ export default function flowCommand() {
 
 	cmd.command("import <file>")
 		.description("Import workflow from a JSON file")
-		.action((file: string) => {
-			flowImportAction(undefined, file);
+		.action(async (file: string) => {
+			await flowImportAction(undefined, file);
 		});
 
 	cmd.command("serve")
@@ -188,8 +188,8 @@ export default function flowCommand() {
 		.option("--name <name>", "New workflow name")
 		.option("--desc <desc>", "New workflow description")
 		.description("Edit workflow metadata")
-		.action((options: { name?: string; desc?: string }) => {
-			flowEditAction(undefined, options);
+		.action(async (options: { name?: string; desc?: string }) => {
+			await flowEditAction(undefined, options);
 		});
 
 	cmd.command("bind")

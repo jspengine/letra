@@ -26,7 +26,10 @@ function fixture(): string {
 				template: "missing-template",
 				harnessVersion: "missing-version",
 				stages: [
-					{ id: "build", name: "Build", order: 0, zone: "doing" },
+					// Edges are explicit since f62e36d90 (workflow-instance edges
+					// come from `allow`); build -> review exists, and the tests
+					// check that using it still requires the canonical passage.
+					{ id: "build", name: "Build", order: 0, zone: "doing", allow: ["review"] },
 					{ id: "review", name: "Review", order: 1, zone: "doing" },
 				],
 				items: [
@@ -69,12 +72,20 @@ function configureCodeReviewGate(root: string): void {
 	const harness = join(root, ".letra", "harness", "v0.2.0");
 	mkdirSync(join(harness, "flows"), { recursive: true });
 	mkdirSync(join(harness, "gates"), { recursive: true });
+	// The loader only accepts a harness with flows/, gates/ and roles/; without
+	// roles/ it fell back to the global harness (the developer's home).
+	mkdirSync(join(harness, "roles"), { recursive: true });
+	// Edges are explicit since f62e36d90: the code -> review edge exists, and
+	// the test checks that using it still requires the canonical passage.
 	writeFileSync(join(harness, "flows", "controlled-flow.yaml"), [
 		"id: controlled-flow", "version: 1", "name: Controlled", "description: test", "defaultPolicy: default", "stages:",
 		"  - id: code", "    name: Code", "    order: 0", "    zone: doing", "    gate: gates/code-reviewed.yaml",
+		"    transitions:", "      - target: review",
 		"  - id: review", "    name: Review", "    order: 1", "    zone: doing",
 	].join("\n"));
-	writeFileSync(join(harness, "gates", "code-reviewed.yaml"), "id: code-reviewed\nname: Code reviewed\ntype: automated\nblocking: true\nstatus: pending\n");
+	// Same contract as the shipped gate: the canonical validation clears it
+	// (a static "status: pending" gate could never be cleared by validate).
+	writeFileSync(join(harness, "gates", "code-reviewed.yaml"), "id: code-reviewed\nname: Code reviewed\ntype: automated\nblocking: true\ncheck_type: validation\n");
 }
 
 function toolJson(result: Awaited<ReturnType<Client["callTool"]>>): Record<string, unknown> {
