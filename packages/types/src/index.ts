@@ -337,7 +337,12 @@ export interface AgentDirectionSnapshot {
 		description: string;
 	} | null;
 	commands: AgentDirectionCommand[];
-	operations?: Array<{ id: string; description?: string; requiredCapability?: string; requiresClaim: boolean; allowedInStages: string[]; allowedActors: string[] }>;
+	/**
+	 * `command` is the real CLI command when it differs from the operation id
+	 * (e.g. security_review → `letra security review`); `humanRequired` marks
+	 * operations only a human may perform (spec recusas-que-ensinam AC5).
+	 */
+	operations?: Array<{ id: string; description?: string; requiredCapability?: string; requiresClaim: boolean; allowedInStages: string[]; allowedActors: string[]; command?: string; humanRequired?: boolean }>;
 	gates?: Array<{ id: string; name: string; type: "human" | "automated" | "external"; blocking: boolean; policyRef?: string; checkType?: ResolvedGateCheckType }>;
 	references?: Array<{ id: string; path: string; reason: string; sha256: string | null; available: boolean }>;
 	prohibitions: string[];

@@ -21,56 +21,57 @@ export async function flowMove(
 	itemId: string,
 	targetStageInput: string,
 	options?: { auto?: boolean; force?: boolean; actor?: string; reason?: string; run?: string },
-): Promise<void> {
+): Promise<boolean> {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
 		console.log(chalk.red("No workflow found. Run 'letra flow init --quick' first"));
-		return;
+		return false;
 	}
 	const item = workflow.items.find((candidate) =>
 		candidate.id === itemId || candidate.id.toLowerCase() === itemId.toLowerCase() || candidate.description.toLowerCase() === itemId.toLowerCase());
 	if (!item) {
 		console.log(chalk.red(`Item "${itemId}" not found`));
-		return;
+		return false;
 	}
 	if (options?.auto) {
 		const current = workflow.stages.find((stage) => stage.id === item.stage);
 		if (!current) {
 			console.log(chalk.red(`Stage "${item.stage}" not found in workflow`));
-			return;
+			return false;
 		}
 		const next = workflow.stages.filter((stage) => stage.order > current.order).sort((a, b) => a.order - b.order)[0];
 		if (!next) {
 			console.log(chalk.yellow(`Item ${itemId} is already at the last stage (${current.name})`));
-			return;
+			return false;
 		}
 		targetStageInput = next.id;
 	}
 	const targetStageId = resolveStage(workflow, targetStageInput);
 	if (!targetStageId) {
 		console.log(chalk.red(`Stage "${targetStageInput}" not found`));
-		return;
+		return false;
 	}
 	if (item.stage === targetStageId) {
+		// Idempotent: the requested state already holds, so this is not a refusal.
 		console.log(chalk.yellow(`Item ${itemId} is already in stage "${targetStageId}"`));
-		return;
+		return true;
 	}
 	const fromStage = workflow.stages.find((stage) => stage.id === item.stage)?.name ?? item.stage;
 	const toStage = workflow.stages.find((stage) => stage.id === targetStageId)?.name ?? targetStageId;
 	if (!item.claimExecutorId) {
 		console.log(chalk.red(`Cannot move ${itemId}: item não possui claim ativa; adquira uma claim antes da passagem.`));
-		return;
+		return false;
 	}
 	const activeFlow = resolveActiveFlow(root, { itemId: item.id, workflowVersionId: item.workflowVersionId }).flow;
 	const destination = activeFlow?.stages.find((stage) => stage.id === targetStageId);
 	const recipients = destination?.roleIds?.length ? destination.roleIds : destination?.agents ?? [];
 	if (!recipients.length) {
 		console.log(chalk.red(`Cannot move ${itemId}: estágio ${targetStageId} sem papel/destinatário configurado.`));
-		return;
+		return false;
 	}
 	if (recipients.length > 1) {
 		console.log(chalk.red(`Cannot move ${itemId}: múltiplos destinatários configurados (${recipients.join(", ")}); escolha explícita ainda não está disponível neste comando.`));
-		return;
+		return false;
 	}
 	const operation = await requestPassageOperation(root, {
 		itemId,
@@ -90,11 +91,19 @@ export async function flowMove(
 		}).revision,
 		reason: options?.reason?.trim() || `Transição solicitada pela CLI: ${fromStage} → ${toStage}.`,
 	});
+	if (operation.outcome === "approval-required") {
+		// Not a refusal: the passage was accepted and now waits for a human gate.
+		console.log(chalk.yellow(`Passagem de ${itemId} aguarda aprovação humana [${operation.reasonCode}]: ${operation.reason}`));
+		return true;
+	}
 	if (operation.outcome !== "accepted") {
 		console.log(chalk.red(`Cannot move ${itemId} [${operation.reasonCode}]: ${operation.reason}${operation.recoveryActions?.length ? `\nRecuperação: ${operation.recoveryActions.join("; ")}` : ""}`));
-		return;
+		if (operation.nextCommand)
+			console.log(`${operation.humanRequired ? "Próximo passo é humano; para diagnóstico" : "Próximo comando"}: ${operation.nextCommand}`);
+		return false;
 	}
 	console.log(`  ${chalk.green("✓")} Item ${chalk.cyan(itemId)} moved: ${chalk.yellow(fromStage)} → ${chalk.green(toStage)}`);
+	return true;
 }
 
 function normalizeItemId(input: string): string {
@@ -108,7 +117,17 @@ export function flowMoveAction(
 	targetPath: string | undefined,
 	itemId: string,
 	options: { to?: string; auto?: boolean; force?: boolean; actor?: string; reason?: string; run?: string },
-): void {
+): Promise<void> {
 	const root = resolve(process.cwd(), targetPath || ".");
-	void flowMove(root, normalizeItemId(itemId), options.to || "", options);
+	// ITEM-25: the exit code is the only signal a script reads; a refused or
+	// crashed passage must not look like success.
+	return flowMove(root, normalizeItemId(itemId), options.to || "", options).then(
+		(moved) => {
+			if (!moved) process.exitCode = 1;
+		},
+		(error: unknown) => {
+			console.log(chalk.red(`Cannot move ${itemId}: ${error instanceof Error ? error.message : String(error)}`));
+			process.exitCode = 1;
+		},
+	);
 }

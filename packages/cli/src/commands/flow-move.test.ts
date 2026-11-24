@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Workflow, saveWorkflow } from "./flow-init.js";
-import { flowMove } from "./flow-move.js";
+import { flowMove, flowMoveAction } from "./flow-move.js";
 import { directionForRunAwareOperation, requestPassageOperation } from "../domain-operations/service.js";
 import { resolveActiveFlow } from "../flow-definition/resolve.js";
 
@@ -71,5 +71,61 @@ describe("flow-move uses canonical passage", () => {
 		try { await flowMove(root, "ITEM-1", "code"); } finally { console.log = original; }
 		expect(logs.join(" ")).toContain("múltiplos destinatários");
 		expect(requestPassageOperation).not.toHaveBeenCalled();
+	});
+});
+
+// ITEM-25 / spec recusas-que-ensinam AC6: a refused passage must not exit 0.
+type PassageResult = Awaited<ReturnType<typeof requestPassageOperation>>;
+describe("flow move exit code", () => {
+	let root: string;
+	let previousExitCode: typeof process.exitCode;
+	beforeEach(() => {
+		root = join(tmpdir(), `letra-flow-move-exit-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+		mkdirSync(root, { recursive: true });
+		vi.clearAllMocks();
+		saveWorkflow(root, createTestWorkflow());
+		previousExitCode = process.exitCode;
+		process.exitCode = undefined;
+		vi.spyOn(console, "log").mockImplementation(() => undefined);
+	});
+	afterEach(() => {
+		process.exitCode = previousExitCode;
+		vi.mocked(console.log).mockRestore();
+		if (existsSync(root)) rmSync(root, { recursive: true, force: true });
+	});
+
+	it("reports success, idempotent no-op and pending human approval as reached", async () => {
+		expect(await flowMove(root, "ITEM-1", "design")).toBe(true);
+		expect(await flowMove(root, "ITEM-1", "backlog")).toBe(true);
+		vi.mocked(requestPassageOperation).mockResolvedValueOnce({ outcome: "approval-required", reasonCode: "HUMAN_APPROVAL_REQUIRED", reason: "gate" } as PassageResult);
+		expect(await flowMove(root, "ITEM-1", "design")).toBe(true);
+	});
+
+	it("reports every refusal as not reached", async () => {
+		expect(await flowMove(root, "ITEM-404", "design")).toBe(false);
+		expect(await flowMove(root, "ITEM-1", "nowhere")).toBe(false);
+		vi.mocked(requestPassageOperation).mockResolvedValueOnce({ outcome: "rejected", reasonCode: "CLAIM_REQUIRED", reason: "sem claim" } as PassageResult);
+		expect(await flowMove(root, "ITEM-1", "design")).toBe(false);
+		const workflow = createTestWorkflow();
+		workflow.items[0].stage = "done";
+		saveWorkflow(root, workflow);
+		expect(await flowMove(root, "ITEM-1", "", { auto: true })).toBe(false);
+	});
+
+	it("exits 1 when the passage is refused", async () => {
+		vi.mocked(requestPassageOperation).mockResolvedValueOnce({ outcome: "rejected", reasonCode: "CLAIM_REQUIRED", reason: "sem claim" } as PassageResult);
+		await flowMoveAction(root, "ITEM-1", { to: "design" });
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("exits 1 when the passage throws instead of leaving an unhandled rejection", async () => {
+		vi.mocked(requestPassageOperation).mockRejectedValueOnce(new Error("disk full"));
+		await flowMoveAction(root, "ITEM-1", { to: "design" });
+		expect(process.exitCode).toBe(1);
+	});
+
+	it("keeps exit 0 when the item moves", async () => {
+		await flowMoveAction(root, "ITEM-1", { to: "design" });
+		expect(process.exitCode).toBeUndefined();
 	});
 });

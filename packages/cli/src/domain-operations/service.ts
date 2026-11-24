@@ -225,6 +225,10 @@ export interface OperationResult {
   reasonCode: string;
   reason: string;
   recoveryActions?: string[];
+  /** Refusals only: the exact command to run next (AC4). */
+  nextCommand?: string;
+  /** Refusals only: the next step belongs to a human, not to the agent. */
+  humanRequired?: boolean;
   nextDirection: AgentDirectionSnapshot;
   validation?: ValidationSummary;
   workspace?: WorkspaceIntegrityDiagnostic;
@@ -1299,16 +1303,17 @@ export async function submitEvidenceOperation(
     !item?.claimExpiresAt ||
     !Number.isFinite(Date.parse(item.claimExpiresAt)) ||
     Date.now() >= Date.parse(item.claimExpiresAt);
-  if (
-    !item ||
-    item.claimedBy !== resolvedEvidenceActor ||
-    item.claimExecutorId !== input.executorId ||
-    evidenceExpired
-  )
+  const ownsClaim =
+    Boolean(item?.claimedBy) &&
+    item?.claimedBy === resolvedEvidenceActor &&
+    item?.claimExecutorId === input.executorId;
+  if (!item || !ownsClaim || evidenceExpired)
     return rejected(
       workspaceRoot,
       before,
-      evidenceExpired ? "CLAIM_EXPIRED" : "CLAIM_REQUIRED",
+      // Only the caller's own lapsed lease is "expired"; no claim, or someone
+      // else's, is a missing claim (it used to read as CLAIM_EXPIRED).
+      ownsClaim && evidenceExpired ? "CLAIM_EXPIRED" : "CLAIM_REQUIRED",
       "A evidência exige claim vigente, com actor, executor e lease válido.",
       input,
       subject,
@@ -1433,6 +1438,49 @@ function result(
   };
 }
 
+/**
+ * What the caller should run next after a refusal (spec recusas-que-ensinam
+ * AC4). `humanRequired` marks steps only a human may take: the command is then
+ * one the agent may run (a diagnosis or a query), never one carrying a human
+ * identity.
+ */
+export interface RefusalGuidance {
+  nextCommand?: string;
+  humanRequired?: boolean;
+}
+
+/** Default next step: re-read the direction the operation compared. */
+function directionQueryCommand(
+  direction: AgentDirectionSnapshot,
+  itemId?: string,
+): string {
+  const runId =
+    direction.assignment?.status === "assigned"
+      ? direction.assignment.runId
+      : undefined;
+  if (runId) return `letra direction --run ${runId} --json`;
+  const target = itemId ?? direction.item?.id;
+  return target
+    ? `letra direction --item ${target} --json`
+    : "letra direction --json";
+}
+
+/** Double-quoted shell argument that survives bash and PowerShell. */
+function shellArg(value: string): string {
+  return `"${value.replace(/["`$\\]/g, "")}"`;
+}
+
+/** The claim to retry, with the values the refusal says are accepted. */
+function claimCommand(
+  itemId: string,
+  actor: string,
+  capability: string,
+  input: { executorId: string; reason: string },
+  revision: string,
+): string {
+  return `letra operation claim ${itemId} --actor ${actor} --executor ${input.executorId} --capability ${capability} --expected-revision ${revision} --reason ${shellArg(input.reason)}`;
+}
+
 function rejected(
   root: string,
   direction: AgentDirectionSnapshot,
@@ -1440,18 +1488,23 @@ function rejected(
   reason: string,
   context: OperationContext,
   subject: { itemId?: string; acId?: string; operation: string },
+  guidance: RefusalGuidance = {},
 ): OperationResult {
   const workspace = invalidWorkspaceDiagnostic(root);
   if (workspace) {
-    return result(
-      direction,
-      "audit-unavailable:workspace-link-invalid",
-      "rejected",
-      "WORKSPACE_LINK_INVALID",
-      "O .letra-link não aponta para um workspace canônico válido; nenhuma operação foi executada.",
-      direction,
-      { workspace },
-    );
+    return {
+      ...result(
+        direction,
+        "audit-unavailable:workspace-link-invalid",
+        "rejected",
+        "WORKSPACE_LINK_INVALID",
+        "O .letra-link não aponta para um workspace canônico válido; nenhuma operação foi executada.",
+        direction,
+        { workspace },
+      ),
+      nextCommand: "letra doctor",
+      humanRequired: false,
+    };
   }
   const entry = audit(root, "agent_operation_rejected", direction, {
     outcome: "rejected",
@@ -1462,10 +1515,68 @@ function rejected(
     acId: subject.acId,
     details: { operation: subject.operation },
   });
+  const derived =
+    (reasonCode === "CLAIM_REQUIRED" || reasonCode === "CLAIM_EXPIRED") &&
+    !guidance.nextCommand
+      ? claimRequiredGuidance(root, direction, context, subject.itemId)
+      : {};
   return {
     ...result(direction, entry.id, "rejected", reasonCode, reason),
     recoveryActions: recoveryActionsFor(reasonCode),
+    nextCommand:
+      guidance.nextCommand ??
+      derived.nextCommand ??
+      directionQueryCommand(direction, subject.itemId),
+    humanRequired:
+      guidance.humanRequired ?? HUMAN_ONLY_REFUSALS.has(reasonCode),
   };
+}
+
+/** Refusals whose only way forward is a human decision or identity. */
+const HUMAN_ONLY_REFUSALS = new Set([
+  "HUMAN_APPROVAL_REQUIRED",
+  "HUMAN_ACTOR_REQUIRED",
+]);
+
+/**
+ * CLAIM_REQUIRED is raised by many operations; the claim to take follows from
+ * the item's stage: the caller's role when it staffs the stage, otherwise the
+ * stage's first role, with that role's first capability.
+ */
+function claimRequiredGuidance(
+  root: string,
+  direction: AgentDirectionSnapshot,
+  context: OperationContext,
+  itemId: string | undefined,
+): RefusalGuidance {
+  const executorId = (context as { executorId?: unknown }).executorId;
+  const item = direction.item;
+  if (!itemId || !item || typeof executorId !== "string" || !executorId)
+    return {};
+  try {
+    const flow = resolveActiveFlow(root, {
+      itemId,
+      workflowVersionId: item.workflowVersionId ?? undefined,
+    }).flow;
+    const stage = flow?.stages.find((candidate) => candidate.id === item.stage);
+    const roleIds = stage?.roleIds.length ? stage.roleIds : (stage?.agents ?? []);
+    const role =
+      roleIds.find((roleId) => roleId === context.actor) ?? roleIds[0];
+    const capability = flow?.roles.find((candidate) => candidate.id === role)
+      ?.capabilities[0];
+    if (!role || !capability) return {};
+    return {
+      nextCommand: claimCommand(
+        itemId,
+        role,
+        capability,
+        { executorId, reason: context.reason },
+        direction.revision,
+      ),
+    };
+  } catch {
+    return {};
+  }
 }
 
 function recoveryActionsFor(reasonCode: string): string[] {
@@ -1680,6 +1791,15 @@ export async function claimOperation(
   );
   // An accepted handoff has already been consumed by its recipient; its expiry
   // must not block that recipient from renewing the claim afterwards.
+  // AC2/AC3/AC4: refusals below rebuild the claim with the accepted values.
+  // A refusal changes nothing, so `before.revision` is still current.
+  const roleCapabilities = (roleId: string): string[] =>
+    stageRoles.find((role) => role.id === roleId)?.capabilities ??
+    workflowRoles.find((role) => role.id === roleId)?.capabilities ??
+    [];
+  const retryClaim = (actor: string, capability: string): RefusalGuidance => ({
+    nextCommand: claimCommand(item.id, actor, capability, input, before.revision),
+  });
   if (
     item.handoff &&
     item.handoff.status !== "accepted" &&
@@ -1690,21 +1810,37 @@ export async function claimOperation(
       workspaceRoot,
       before,
       "HANDOFF_EXPIRED",
-      "O handoff expirou e não pode ser reivindicado; solicite um novo handoff pelo fluxo canônico.",
+      `O handoff de ${item.handoff.from} para ${item.handoff.to} expirou em ${item.handoff.expiresAt} e não pode ser reivindicado. Recuperação: desfaça o handoff vencido (ele fica no histórico) e ${item.handoff.from} reemite o handoff para ${item.handoff.to}.`,
       input,
       subject,
+      {
+        nextCommand: `letra flow handoff ${item.id} --rollback`,
+        // Re-issuing restates the sender's decision; a human sender must do it.
+        humanRequired: item.handoff.from.startsWith("human"),
+      },
     );
   const activeHandoffForActor =
     activeHandoff && item.handoff?.to === actorForClaim;
-  if (activeHandoff && item.handoff?.to !== actorForClaim)
+  if (activeHandoff && item.handoff && item.handoff.to !== actorForClaim) {
+    const recipient = item.handoff.to;
+    const recipientCapabilities = roleCapabilities(recipient);
     return rejected(
       workspaceRoot,
       before,
       "ACTOR_NOT_ALLOWED",
-      "Handoff ativo direcionado ao papel " + item.handoff?.to + ".",
+      `Handoff ativo direcionado ao papel ${recipient}; o claim deve usar --actor ${recipient}${recipientCapabilities.length ? ` com uma capability do papel (${recipientCapabilities.join(", ")})` : ""}.`,
       input,
       subject,
+      recipient.startsWith("human")
+        ? { humanRequired: true }
+        : retryClaim(
+            recipient,
+            recipientCapabilities.includes(input.capability)
+              ? input.capability
+              : (recipientCapabilities[0] ?? input.capability),
+          ),
     );
+  }
   const isCurrentHandoffRecipient = activeHandoffForActor;
   const claimIdentityId = requestedActor.startsWith("mcp:")
     ? requestedActor
@@ -1715,28 +1851,46 @@ export async function claimOperation(
     stage?.agents.length &&
     !stage.agents.includes(actorForClaim) &&
     !isCurrentHandoffRecipient
-  )
+  ) {
+    // Prefer the stage role that already holds the requested capability.
+    const suggested =
+      stage.agents.find((roleId) =>
+        roleCapabilities(roleId).includes(input.capability),
+      ) ?? stage.agents[0] ?? actorForClaim;
+    const suggestedCapabilities = roleCapabilities(suggested);
     return rejected(
       workspaceRoot,
       before,
       "ACTOR_NOT_ALLOWED",
-      `Actor não autorizado no estágio ${stage.id}: ${input.actor}.`,
+      `Actor não autorizado no estágio ${stage.id}: ${input.actor}. Papéis aceitos (use o id do papel em --actor): ${stage.agents.join(", ")}.`,
       input,
       subject,
+      retryClaim(
+        suggested,
+        suggestedCapabilities.includes(input.capability)
+          ? input.capability
+          : (suggestedCapabilities[0] ?? input.capability),
+      ),
     );
-  const capabilities =
-    stageRoles.find((role) => role.id === actorForClaim)?.capabilities ??
-    flow?.roles.find((role) => role.id === actorForClaim)?.capabilities ??
-    [];
-  if (capabilities.length > 0 && !capabilities.includes(input.capability))
+  }
+  const capabilities = roleCapabilities(actorForClaim);
+  if (capabilities.length > 0 && !capabilities.includes(input.capability)) {
+    const roleVocabulary = new Set(
+      [...workflowRoles, ...stageRoles].flatMap((role) => role.capabilities),
+    );
+    const vocabularyHint = roleVocabulary.has(input.capability)
+      ? ""
+      : ` "${input.capability}" não é capability de nenhum papel do flow: o claim usa o vocabulário do papel, não o do registro de executores.`;
     return rejected(
       workspaceRoot,
       before,
       "CAPABILITY_INVALID",
-      `Capability não permitida: ${input.capability}.`,
+      `Capability não permitida para ${actorForClaim}: ${input.capability}. Capabilities do papel: ${capabilities.join(", ")}.${vocabularyHint}`,
       input,
       subject,
+      retryClaim(actorForClaim, capabilities[0] ?? input.capability),
     );
+  }
   const claimHooks = (stage?.hooks?.on_enter ?? []).filter(
     (hook) => hook.auto && hook.requiresClaim,
   );
@@ -2480,6 +2634,19 @@ export async function runSecurityReviewOperation(
       subject,
     );
   }
+  // AC4: the review needs a claim with this exact capability; say which.
+  const securityClaim: RefusalGuidance | undefined =
+    securityOperation.requiredCapability
+      ? {
+          nextCommand: claimCommand(
+            item.id,
+            resolvedSecurityActor,
+            securityOperation.requiredCapability,
+            input,
+            before.revision,
+          ),
+        }
+      : undefined;
   if (
     securityOperation.requiredCapability &&
     item.claimCapability !== securityOperation.requiredCapability
@@ -2488,9 +2655,10 @@ export async function runSecurityReviewOperation(
       workspaceRoot,
       before,
       "CAPABILITY_INVALID",
-      `A operação security_review exige a capability "${securityOperation.requiredCapability}".`,
+      `A operação security_review exige um claim com a capability "${securityOperation.requiredCapability}" (claim atual: ${item.claimCapability ?? "nenhum"}).`,
       input,
       subject,
+      securityClaim,
     );
   }
   if (
@@ -2502,9 +2670,10 @@ export async function runSecurityReviewOperation(
       workspaceRoot,
       before,
       "CLAIM_REQUIRED",
-      "Actor e executor precisam possuir o claim vigente para executar security_review.",
+      `Actor e executor precisam possuir o claim vigente para executar security_review (claim atual: ${item.claimedBy ?? "nenhum"}/${item.claimExecutorId ?? "nenhum"}).`,
       input,
       subject,
+      securityClaim,
     );
   const report = runScopedSecurityReview(
     securityExecutionRoot(workspaceRoot, workflow),
@@ -3859,27 +4028,82 @@ export async function activateWorkOperation(
   const item = workflow?.items.find(
     (candidate) => candidate.id === input.itemId,
   );
-  if (!workflow || !flow || !item)
+  // AC1: every cause gets its own code; the fix is a human's (activation is
+  // human-only), so the suggested command is a diagnosis the agent may run.
+  const diagnose: RefusalGuidance = {
+    nextCommand: "letra doctor",
+    humanRequired: true,
+  };
+  if (!workflow)
+    return rejected(
+      workspaceRoot,
+      before,
+      "FLOW_NOT_LOADED",
+      "O workspace não possui workflow carregável; nada pode ser ativado.",
+      input,
+      subject,
+      diagnose,
+    );
+  if (!item)
     return rejected(
       workspaceRoot,
       before,
       "ITEM_NOT_FOUND",
-      "Item ou fluxo não encontrado.",
+      `O item ${input.itemId} não existe no workspace.`,
       input,
       subject,
+      { nextCommand: "letra flow backlog list", humanRequired: true },
     );
-  const current = flow.stages.find((stage) => stage.id === item.stage);
-  const initial = flow.stages
+  const initial = flow?.stages
     .filter((stage) => stage.roleIds.length > 0 && stage.id !== item.stage)
     .sort((left, right) => left.order - right.order)[0];
-  if (!current || current.roleIds.length > 0 || !initial)
+  const flowWarning = flow?.warnings.find(
+    (warning) =>
+      warning.code === "HARNESS_UNAVAILABLE" ||
+      warning.code === "TEMPLATE_NOT_FOUND",
+  );
+  // A fallback flow built because the harness or template did not load has no
+  // roles, which used to surface as "only Backlog items can be activated".
+  if (!flow || (!initial && flow.source === "legacy-fallback" && flowWarning))
+    return rejected(
+      workspaceRoot,
+      before,
+      "FLOW_NOT_LOADED",
+      `O flow vigente não carregou${flowWarning ? `: ${flowWarning.message}` : "."} Sem ele não há estágio com papel para receber o item.`,
+      input,
+      subject,
+      diagnose,
+    );
+  const current = flow.stages.find((stage) => stage.id === item.stage);
+  if (!current)
     return rejected(
       workspaceRoot,
       before,
       "ACTIVATION_NOT_ALLOWED",
-      "Somente um item no Backlog sem responsável pode ser ativado.",
+      `O estágio "${item.stage}" do item ${item.id} não existe no flow vigente.`,
       input,
       subject,
+      diagnose,
+    );
+  if (current.roleIds.length > 0)
+    return rejected(
+      workspaceRoot,
+      before,
+      "ACTIVATION_NOT_ALLOWED",
+      `O item ${item.id} já está ativo no estágio "${current.id}" (papéis: ${current.roleIds.join(", ")}); só itens no Backlog sem responsável são ativados.`,
+      input,
+      subject,
+      { nextCommand: `letra direction --item ${item.id} --json` },
+    );
+  if (!initial)
+    return rejected(
+      workspaceRoot,
+      before,
+      "NO_INITIAL_STAGE",
+      "Nenhum estágio do flow vigente tem papel configurado para receber o item.",
+      input,
+      subject,
+      diagnose,
     );
   const actor = initial.roleIds[0];
   if (!actor)

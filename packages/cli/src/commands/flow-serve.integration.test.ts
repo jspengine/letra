@@ -674,6 +674,7 @@ describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
 	// rewrite focus (previously "flow move syncs focus via focus.md").
 	it("flow move ITEM-X --to review moves through canonical passage without touching focus", () => {
 		const result = runCLI(["flow", "move", "ITEM-1", "--to", "review"], tmpDir);
+		expect(result.status).toBe(0);
 		expect(result.stdout).toContain("ITEM-1");
 		expect(result.stdout).toContain("moved");
 

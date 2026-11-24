@@ -111,6 +111,15 @@ function resolveCommands(
 			if (!nextStageId) return [];
 			command = command.replaceAll("<NEXT-STAGE>", nextStageId);
 		}
+		if (command.includes("<AC-NUMBER>")) {
+			if (!pendingAC) return [];
+			command = command.replaceAll("<AC-NUMBER>", pendingAC.id.replace(/^AC/i, ""));
+		}
+		// AC5: harness commands such as `letra flow handoff --to reviewer` omit
+		// the item; without it the CLI acts on whatever item it guesses.
+		if (item && /^letra flow (?:handoff|move)(?= |$)/.test(command) && !command.includes(item.id)) {
+			command = command.replace(/^letra flow (handoff|move)/, `letra flow $1 ${item.id}`);
+		}
 		return [
 			{
 				id: slug(entry.label || command),
@@ -134,6 +143,48 @@ function semanticRevision(
 	snapshot: Omit<AgentDirectionSnapshot, "revision" | "generatedAt">,
 ): string {
 	return `sha256:${createHash("sha256").update(JSON.stringify(snapshot)).digest("hex")}`;
+}
+
+const REVISION_ARG = /--expected-revision (?:sha256:[0-9a-f]+|<REVISION>)/g;
+const withRevisionArg = (command: string, revision: string) =>
+	command.replace(REVISION_ARG, `--expected-revision ${revision}`);
+
+/**
+ * AC5: commands carry the direction's own revision, which is a hash of the
+ * direction. The hash is taken with the revision argument normalized to
+ * `<REVISION>` and the real value is filled in afterwards, so the revision
+ * stays a pure function of the semantic content however often a snapshot is
+ * re-sealed (Run merge, assignment).
+ */
+export function sealRevision<T extends Omit<AgentDirectionSnapshot, "revision" | "generatedAt">>(
+	semantic: T,
+): T & { revision: string } {
+	const fill = (revision: string) => ({
+		...semantic,
+		commands: semantic.commands.map((entry) => ({ ...entry, command: withRevisionArg(entry.command, revision) })),
+		...(semantic.operations
+			? { operations: semantic.operations.map((operation) => (operation.command ? { ...operation, command: withRevisionArg(operation.command, revision) } : operation)) }
+			: {}),
+	});
+	const revision = semanticRevision(fill("<REVISION>"));
+	return { ...fill(revision), revision };
+}
+
+/**
+ * AC5: the CLI command of an operation whose id is not a command. Operations
+ * only a human may perform are flagged and get no command.
+ */
+function operationCommand(
+	id: string,
+	item: Item | null,
+): { command?: string; humanRequired?: boolean } {
+	if (id === "approve") return { humanRequired: true };
+	if (!item) return {};
+	if (id === "security_review")
+		return {
+			command: `letra security review ${item.id} --executor ${item.claimExecutorId ?? "<EXECUTOR>"} --expected-revision <REVISION> --reason "Revisao de Security escopada do ${item.id}"`,
+		};
+	return {};
 }
 
 export function createAgentDirectionSnapshot(
@@ -216,6 +267,7 @@ export function createAgentDirectionSnapshot(
 		requiresClaim: operation.requiresClaim === true,
 		allowedInStages: [...operation.allowedInStages],
 		allowedActors: [...operation.allowedActors],
+		...operationCommand(id, item),
 	}));
 	const gates = [...new Map((input.flow?.stages ?? []).flatMap((flowStage) => flowStage.gate ? [[flowStage.gate.id, {
 		id: flowStage.gate.id,
@@ -328,8 +380,7 @@ export function createAgentDirectionSnapshot(
 		constitutionVersion: constitutionVersion ?? undefined,
 	};
 	return {
-		...semantic,
-		revision: semanticRevision(semantic),
+		...sealRevision(semantic),
 		generatedAt: input.now ?? new Date().toISOString(),
 	};
 }
@@ -427,10 +478,13 @@ function resolveAgentDirectionUnderLock(
 		governanceReferences: snapshot.governanceReferences,
 		constitutionVersion: snapshot.constitutionVersion,
 	};
+	const sealed = sealRevision(semantic);
 	return {
 		...snapshot,
 		run: semantic.run,
-		revision: semanticRevision(semantic),
+		commands: sealed.commands,
+		operations: sealed.operations,
+		revision: sealed.revision,
 	};
 }
 
@@ -556,9 +610,12 @@ function withAssignment(
 	const semantic = { ...snapshot, assignment };
 	delete (semantic as Partial<AgentDirectionSnapshot>).revision;
 	delete (semantic as Partial<AgentDirectionSnapshot>).generatedAt;
+	const sealed = sealRevision(semantic as Omit<AgentDirectionSnapshot, "revision" | "generatedAt">);
 	return {
 		...snapshot,
 		assignment,
-		revision: semanticRevision(semantic as Omit<AgentDirectionSnapshot, "revision" | "generatedAt">),
+		commands: sealed.commands,
+		operations: sealed.operations,
+		revision: sealed.revision,
 	};
 }

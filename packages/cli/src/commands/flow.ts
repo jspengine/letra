@@ -101,7 +101,7 @@ export default function flowCommand() {
 				console.log(chalk.red("Either --to or --auto is required"));
 				process.exit(1);
 			}
-			flowMoveAction(undefined, itemId, options);
+			return flowMoveAction(undefined, itemId, options);
 		});
 
 	cmd.command("board")

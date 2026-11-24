@@ -12,6 +12,7 @@ import {
   routeParam,
   sendError,
   sendJson,
+  sendRefusal,
 } from "../http.js";
 import type { RouteHandler } from "../router.js";
 import {
@@ -183,11 +184,7 @@ export function createItemRoutes(
           },
         );
         if (operation.outcome !== "accepted") {
-          sendError(
-            res,
-            operation.reasonCode === "DIRECTION_STALE" ? 409 : 422,
-            operation.reason,
-          );
+          sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
           return true;
         }
         dependencies.broadcast();
@@ -251,12 +248,7 @@ export function createItemRoutes(
           },
         );
         if (operation.outcome !== "accepted") {
-          sendJson(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, {
-            error: operation.reason,
-            code: operation.reasonCode,
-            reason: operation.reason,
-            recoveryActions: operation.recoveryActions ?? [],
-          });
+          sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
           return true;
         }
         dependencies.broadcast();
@@ -315,7 +307,7 @@ export function createItemRoutes(
                 : operation.reasonCode === "ITEM_COMPLETED"
                   ? 400
                   : 422;
-          sendError(res, status, operation.reason);
+          sendRefusal(res, status, operation);
           return true;
         }
         dependencies.broadcast();
@@ -395,11 +387,7 @@ export function createItemRoutes(
             },
           );
           if (operation.outcome !== "accepted") {
-            sendError(
-              res,
-              operation.reasonCode === "DIRECTION_STALE" ? 409 : 422,
-              operation.reason,
-            );
+            sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
             return true;
           }
           dependencies.broadcast();
@@ -440,11 +428,7 @@ export function createItemRoutes(
           },
         );
         if (operation.outcome !== "accepted") {
-          sendError(
-            res,
-            operation.reasonCode === "DIRECTION_STALE" ? 409 : 422,
-            operation.reason,
-          );
+          sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
           return true;
         }
         dependencies.broadcast();
@@ -488,11 +472,7 @@ export function createItemRoutes(
           },
         );
         if (operation.outcome !== "accepted") {
-          sendError(
-            res,
-            operation.reasonCode === "DIRECTION_STALE" ? 409 : 422,
-            operation.reason,
-          );
+          sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
           return true;
         }
         dependencies.broadcast();
@@ -564,11 +544,7 @@ export function createItemRoutes(
           },
         );
         if (operation.outcome !== "accepted") {
-          sendError(
-            res,
-            operation.reasonCode === "DIRECTION_STALE" ? 409 : 422,
-            operation.reason,
-          );
+          sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
           return true;
         }
         dependencies.broadcast();
@@ -603,11 +579,7 @@ export function createItemRoutes(
         idempotencyKey: data.idempotencyKey,
       });
       if (operation.outcome !== "accepted") {
-        sendError(
-          res,
-          operation.reasonCode === "DIRECTION_STALE" ? 409 : 422,
-          operation.reason,
-        );
+        sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
         return true;
       }
       dependencies.broadcast();
@@ -656,7 +628,7 @@ export function createItemRoutes(
                 : operation.reasonCode === "ITEM_COMPLETED"
                   ? 400
                   : 422;
-          sendError(res, status, operation.reason);
+          sendRefusal(res, status, operation);
           return true;
         }
         dependencies.broadcast();
@@ -688,11 +660,7 @@ export function createItemRoutes(
           },
         );
         if (operation.outcome !== "accepted") {
-          sendError(
-            res,
-            operation.reasonCode === "DIRECTION_STALE" ? 409 : 422,
-            operation.reason,
-          );
+          sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
           return true;
         }
         dependencies.broadcast();

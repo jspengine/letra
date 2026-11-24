@@ -8,8 +8,19 @@ function collectEvidence(value: string, previous: string[]): string[] {
 	return [...previous, value];
 }
 
-function printJson(value: unknown): void {
+/**
+ * Prints the operation result and mirrors its outcome in the exit code
+ * (ITEM-25): a refused operation exits 1 so scripts and agents do not read it
+ * as success. "approval-required" is an accepted request waiting for a human,
+ * not a refusal, and keeps 0; read-only payloads (activity) have no outcome.
+ */
+export function printJson(value: unknown): void {
 	process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+	if (isRejected(value)) process.exitCode = 1;
+}
+
+function isRejected(value: unknown): boolean {
+	return typeof value === "object" && value !== null && (value as { outcome?: unknown }).outcome === "rejected";
 }
 
 export default function operationCommand(): Command {
