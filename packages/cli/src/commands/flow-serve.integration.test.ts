@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { FlowServer } from "./flow-serve.js";
 import { saveWorkflow, type Item, type Workflow } from "./flow-init.js";
-import { directionForOperation } from "../domain-operations/service.js";
 import { claimCanonically } from "../test/canonical-claim.js";
 import { ensureSharedHarness } from "../workspace/resolution.js";
 import { resolveAgentDirection, resolveDirection } from "../agent-direction/service.js";
@@ -143,10 +142,10 @@ async function api(method: string, url: string, body?: unknown): Promise<HttpRes
 	return { status: res.status, body: parsed };
 }
 
-// The revision the item operations compare: the item's direction (which
-// accounts for its active Run), not the item-less workspace direction.
+// The public item query (`letra direction --item`): since ITEM-39 it is the
+// revision the item operations compare, including while a Run is active.
 function itemRevision(root: string, itemId: string): string {
-	return directionForOperation(root, { itemId }).revision;
+	return resolveDirection(root, { itemId }).revision;
 }
 
 function executorBody(root: string, itemId: string, idempotencyKey: string) {
@@ -223,7 +222,11 @@ describe("FlowServer HTTP API integration", () => {
 		});
 
 		it("should return 404 for non-existent item", async () => {
-			const { status } = await api("POST", `${baseUrl}/api/items/ITEM-999/claim`, executorBody(tmpDir, "ITEM-999", "integration-claim-missing"));
+			// No direction exists for a missing item (`letra direction --item`
+			// refuses with ITEM_NOT_FOUND), so the request omits the revision, as
+			// the board does, and the server fills the one the claim compares.
+			const { expectedRevision: _omitted, ...body } = executorBody(tmpDir, "ITEM-1", "integration-claim-missing");
+			const { status } = await api("POST", `${baseUrl}/api/items/ITEM-999/claim`, body);
 			expect(status).toBe(404);
 		});
 

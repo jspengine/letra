@@ -627,7 +627,7 @@ async function createItemOperationLocked(
     : undefined;
   const before = run
     ? resolveOperationDirection(workspaceRoot, { runId: run.id })
-    : resolveDirection(workspaceRoot);
+    : resolveOperationDirection(workspaceRoot, {});
   const subject = { itemId: input.id, operation: "create_item" };
   const stale = checkRevision(workspaceRoot, before, input, subject);
   if (stale) return stale;
@@ -864,7 +864,7 @@ async function createItemOperationLocked(
   }
   const after = run
     ? resolveOperationDirection(workspaceRoot, { runId: run.id })
-    : resolveDirection(workspaceRoot);
+    : resolveOperationDirection(workspaceRoot, {});
   const entry = audit(workspaceRoot, "item_move", before, {
     outcome: "accepted",
     reasonCode: "ITEM_CREATED",
@@ -1538,14 +1538,31 @@ function checkRevision(
   subject: { itemId?: string; acId?: string; operation: string },
 ): OperationResult | null {
   if (context.expectedRevision === direction.revision) return null;
-  return rejected(
-    root,
-    direction,
-    "DIRECTION_STALE",
-    "A direção mudou desde a última consulta. Consulte get_direction e tente novamente.",
-    context,
-    subject,
-  );
+  // ITEM-39 AC4/AC5: say which direction was compared and how to get it, so
+  // the caller does not have to guess between workspace, item and Run.
+  const runId =
+    direction.assignment?.status === "assigned" ? direction.assignment.runId : undefined;
+  const itemId = subject.itemId ?? direction.item?.id;
+  const scope = runId ? `Run ${runId}` : itemId ? `item ${itemId}` : "workspace";
+  const command = runId
+    ? `letra direction --run ${runId} --json`
+    : itemId
+      ? `letra direction --item ${itemId} --json`
+      : "letra direction --json";
+  let sentWorkspaceRevision = false;
+  if (itemId) {
+    try {
+      sentWorkspaceRevision =
+        context.expectedRevision === resolveOperationDirection(root, {}).revision;
+    } catch {
+      sentWorkspaceRevision = false;
+    }
+  }
+  const reason = sentWorkspaceRevision
+    ? `A revisão enviada é a da direção de workspace (letra direction sem --item); esta operação compara a direção do ${scope}, revisão vigente ${direction.revision}. Consulte com: ${command}`
+    : `A direção do ${scope} mudou desde a última consulta (revisão vigente ${direction.revision}). Consulte com: ${command}`;
+  const refused = rejected(root, direction, "DIRECTION_STALE", reason, context, subject);
+  return { ...refused, recoveryActions: [`Consulte ${command} e repita a operação com a revisão vigente.`] };
 }
 
 function normalizeAcId(value: string): string {

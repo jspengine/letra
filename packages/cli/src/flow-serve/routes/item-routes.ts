@@ -29,7 +29,6 @@ import {
   runValidationOperation,
   updateItemOperation,
 } from "../../domain-operations/service.js";
-import { resolveAgentDirection } from "../../agent-direction/service.js";
 import { resolveLocalIdentity } from "../../identity/service.js";
 import { signLocalOperation } from "../../identity/signing.js";
 import type { HumanSessionGateway } from "../human-session.js";
@@ -178,7 +177,7 @@ export function createItemRoutes(
             itemId: data.itemId,
             expectedRevision:
               data.expectedRevision ??
-              resolveAgentDirection(workspaceRoot, data.itemId).revision,
+              directionForOperation(workspaceRoot, { itemId: data.itemId }).revision,
             reason: data.reason?.trim() || "Validação solicitada pela UI.",
             actor: sessionActor!,
           },
@@ -302,7 +301,7 @@ export function createItemRoutes(
             actor: sessionActor!,
             expectedRevision:
               data.expectedRevision ??
-              resolveAgentDirection(workspaceRoot).revision,
+              directionForOperation(workspaceRoot, {}).revision,
             reason: data.reason?.trim() || "Item criado pela UI.",
             idempotencyKey: data.idempotencyKey,
           },
@@ -481,7 +480,7 @@ export function createItemRoutes(
             actor: sessionActor!,
             expectedRevision:
               data.expectedRevision ??
-              resolveAgentDirection(workspaceRoot, reworkItemId).revision,
+              directionForOperation(workspaceRoot, { itemId: reworkItemId }).revision,
             reason:
               data.reason?.trim() ||
               "A revisão encontrou correções necessárias.",
@@ -559,7 +558,7 @@ export function createItemRoutes(
             actor: sessionActor!,
             expectedRevision:
               data.expectedRevision ??
-              resolveAgentDirection(workspaceRoot, itemId).revision,
+              directionForOperation(workspaceRoot, { itemId: itemId }).revision,
             reason: "Alteração de item solicitada pela UI.",
             idempotencyKey: data.idempotencyKey,
           },
@@ -599,7 +598,7 @@ export function createItemRoutes(
         actor: sessionActor!,
         expectedRevision:
           data.expectedRevision ??
-          resolveAgentDirection(workspaceRoot, itemId).revision,
+          directionForOperation(workspaceRoot, { itemId: itemId }).revision,
         reason: "Remoção de item solicitada pela UI.",
         idempotencyKey: data.idempotencyKey,
       });
@@ -683,7 +682,7 @@ export function createItemRoutes(
             actor: sessionActor!,
             expectedRevision:
               data.expectedRevision ??
-              resolveAgentDirection(workspaceRoot, releaseId).revision,
+              directionForOperation(workspaceRoot, { itemId: releaseId }).revision,
             reason: "Release solicitado pela UI.",
             idempotencyKey: data.idempotencyKey,
           },

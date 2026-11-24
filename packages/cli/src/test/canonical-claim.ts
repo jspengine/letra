@@ -11,11 +11,8 @@
  * Legacy fixtures wrote only `claimedBy`/`claimedAt` into workflow.json, which
  * the canonical model now rejects with CLAIM_REQUIRED / CLAIM_EXPIRED.
  */
-import {
-	claimOperation,
-	directionForOperation,
-	type OperationResult,
-} from "../domain-operations/service.js";
+import { resolveDirection } from "../agent-direction/service.js";
+import { claimOperation, type OperationResult } from "../domain-operations/service.js";
 
 export interface CanonicalClaimOptions {
 	itemId: string;
@@ -40,7 +37,9 @@ export async function claimCanonically(
 		executorId,
 		capability,
 		ttlMinutes,
-		expectedRevision: directionForOperation(root, { itemId }).revision,
+		// The public item query (`letra direction --item`), as an agent would
+		// read it: since ITEM-39 it is the revision every operation compares.
+		expectedRevision: resolveDirection(root, { itemId }).revision,
 		reason: "Claim de fixture de teste pela operação canônica.",
 	});
 	// Fail in setup, where the cause is, not later as CLAIM_REQUIRED.

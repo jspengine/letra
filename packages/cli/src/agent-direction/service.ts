@@ -543,7 +543,9 @@ export function resolveOperationDirection(root: string, target: OperationDirecti
 			}
 			return resolveAgentDirection(root, target.itemId);
 		}
-		return resolveAgentDirection(root, null);
+		// Workspace scope: exactly what `letra direction` without a target
+		// shows and what item creation and writeWorkflow already compare.
+		return resolveDirectionUnderLock(root, {});
 	});
 }
 

@@ -1,8 +1,7 @@
 import { resolve } from "node:path";
 import { Command } from "commander";
 import { loadWorkflow } from "./flow-init.js";
-import { resolveAgentDirection } from "../agent-direction/service.js";
-import { runSecurityReviewOperation } from "../domain-operations/service.js";
+import { directionForOperation, runSecurityReviewOperation } from "../domain-operations/service.js";
 
 export default function securityCommand(): Command {
 	const command = new Command("security").description("Executar revisão de Security escopada por item");
@@ -16,7 +15,8 @@ export default function securityCommand(): Command {
 		.action(async (itemId: string, options: { executor: string; expectedRevision: string; reason: string; actor: string; idempotencyKey?: string }) => {
 			const root = resolve(process.cwd());
 			const workflow = loadWorkflow(root);
-			const currentRevision = resolveAgentDirection(root).revision;
+			// The item direction the operation compares (ITEM-39), not the workspace one.
+			const currentRevision = directionForOperation(root, { itemId }).revision;
 			const result = await runSecurityReviewOperation(root, {
 				itemId,
 				executorId: options.executor,

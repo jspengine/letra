@@ -452,13 +452,11 @@ async function writeWorkflowUnlocked(
 	if (options.expectedRevision) {
 		// Same direction the operations compare (ITEM-39): a private copy of
 		// the item/Run selection here diverged from them once a Run was active.
-		const { resolveDirection, resolveOperationDirection } = await import("../agent-direction/service.js");
+		const { resolveOperationDirection } = await import("../agent-direction/service.js");
 		const existingTarget = primaryItemId
 			? loadWorkflow(root)?.items.some((item) => item.id === primaryItemId) === true
 			: false;
-		const currentRevision = existingTarget
-			? resolveOperationDirection(root, { itemId: primaryItemId }).revision
-			: resolveDirection(root).revision;
+		const currentRevision = resolveOperationDirection(root, existingTarget ? { itemId: primaryItemId } : {}).revision;
 		if (currentRevision !== options.expectedRevision) {
 			return { ok: false, filesUpdated: [], error: `DIRECTION_STALE: expected ${options.expectedRevision}, current ${currentRevision}` };
 		}

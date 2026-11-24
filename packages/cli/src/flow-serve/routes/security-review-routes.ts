@@ -1,8 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { securityReportPath } from "../../security/scoped-review.js";
 import { loadWorkflow } from "../../commands/flow-init.js";
-import { resolveAgentDirection } from "../../agent-direction/service.js";
-import { runSecurityReviewOperation } from "../../domain-operations/service.js";
+import { directionForOperation, runSecurityReviewOperation } from "../../domain-operations/service.js";
 import { HttpBodyError, readJson, routeParam, sendJson } from "../http.js";
 import type { RouteHandler } from "../router.js";
 
@@ -32,7 +31,7 @@ export function createSecurityReviewRoutes(): RouteHandler {
 			const result = await runSecurityReviewOperation(workspaceRoot, {
 				itemId,
 				executorId: data.executorId ?? "opencode",
-				expectedRevision: data.expectedRevision ?? resolveAgentDirection(workspaceRoot).revision,
+				expectedRevision: data.expectedRevision ?? directionForOperation(workspaceRoot, { itemId }).revision,
 				reason: data.reason?.trim() || "Revisão de Security solicitada pela UI.",
 				actor: data.actor ?? "security",
 				idempotencyKey: data.idempotencyKey,
