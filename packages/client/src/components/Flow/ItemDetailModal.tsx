@@ -28,6 +28,7 @@ import { cn } from "../../lib/utils";
 import { createEventSourceWithReconnect } from "../../lib/withReconnect";
 import { computeSlug, countACs } from "../../lib/item-utils";
 import { selectPassageRecipient } from "../../lib/passage-recipient";
+import { boardClaimRequest, gateDecisionRequiredMessage, stageExitRequiresGateDecision } from "../../lib/board-passage";
 import { translateTerm } from "../../lib/term-translations";
 import {
 	itemOperationalState,
@@ -235,12 +236,13 @@ export default function ItemDetailModal({
 		if (!moveTarget) return;
 		const destination = resolvedStages.find((stage) => stage.id === moveTarget);
 		const recipients = destination?.roleIds?.length ? destination.roleIds : destination?.agents ?? [];
-		if (destination?.gate?.type === "human" && destination.gate.blocking) {
-			window.alert("Este estágio exige uma decisão explícita no painel do gate.");
+		// The gate of the CURRENT stage guards its exit; entering a gated stage is a passage.
+		if (curStage && stageExitRequiresGateDecision(curStage)) {
+			window.alert(gateDecisionRequiredMessage(curStage));
 			return;
 		}
 		if (!item.claimExecutorId) {
-			window.alert("Não há claim ativa para fazer a passagem. Adquira a claim e tente novamente.");
+			window.alert("Não há claim ativa para fazer a passagem. Use \"Reivindicar como papel\" e tente novamente.");
 			return;
 		}
 		const selection = selectPassageRecipient(recipients, destination?.name ?? moveTarget, (message, initial) => window.prompt(message, initial));
@@ -257,7 +259,26 @@ export default function ItemDetailModal({
 			onItemMoved();
 			setMoveTarget("");
 		}).catch((error) => window.alert(error instanceof Error ? error.message : "Falha ao fazer passagem."));
-	}, [item.id, item.claimExecutorId, moveTarget, onItemMoved, resolvedStages]);
+	}, [item.id, item.claimExecutorId, curStage, moveTarget, onItemMoved, resolvedStages]);
+
+	const claimRequest = item.claimedBy || curStage?.zone === "done" ? null : boardClaimRequest(item, curStage, activeFlow);
+	const [claimPending, setClaimPending] = useState(false);
+	const handleClaim = useCallback(() => {
+		if (!claimRequest || claimRequest.error) return;
+		setClaimPending(true);
+		fetch(`/api/items/${item.id}/claim`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ role: claimRequest.role, capability: claimRequest.capability, executorId: claimRequest.executorId }),
+		})
+			.then(async (response) => {
+				const data = await response.json().catch(() => ({}));
+				if (!response.ok) throw new Error(data.error || "Falha ao reivindicar o item.");
+				onItemMoved();
+			})
+			.catch((error) => window.alert(error instanceof Error ? error.message : "Falha ao reivindicar o item."))
+			.finally(() => setClaimPending(false));
+	}, [claimRequest, item.id, onItemMoved]);
 
 	const handleDelete = useCallback(() => {
 		fetch(`/api/items/${item.id}`, { method: "DELETE" }).then(() => {
@@ -415,6 +436,15 @@ export default function ItemDetailModal({
 										{item.handoff.evidence.length > 0 ? <span className="break-words">{item.handoff.evidence.join(" · ")}</span> : <span className="app-section-muted">Nenhuma evidência anexada ao handoff.</span>}
 									</div>
 								) : <p className="app-section-muted text-xs">Nenhum handoff pendente.</p>}
+								{claimRequest ? (
+									claimRequest.error ? (
+										<p className="app-section-muted text-xs">{claimRequest.error}</p>
+									) : (
+										<Button size="sm" variant="secondary" disabled={claimPending} onClick={handleClaim}>
+											{claimPending ? "Reivindicando…" : `Reivindicar como ${claimRequest.role}`}
+										</Button>
+									)
+								) : null}
 								{item.lastFailure ? <p className="text-xs text-[var(--color-danger)]">Falha {item.lastFailure.code}: {item.lastFailure.message} · recuperação: {item.lastFailure.recovery}</p> : null}
 							</CardContent>
 						</Card>

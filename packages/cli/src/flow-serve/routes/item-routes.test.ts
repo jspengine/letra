@@ -71,8 +71,73 @@ function dependencies() {
 		releaseClaimOperation,
 		resolveHumanActor: vi.fn().mockReturnValue("human:web-ui"),
 	} as unknown as ItemRouteDependencies;
-	return { deps, writeWorkflow, loadHealthRecord, logEntry, createItemOperation, decideGateOperation, requestTransitionOperation, requestPassageOperation };
+	return { deps, writeWorkflow, loadHealthRecord, logEntry, createItemOperation, decideGateOperation, requestTransitionOperation, requestPassageOperation, claimOperation };
 }
+
+function reviewWorkflow(claimedBy?: string): Workflow {
+	const base = workflow();
+	return {
+		...base,
+		stages: [
+			{ id: "review", name: "Review", order: 0, zone: "doing" },
+			{ id: "security", name: "Security", order: 1, zone: "doing" },
+			{ id: "done", name: "Done", order: 2, zone: "done" },
+		],
+		items: [{
+			id: "ITEM-3",
+			description: "Review me",
+			stage: "review",
+			createdAt: "2026-07-01T00:00:00.000Z",
+			...(claimedBy ? { claimedBy, claimExecutorId: "web-ui", claimCapability: "read_code" } : {}),
+			handoff: { from: "developer", to: "reviewer", summary: "Pronto", evidence: [], timestamp: "2026-07-01T00:00:00.000Z", expiresAt: "2999-01-01T00:00:00.000Z", executorId: "claude-code" },
+		}],
+	} as Workflow;
+}
+
+describe("ITEM-44: board passage Review -> Security", () => {
+	it("claims for the active handoff role instead of the human session", async () => {
+		const { deps, claimOperation } = dependencies();
+		const res = response();
+		const body = JSON.stringify({ role: "reviewer", capability: "read_code", executorId: "web-ui", expectedRevision: "revision-1" });
+		const context = createRequestContext(request("POST", body), res, new URL("http://localhost/api/items/ITEM-3/claim"), { workspaceRoot: "C:\\workspace", workspaceDir: "C:\\workspace\\.letra", workflow: reviewWorkflow() });
+		await createItemRoutes(deps)(context as any);
+		expect(claimOperation).toHaveBeenCalledWith("C:\\workspace", expect.objectContaining({
+			itemId: "ITEM-3",
+			actor: "reviewer",
+			capability: "read_code",
+			executorId: "web-ui",
+			reason: expect.stringContaining("human:web-ui"),
+		}));
+		expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+	});
+
+	it("refuses to claim as another identity through the role field", async () => {
+		for (const role of ["human:someone-else", "mcp:codex", "human"]) {
+			const { deps, claimOperation } = dependencies();
+			const res = response();
+			const context = createRequestContext(request("POST", JSON.stringify({ role })), res, new URL("http://localhost/api/items/ITEM-3/claim"), { workspaceRoot: "C:\\workspace", workspaceDir: "C:\\workspace\\.letra", workflow: reviewWorkflow() });
+			await createItemRoutes(deps)(context as any);
+			expect(claimOperation).not.toHaveBeenCalled();
+			expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+		}
+	});
+
+	it("passes the item as the role that holds the source claim, keeping the human as requester", async () => {
+		const { deps, requestPassageOperation } = dependencies();
+		const res = response();
+		const body = JSON.stringify({ targetStageId: "security", to: "security", executorId: "web-ui", summary: "Revisão concluída", evidence: [], expectedRevision: "revision-2" });
+		const context = createRequestContext(request("POST", body), res, new URL("http://localhost/api/items/ITEM-3/passage"), { workspaceRoot: "C:\\workspace", workspaceDir: "C:\\workspace\\.letra", workflow: reviewWorkflow("reviewer") });
+		await createItemRoutes(deps)(context as any);
+		expect(requestPassageOperation).toHaveBeenCalledWith("C:\\workspace", expect.objectContaining({
+			itemId: "ITEM-3",
+			targetStageId: "security",
+			to: "security",
+			actor: "reviewer",
+			reason: expect.stringContaining("solicitada por human:web-ui"),
+		}));
+		expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+	});
+});
 
 it("routes an explicit web passage through the canonical passage operation", async () => {
 	const { deps, requestPassageOperation } = dependencies();

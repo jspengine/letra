@@ -6,6 +6,7 @@ import ActivityTimeline from "./ActivityTimeline";
 import ItemDetailModal from "./ItemDetailModal";
 import { cn } from "../../lib/utils";
 import { selectPassageRecipient } from "../../lib/passage-recipient";
+import { gateDecisionRequiredMessage, stageExitRequiresGateDecision } from "../../lib/board-passage";
 import {
 	Button,
 	ButtonGroup,
@@ -185,12 +186,18 @@ export default function FlowView({
 		? resolvedStages.find((stage) => stage.id === upcomingStageId)?.name
 		: null;
 
-	function allowMoveToStage(item: Workflow["items"][0], targetStageId: string): boolean {
-		if (humanGateStages.has(targetStageId)) {
-			toast(`O estágio ${targetStageId} exige uma decisão explícita no painel do gate.`, "error");
-			return false;
-		}
-		return true;
+	// Gates guard the exit of their own stage (see requestPassageOperation):
+	// entering Security is a passage, leaving it is a gate decision.
+	function allowMoveToStage(item: Workflow["items"][0], _targetStageId: string): boolean {
+		const source = resolvedStages.find((stage) => stage.id === item.stage);
+		return !stageExitRequiresGateDecision(source);
+	}
+
+	function guardMove(item: Workflow["items"][0], targetStageId: string): boolean {
+		if (allowMoveToStage(item, targetStageId)) return true;
+		const source = resolvedStages.find((stage) => stage.id === item.stage);
+		if (source) toast(gateDecisionRequiredMessage(source), "error");
+		return false;
 	}
 
 	function getValidateChecks(item: Workflow["items"][0]): string[] {
@@ -201,15 +208,12 @@ export default function FlowView({
 	const { toast } = useToast();
 
 	function doMoveItem(itemId: string, targetStage: string) {
-		if (humanGateStages.has(targetStage)) {
-			toast("Este estágio exige uma decisão explícita no painel do gate.", "error");
-			return;
-		}
 		const item = workflow.items.find((entry) => entry.id === itemId);
+		if (!item || !guardMove(item, targetStage)) return;
 		const destination = resolvedStages.find((stage) => stage.id === targetStage);
 		const recipients = destination?.roleIds?.length ? destination.roleIds : destination?.agents ?? [];
-		if (!item?.claimExecutorId) {
-			toast("Não há claim ativa para fazer a passagem. Adquira a claim e tente novamente.", "error");
+		if (!item.claimExecutorId) {
+			toast("Não há claim ativa para fazer a passagem. Abra o item e use \"Reivindicar como papel\".", "error");
 			return;
 		}
 		const selection = selectPassageRecipient(recipients, destination?.name ?? targetStage, (message, initial) => window.prompt(message, initial));
@@ -233,7 +237,7 @@ export default function FlowView({
 	function handleDropItem(itemId: string, targetStage: string) {
 		const item = workflow.items.find((it) => it.id === itemId);
 		if (!item || item.stage === targetStage) return;
-		if (!allowMoveToStage(item, targetStage)) return;
+		if (!guardMove(item, targetStage)) return;
 		const validateChecks = getValidateChecks(item);
 		if (validateChecks.length > 0) {
 			setValidateDialogItem({
@@ -248,7 +252,7 @@ export default function FlowView({
 
 	function handleMoveNext() {
 		if (!selectedItem || !upcomingStageId) return;
-		if (!allowMoveToStage(selectedItem, upcomingStageId)) return;
+		if (!guardMove(selectedItem, upcomingStageId)) return;
 		const validateChecks = getValidateChecks(selectedItem);
 		if (validateChecks.length > 0) {
 			setValidateDialogItem({
@@ -845,7 +849,7 @@ export default function FlowView({
 									activeFlow={activeFlow}
 									onSelectItem={setSelectedItemId}
 									onDropItem={handleDropItem}
-									allowDrop={allowMoveToStage}
+									allowDrop={guardMove}
 									specRefreshKey={specRefreshKey}
 									filter={activeFilter}
 									onItemDecided={onItemMoved}
