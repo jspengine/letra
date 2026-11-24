@@ -466,6 +466,15 @@ function resolveDirectionUnderLock(root: string, options: ResolveDirectionOption
 		});
 	}
 	if (options.itemId) {
+		// An item with an active Run is worked through that Run: `--item` must
+		// return the same direction the operations compare (ITEM-39).
+		const itemRuns = runs.filter((run) => run.itemId === options.itemId);
+		if (itemRuns.length === 1 && !options.workflowVersionId) {
+			return withAssignment(resolveAgentDirection(root, undefined, { runId: itemRuns[0]!.id }), {
+				status: "assigned",
+				runId: itemRuns[0]!.id,
+			});
+		}
 		const selectedItem = resolveAgentDirection(root, options.itemId, { workflowVersionId: options.workflowVersionId });
 		if (!selectedItem.item) throw new Error(`ITEM_NOT_FOUND: ${options.itemId}`);
 		return selectedItem;
@@ -485,6 +494,57 @@ function resolveDirectionUnderLock(root: string, options: ResolveDirectionOption
 /** Select and resolve a Run from the same locked snapshot. */
 export function resolveDirection(root: string, options: ResolveDirectionOptions = {}): AgentDirectionSnapshot {
 	return withWorkspaceTransactionLockSync(root, () => resolveDirectionUnderLock(root, options));
+}
+
+/**
+ * The assigned view of a Run direction, as resolveOperationDirection returns
+ * it. For operations that must predict their post-write direction inside a
+ * transaction (e.g. the passage), so the predicted afterRevision is the one
+ * the next operation compares.
+ */
+export function withRunAssignment(snapshot: AgentDirectionSnapshot, runId: string): AgentDirectionSnapshot {
+	return withAssignment(snapshot, { status: "assigned", runId });
+}
+
+export interface OperationDirectionTarget {
+	itemId?: string;
+	runId?: string;
+}
+
+/**
+ * The single direction every operation compares and returns (ITEM-39).
+ *
+ * - An active Run (explicit, or the item's only active Run) yields the
+ *   assigned Run direction: what the claim returns and `letra direction
+ *   --run`/`--item` show.
+ * - An item without an active Run yields the item direction.
+ * - No target yields the workspace direction.
+ *
+ * The executor is deliberately not part of the revision: whether an executor
+ * may act is an authorization check, not a different view of the state.
+ */
+export function resolveOperationDirection(root: string, target: OperationDirectionTarget = {}): AgentDirectionSnapshot {
+	return withWorkspaceTransactionLockSync(root, () => {
+		const runs = readExecutionRuns(root).runs;
+		if (target.runId) {
+			const run = runs.find((candidate) => candidate.id === target.runId);
+			if (run && isRunActiveForDirection(run)) {
+				return withAssignment(resolveAgentDirection(root, undefined, { runId: run.id }), { status: "assigned", runId: run.id });
+			}
+			if (run) return resolveAgentDirection(root, undefined, { runId: run.id });
+			// An explicit Run that does not exist is an error, never a silent
+			// fallback to another scope.
+			throw new Error(`RUN_NOT_FOUND: ${target.runId}`);
+		}
+		if (target.itemId) {
+			const active = runs.filter((run) => run.itemId === target.itemId && isRunActiveForDirection(run));
+			if (active.length === 1) {
+				return withAssignment(resolveAgentDirection(root, undefined, { runId: active[0]!.id }), { status: "assigned", runId: active[0]!.id });
+			}
+			return resolveAgentDirection(root, target.itemId);
+		}
+		return resolveAgentDirection(root, null);
+	});
 }
 
 function withAssignment(

@@ -10,7 +10,7 @@ import {
 } from "./service.js";
 import { resolveActiveFlow, resolveActiveFlowFor } from "../flow-definition/resolve.js";
 import { resolveAgentDirection } from "../agent-direction/service.js";
-import { claimOperation, directionForOperation, recordExecutionEvent, releaseClaimOperation, requestHandoffOperation, requestTransitionOperation } from "../domain-operations/service.js";
+import { claimOperation, recordExecutionEvent, releaseClaimOperation, requestHandoffOperation, requestTransitionOperation } from "../domain-operations/service.js";
 import { readExecutionRuns } from "../execution-runs/store.js";
 import type { Workflow } from "../commands/flow-init.js";
 
@@ -267,20 +267,18 @@ describe("Gap 5: Runtime using active version and execution pin", () => {
 		});
 		expect(resumed.outcome).toBe("accepted");
 		expect(readExecutionRuns(testDir).runs[0]).toMatchObject({ id: createdRun?.id, status: "running", workflowVersionId: published.id, revision: 3, cycle: { number: 2, endedAt: null }, binding: { actorId: "reviewer", executorId: "codex" }, authorization: { kind: "handoff" } });
-		// Events and release compare directionForOperation, while the claim
-		// returns the assigned Run direction as afterRevision; chaining them
-		// directly is ITEM-39. Consult the direction the operation compares,
-		// as the product dispatcher does before each call.
+		// ITEM-39: every operation compares the same canonical direction, so the
+		// afterRevision of one operation is the expectedRevision of the next.
 		const heartbeat = await recordExecutionEvent(testDir, {
 			itemId: "ITEM-CLAIM", actor: "reviewer", executorId: "codex", status: "heartbeat",
-			expectedRevision: directionForOperation(testDir, { itemId: "ITEM-CLAIM" }).revision,
+			expectedRevision: resumed.afterRevision,
 			reason: "Renew the delegated Run lease.",
 		});
 		expect(heartbeat).toMatchObject({ outcome: "accepted", reasonCode: "EVENT_RECORDED" });
 		expect(readExecutionRuns(testDir).runs[0]?.lease?.heartbeatAt).toBeTruthy();
 		const released = await releaseClaimOperation(testDir, {
 			itemId: "ITEM-CLAIM", actor: "reviewer",
-			expectedRevision: directionForOperation(testDir, { itemId: "ITEM-CLAIM" }).revision,
+			expectedRevision: heartbeat.afterRevision,
 			reason: "Release the completed Run cycle.",
 		});
 		expect(released).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_RELEASED" });

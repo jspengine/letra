@@ -450,19 +450,15 @@ async function writeWorkflowUnlocked(
 		return { ok: false, filesUpdated: [], error: "workflow.stages must be an array" };
 	}
 	if (options.expectedRevision) {
-		const { resolveAgentDirection, resolveDirection } = await import("../agent-direction/service.js");
-		const runStore = await import("../execution-runs/store.js");
-		const activeRuns = primaryItemId
-			? runStore.readExecutionRuns(root).runs.filter((run) => run.itemId === primaryItemId && runStore.isRunActiveForDirection(run))
-			: [];
+		// Same direction the operations compare (ITEM-39): a private copy of
+		// the item/Run selection here diverged from them once a Run was active.
+		const { resolveDirection, resolveOperationDirection } = await import("../agent-direction/service.js");
 		const existingTarget = primaryItemId
 			? loadWorkflow(root)?.items.some((item) => item.id === primaryItemId) === true
 			: false;
-		const currentRevision = activeRuns.length === 1
-			? resolveAgentDirection(root, undefined, { runId: activeRuns[0]!.id }).revision
-			: existingTarget
-				? resolveAgentDirection(root, primaryItemId).revision
-				: resolveDirection(root).revision;
+		const currentRevision = existingTarget
+			? resolveOperationDirection(root, { itemId: primaryItemId }).revision
+			: resolveDirection(root).revision;
 		if (currentRevision !== options.expectedRevision) {
 			return { ok: false, filesUpdated: [], error: `DIRECTION_STALE: expected ${options.expectedRevision}, current ${currentRevision}` };
 		}

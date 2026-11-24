@@ -21,6 +21,8 @@ import {
   createAgentDirectionSnapshot,
   resolveAgentDirection,
   resolveDirection,
+  resolveOperationDirection,
+  withRunAssignment,
 } from "../agent-direction/service.js";
 import {
   createExecutionRun,
@@ -442,34 +444,19 @@ export function directionForOperation(
     runId?: string;
   },
 ): AgentDirectionSnapshot {
-  return withWorkspaceTransactionLockSync(root, () => {
-    const requestedRunId =
-      "runId" in input && typeof input.runId === "string"
-        ? input.runId
+  // ITEM-39: one canonical direction. With an active Run this is the
+  // *assigned* Run direction (what the claim returns and `letra direction
+  // --run/--item` show), no longer the bare Run direction that only the
+  // operations used.
+  const runId =
+    "runId" in input && typeof input.runId === "string" ? input.runId : undefined;
+  const itemId =
+    "itemId" in input && typeof input.itemId === "string"
+      ? input.itemId
+      : "id" in input && typeof input.id === "string"
+        ? input.id
         : undefined;
-    if (requestedRunId) {
-      const run = readExecutionRuns(root).runs.find(
-        (candidate) => candidate.id === requestedRunId,
-      );
-      if (run) return resolveAgentDirection(root, undefined, { runId: run.id });
-    }
-    const target =
-      "itemId" in input ? input.itemId : "id" in input ? input.id : undefined;
-    const activeRuns =
-      typeof target === "string"
-        ? readExecutionRuns(root).runs.filter(
-            (run) => run.itemId === target && isRunActiveForDirection(run),
-          )
-        : [];
-    if (activeRuns.length === 1)
-      return resolveAgentDirection(root, undefined, {
-        runId: activeRuns[0]!.id,
-      });
-    return resolveAgentDirection(
-      root,
-      typeof target === "string" ? target : null,
-    );
-  });
+  return resolveOperationDirection(root, { runId, itemId });
 }
 
 export function directionForRunAwareOperation(
@@ -639,7 +626,7 @@ async function createItemOperationLocked(
       )
     : undefined;
   const before = run
-    ? resolveAgentDirection(workspaceRoot, undefined, { runId: run.id })
+    ? resolveOperationDirection(workspaceRoot, { runId: run.id })
     : resolveDirection(workspaceRoot);
   const subject = { itemId: input.id, operation: "create_item" };
   const stale = checkRevision(workspaceRoot, before, input, subject);
@@ -876,7 +863,7 @@ async function createItemOperationLocked(
     );
   }
   const after = run
-    ? resolveAgentDirection(workspaceRoot, undefined, { runId: run.id })
+    ? resolveOperationDirection(workspaceRoot, { runId: run.id })
     : resolveDirection(workspaceRoot);
   const entry = audit(workspaceRoot, "item_move", before, {
     outcome: "accepted",
@@ -1055,9 +1042,7 @@ async function linkItemSpecOperationLocked(
     path: `specs/${input.specId}/spec.md`,
   };
   workflow.updatedAt = new Date().toISOString();
-  const writeRevision = resolveAgentDirection(workspaceRoot, undefined, {
-    runId: run.id,
-  }).revision;
+  const writeRevision = resolveOperationDirection(workspaceRoot, { runId: run.id }).revision;
   let write: Awaited<ReturnType<typeof writeWorkflow>>;
   try {
     write = await writeWorkflow(workspaceRoot, {
@@ -2185,9 +2170,7 @@ export async function recordExecutionEvent(
               : current.result,
         }),
       );
-      after = resolveAgentDirection(workspaceRoot, undefined, {
-        runId: updated.id,
-      });
+      after = resolveOperationDirection(workspaceRoot, { runId: updated.id });
     } catch (error) {
       return rejected(
         workspaceRoot,
@@ -3667,6 +3650,9 @@ export function requestPassageOperation(
       run: semantic.run,
       revision: `sha256:${createHash("sha256").update(JSON.stringify(semantic)).digest("hex")}`,
     };
+    // ITEM-39: an active Run is seen through its assigned direction (what the
+    // next operation compares); a predicted bare Run revision never matched it.
+    if (isRunActiveForDirection(nextRun)) after = withRunAssignment(after, nextRun.id);
   }
   const reasonCode = timeoutWaitHuman
     ? "REPETITION_TIMEOUT_WAITING_HUMAN"
@@ -4062,9 +4048,7 @@ export async function releaseClaimOperation(
           },
         }),
       );
-      after = resolveAgentDirection(workspaceRoot, undefined, {
-        runId: updated.id,
-      });
+      after = resolveOperationDirection(workspaceRoot, { runId: updated.id });
     } catch (error) {
       return rejected(
         workspaceRoot,
@@ -4932,9 +4916,7 @@ export function migrateRunWorkflowOperation(
   );
   let initial: AgentDirectionSnapshot;
   try {
-    initial = resolveAgentDirection(workspaceRoot, undefined, {
-      runId: input.runId,
-    });
+    initial = resolveOperationDirection(workspaceRoot, { runId: input.runId });
   } catch (error) {
     if (
       error instanceof Error &&

@@ -806,7 +806,8 @@ describe("domain operations", () => {
 		const now = new Date().toISOString();
 		const run = { id: "run-migrate", workspaceId: root, itemId: "ITEM-1", binding: { actorId: "agent:test", identityId: "test", roleId: "implementer", executorId: "codex" }, authorization: { kind: "manual" as const, actorId: "human:owner", referenceId: "grant-1", grantedAt: now, revision: "sha256:grant" }, workflowVersionId: v1.id, workflowStageId: "code", cycle: { number: 1, startedAt: now, endedAt: null }, lease: null, revision: 1, directionRevision: "sha256:direction", createdAt: now, updatedAt: now, result: null, handoffs: [], gateDecisions: [], evidence: [], status: "running" as const };
 		createExecutionRun(root, run);
-		const before = resolveAgentDirection(root, undefined, { runId: run.id });
+		// The public Run query (`letra direction --run`) is the revision operations compare (ITEM-39).
+		const before = resolveDirection(root, { runId: run.id });
 		const details = { runId: run.id, toWorkflowVersionId: v2.id, toStageId: "review", expectedRunRevision: 1, expectedDirectionRevision: before.revision, reason: "Move this run after schema validation." };
 		const proof = signLocalOperation(root, actor, "run.workflow.migrate", details);
 		const migrated = migrateRunWorkflowOperation(root, { ...details, expectedRevision: before.revision, actor, proof });
@@ -830,7 +831,8 @@ describe("domain operations", () => {
 		const now = new Date().toISOString();
 		const run = { id: "run-stale", workspaceId: root, itemId: "ITEM-1", binding: { actorId: "agent:test", identityId: "test", roleId: "implementer", executorId: "codex" }, authorization: { kind: "manual" as const, actorId: actor, referenceId: "grant-1", grantedAt: now, revision: "sha256:grant" }, workflowVersionId: v1.id, workflowStageId: "code", cycle: { number: 1, startedAt: now, endedAt: null }, lease: null, revision: 1, directionRevision: "sha256:direction", createdAt: now, updatedAt: now, result: null, handoffs: [], gateDecisions: [], evidence: [], status: "running" as const };
 		createExecutionRun(root, run);
-		const before = resolveAgentDirection(root, undefined, { runId: run.id });
+		// The public Run query (`letra direction --run`) is the revision operations compare (ITEM-39).
+		const before = resolveDirection(root, { runId: run.id });
 		const details = { runId: run.id, toWorkflowVersionId: definition.draft.id, toStageId: "code", expectedRunRevision: 2, expectedDirectionRevision: before.revision, reason: "Reject draft target." };
 		const proof = signLocalOperation(root, actor, "run.workflow.migrate", details);
 		const rejected = migrateRunWorkflowOperation(root, { ...details, expectedRevision: before.revision, actor, proof });
@@ -1797,7 +1799,8 @@ it("allows a backward correction via rework operation without the destination ex
 		const now = new Date().toISOString();
 		const run = { id: "run-human-gate", workspaceId: root, itemId: "ITEM-1", binding: { actorId: "implementer", identityId: "implementer", roleId: "implementer", executorId: "codex" }, authorization: { kind: "manual" as const, actorId: "human:owner", referenceId: "grant-human-gate", grantedAt: now, revision: "sha256:grant" }, workflowVersionId: published.id, workflowStageId: "code", cycle: { number: 1, startedAt: now, endedAt: null }, lease: null, revision: 1, directionRevision: "sha256:direction", createdAt: now, updatedAt: now, result: null, handoffs: [], gateDecisions: [], evidence: [], status: "waiting-human" as const };
 		createExecutionRun(root, run);
-		const before = resolveAgentDirection(root, undefined, { runId: run.id });
+		// The public Run query (`letra direction --run`) is the revision operations compare (ITEM-39).
+		const before = resolveDirection(root, { runId: run.id });
 		const decision = { itemId: "ITEM-1", decision: "approve" as const, actor: "human:owner", expectedRevision: before.revision, reason: "Human approved the review gate." };
 		const proof = signLocalOperation(root, decision.actor, "gate.decision", { itemId: decision.itemId, decision: decision.decision, expectedRevision: decision.expectedRevision, reason: decision.reason });
 		const approved = await decideGateOperation(root, { ...decision, proof });
