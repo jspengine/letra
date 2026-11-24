@@ -19,6 +19,7 @@ import {
   claimOperation,
   createItemOperation,
   decideGateOperation,
+  directionForOperation,
   directionForRunAwareOperation,
   deleteItemOperation,
   releaseClaimOperation,
@@ -349,9 +350,13 @@ export function createItemRoutes(
           return true;
         }
         {
+          // The revision decideGateOperation compares: it accounts for the
+          // item's active Run. The item-only direction hashed differently, so
+          // every UI approval was DIRECTION_STALE while a Run was active.
           const expectedRevision =
             data.expectedRevision ??
-            resolveAgentDirection(workspaceRoot, gateDecisionItemId).revision;
+            directionForOperation(workspaceRoot, { itemId: gateDecisionItemId })
+              .revision;
           const operationReason =
             reason ?? "Aprovação humana registrada pela UI.";
           const proof = signLocalOperation(

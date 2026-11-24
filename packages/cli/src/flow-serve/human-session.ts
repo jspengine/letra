@@ -40,7 +40,13 @@ export class HumanSessionGateway {
 	}
 
 	establishNavigationSession(req: IncomingMessage, res: ServerResponse): void {
-		if (req.method !== "GET" || req.url?.startsWith("/api/") || cookieValue(req, COOKIE_NAME)) return;
+		if (req.method !== "GET" || req.url?.startsWith("/api/")) return;
+		// Keep a session only if *this* server issued it and it is still live.
+		// A cookie from a previous server process (restart: new secret, empty
+		// session map) or an expired one must be replaced on navigation;
+		// otherwise reloading never recovers and every mutation answers
+		// HUMAN_CONFIRMATION_REQUIRED until the browser drops the cookie.
+		if (this.sessionFor(cookieValue(req, COOKIE_NAME))) return;
 		const sessionId = randomBytes(32).toString("base64url");
 		const username = userInfo().username.trim();
 		if (!username) return;
@@ -51,7 +57,11 @@ export class HumanSessionGateway {
 
 	resolveHumanActor(req: IncomingMessage): string | null {
 		if (!sameOrigin(req)) return null;
-		const token = cookieValue(req, COOKIE_NAME);
+		return this.sessionFor(cookieValue(req, COOKIE_NAME))?.actor ?? null;
+	}
+
+	/** The live session this server issued for the token, if any. */
+	private sessionFor(token: string | null): HumanSession | null {
 		if (!token) return null;
 		const separator = token.lastIndexOf(".");
 		if (separator < 1) return null;
@@ -63,7 +73,7 @@ export class HumanSessionGateway {
 			this.sessions.delete(sessionId);
 			return null;
 		}
-		return session.actor;
+		return session;
 	}
 
 	private sign(sessionId: string): string {

@@ -34,6 +34,35 @@ describe("HumanSessionGateway", () => {
 		expect(setCookie).toContain("SameSite=Strict");
 	});
 
+	it("replaces a session cookie issued by a previous server on navigation (ITEM-36)", () => {
+		const base = { host: "127.0.0.1:3000", origin: "http://127.0.0.1:3000" };
+		const before = new HumanSessionGateway(workspaceRoot);
+		const first = response();
+		before.establishNavigationSession(request(), first);
+		const staleCookie = (vi.mocked(first.setHeader).mock.calls[0][1] as string).split(";")[0];
+
+		// Server restart: new secret and empty session map.
+		const restarted = new HumanSessionGateway(workspaceRoot);
+		expect(restarted.resolveHumanActor(request({ method: "POST", headers: { ...base, cookie: staleCookie } }))).toBeNull();
+
+		const reload = response();
+		restarted.establishNavigationSession(request({ headers: { host: base.host, cookie: staleCookie } }), reload);
+		expect(reload.setHeader).toHaveBeenCalledTimes(1);
+		const freshCookie = (vi.mocked(reload.setHeader).mock.calls[0][1] as string).split(";")[0];
+		expect(freshCookie).not.toBe(staleCookie);
+		expect(restarted.resolveHumanActor(request({ method: "POST", headers: { ...base, cookie: freshCookie } }))).toMatch(/^human:local:.+/);
+	});
+
+	it("keeps a live session instead of reissuing it on every navigation", () => {
+		const gateway = new HumanSessionGateway(workspaceRoot);
+		const first = response();
+		gateway.establishNavigationSession(request(), first);
+		const cookie = (vi.mocked(first.setHeader).mock.calls[0][1] as string).split(";")[0];
+		const again = response();
+		gateway.establishNavigationSession(request({ headers: { host: "127.0.0.1:3000", cookie } }), again);
+		expect(again.setHeader).not.toHaveBeenCalled();
+	});
+
 	it("rejects forged, missing, and cross-origin sessions", () => {
 		const gateway = new HumanSessionGateway(workspaceRoot);
 		const base = { host: "127.0.0.1:3000", origin: "http://127.0.0.1:3000" };
