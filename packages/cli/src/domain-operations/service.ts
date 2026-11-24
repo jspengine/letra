@@ -482,11 +482,11 @@ export function directionForRunAwareOperation(
             isRunActiveForDirection(candidate),
         )
       : undefined;
-  if (run)
-    return resolveDirection(root, {
-      runId: run.id,
-      executorId: input.executorId ?? run.binding.executorId,
-    });
+  // ITEM-39: the executor is not part of the compared direction. Filtering
+  // by it here threw RUN_UNAUTHORIZED (an unhandled crash) when another
+  // executor called the passage; the passage's own claim check refuses that
+  // case cleanly with CLAIM_REQUIRED.
+  if (run) return resolveOperationDirection(root, { runId: run.id });
   return directionForOperation(root, input);
 }
 

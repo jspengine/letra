@@ -138,6 +138,17 @@ describe("canonical revision contract (ITEM-39 AC1)", () => {
 		accept(await releaseClaimOperation(root, { ...item, expectedRevision: revision, actor: "reviewer" }), "CLAIM_RELEASED");
 	});
 
+	// A passage requested by an executor not bound to the Run is refused, not
+	// an unhandled RUN_UNAUTHORIZED crash (found in review of ITEM-39).
+	it("refuses a passage from an executor not bound to the Run instead of throwing", async () => {
+		const revision = resolveOperationDirection(root, { itemId: "ITEM-1" }).revision;
+		const result = await requestPassageOperation(root, { itemId: "ITEM-1", expectedRevision: revision, reason: "Wrong executor.", actor: "implementer", executorId: "someone-else", to: "reviewer", summary: "s", evidence: [] });
+		// Refused by a domain rule (here the pending AC precedes the claim
+		// check); the point is a refusal with a reason, never a throw or STALE.
+		expect(result.outcome).toBe("rejected");
+		expect(result.reasonCode).not.toBe("DIRECTION_STALE");
+	});
+
 	// ITEM-39 AC5: the refusal names the compared scope, the current revision
 	// and the exact command to read it.
 	it("explains a stale revision with scope, current revision and command", async () => {
