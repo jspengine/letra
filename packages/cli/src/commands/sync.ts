@@ -2,9 +2,10 @@ import { existsSync, readFileSync, copyFileSync, mkdirSync, writeFileSync } from
 import { resolve, join, dirname } from "node:path";
 import { Command } from "commander";
 import chalk from "chalk";
-import { loadWorkflow, writeWorkflow } from "./flow-init.js";
+import { loadWorkflow } from "./flow-init.js";
 import { readFocusFile } from "../adapters/focus-sync.js";
-import { getLetraDir, LETRA_FOLDER } from "./../workspace/resolver.js";
+import { regenerateLocationAdapters } from "../adapters/regenerate.js";
+import { clearWorkspaceCache, getLetraDir, LETRA_FOLDER, resolveWorkspaceRoot } from "./../workspace/resolver.js";
 import { inspectWorkspaceIntegrity } from "../workspace/integrity.js";
 import { logEntry } from "../session-log.js";
 
@@ -31,48 +32,62 @@ export async function validateFocus(
 	return warnings;
 }
 
+/**
+ * Regenerate the agent instruction files of every location of the active
+ * workspace (ITEM-19/27). Never writes workflow state: it only renders the
+ * stable bootstrap. Human-authored files are reported as conflicts.
+ */
+export function regenerateWorkspaceAdapters(
+	rootPath: string,
+	options: { dryRun?: boolean } = {},
+): { ok: boolean; filesUpdated: string[]; conflicts: string[]; error?: string } {
+	const workflow = loadWorkflow(rootPath);
+	if (!workflow) {
+		const workflowFile = join(getLetraDir(rootPath), "workflow.json");
+		return { ok: false, filesUpdated: [], conflicts: [], error: `No workflow found at ${workflowFile}` };
+	}
+	const resolution = resolveWorkspaceRoot(rootPath);
+	const locations = (workflow.locations ?? []).length
+		? (workflow.locations ?? []).map((location) => ({ path: location.path, adapters: location.adapters ?? [] }))
+		: [{ path: resolution.locationPath, adapters: [] as string[] }];
+	const filesUpdated: string[] = [];
+	const conflicts: string[] = [];
+	for (const location of locations) {
+		if (!existsSync(location.path)) continue;
+		const result = regenerateLocationAdapters(location.path, {
+			tools: [...new Set([...(workflow.tools ?? []), ...location.adapters])],
+			contentRoot: resolution.workspaceDir,
+			dryRun: options.dryRun,
+		});
+		for (const file of result.files) {
+			if (file.action === "conflict") conflicts.push(file.path);
+			else if (file.action !== "unchanged") filesUpdated.push(file.path);
+		}
+	}
+	return { ok: true, filesUpdated, conflicts };
+}
+
 export async function syncNow(
 	rootPath: string,
 	options?: { dryRun?: boolean; skipSitrep?: boolean },
 ): Promise<{ ok: boolean; filesUpdated: string[]; warnings: string[]; error?: string }> {
-	const workflowFile = join(getLetraDir(rootPath), "workflow.json");
-	if (!existsSync(workflowFile)) {
-		return {
-			ok: false,
-			filesUpdated: [],
-			warnings: [],
-			error: "No workflow found at .letra/workflow.json",
-		};
-	}
-
 	const workflow = loadWorkflow(rootPath);
 	if (!workflow) {
-		return { ok: false, filesUpdated: [], warnings: [], error: "Failed to load workflow" };
+		const workflowFile = join(getLetraDir(rootPath), "workflow.json");
+		return { ok: false, filesUpdated: [], warnings: [], error: `No workflow found at ${workflowFile}` };
 	}
 
-	// Validate focus.md
 	const warnings: string[] = [];
 	const focus = readFocusFile(rootPath);
 	if (focus?.specName) {
-		const focusWarnings = await validateFocus(focus.specName, workflow.items, workflow.stages);
-		warnings.push(...focusWarnings);
+		warnings.push(...(await validateFocus(focus.specName, workflow.items, workflow.stages)));
 	}
 
-	if (options?.dryRun) {
-		const filesUpdated = [
-			".letra/workflow.json",
-			...(workflow.tools || []).map((t: string) => t),
-			".letra/context.md",
-		];
-		return { ok: true, filesUpdated, warnings, error: undefined };
+	const result = regenerateWorkspaceAdapters(rootPath, { dryRun: options?.dryRun });
+	for (const path of result.conflicts) {
+		warnings.push(`Arquivo de autoria humana preservado (sem cabeçalho do Letra): ${path}`);
 	}
-
-	const result = await writeWorkflow(rootPath, {
-		workflow,
-		source: "flow-edit",
-		skipSitrep: options?.skipSitrep ?? false,
-	});
-	return { ...result, warnings };
+	return { ok: result.ok, filesUpdated: result.filesUpdated, warnings, error: result.error };
 }
 
 export type MirrorDirection = "workspace-to-location" | "location-to-workspace" | "link-to-workspace";
@@ -142,6 +157,12 @@ export function syncMirror(rootPath: string, options: MirrorOptions) {
 				writeFileSync(linkPath, `${target}\n`, "utf8");
 			}
 		}
+		// ITEM-19 AC3: the location now points to this workspace; its agent
+		// instruction files must be this workspace's bootstrap.
+		clearWorkspaceCache();
+		const regenerated = regenerateWorkspaceAdapters(report.resolution.locationPath, { dryRun: options.dryRun });
+		filesUpdated.push(...regenerated.filesUpdated);
+		for (const path of regenerated.conflicts) warnings.push(`Arquivo de autoria humana preservado: ${path}`);
 	} else if (options.direction === "workspace-to-location") {
 		if (!existsSync(canonicalWorkflow)) return { ok: false, code: "WORKSPACE_NOT_FOUND", filesUpdated, warnings: [], report };
 		if (!options.dryRun) copyChanged(canonicalWorkflow, projectedWorkflow);
@@ -206,7 +227,7 @@ export default function () {
 				return;
 			}
 
-			console.log(chalk.green("✓ Workflow synced"));
+			console.log(chalk.green(result.filesUpdated.length ? "✓ Adapters regenerados" : "✓ Adapters já atualizados"));
 			for (const f of result.filesUpdated) {
 				console.log(`  ${chalk.gray("→")} ${f}`);
 			}

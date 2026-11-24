@@ -160,6 +160,13 @@ export async function init(
 			);
 			writeFileSync(join(root, LINK_FILE), `${workspaceDir}\n`, "utf-8");
 			clearWorkspaceCache();
+			// ITEM-19 AC3: instruction files already in the project (e.g. from a
+			// previous workspace) become the new workspace's bootstrap.
+			const { regenerateWorkspaceAdapters } = await import("./sync.js");
+			const regenerated = regenerateWorkspaceAdapters(root);
+			for (const path of regenerated.conflicts) {
+				console.log(chalk.yellow(`  Arquivo de autoria humana preservado: ${path}`));
+			}
 			spinner.succeed(chalk.green(`Workspace "${options.workspace}" created`));
 			console.log(`  ${chalk.gray("Data dir:")}  ${workspaceDir}`);
 			console.log(`  ${chalk.gray("Project:")}   ${root}`);

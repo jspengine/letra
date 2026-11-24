@@ -1,6 +1,6 @@
 import type { AgentDirectionSnapshot } from "@letra/types";
 
-export type AdapterSource = "init" | "flow-move" | "focus" | "flow-ac";
+export type AdapterSource = "init" | "flow-move" | "focus" | "flow-ac" | "sync";
 
 export interface HarnessDirectionCommand {
 	command: string;
