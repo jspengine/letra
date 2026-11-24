@@ -257,11 +257,16 @@ export function createAgentDirectionSnapshot(
 		...(hint?.mustRead ?? []).map((reference) => ({ path: reference.path, reason: reference.reason })),
 		{ path: "constitution.md", reason: "Workspace governance" },
 	];
+	// The boundary resolves the data dir with realpath, which throws when it
+	// does not exist yet (uninitialized workspace). That must leave every
+	// reference unavailable, not crash the direction.
+	const letraDir = getLetraDir(input.workspaceRoot);
+	let boundary: ReturnType<typeof createWorkspaceBoundary> | null = null;
+	try { boundary = createWorkspaceBoundary(letraDir); } catch { /* No data dir: references unavailable. */ }
 	const references = [...new Map(referenceCandidates.map((reference) => {
 		const safeRelativePath = reference.path.replace(/\\/g, "/");
-		const boundary = createWorkspaceBoundary(getLetraDir(input.workspaceRoot));
 		let absolutePath: string | null = null;
-		try { absolutePath = boundary.assertPath(join(getLetraDir(input.workspaceRoot), safeRelativePath)); } catch { /* Invalid references remain unavailable. */ }
+		try { absolutePath = boundary?.assertPath(join(letraDir, safeRelativePath)) ?? null; } catch { /* Invalid references remain unavailable. */ }
 		const content = absolutePath && existsSync(absolutePath) ? readFileSync(absolutePath) : null;
 		return [safeRelativePath, {
 			id: slug(safeRelativePath),

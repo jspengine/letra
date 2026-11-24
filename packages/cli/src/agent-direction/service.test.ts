@@ -189,6 +189,22 @@ describe("AgentDirectionService", () => {
 		]);
 	});
 
+	// The fixtures above use "C:/workspace", which only exists by chance on a
+	// Windows machine; on Linux the missing data dir made realpath throw.
+	it("marks references unavailable instead of throwing when the data dir does not exist", () => {
+		const missingRoot = join(tmpdir(), `letra-missing-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+		const snapshot = createAgentDirectionSnapshot({
+			workspaceRoot: missingRoot,
+			workflow: workflow(),
+			flow: flow(),
+			currentItemId: "ITEM-1",
+			specContent: null,
+		});
+		const references = snapshot.references ?? [];
+		expect(references.length).toBeGreaterThan(0);
+		expect(references.every((reference) => reference.available === false && reference.sha256 === null)).toBe(true);
+	});
+
 	it("keeps revision stable for the same semantics and changes it when the pending AC changes", () => {
 		const input = {
 			workspaceRoot: "C:/workspace",
