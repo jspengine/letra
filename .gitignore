@@ -9,6 +9,9 @@ dist/
 .letra/workflow.v*.json
 .letra/snapshots/
 .letra/identity/
+# Package dirs are never Letra workspaces; a stray .letra/ here made
+# `init` in CI stop early ("already exists") without creating specs/.
+packages/*/.letra/
 .opencode/
 
 # Build / generated outputs (regenerable)
