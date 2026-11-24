@@ -90,6 +90,8 @@ interface GateDecisionBody {
 
 interface ClaimBody {
   actor?: string;
+  /** Workflow role the board claims for (e.g. the active handoff recipient). */
+  role?: string;
   executorId?: string;
   capability?: string;
   expectedRevision?: string;
@@ -216,6 +218,14 @@ export function createItemRoutes(
           idempotencyKey?: string;
         }>(req);
         const itemId = decodeURIComponent(passageMatch[1]);
+        // The passage is performed by the role holding the source claim (the
+        // handoff recipient the board claimed for). The authenticated human
+        // session stays on record as the requester in the reason.
+        const claimHolder = workflow?.items.find(
+          (candidate) => candidate.id === itemId,
+        )?.claimedBy;
+        const passageReason =
+          data.reason?.trim() || "Passagem solicitada pela UI.";
         const operation = await dependencies.requestPassageOperation(
           workspaceRoot,
           {
@@ -226,7 +236,7 @@ export function createItemRoutes(
             runId: data.runId,
             summary: data.summary,
             evidence: data.evidence ?? [],
-            actor: sessionActor!,
+            actor: claimHolder ?? sessionActor!,
             expectedRevision:
               data.expectedRevision ??
               directionForRunAwareOperation(workspaceRoot, {
@@ -234,7 +244,10 @@ export function createItemRoutes(
                 runId: data.runId,
                 executorId: data.executorId,
               }).revision,
-            reason: data.reason?.trim() || "Passagem solicitada pela UI.",
+            reason:
+              claimHolder && claimHolder !== sessionActor
+                ? `${passageReason} (solicitada por ${sessionActor})`
+                : passageReason,
             idempotencyKey: data.idempotencyKey,
           },
         );
@@ -609,15 +622,28 @@ export function createItemRoutes(
       }
       try {
         const data = await readJson<ClaimBody>(req);
+        // The board claims on behalf of a workflow role (normally the active
+        // handoff recipient). The domain still decides whether that role may
+        // claim; identities (human:/mcp:) cannot be impersonated this way.
+        const role = data.role?.trim();
+        if (role && /^(human|mcp)(:|$)/.test(role)) {
+          sendError(res, 400, "role must be a workflow role id");
+          return true;
+        }
         const operation = await dependencies.claimOperation(workspaceRoot, {
           itemId: claimId,
-          actor: sessionActor!,
+          actor: role || sessionActor!,
           executorId: data.executorId ?? "web-ui",
           capability: data.capability ?? "read_code",
+          // claimOperation compares directionForOperation, which accounts for
+          // the item's active Run (present after any handoff). The item-only
+          // direction made the board's handoff claim DIRECTION_STALE (ITEM-39).
           expectedRevision:
             data.expectedRevision ??
-            resolveAgentDirection(workspaceRoot, claimId).revision,
-          reason: "Claim solicitado pela UI.",
+            directionForOperation(workspaceRoot, { itemId: claimId }).revision,
+          reason: role
+            ? `Claim solicitado pela UI para o papel ${role} por ${sessionActor}.`
+            : "Claim solicitado pela UI.",
           idempotencyKey: data.idempotencyKey,
         });
         if (operation.outcome !== "accepted") {

@@ -4,6 +4,7 @@ import { Card, CardContent } from "@letra/ui";
 import { Icon, Progress, Button } from "@letra/ui";
 import { cn } from "../../lib/utils";
 import { selectPassageRecipient } from "../../lib/passage-recipient";
+import { boardClaimRequest, gateDecisionRequiredMessage, stageExitRequiresGateDecision } from "../../lib/board-passage";
 import { MarchingBorder } from "./MarchingBorder";
 import type { Item } from "@letra/types";
 import {
@@ -172,8 +173,10 @@ export default function KanbanView({
 		} else {
 			const destination = orderedStages(workflow, activeFlow).find((stage) => stage.id === targetStageId);
 			const recipients = destination?.roleIds?.length ? destination.roleIds : destination?.agents ?? [];
-			if (destination?.gate?.type === "human" && destination.gate.blocking) {
-				window.alert("Este estágio exige uma decisão explícita no painel do gate.");
+			const source = orderedStages(workflow, activeFlow).find((stage) => stage.id === item.stage);
+			// Gates guard the exit of their own stage; entering a gated stage is a passage.
+			if (source && stageExitRequiresGateDecision(source)) {
+				window.alert(gateDecisionRequiredMessage(source));
 				return;
 			}
 			if (!item.claimExecutorId) {
@@ -544,10 +547,27 @@ export default function KanbanView({
 																withLoading(
 																	`claim-${it.id}`,
 																	async () => {
-																		await fetch(
-																			`/api/items/${it.id}/claim`,
-																			{ method: "POST" },
+																		const claim = boardClaimRequest(
+																			it,
+																			orderedStages(workflow, activeFlow).find((stage) => stage.id === it.stage),
+																			activeFlow ?? null,
 																		);
+																		if (claim.error) {
+																			window.alert(claim.error);
+																			return;
+																		}
+																		const response = await fetch(
+																			`/api/items/${it.id}/claim`,
+																			{
+																				method: "POST",
+																				headers: { "Content-Type": "application/json" },
+																				body: JSON.stringify({ role: claim.role, capability: claim.capability, executorId: claim.executorId }),
+																			},
+																		);
+																		if (!response.ok) {
+																			const data = await response.json().catch(() => ({}));
+																			window.alert(data.error || "Falha ao reivindicar o item.");
+																		}
 																		debouncedMove();
 																	},
 																);
