@@ -192,7 +192,7 @@ export function createLetraMcpServer(root: string, options: { resolveBoundHumanA
 				itemId: direction.item?.id,
 				acId: direction.pendingAC?.id,
 				details: {
-					adapter: "codex",
+					adapter: "mcp",
 					by: client,
 					resource,
 					revision: direction.revision,
@@ -467,7 +467,7 @@ export function createLetraMcpServer(root: string, options: { resolveBoundHumanA
 			itemId: direction.item?.id,
 			acId: direction.pendingAC?.id,
 			details: {
-				adapter: "codex",
+				adapter: "mcp",
 				by: client,
 				resource,
 				revision: direction.revision,
