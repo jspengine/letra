@@ -11,6 +11,13 @@ Use the live execution contract for every task; this file contains no task assig
 
 Workspace attention, generated prompts, and cached snapshots do not grant execution authority.
 
+## When an operation is refused
+
+- A refused operation answers `outcome: "rejected"` with `reasonCode`, `reason`, `nextCommand` and `humanRequired`, and the CLI exits with code 1.
+- `humanRequired: false`: run `nextCommand` as given; it already carries the accepted actor, capability and current revision.
+- `humanRequired: true`: stop and ask the human. Never retry with a human identity or `--actor human:...`.
+- Do not read Letra source code, `--help` output or workflow.json to find the next step: the refusal already names it.
+
 ## Contexto vivo do Letra para Codex
 
 - Consulte `get_direction` antes de planejar, antes da primeira escrita e antes de concluir.

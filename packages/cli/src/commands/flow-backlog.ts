@@ -3,7 +3,7 @@ import chalk from "chalk";
 import { type Workflow, loadWorkflow } from "./flow-init.js";
 import { resolveDirection } from "../agent-direction/service.js";
 import { createItemOperation } from "../domain-operations/service.js";
-import { resolveLocalIdentity } from "../identity/service.js";
+import { resolveCliActor } from "../identity/agent-runtime.js";
 
 function workflowExists(root: string): Workflow | null {
 	return loadWorkflow(root);
@@ -33,7 +33,7 @@ export async function backlogAdd(root: string, description: string, spec?: strin
 		spec,
 		expectedRevision: direction.revision,
 		reason: "Criação de item pelo backlog da CLI.",
-		actor: resolveLocalIdentity(root).id,
+		actor: resolveCliActor(root),
 	});
 	if (operation.outcome !== "accepted") {
 		console.log(chalk.red(`  ${operation.reasonCode}: ${operation.reason}`));

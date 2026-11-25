@@ -1,3 +1,5 @@
+import { refusalRuleSection } from "./refusal-rule.js";
+
 const MANAGED_START = "# letra:codex-mcp:start";
 const MANAGED_END = "# letra:codex-mcp:end";
 
@@ -53,6 +55,8 @@ export function renderLetraHarnessSkill(): string {
 		'2. Use a revisão retornada ao executar `letra operation validate --expected-revision <REVISION> --reason "<MOTIVO>"`.',
 		"3. Para concluir ou avançar, use os subcomandos controlados de `letra operation`; nunca contorne o harness.",
 		"4. Execute novamente `letra direction --json` antes de cada mutação.",
+		"",
+		refusalRuleSection(2),
 		"",
 		"Esta skill define procedimento. Item, stage, AC e próxima ação sempre vêm do contexto vivo.",
 		"",
