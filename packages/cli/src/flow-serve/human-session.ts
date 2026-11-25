@@ -33,10 +33,21 @@ function sameOrigin(req: IncomingMessage): boolean {
 export class HumanSessionGateway {
 	private readonly secret = randomBytes(32);
 	private readonly sessions = new Map<string, HumanSession>();
-	private readonly workspaceRoot: string;
+	/**
+	 * ITEM-62: the board can switch workspaces after it starts. The session
+	 * proves a human browser on this machine; the identity it acts as is the
+	 * one of the workspace active at request time, not the one active when the
+	 * session was issued.
+	 */
+	private readonly workspaceRoot: () => string;
 
-	constructor(workspaceRoot: string) {
-		this.workspaceRoot = workspaceRoot;
+	constructor(workspaceRoot: string | (() => string)) {
+		this.workspaceRoot = typeof workspaceRoot === "function" ? workspaceRoot : () => workspaceRoot;
+	}
+
+	/** The human identity the board acts as right now. */
+	currentActor(): string {
+		return resolveLocalIdentity(this.workspaceRoot()).id;
 	}
 
 	establishNavigationSession(req: IncomingMessage, res: ServerResponse): void {
@@ -50,14 +61,14 @@ export class HumanSessionGateway {
 		const sessionId = randomBytes(32).toString("base64url");
 		const username = userInfo().username.trim();
 		if (!username) return;
-		this.sessions.set(sessionId, { actor: resolveLocalIdentity(this.workspaceRoot).id, expiresAt: Date.now() + SESSION_TTL_MS });
+		this.sessions.set(sessionId, { actor: this.currentActor(), expiresAt: Date.now() + SESSION_TTL_MS });
 		const signature = this.sign(sessionId);
 		res.setHeader("Set-Cookie", `${COOKIE_NAME}=${sessionId}.${signature}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL_MS / 1000}`);
 	}
 
 	resolveHumanActor(req: IncomingMessage): string | null {
 		if (!sameOrigin(req)) return null;
-		return this.sessionFor(cookieValue(req, COOKIE_NAME))?.actor ?? null;
+		return this.sessionFor(cookieValue(req, COOKIE_NAME)) ? this.currentActor() : null;
 	}
 
 	/** The live session this server issued for the token, if any. */
