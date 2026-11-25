@@ -1,14 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { readFocusFile } from "../adapters/focus-sync.js";
-import type { FocusData } from "../adapters/focus-sync.js";
 import { loadWorkflow } from "../commands/flow-init.js";
 import type { Item, Workflow } from "../commands/flow-init.js";
 import { loadHealthRecord, getActiveEntries } from "../health-record.js";
 import type { HealthEntry } from "../health-record.js";
 import { queryLog } from "../session-log.js";
 import type { LogEntry } from "../session-log.js";
-import { resolveActiveFlow } from "../flow-definition/resolve.js";
+import { resolveActiveFlowFor } from "../flow-definition/resolve.js";
+import { readExecutionRuns } from "../execution-runs/store.js";
 import type { ResolvedFlowPhase, ResolvedFlowStage } from "../flow-definition/types.js";
 import type {
 	GateExpectationConfig,
@@ -33,7 +32,7 @@ export interface ActivityContextSources {
 	activePhaseHarness: PhaseHarnessConfig | null;
 	activeReviewExpectation: ReviewExpectationConfig | null;
 	activeGateExpectation: GateExpectationConfig | null;
-	focus: FocusData | null;
+	focus: null;
 	focusDiverged: boolean;
 	spec: SpecMeta | null;
 	activeAlerts: HealthEntry[];
@@ -95,7 +94,7 @@ export function loadSpecMeta(root: string, specName: string | null): SpecMeta | 
 	if (!existsSync(specPath)) {
 		return {
 			name: specName,
-			path: `.letra/specs/${specName}/spec.md`,
+			path: `specs/${specName}/spec.md`,
 			outcome: null,
 			acs: { pending: 0, done: 0, total: 0 },
 		};
@@ -103,21 +102,25 @@ export function loadSpecMeta(root: string, specName: string | null): SpecMeta | 
 	const content = readFileSync(specPath, "utf-8");
 	return {
 		name: specName,
-		path: `.letra/specs/${specName}/spec.md`,
+		path: `specs/${specName}/spec.md`,
 		outcome: extractOutcome(content),
 		acs: countSpecACs(content),
 	};
 }
 
-export function loadActivityContextSources(root: string): ActivityContextSources {
+export function loadActivityContextSources(root: string, itemId?: string | null, runId?: string | null): ActivityContextSources {
 	const workflow = loadWorkflow(root);
-	const flowResolution = resolveActiveFlow(root);
-	const focus = readFocusFile(root);
+	const selectedRun = runId ? readExecutionRuns(root).runs.find((run) => run.id === runId) : null;
+	const flowResolution = resolveActiveFlowFor(root, workflow, {
+		itemId: itemId ?? undefined,
+		workflowVersionId: selectedRun?.workflowVersionId,
+	});
+	const focus = null;
 	const focusedItem =
-		workflow && focus?.itemId
-			? (workflow.items.find((item) => item.id === focus.itemId) ?? null)
+		workflow && itemId
+			? (workflow.items.find((item) => item.id === itemId) ?? null)
 			: null;
-	const currentItem = focusedItem ?? (workflow ? findCurrentItem(workflow) : null);
+	const currentItem = focusedItem ?? null;
 	const currentPhase = currentItem?.currentPhase ?? null;
 	const activeFlowStage = currentItem
 		? (flowResolution.flow?.stages.find((stage) => stage.id === currentItem.stage) ?? null)
@@ -137,8 +140,8 @@ export function loadActivityContextSources(root: string): ActivityContextSources
 		activePhaseHarness?.gate ??
 		activeFlowStage?.activity?.gate ??
 		null;
-	const focusDiverged = !!(focus && currentItem?.spec && focus.specName !== currentItem.spec);
-	const specName = focus?.specName || currentItem?.spec || null;
+	const focusDiverged = false;
+	const specName = currentItem?.spec ?? null;
 	const spec = loadSpecMeta(root, specName);
 	const activeAlerts = getActiveEntries(loadHealthRecord(root));
 	const lastActions = queryLog(root, { all: false, limit: 5 });

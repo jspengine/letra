@@ -522,6 +522,20 @@ describe("WorkspaceSettings", () => {
 		expect(await screen.findByRole("button", { name: "Desfazer" })).toBeTruthy();
 	});
 
+	it("opens the dedicated workflow definition page and returns to Flow settings", async () => {
+		const user = userEvent.setup();
+		renderSettings();
+
+		await user.click(screen.getByRole("tab", { name: "Fluxo" }));
+		await user.click(screen.getByRole("button", { name: "Abrir configuração do fluxo" }));
+		expect(screen.getByRole("heading", { name: "Configuração do fluxo" })).toBeTruthy();
+		expect(await screen.findByRole("heading", { name: "Nenhuma definição versionada" })).toBeTruthy();
+
+		await user.click(screen.getByRole("button", { name: "Voltar às configurações" }));
+		expect(screen.getByRole("heading", { name: "Configurações do Workspace" })).toBeTruthy();
+		expect(screen.getByRole("tab", { name: "Fluxo" }).getAttribute("aria-selected")).toBe("true");
+	});
+
 	it("shows adapter status, capabilities, expected files, and toggles active tools", async () => {
 		const user = userEvent.setup();
 		const onRefreshWorkflow = vi.fn();

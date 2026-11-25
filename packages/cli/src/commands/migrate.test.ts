@@ -113,4 +113,119 @@ describe("migrate (externalize workspace, ITEM-79)", () => {
 		expect(existsSync(target)).toBe(false);
 		expect(existsSync(join(root, LINK_FILE))).toBe(false);
 	});
+
+	it("dry-run for linked workspaces reports cleanup without copying or deleting", async () => {
+		const root = makeTmp("letra-linked-dry");
+		const target = makeTmp("letra-linked-data");
+		writeFileSync(join(target, "workflow.json"), JSON.stringify(wf("Linked")));
+		writeFileSync(join(root, LINK_FILE), `${target}\n`);
+		mkdirSync(join(root, LETRA_FOLDER, "specs", "legacy"), { recursive: true });
+		writeFileSync(join(root, LETRA_FOLDER, "specs", "legacy", "spec.md"), "legacy spec");
+
+		const result = await migrateWorkspace(root, { clean: true, dryRun: true });
+		expect(result.ok).toBe(true);
+		expect(result.message).toContain("Would snapshot project-legacy .letra");
+		expect(existsSync(join(target, "specs", "legacy", "spec.md"))).toBe(false);
+		expect(existsSync(join(root, LETRA_FOLDER))).toBe(true);
+	});
+
+	it("snapshots, copies missing data, verifies equality, then cleans linked legacy data", async () => {
+		const root = makeTmp("letra-linked-clean");
+		const target = makeTmp("letra-linked-clean-data");
+		writeFileSync(join(target, "workflow.json"), JSON.stringify(wf("Linked")));
+		writeFileSync(join(root, LINK_FILE), `${target}\n`);
+		mkdirSync(join(root, LETRA_FOLDER, "specs", "legacy"), { recursive: true });
+		writeFileSync(join(root, LETRA_FOLDER, "specs", "legacy", "spec.md"), "legacy spec");
+
+		const result = await migrateWorkspace(root, { clean: true });
+		expect(result.ok).toBe(true);
+		expect(result.cleaned).toBe(true);
+		expect(existsSync(join(root, LETRA_FOLDER))).toBe(false);
+		expect(readFileSync(join(target, "specs", "legacy", "spec.md"), "utf8")).toBe("legacy spec");
+		const rollbacks = readdirSync(join(target, "operations", "rollbacks"));
+		expect(rollbacks).toHaveLength(1);
+		const snapshot = join(target, "operations", "rollbacks", rollbacks[0], "legacy-letra", "specs", "legacy", "spec.md");
+		expect(readFileSync(snapshot, "utf8")).toBe("legacy spec");
+	});
+
+	it("preserves divergent legacy files in the rollback snapshot while external data stays canonical", async () => {
+		const root = makeTmp("letra-linked-conflict");
+		const target = makeTmp("letra-linked-conflict-data");
+		writeFileSync(join(target, "workflow.json"), JSON.stringify(wf("Linked")));
+		mkdirSync(join(target, "specs", "legacy"), { recursive: true });
+		mkdirSync(join(root, LETRA_FOLDER, "specs", "legacy"), { recursive: true });
+		writeFileSync(join(root, LINK_FILE), `${target}\n`);
+		writeFileSync(join(target, "specs", "legacy", "spec.md"), "external version");
+		writeFileSync(join(root, LETRA_FOLDER, "specs", "legacy", "spec.md"), "local version");
+
+		const result = await migrateWorkspace(root, { clean: true });
+		expect(result.ok).toBe(true);
+		expect(result.cleaned).toBe(true);
+		expect(readFileSync(join(target, "specs", "legacy", "spec.md"), "utf8")).toBe("external version");
+		expect(existsSync(join(root, LETRA_FOLDER))).toBe(false);
+		const rollbacks = readdirSync(join(target, "operations", "rollbacks"));
+		const snapshot = join(target, "operations", "rollbacks", rollbacks[0], "legacy-letra", "specs", "legacy", "spec.md");
+		expect(readFileSync(snapshot, "utf8")).toBe("local version");
+		const evidencePath = join(target, "operations", "migrations", readdirSync(join(target, "operations", "migrations"))[0]);
+		expect(JSON.parse(readFileSync(evidencePath, "utf8"))).toMatchObject({
+			canonicalTarget: target,
+			conflicts: ["specs/legacy/spec.md"],
+			conflictPolicy: "preserve-in-snapshot; canonical-target-wins",
+		});
+	});
+
+	it("dry-run reports divergent files without copying or deleting either version", async () => {
+		const root = makeTmp("letra-linked-dry-conflict");
+		const target = makeTmp("letra-linked-dry-conflict-data");
+		writeFileSync(join(target, "workflow.json"), JSON.stringify(wf("Linked")));
+		mkdirSync(join(target, "specs", "legacy"), { recursive: true });
+		mkdirSync(join(root, LETRA_FOLDER, "specs", "legacy"), { recursive: true });
+		writeFileSync(join(root, LINK_FILE), `${target}\n`);
+		writeFileSync(join(target, "specs", "legacy", "spec.md"), "external version");
+		writeFileSync(join(root, LETRA_FOLDER, "specs", "legacy", "spec.md"), "local version");
+
+		const result = await migrateWorkspace(root, { clean: true, dryRun: true });
+		expect(result.ok).toBe(true);
+		expect(result.message).toContain("keeping");
+		expect(result.message).toContain("specs/legacy/spec.md");
+		expect(readFileSync(join(target, "specs", "legacy", "spec.md"), "utf8")).toBe("external version");
+		expect(readFileSync(join(root, LETRA_FOLDER, "specs", "legacy", "spec.md"), "utf8")).toBe("local version");
+		expect(existsSync(join(target, "operations", "rollbacks"))).toBe(false);
+	});
+
+	it("cleans a nested projection in a direct canonical workspace, preserving a rollback snapshot", async () => {
+		const root = makeTmp("letra-direct-projection");
+		writeFileSync(join(root, "workflow.json"), JSON.stringify(wf("Canonical")));
+		mkdirSync(join(root, "specs", "canonical"), { recursive: true });
+		writeFileSync(join(root, "specs", "canonical", "spec.md"), "canonical version");
+		mkdirSync(join(root, LETRA_FOLDER, "specs", "canonical"), { recursive: true });
+		mkdirSync(join(root, LETRA_FOLDER, "patches"), { recursive: true });
+		writeFileSync(join(root, LETRA_FOLDER, "specs", "canonical", "spec.md"), "stale projection");
+		writeFileSync(join(root, LETRA_FOLDER, "patches", "history.json"), "historical data");
+
+		const dryRun = await migrateWorkspace(root, { clean: true, dryRun: true });
+		expect(dryRun.ok).toBe(true);
+		expect(dryRun.message).toContain("workspace-projection");
+		expect(dryRun.message).toContain("specs/canonical/spec.md");
+		expect(existsSync(join(root, LETRA_FOLDER))).toBe(true);
+		expect(existsSync(join(root, "operations"))).toBe(false);
+
+		const result = await migrateWorkspace(root, { clean: true });
+		expect(result.ok).toBe(true);
+		expect(result.cleaned).toBe(true);
+		expect(existsSync(join(root, LETRA_FOLDER))).toBe(false);
+		expect(readFileSync(join(root, "specs", "canonical", "spec.md"), "utf8")).toBe("canonical version");
+		const evidenceFile = readdirSync(join(root, "operations", "migrations")).find((file) => file.startsWith("cleanup-workspace-projection-"));
+		expect(evidenceFile).toBeDefined();
+		const evidencePath = join(root, "operations", "migrations", evidenceFile!);
+		const evidence = JSON.parse(readFileSync(evidencePath, "utf8"));
+		expect(evidence).toMatchObject({
+			kind: "workspace-projection",
+			canonicalTarget: root,
+			conflicts: ["specs/canonical/spec.md"],
+			copiedPaths: ["patches"],
+		});
+		expect(readFileSync(join(evidence.rollbackSnapshotPath, "specs", "canonical", "spec.md"), "utf8")).toBe("stale projection");
+		expect(readFileSync(join(root, "patches", "history.json"), "utf8")).toBe("historical data");
+	});
 });

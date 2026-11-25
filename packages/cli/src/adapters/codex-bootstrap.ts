@@ -67,6 +67,7 @@ export function appendCodexLiveContextInstructions(content: string): string {
 		"",
 		"- Consulte `get_direction` antes de planejar, antes da primeira escrita e antes de concluir.",
 		"- A resposta com revisão mais recente prevalece sobre snapshots textuais deste arquivo.",
+		"- Não use `context.md` como estado vivo; ele é memória humana curada e deve ser lido apenas por seção quando a direção pedir contexto narrativo.",
 		"- Se `get_direction` estiver indisponível, execute `letra direction --json`; a resposta declara modo degradado e mantém a autoridade do harness.",
 		"- No fallback, valide e altere estado somente por `letra operation`, sempre com a revisão retornada.",
 		"- Não conclua AC nem solicite transição por caminhos que contornem o harness.",

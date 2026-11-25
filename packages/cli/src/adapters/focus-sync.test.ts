@@ -42,7 +42,7 @@ describe("focus-sync", () => {
 
 		const rawContent = readFileSync(focusFile, "utf-8");
 		expect(rawContent).toContain("# Focus: auth");
-		expect(rawContent).toContain("**Path**: .letra/specs/auth/");
+		expect(rawContent).toContain("**Path**: specs/auth/");
 		expect(rawContent).toContain("**Item**: ITEM-123");
 		expect(rawContent).toContain("**Outcome**: Allows users to log in securely.");
 		expect(rawContent).toContain(

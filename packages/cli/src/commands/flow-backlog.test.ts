@@ -34,11 +34,11 @@ describe("flow-backlog", () => {
 	});
 
 	describe("backlogAdd", () => {
-		it("should add item to first stage", () => {
+		it("should add item to first stage", async () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 
-			backlogAdd(tmpDir, "My first task");
+			await backlogAdd(tmpDir, "My first task");
 
 			const loaded = JSON.parse(
 				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
@@ -49,7 +49,7 @@ describe("flow-backlog", () => {
 			expect(loaded.items[0].id).toBe("ITEM-1");
 		});
 
-		it("should auto-increment item IDs", () => {
+		it("should auto-increment item IDs", async () => {
 			const workflow = createTestWorkflow();
 			workflow.items.push({
 				id: "ITEM-1",
@@ -59,7 +59,7 @@ describe("flow-backlog", () => {
 			});
 			saveWorkflow(tmpDir, workflow);
 
-			backlogAdd(tmpDir, "Second task");
+			await backlogAdd(tmpDir, "Second task");
 
 			const loaded = JSON.parse(
 				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
@@ -68,14 +68,14 @@ describe("flow-backlog", () => {
 			expect(loaded.items[1].id).toBe("ITEM-2");
 		});
 
-		it("should update workflow updatedAt", () => {
+		it("should update workflow updatedAt", async () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 
 			const before = JSON.parse(
 				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
 			);
-			backlogAdd(tmpDir, "Task");
+			await backlogAdd(tmpDir, "Task");
 
 			const after = JSON.parse(
 				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),

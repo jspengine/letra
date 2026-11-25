@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import chalk from "chalk";
@@ -17,6 +17,9 @@ import {
 	type WorkspaceResolution,
 } from "../workspace/resolver.js";
 import { getLetraDir } from "./../workspace/resolver.js";
+import { recoverWorkspaceTransaction, withWorkspaceTransactionLock, withWorkspaceTransactionLockSync } from "../domain-operations/workspace-transaction.js";
+import type { ValidationEvidence } from "@letra/types";
+import type { SecurityBaseline, SecurityReviewReport } from "../security/scoped-review.js";
 
 export interface Stage {
 	id: string;
@@ -38,6 +41,7 @@ export interface Task {
 }
 
 export interface ItemHandoff {
+	status?: "pending" | "accepted" | "completed" | "expired" | "superseded" | "cancelled";
 	from: string;
 	to: string;
 	summary: string;
@@ -45,6 +49,8 @@ export interface ItemHandoff {
 	timestamp: string;
 	expiresAt: string;
 	executorId?: string;
+	targetExecutorId?: string;
+	targetIdentityId?: string;
 }
 
 export interface Item {
@@ -55,6 +61,8 @@ export interface Item {
 	source?: "github" | "linear";
 	sourceUrl?: string;
 	spec?: string;
+	workflowVersionId?: string;
+	workflowVersionNumber?: number;
 	tasks?: Task[];
 	claimedBy?: string;
 	claimedAt?: string;
@@ -67,8 +75,16 @@ export interface Item {
 	activityStartedAt?: string;
 	lastHeartbeatAt?: string;
 	lastFailure?: { code: string; message: string; recovery: string; at: string };
+	validation?: ValidationEvidence;
+	/** Immutable pre-Code snapshot and the latest item-scoped Security result. */
+	securityBaseline?: SecurityBaseline;
+	securityReview?: SecurityReviewReport;
+	retryCount?: number;
+	lastOperationKey?: string;
 	currentPhase?: string;
+	repetitionState?: Record<string, { count: number; firstTraversalAt: string }>;
 	handoff?: ItemHandoff;
+	handoffHistory?: ItemHandoff[];
 }
 
 export interface SpecLink {
@@ -284,6 +300,7 @@ export function migrateTargetsToLocations(workflow: Workflow): {
 }
 
 export function loadWorkflow(root: string): Workflow | null {
+	recoverWorkspaceTransaction(root);
 	const filePath = workflowFilePath(root);
 	if (!existsSync(filePath)) return null;
 	try {
@@ -300,6 +317,9 @@ export function loadWorkflow(root: string): Workflow | null {
 }
 
 export function saveWorkflow(root: string, workflow: Workflow): void {
+	withWorkspaceTransactionLockSync(root, () => saveWorkflowUnlocked(root, workflow));
+}
+function saveWorkflowUnlocked(root: string, workflow: Workflow): void {
 	const dir = getLetraDir(root);
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 	const filePath = workflowFilePath(root);
@@ -315,7 +335,9 @@ export function saveWorkflow(root: string, workflow: Workflow): void {
 			// best-effort backup
 		}
 	}
-	writeFileSync(filePath, JSON.stringify(workflow, null, 2));
+	const temporaryPath = `${filePath}.tmp-${process.pid}-${Date.now()}`;
+	writeFileSync(temporaryPath, JSON.stringify(workflow, null, 2), "utf-8");
+	renameSync(temporaryPath, filePath);
 }
 
 export function loadWorkspaceWorkflow(cwd?: string): {
@@ -343,9 +365,14 @@ export type WriteWorkflowSource =
 	| "flow-release"
 	| "flow-handoff"
 	| "flow-handoff-rollback"
+	| "flow-validate"
+	| "security-review"
 	| "orchestrator"
+	| "orchestrator-gateway"
 	| "orchestrator-reclaim"
 	| "orchestrator-retry"
+	| "mcp-create-item"
+	| "mcp-link-item-spec"
 	| "init"
 	| "stage-drift"
 	| "web-ui"
@@ -363,6 +390,8 @@ export interface WriteWorkflowOptions {
 	quiet?: boolean;
 	confineAdapterWrites?: boolean;
 	resolution?: import("../workspace/resolver.js").WorkspaceResolution;
+	/** Revision observed immediately before the mutation. Checked under the write lock. */
+	expectedRevision?: string;
 }
 
 export interface WriteWorkflowResult {
@@ -370,6 +399,8 @@ export interface WriteWorkflowResult {
 	filesUpdated: string[];
 	error?: string;
 }
+
+let workflowWriteQueue: Promise<void> = Promise.resolve();
 
 const ADAPTER_TARGETS: Record<string, string> = {
 	cursor: ".cursorrules",
@@ -381,6 +412,21 @@ const ADAPTER_TARGETS: Record<string, string> = {
 };
 
 export async function writeWorkflow(
+	root: string,
+	options: WriteWorkflowOptions,
+): Promise<WriteWorkflowResult> {
+	let release!: () => void;
+	const previous = workflowWriteQueue;
+	workflowWriteQueue = new Promise<void>((resolve) => { release = resolve; });
+	await previous;
+	try {
+		return await withWorkspaceTransactionLock(root, () => writeWorkflowUnlocked(root, options));
+	} finally {
+		release();
+	}
+}
+
+async function writeWorkflowUnlocked(
 	root: string,
 	options: WriteWorkflowOptions,
 ): Promise<WriteWorkflowResult> {
@@ -402,6 +448,18 @@ export async function writeWorkflow(
 	}
 	if (!workflow.stages || !Array.isArray(workflow.stages)) {
 		return { ok: false, filesUpdated: [], error: "workflow.stages must be an array" };
+	}
+	if (options.expectedRevision) {
+		// Same direction the operations compare (ITEM-39): a private copy of
+		// the item/Run selection here diverged from them once a Run was active.
+		const { resolveOperationDirection } = await import("../agent-direction/service.js");
+		const existingTarget = primaryItemId
+			? loadWorkflow(root)?.items.some((item) => item.id === primaryItemId) === true
+			: false;
+		const currentRevision = resolveOperationDirection(root, existingTarget ? { itemId: primaryItemId } : {}).revision;
+		if (currentRevision !== options.expectedRevision) {
+			return { ok: false, filesUpdated: [], error: `DIRECTION_STALE: expected ${options.expectedRevision}, current ${currentRevision}` };
+		}
 	}
 
 	const filesUpdated: string[] = [];
@@ -482,13 +540,7 @@ export async function writeWorkflow(
 		}
 	}
 
-	// 4. Sitrep — skipped by default (expensive)
-	if (!skipSitrep) {
-		try {
-			const { sitrep } = await import("./sitrep.js");
-			await sitrep(resolution?.workspaceDir ?? root, { quiet: true, skipLog: true });
-		} catch {}
-	}
+	// 4. Estado vivo pertence a direction; context.md é memória humana curada.
 
 	// 5. Log
 	if (!skipLog) {
@@ -650,3 +702,4 @@ export async function flowInitAction(
 		process.exit(1);
 	}
 }
+

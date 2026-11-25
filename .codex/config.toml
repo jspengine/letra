@@ -1,0 +1,7 @@
+# letra:codex-mcp:start
+[mcp_servers.letra]
+command = "letra"
+args = ["mcp", "serve", "--stdio"]
+enabled = true
+required = false
+# letra:codex-mcp:end

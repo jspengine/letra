@@ -1,303 +1,131 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Workflow, saveWorkflow } from "./flow-init.js";
-import { flowMove } from "./flow-move.js";
+import { flowMove, flowMoveAction } from "./flow-move.js";
+import { directionForRunAwareOperation, requestPassageOperation } from "../domain-operations/service.js";
+import { resolveActiveFlow } from "../flow-definition/resolve.js";
+
+vi.mock("../domain-operations/service.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../domain-operations/service.js")>()),
+	requestPassageOperation: vi.fn(async () => ({ outcome: "accepted", reasonCode: "PASSAGE_COMPLETED" })),
+	// The revision passage compares: run-aware and bound to the claim's executor.
+	directionForRunAwareOperation: vi.fn(() => ({ revision: "sha256:item-revision" })),
+}));
+vi.mock("../flow-definition/resolve.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../flow-definition/resolve.js")>()),
+	resolveActiveFlow: vi.fn(() => ({ flow: { stages: [{ id: "backlog", roleIds: [], agents: [] }, { id: "design", roleIds: ["designer"], agents: ["designer"] }, { id: "code", roleIds: ["builder", "reviewer"], agents: ["builder", "reviewer"] }, { id: "review", roleIds: ["reviewer"], agents: ["reviewer"] }, { id: "done", roleIds: ["reviewer"], agents: ["reviewer"] }] } })),
+}));
 
 function createTestWorkflow(): Workflow {
 	return {
-		version: "1.0",
-		name: "test",
-		createdAt: "2026-01-01T00:00:00.000Z",
-		updatedAt: "2026-01-01T00:00:00.000Z",
+		version: "1.0", name: "test", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
 		stages: [
-			{ id: "backlog", name: "Backlog", order: 0 },
-			{ id: "design", name: "Design", order: 1 },
-			{ id: "code", name: "Code", order: 2 },
-			{ id: "review", name: "Review", order: 3 },
-			{ id: "done", name: "Done", order: 4 },
+			{ id: "backlog", name: "Backlog", order: 0 }, { id: "design", name: "Design", order: 1 },
+			{ id: "code", name: "Code", order: 2 }, { id: "review", name: "Review", order: 3 }, { id: "done", name: "Done", order: 4 },
 		],
-		items: [
-			{
-				id: "ITEM-1",
-				description: "First task",
-				stage: "backlog",
-				createdAt: "2026-01-01T00:00:00.000Z",
-			},
-		],
+		items: [{ id: "ITEM-1", description: "First task", stage: "backlog", createdAt: "2026-01-01T00:00:00.000Z", claimedBy: "designer", claimExecutorId: "codex" }],
 		tools: ["cursor"],
 	};
 }
 
-describe("flow-move", () => {
-	let tmpDir: string;
-
+describe("flow-move uses canonical passage", () => {
+	let root: string;
 	beforeEach(() => {
-		tmpDir = join(tmpdir(), `letra-flow-move-test-${Date.now()}`);
-		mkdirSync(tmpDir, { recursive: true });
+		root = join(tmpdir(), `letra-flow-move-test-${Date.now()}`);
+		mkdirSync(root, { recursive: true });
+		vi.clearAllMocks();
+		saveWorkflow(root, createTestWorkflow());
+	});
+	afterEach(() => { if (existsSync(root)) rmSync(root, { recursive: true, force: true }); });
+
+	it("submits the item revision and sole destination role to canonical passage", async () => {
+		await flowMove(root, "ITEM-1", "design");
+		expect(requestPassageOperation).toHaveBeenCalledWith(root, expect.objectContaining({
+			itemId: "ITEM-1", targetStageId: "design", to: "designer", executorId: "codex", expectedRevision: "sha256:item-revision",
+			summary: expect.stringContaining("Backlog → Design"),
+		}));
+		expect(directionForRunAwareOperation).toHaveBeenCalledWith(root, { itemId: "ITEM-1", runId: undefined, executorId: "codex" });
 	});
 
+	it("requires an explicit Run when selecting the revision", async () => {
+		await flowMove(root, "ITEM-1", "design", { run: "run-123" });
+		expect(directionForRunAwareOperation).toHaveBeenCalledWith(root, { itemId: "ITEM-1", runId: "run-123", executorId: "codex" });
+		expect(requestPassageOperation).toHaveBeenCalledWith(root, expect.objectContaining({ runId: "run-123" }));
+	});
+
+	it("refuses to move when there is no active claim", async () => {
+		const workflow = createTestWorkflow();
+		delete workflow.items[0].claimExecutorId;
+		saveWorkflow(root, workflow);
+		await flowMove(root, "ITEM-1", "design");
+		expect(requestPassageOperation).not.toHaveBeenCalled();
+	});
+
+	it("requires a sole destination role instead of guessing among multiple roles", async () => {
+		vi.mocked(resolveActiveFlow).mockReturnValueOnce({ flow: { stages: [{ id: "code", roleIds: ["builder", "reviewer"], agents: ["builder", "reviewer"] }] } } as any);
+		const logs: string[] = [];
+		const original = console.log;
+		console.log = (message: string) => logs.push(message);
+		try { await flowMove(root, "ITEM-1", "code"); } finally { console.log = original; }
+		expect(logs.join(" ")).toContain("múltiplos destinatários");
+		expect(requestPassageOperation).not.toHaveBeenCalled();
+	});
+});
+
+// ITEM-25 / spec recusas-que-ensinam AC6: a refused passage must not exit 0.
+type PassageResult = Awaited<ReturnType<typeof requestPassageOperation>>;
+describe("flow move exit code", () => {
+	let root: string;
+	let previousExitCode: typeof process.exitCode;
+	beforeEach(() => {
+		root = join(tmpdir(), `letra-flow-move-exit-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+		mkdirSync(root, { recursive: true });
+		vi.clearAllMocks();
+		saveWorkflow(root, createTestWorkflow());
+		previousExitCode = process.exitCode;
+		process.exitCode = undefined;
+		vi.spyOn(console, "log").mockImplementation(() => undefined);
+	});
 	afterEach(() => {
-		if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true });
+		process.exitCode = previousExitCode;
+		vi.mocked(console.log).mockRestore();
+		if (existsSync(root)) rmSync(root, { recursive: true, force: true });
 	});
 
-	describe("flowMove", () => {
-		it("should move item to target stage by id", () => {
-			const workflow = createTestWorkflow();
-			saveWorkflow(tmpDir, workflow);
+	it("reports success, idempotent no-op and pending human approval as reached", async () => {
+		expect(await flowMove(root, "ITEM-1", "design")).toBe(true);
+		expect(await flowMove(root, "ITEM-1", "backlog")).toBe(true);
+		vi.mocked(requestPassageOperation).mockResolvedValueOnce({ outcome: "approval-required", reasonCode: "HUMAN_APPROVAL_REQUIRED", reason: "gate" } as PassageResult);
+		expect(await flowMove(root, "ITEM-1", "design")).toBe(true);
+	});
 
-			flowMove(tmpDir, "ITEM-1", "design");
+	it("reports every refusal as not reached", async () => {
+		expect(await flowMove(root, "ITEM-404", "design")).toBe(false);
+		expect(await flowMove(root, "ITEM-1", "nowhere")).toBe(false);
+		vi.mocked(requestPassageOperation).mockResolvedValueOnce({ outcome: "rejected", reasonCode: "CLAIM_REQUIRED", reason: "sem claim" } as PassageResult);
+		expect(await flowMove(root, "ITEM-1", "design")).toBe(false);
+		const workflow = createTestWorkflow();
+		workflow.items[0].stage = "done";
+		saveWorkflow(root, workflow);
+		expect(await flowMove(root, "ITEM-1", "", { auto: true })).toBe(false);
+	});
 
-			const loaded = JSON.parse(
-				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-			);
-			expect(loaded.items[0].stage).toBe("design");
-		});
+	it("exits 1 when the passage is refused", async () => {
+		vi.mocked(requestPassageOperation).mockResolvedValueOnce({ outcome: "rejected", reasonCode: "CLAIM_REQUIRED", reason: "sem claim" } as PassageResult);
+		await flowMoveAction(root, "ITEM-1", { to: "design" });
+		expect(process.exitCode).toBe(1);
+	});
 
-		it("auto moves to next stage by order", () => {
-			const workflow = createTestWorkflow();
-			workflow.items[0].stage = "backlog";
-			saveWorkflow(tmpDir, workflow);
+	it("exits 1 when the passage throws instead of leaving an unhandled rejection", async () => {
+		vi.mocked(requestPassageOperation).mockRejectedValueOnce(new Error("disk full"));
+		await flowMoveAction(root, "ITEM-1", { to: "design" });
+		expect(process.exitCode).toBe(1);
+	});
 
-			flowMove(tmpDir, "ITEM-1", "", { auto: true });
-
-			const loaded = JSON.parse(
-				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-			);
-			expect(loaded.items[0].stage).toBe("design");
-		});
-
-		it("auto shows message when at last stage", () => {
-			const workflow = createTestWorkflow();
-			workflow.items[0].stage = "done";
-			saveWorkflow(tmpDir, workflow);
-
-			const logs: string[] = [];
-			const origLog = console.log;
-			console.log = (msg: string) => logs.push(msg);
-			try {
-				flowMove(tmpDir, "ITEM-1", "", { auto: true });
-				expect(logs.some((l) => l.includes("already at the last stage"))).toBe(true);
-				const loaded = JSON.parse(
-					readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-				);
-				expect(loaded.items[0].stage).toBe("done");
-			} finally {
-				console.log = origLog;
-			}
-		});
-
-		it("auto errors when stage not found", () => {
-			const workflow = createTestWorkflow();
-			workflow.items[0].stage = "nonexistent";
-			saveWorkflow(tmpDir, workflow);
-
-			const origExit = process.exit;
-			const origLog = console.log;
-			let exitCode: number | undefined;
-			process.exit = ((code?: number) => {
-				exitCode = code;
-			}) as any;
-			try {
-				flowMove(tmpDir, "ITEM-1", "", { auto: true });
-				expect(exitCode).toBe(1);
-			} finally {
-				process.exit = origExit;
-				console.log = origLog;
-			}
-		});
-
-		it("should move item to target stage by name", () => {
-			const workflow = createTestWorkflow();
-			saveWorkflow(tmpDir, workflow);
-
-			flowMove(tmpDir, "ITEM-1", "Design");
-
-			const loaded = JSON.parse(
-				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-			);
-			expect(loaded.items[0].stage).toBe("design");
-		});
-
-		it("should regenerate adapter files after move", async () => {
-			const workflow = createTestWorkflow();
-			saveWorkflow(tmpDir, workflow);
-
-			await flowMove(tmpDir, "ITEM-1", "Design");
-
-			expect(existsSync(join(tmpDir, ".cursorrules"))).toBe(true);
-			const content = readFileSync(join(tmpDir, ".cursorrules"), "utf-8");
-			expect(content).toContain("@.letra/context.md");
-			expect(content).toContain("@.letra/constitution.md");
-			expect(content).toContain("@.letra/glossary.md");
-		});
-
-		it("should update workflow updatedAt after move", async () => {
-			const workflow = createTestWorkflow();
-			saveWorkflow(tmpDir, workflow);
-
-			const before = JSON.parse(
-				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-			);
-			await flowMove(tmpDir, "ITEM-1", "design");
-
-			const after = JSON.parse(
-				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-			);
-			expect(after.updatedAt).not.toBe(before.updatedAt);
-		});
-
-		it("should generate correct adapter content", async () => {
-			const workflow = createTestWorkflow();
-			saveWorkflow(tmpDir, workflow);
-
-			await flowMove(tmpDir, "ITEM-1", "design");
-
-			const content = readFileSync(join(tmpDir, ".cursorrules"), "utf-8");
-			expect(content).toContain("letra flow move");
-			expect(content).toContain("@.letra/context.md");
-			expect(content).toContain("## Regras");
-		});
-
-		it("should sync focus file when moved item has spec", async () => {
-			const workflow = createTestWorkflow();
-			workflow.items[0].spec = "my-feature";
-			saveWorkflow(tmpDir, workflow);
-
-			const specDir = join(tmpDir, ".letra", "specs", "my-feature");
-			mkdirSync(specDir, { recursive: true });
-			writeFileSync(
-				join(specDir, "spec.md"),
-				"# Spec: My Feature\n\n## Outcome\nAllows cool things\n",
-			);
-
-			await flowMove(tmpDir, "ITEM-1", "design");
-
-			const focusFile = join(tmpDir, ".letra", "focus.md");
-			expect(existsSync(focusFile)).toBe(true);
-
-			const focusContent = readFileSync(focusFile, "utf-8");
-			expect(focusContent).toContain("# Focus: my-feature");
-			expect(focusContent).toContain("**Item**: ITEM-1");
-			expect(focusContent).toContain("**Outcome**: Allows cool things");
-		});
-
-		it("--auto blocks when item has pending ACs (AC2.5)", () => {
-			const workflow = createTestWorkflow();
-			workflow.items[0].spec = "my-feature";
-			workflow.items[0].stage = "code";
-			saveWorkflow(tmpDir, workflow);
-
-			const specDir = join(tmpDir, ".letra", "specs", "my-feature");
-			mkdirSync(specDir, { recursive: true });
-			writeFileSync(
-				join(specDir, "spec.md"),
-				"# Spec\n\n## Outcome\nTest\n\n## Acceptance Criteria\n- [ ] **AC1**: Pending AC\n- [ ] **AC2**: Another pending\n",
-			);
-
-			const logs: string[] = [];
-			const origLog = console.log;
-			console.log = (msg: string) => logs.push(msg);
-			try {
-				flowMove(tmpDir, "ITEM-1", "", { auto: true });
-				expect(logs.some((l) => l.includes("pending AC"))).toBe(true);
-				const loaded = JSON.parse(
-					readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-				);
-				expect(loaded.items[0].stage).toBe("code");
-			} finally {
-				console.log = origLog;
-			}
-		});
-
-		it("--force bypasses pending AC check (AC2.5)", async () => {
-			const workflow = createTestWorkflow();
-			workflow.items[0].spec = "my-feature";
-			workflow.items[0].stage = "code";
-			saveWorkflow(tmpDir, workflow);
-
-			const specDir = join(tmpDir, ".letra", "specs", "my-feature");
-			mkdirSync(specDir, { recursive: true });
-			writeFileSync(
-				join(specDir, "spec.md"),
-				"# Spec\n\n## Outcome\nTest\n\n## Acceptance Criteria\n- [ ] **AC1**: Pending AC\n",
-			);
-
-			await flowMove(tmpDir, "ITEM-1", "", { auto: true, force: true });
-
-			const loaded = JSON.parse(
-				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-			);
-			expect(loaded.items[0].stage).toBe("review");
-		});
-
-		it("uses resolved active flow gates instead of direct sdlc lookup", () => {
-			const workflow = createTestWorkflow();
-			workflow.template = "custom-flow";
-			workflow.stages = [
-				{ id: "backlog", name: "Backlog", order: 0, zone: "todo" },
-				{ id: "approved", name: "Approved", order: 1, zone: "doing" },
-				{ id: "done", name: "Done", order: 2, zone: "done" },
-			];
-			workflow.items[0].stage = "backlog";
-			saveWorkflow(tmpDir, workflow);
-
-			const harnessDir = join(tmpDir, ".letra", "harness", "v0.2.0");
-			mkdirSync(join(harnessDir, "flows"), { recursive: true });
-			mkdirSync(join(harnessDir, "gates"), { recursive: true });
-			mkdirSync(join(harnessDir, "roles"), { recursive: true });
-
-			writeFileSync(
-				join(harnessDir, "flows", "custom-flow.yaml"),
-				[
-					"id: custom-flow",
-					"version: 1.0.0",
-					"name: Custom Flow",
-					"description: test",
-					"defaultPolicy: default",
-					"stages:",
-					"  - id: backlog",
-					"    name: Backlog",
-					"    order: 0",
-					"    zone: todo",
-					"  - id: approved",
-					"    name: Approved",
-					"    order: 1",
-					"    zone: doing",
-					"    gate: gates/custom-approval.yaml",
-					"  - id: done",
-					"    name: Done",
-					"    order: 2",
-					"    zone: done",
-				].join("\n"),
-			);
-			writeFileSync(
-				join(harnessDir, "gates", "custom-approval.yaml"),
-				[
-					"id: custom-approval",
-					"name: Custom Approval",
-					"type: human",
-					"blocking: true",
-					"description: needs approval",
-				].join("\n"),
-			);
-
-			const logs: string[] = [];
-			const origLog = console.log;
-			console.log = (msg: string) => logs.push(msg);
-			try {
-				flowMove(tmpDir, "ITEM-1", "approved");
-				expect(logs.some((line) => line.includes("Gate bloqueante: Custom Approval"))).toBe(
-					true,
-				);
-				const loaded = JSON.parse(
-					readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
-				);
-				expect(loaded.items[0].stage).toBe("backlog");
-			} finally {
-				console.log = origLog;
-			}
-		});
+	it("keeps exit 0 when the item moves", async () => {
+		await flowMoveAction(root, "ITEM-1", { to: "design" });
+		expect(process.exitCode).toBeUndefined();
 	});
 });

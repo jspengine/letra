@@ -1,41 +1,18 @@
-import { existsSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { resolve } from "node:path";
 import chalk from "chalk";
-import { type Item, type Workflow, loadWorkflow, writeWorkflow } from "./flow-init.js";
-import { getLetraDir } from "./../workspace/resolver.js";
-
-function now(): string {
-	return new Date().toISOString();
-}
-
-function nextItemId(workflow: Workflow): string {
-	let max = 0;
-	for (const item of workflow.items) {
-		const match = item.id.match(/^ITEM-(\d+)$/);
-		if (match) {
-			const num = Number.parseInt(match[1], 10);
-			if (num > max) max = num;
-		}
-	}
-	return `ITEM-${max + 1}`;
-}
+import { type Workflow, loadWorkflow } from "./flow-init.js";
+import { resolveDirection } from "../agent-direction/service.js";
+import { createItemOperation } from "../domain-operations/service.js";
+import { resolveLocalIdentity } from "../identity/service.js";
 
 function workflowExists(root: string): Workflow | null {
 	return loadWorkflow(root);
 }
 
-export function backlogAdd(root: string, description: string, spec?: string): void {
+export async function backlogAdd(root: string, description: string, spec?: string, requestedId?: string): Promise<void> {
 	if (!description) {
 		console.log(chalk.red("Description is required"));
 		process.exit(1);
-	}
-
-	if (spec) {
-		const specsDir = join(getLetraDir(root), "specs", spec);
-		if (!existsSync(specsDir)) {
-			console.log(chalk.red(`Spec "${spec}" not found at .letra/specs/${spec}/`));
-			return;
-		}
 	}
 
 	const workflow = workflowExists(root);
@@ -49,35 +26,21 @@ export function backlogAdd(root: string, description: string, spec?: string): vo
 		process.exit(1);
 	}
 
-	const firstStage = workflow.stages[0].id;
-
-	const item: Item = {
-		id: nextItemId(workflow),
+	const direction = resolveDirection(root);
+	const operation = await createItemOperation(root, {
+		id: requestedId,
 		description,
-		stage: firstStage,
-		createdAt: now(),
-		spec: spec || undefined,
-	};
-
-	if (spec) {
-		if (!workflow.specLinks) workflow.specLinks = {};
-		if (!workflow.specLinks[spec]) {
-			workflow.specLinks[spec] = { path: `.letra/specs/${spec}/spec.md` };
-		}
-	}
-
-	workflow.items.push(item);
-	workflow.updatedAt = now();
-	writeWorkflow(root, {
-		workflow,
-		source: "flow-backlog",
-		primaryItemId: item.id,
-		skipSitrep: true,
+		spec,
+		expectedRevision: direction.revision,
+		reason: "Criação de item pelo backlog da CLI.",
+		actor: resolveLocalIdentity(root).id,
 	});
-
-	console.log(
-		`  ${chalk.green("✓")} Item ${chalk.cyan(item.id)} added to ${chalk.cyan(workflow.stages[0].name)}`,
-	);
+	if (operation.outcome !== "accepted") {
+		console.log(chalk.red(`  ${operation.reasonCode}: ${operation.reason}`));
+		return;
+	}
+	const created = operation.createdItem;
+	console.log(`  ${chalk.green("✓")} Item ${chalk.cyan(created?.id ?? requestedId ?? "criado")} added to ${chalk.cyan(workflow.stages[0].name)}`);
 }
 
 export function backlogList(root: string): void {
@@ -123,9 +86,10 @@ export function backlogActionAdd(
 	targetPath: string | undefined,
 	description: string,
 	spec?: string,
-): void {
+	requestedId?: string,
+): Promise<void> {
 	const root = resolve(process.cwd(), targetPath || ".");
-	backlogAdd(root, description, spec);
+	return backlogAdd(root, description, spec, requestedId);
 }
 
 export function backlogActionList(targetPath: string | undefined): void {

@@ -118,6 +118,18 @@ describe("pulse", () => {
 		expect(result.currentItem?.acs).toEqual({ pending: 2, done: 1, total: 3 });
 	});
 
+	it("counts checklist ACs when the description is inside the bold label", async () => {
+		writeWorkflow(dir);
+		writeSpec(dir, "feature-x", [
+			"- [x] **AC1 — Direction can be read**",
+			"- [x] **AC2 — Doctor reports drift**",
+			"- [ ] **AC3 — Sync is explicit**",
+		]);
+		const result = await pulse(dir, { json: true });
+
+		expect(result.currentItem?.acs).toEqual({ pending: 1, done: 2, total: 3 });
+	});
+
 	it("should return ACs as zero when no spec file", async () => {
 		writeWorkflow(dir);
 		const result = await pulse(dir, { json: true });

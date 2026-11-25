@@ -124,7 +124,8 @@ export function ensureExternalWorkspaceLayout(
 			2,
 		),
 		"workspace.json": JSON.stringify(defaults?.workspace ?? {}, null, 2),
-		"context.md": "# Context\n",
+		"context.md":
+			"# Context\n\nEste arquivo é memória humana curada. Estado vivo vem de `get_direction` ou `letra direction --json`.\n",
 		"focus.md": "# Focus\n",
 		"constitution.md": "# Constitution\n",
 		"constraints.md": "# Constraints\n",
@@ -147,7 +148,7 @@ function harnessDefaultDir(version: string): string {
 	return candidates[0];
 }
 
-export function ensureDefaultHarness(version = "v0.1.0"): string {
+export function ensureDefaultHarness(version = "v0.2.0"): string {
 	const dest = join(getHarnessDir(), version);
 	if (existsSync(dest)) return dest;
 
@@ -170,7 +171,7 @@ export function initWorkspace(name: string): { workspaceDir: string; info: Works
 
 	const workspaceId = `ws_${crypto.randomBytes(4).toString("hex")}`;
 	const templateId = "flow-main";
-	const harnessVersion = "v0.1.0";
+	const harnessVersion = "v0.2.0";
 
 	ensureDefaultHarness(harnessVersion);
 
@@ -181,7 +182,9 @@ export function initWorkspace(name: string): { workspaceDir: string; info: Works
 		templateId,
 		harnessVersion,
 	};
-	ensureExternalWorkspaceLayout(workspaceDir, { workspace: info as unknown as Record<string, unknown> });
+	ensureExternalWorkspaceLayout(workspaceDir, {
+		workspace: info as unknown as Record<string, unknown>,
+	});
 
 	return { workspaceDir, info };
 }
@@ -246,6 +249,6 @@ export function listWorkspaces(): WorkspaceInfo[] {
 		.filter((w): w is WorkspaceInfo => w !== null);
 }
 
-export function resolveHarnessRootGlobal(version = "v0.1.0"): string {
+export function resolveHarnessRootGlobal(version = "v0.2.0"): string {
 	return join(getHarnessDir(), version);
 }

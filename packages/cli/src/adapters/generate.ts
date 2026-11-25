@@ -1,9 +1,14 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	renameSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import chalk from "chalk";
 import { createWorkspaceBoundary } from "../security/workspace-boundary.js";
-import { buildHarnessSnapshot } from "./builder.js";
-import { formatAdapterContent } from "./formatters.js";
 import {
 	appendCodexLiveContextInstructions,
 	mergeCodexProjectConfig,
@@ -24,6 +29,7 @@ const ADAPTER_HEADER: Record<AdapterSource, string> = {
 	"flow-move": "# Gerado por letra flow move. Nao edite manualmente.\n",
 	focus: "# Gerado por letra focus. Nao edite manualmente.\n",
 	"flow-ac": "# Gerado por letra ac. Nao edite manualmente.\n",
+	sync: "# Gerado por letra sync. Nao edite manualmente.\n",
 };
 
 export const TOOL_TARGETS = adapterInstructionTargets();
@@ -33,6 +39,8 @@ export interface GenerateAdaptersOptions extends GenerateOptions {
 	quiet?: boolean;
 	verb?: "Created" | "Updated";
 	confineWrites?: boolean;
+	/** Workspace data root used to load agent registry when output goes under adapters/. */
+	contentRoot?: string;
 }
 
 export interface RenderedAdapterFile {
@@ -42,12 +50,27 @@ export interface RenderedAdapterFile {
 	content: string;
 }
 
+function stableAdapterBootstrap(): string {
+	return [
+		"# Letra Agent Bootstrap",
+		"",
+		"Use the live execution contract for every task; this file contains no task assignment.",
+		"",
+		"1. Query `get_direction` or run `letra direction --json` before acting. To act on an item, read `letra direction --item <ITEM-ID> --json` (or `--run <RUN-ID>`): its revision is the one the operations compare.",
+		"2. Follow only the selected Run. If assignment is unassigned or selection-required, acquire or select a Run explicitly.",
+		"3. Load only references listed by the direction and verify their SHA-256 values.",
+		"4. Include the current direction revision and an explicit target on every mutation.",
+		"5. Report evidence and completion through the Letra operation contract.",
+		"",
+		"Workspace attention, generated prompts, and cached snapshots do not grant execution authority.",
+	].join("\n");
+}
+
 export function renderAdapterFiles(
 	root: string,
 	tools: string[],
 	options: GenerateAdaptersOptions,
 ): RenderedAdapterFile[] {
-	const snapshot = buildHarnessSnapshot(root, options);
 	let header = ADAPTER_HEADER[options.source];
 
 	if (options.graveIssueCount && options.graveIssueCount > 0) {
@@ -56,12 +79,9 @@ export function renderAdapterFiles(
 	}
 
 	const files: RenderedAdapterFile[] = [];
-	const agents = loadAgents(root).agents;
+	const agents = loadAgents(options.contentRoot ?? root).agents;
 	for (const artifact of instructionArtifactsForAdapters(tools)) {
-		let content = formatAdapterContent(snapshot, artifact.format, {
-			source: options.source,
-			displayName: artifact.displayName,
-		});
+		let content = stableAdapterBootstrap();
 		if (agents.length) {
 			content += `\n\n## Letra agent identities (registry v1)\n${agents.map((agent) => buildSkillInstructions(agent, artifact.tool)).join("\n\n")}`;
 		}
@@ -103,15 +123,45 @@ export function generateAdapters(
 ): void {
 	const boundary = options.confineWrites ? createWorkspaceBoundary(root) : null;
 	const verb = options.verb ?? (options.source === "init" ? "Created" : "Updated");
-	for (const file of renderAdapterFiles(root, tools, options)) {
-		const requestedPath = join(root, file.path);
-		const filePath = boundary?.assertPath(requestedPath) ?? requestedPath;
-		const dir = join(filePath, "..");
-		if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-		writeFileSync(filePath, file.content);
-
-		if (!options.quiet) {
-			console.log(`  ${chalk.gray(verb)} ${file.path}`);
+	const rendered = renderAdapterFiles(root, tools, options);
+	const staged: Array<{ file: RenderedAdapterFile; target: string; temp: string; backup: string | null }> = [];
+	try {
+		for (let index = 0; index < rendered.length; index += 1) {
+			const file = rendered[index]!;
+			const requestedPath = join(root, file.path);
+			const target = boundary?.assertPath(requestedPath) ?? requestedPath;
+			const temp = `${target}.letra-stage-${process.pid}-${index}`;
+			const backup = existsSync(target) ? `${target}.letra-backup-${process.pid}-${index}` : null;
+			staged.push({ file, target, temp, backup });
 		}
+		for (const entry of staged) {
+			const dir = join(entry.target, "..");
+			if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+			writeFileSync(entry.temp, entry.file.content);
+		}
+
+		for (const entry of staged) {
+			if (entry.backup) renameSync(entry.target, entry.backup);
+			renameSync(entry.temp, entry.target);
+		}
+	} catch (error) {
+		for (const entry of [...staged].reverse()) {
+			try {
+				if (entry.backup && existsSync(entry.backup)) {
+					if (existsSync(entry.target)) rmSync(entry.target, { force: true });
+					renameSync(entry.backup, entry.target);
+				} else if (!entry.backup && existsSync(entry.target) && !existsSync(entry.temp)) {
+					rmSync(entry.target, { force: true });
+				}
+				if (existsSync(entry.temp)) rmSync(entry.temp, { force: true });
+			} catch {
+				// Preserve the original error; best-effort rollback is limited to adapter projections.
+			}
+		}
+		throw error;
+	}
+	for (const entry of staged) {
+		if (entry.backup) rmSync(entry.backup, { force: true });
+		if (!options.quiet) console.log(`  ${chalk.gray(verb)} ${entry.file.path}`);
 	}
 }

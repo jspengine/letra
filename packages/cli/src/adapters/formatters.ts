@@ -5,12 +5,7 @@ import type {
 	HarnessDirectionActivity,
 } from "./types.js";
 
-const L1_FILES = [
-	".letra/context.md",
-	".letra/constitution.md",
-	".letra/glossary.md",
-	".letra/constraints.md",
-] as const;
+const L1_FILES = [".letra/constitution.md", ".letra/glossary.md", ".letra/constraints.md"] as const;
 
 function formatL1(snapshot: HarnessSnapshot, format: AdapterFormat): string {
 	if (format === "at") {
@@ -31,7 +26,6 @@ function formatL1(snapshot: HarnessSnapshot, format: AdapterFormat): string {
 function formatMarkdownReferences(snapshot: HarnessSnapshot): string {
 	const links = snapshot.referenceLinks;
 	const lines = [
-		`- [Context](${links.context})`,
 		`- [Constitution](${links.constitution})`,
 		`- [Glossary](${links.glossary})`,
 		`- [Constraints](${links.constraints})`,
@@ -61,28 +55,28 @@ function formatProtocol(snapshot: HarnessSnapshot): string | null {
 
 	const primaryItem = snapshot.primaryItemId
 		? snapshot.items.find((i) => i.id === snapshot.primaryItemId)
-		: snapshot.items[0];
+		: undefined;
 
 	const acLine =
 		snapshot.totalACs > 0 ? `ACs: ${snapshot.pendingACs}/${snapshot.totalACs} pendentes` : "";
 
 	const lines: string[] = [
-		"PASSO OBRIGATÓRIO #1: letra pulse — verificar estado do workspace",
-		"PASSO OBRIGATÓRIO #2: Leia .letra/context.md — contexto completo do projeto",
-		"PASSO OBRIGATÓRIO #3: Leia .letra/focus.md — foco e outcome da sessão",
+		"PASSO OBRIGATÓRIO #1: Consulte `get_direction` ou execute `letra direction --json` — direção viva e revisão canônica",
+		"PASSO OBRIGATÓRIO #2: Execute `letra pulse --json` — resumo do board e alertas; use a direção viva para identificar tarefa atribuída",
+		"PASSO OBRIGATÓRIO #3: Leia .letra/context.md somente quando precisar de memória humana curada de produto/domínio",
 	];
 
 	if (snapshot.focusSpec) {
 		lines.push(
-			`PASSO OBRIGATÓRIO #4: Leia .letra/specs/${snapshot.focusSpec}/spec.md — ACs do item`,
+			`PASSO OBRIGATÓRIO #4: Leia a seção relevante de specs/${snapshot.focusSpec}/spec.md no diretório de dados do workspace — ACs do item`,
 		);
 	} else if (primaryItem?.spec) {
 		lines.push(
-			`PASSO OBRIGATÓRIO #4: Leia .letra/specs/${primaryItem.spec}/spec.md — ACs do item`,
+			`PASSO OBRIGATÓRIO #4: Leia a seção relevante de specs/${primaryItem.spec}/spec.md no diretório de dados do workspace — ACs do item`,
 		);
 	} else {
 		lines.push(
-			"PASSO OBRIGATÓRIO #4: Identifique o item ativo via `letra pulse` e leia sua spec",
+			"PASSO OBRIGATÓRIO #4: Sem item atribuído, aguarde atribuição ou selecione um item pela operação canônica antes de ler sua spec",
 		);
 	}
 
@@ -95,7 +89,7 @@ function formatFocus(snapshot: HarnessSnapshot): string | null {
 
 	const primaryItem = snapshot.primaryItemId
 		? snapshot.items.find((i) => i.id === snapshot.primaryItemId)
-		: snapshot.items[0];
+		: undefined;
 
 	if (!primaryItem) return null;
 
@@ -148,7 +142,7 @@ function formatProhibitionRules(): string {
 		"**Violação = Erro Grave**",
 		"",
 		"- Não edite workflow.json manualmente — use `letra flow` e `letra focus`",
-		"- Não crie specs fora de .letra/specs/ — use `letra spec new`",
+		"- Crie specs no diretório de dados do workspace, em `specs/`, usando `letra spec new`",
 		"- Não pule os passos obrigatórios de início acima",
 		"- Execute `letra validate` antes de mover item entre estágios",
 		"- Siga a constitution.md rigorosamente",
@@ -160,13 +154,13 @@ function formatExecutionFlow(): string {
 	return [
 		"**Loop por AC**:",
 		"  1. Implemente o AC no código",
-		"  2. `letra ac done <AC-ID>` — marca como concluído no spec.md",
+		"  2. `letra ac done <AC-ID> --item <ITEM-ID>` — conclui o critério para um item explícito",
 		"  3. `letra validate` — verifica se ACs estão consistentes",
 		"  4. Repita até todos os ACs do item estarem concluídos",
 		"",
 		"**Ao concluir todos ACs**:",
 		"  → `letra pulse` — confirma estado",
-		"  → `letra sitrep` — atualiza context.md",
+		"  → `letra direction --json` — confirma direção viva e revisão",
 		"  → `letra flow move <ITEM-ID> --auto` — avança para próximo estágio",
 	].join("\n");
 }
@@ -176,7 +170,7 @@ function formatHarnessDirection(snapshot: HarnessSnapshot, format: AdapterFormat
 	const dir = snapshot.harnessDirection;
 	if (!dir) return null;
 
-	const itemId = snapshot.primaryItemId;
+	const itemId = snapshot.direction?.item?.id ?? snapshot.primaryItemId;
 	const item = itemId ? snapshot.items.find((i) => i.id === itemId) : null;
 	const stageId = snapshot.activeStage?.id;
 	const stageName = snapshot.activeStage?.name;
@@ -284,7 +278,7 @@ function formatHarnessDirection(snapshot: HarnessSnapshot, format: AdapterFormat
 
 	// Resolve placeholders: <AC-ID> and <ITEM-ID>
 	const pendingIds = dir.pendingACIds ?? [];
-	const resolvedItemId = dir.primaryItemId ?? snapshot.primaryItemId ?? snapshot.items[0]?.id;
+	const resolvedItemId = dir.primaryItemId ?? snapshot.primaryItemId;
 
 	const resolvedCommands: typeof aggCommands = [];
 	for (const cmd of aggCommands) {
@@ -429,7 +423,7 @@ function formatCommands(): string {
 		"  `letra health ack <id>`          — Reconhecer alerta",
 		"  `letra health dismiss <id>`      — Descartar alerta",
 		"  `letra health scan`              — Re-executar verificações",
-		"  `letra sitrep`                   — Atualizar context.md",
+		"  `letra direction --json`         — Direção viva para agentes",
 		"  `letra flow move <id> --to <s>`  — Mover item entre estágios",
 		"  `letra focus <spec>`             — Definir foco",
 		"  `letra focus --clear`            — Limpar foco",
@@ -593,9 +587,9 @@ function formatHandoff(snapshot: HarnessSnapshot): string | null {
 function formatRulesText(): string {
 	return [
 		"# Rules",
-		"- Always read specs in .letra/specs/ before writing code",
+		"- Always read specs in the workspace data directory under specs/ before writing code",
 		"- Run `letra validate` to check acceptance criteria",
-		"- Execute `letra ac done <ID>` after implementing each AC",
+		"- Execute `letra ac done <ID> --item <ITEM-ID>` after implementing each AC",
 		"- Follow the constitution.md rules strictly",
 		"- Use formal tone in all generated content",
 	].join("\n");

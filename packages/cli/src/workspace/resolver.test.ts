@@ -166,27 +166,93 @@ describe("workspace resolution (externalized direct layout, ITEM-79)", () => {
 		expect(loadWorkflow(workspaceRoot)?.name).toBe("nested");
 	});
 
-	it("falls back to local .letra/ when .letra-link points to a missing data directory", () => {
+	it("marks a broken link invalid without falling back to local authority", () => {
 		const workspaceRoot = makeTmp("letra-broken-link");
 		dirs.push(workspaceRoot);
 		const missing = join(workspaceRoot, "missing-data-dir");
 		writeFileSync(join(workspaceRoot, LINK_FILE), `${missing}\n`);
 
-		// Broken link should not throw — resolveDataDir returns null, getLetraDir falls back
+		// Broken link must not silently select a competing local .letra.
 		expect(resolveDataDir(workspaceRoot)).toBeNull();
-		const fallback = getLetraDir(workspaceRoot);
-		expect(typeof fallback).toBe("string");
-		expect(fallback.length).toBeGreaterThan(0);
+		const resolved = resolveWorkspaceRoot(workspaceRoot);
+		expect(resolved.errorCode).toBe("WORKSPACE_LINK_INVALID");
+		expect(getLetraDir(workspaceRoot)).toBe(missing);
 	});
 
-	it("falls back to local .letra/ when linked data directory lacks workflow.json", () => {
+	it("marks a linked directory without workflow as invalid", () => {
 		const dataDir = makeTmp("letra-empty-data");
 		dirs.push(dataDir);
 		const workspaceRoot = makeTmp("letra-empty-link");
 		dirs.push(workspaceRoot);
 		writeFileSync(join(workspaceRoot, LINK_FILE), `${dataDir}\n`);
 
-		// Link target exists but has no workflow.json — should return null, not throw
+		// Link target exists but has no workflow.json — should return null without fallback.
 		expect(resolveDataDir(workspaceRoot)).toBeNull();
+		expect(resolveWorkspaceRoot(workspaceRoot).errorCode).toBe("WORKSPACE_LINK_INVALID");
+	});
+});
+
+describe("upward search boundaries (ITEM-3 AC6)", () => {
+	const envKeys = ["HOME", "USERPROFILE", "LETRA_CEILING_DIRECTORIES"] as const;
+	let savedEnv: Record<string, string | undefined> = {};
+
+	function withEnv(values: Partial<Record<(typeof envKeys)[number], string>>) {
+		savedEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
+		Object.assign(process.env, values);
+	}
+
+	afterEach(() => {
+		for (const key of envKeys) {
+			if (savedEnv[key] === undefined) delete process.env[key];
+			else process.env[key] = savedEnv[key];
+		}
+		savedEnv = {};
+	});
+
+	it("ignores a .letra-link in the home directory while walking up", () => {
+		const dataDir = makeTmp("letra-home-target");
+		dirs.push(dataDir);
+		writeFileSync(join(dataDir, "workflow.json"), JSON.stringify(workflow("home")));
+
+		const fakeHome = makeTmp("letra-fake-home");
+		dirs.push(fakeHome);
+		writeFileSync(join(fakeHome, LINK_FILE), `${dataDir}\n`);
+		const project = join(fakeHome, "projects", "app");
+		mkdirSync(project, { recursive: true });
+		withEnv({ HOME: fakeHome, USERPROFILE: fakeHome, LETRA_CEILING_DIRECTORIES: tmpdir() });
+
+		const resolved = resolveWorkspaceRoot(project);
+		expect(resolved.type).toBe("local");
+		expect(resolved.workspaceDir).toBe(join(project, LETRA_FOLDER));
+	});
+
+	it("does not enter a directory listed in LETRA_CEILING_DIRECTORIES", () => {
+		const dataDir = makeTmp("letra-ceiling-target");
+		dirs.push(dataDir);
+		writeFileSync(join(dataDir, "workflow.json"), JSON.stringify(workflow("ceiling")));
+
+		const outer = makeTmp("letra-ceiling-outer");
+		dirs.push(outer);
+		writeFileSync(join(outer, LINK_FILE), `${dataDir}\n`);
+		const inner = join(outer, "a", "b");
+		mkdirSync(inner, { recursive: true });
+
+		withEnv({ LETRA_CEILING_DIRECTORIES: tmpdir() });
+		expect(resolveWorkspaceRoot(inner).type).toBe("linked");
+
+		clearWorkspaceCache();
+		process.env.LETRA_CEILING_DIRECTORIES = outer;
+		const bounded = resolveWorkspaceRoot(inner);
+		expect(bounded.type).toBe("local");
+		expect(bounded.workspaceDir).toBe(join(inner, LETRA_FOLDER));
+	});
+
+	it("still examines the starting directory even when it is a ceiling", () => {
+		const root = makeTmp("letra-ceiling-start");
+		dirs.push(root);
+		writeFileSync(join(root, "workflow.json"), JSON.stringify(workflow("start")));
+		withEnv({ LETRA_CEILING_DIRECTORIES: root });
+
+		expect(resolveWorkspaceRoot(root).type).toBe("direct");
 	});
 });

@@ -46,43 +46,43 @@ describe("flow-edit-diff", () => {
 	});
 
 	describe("flowEdit", () => {
-		it("should update workflow name", () => {
+		it("should update workflow name", async () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
-			flowEdit(tmpDir, { name: "Novo Nome" });
+			await flowEdit(tmpDir, { name: "Novo Nome" });
 			const loaded = loadWorkflow(tmpDir);
 			expect(loaded?.name).toBe("Novo Nome");
 		});
 
-		it("should update workflow description", () => {
+		it("should update workflow description", async () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
-			flowEdit(tmpDir, { desc: "Uma descricao" });
+			await flowEdit(tmpDir, { desc: "Uma descricao" });
 			const loaded = loadWorkflow(tmpDir);
 			expect(loaded?.description).toBe("Uma descricao");
 		});
 
-		it("should update name and description together", () => {
+		it("should update name and description together", async () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
-			flowEdit(tmpDir, { name: "Novo", desc: "Desc" });
+			await flowEdit(tmpDir, { name: "Novo", desc: "Desc" });
 			const loaded = loadWorkflow(tmpDir);
 			expect(loaded?.name).toBe("Novo");
 			expect(loaded?.description).toBe("Desc");
 		});
 
-		it("should increment version on edit", () => {
+		it("should increment version on edit", async () => {
 			const workflow = createTestWorkflow({ version: "1.0" });
 			saveWorkflow(tmpDir, workflow);
-			flowEdit(tmpDir, { name: "Novo" });
+			await flowEdit(tmpDir, { name: "Novo" });
 			const loaded = loadWorkflow(tmpDir);
 			expect(loaded?.version).toBe("1.1.0");
 		});
 
-		it("should save backup of previous version", () => {
+		it("should save backup of previous version", async () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
-			flowEdit(tmpDir, { name: "Novo" });
+			await flowEdit(tmpDir, { name: "Novo" });
 			const backupPath = join(tmpDir, ".letra", "workflow.v1.0.0.json");
 			expect(existsSync(backupPath)).toBe(true);
 			const backup = JSON.parse(readFileSync(backupPath, "utf-8"));
@@ -90,37 +90,37 @@ describe("flow-edit-diff", () => {
 			expect(backup.version).toBe("1.0");
 		});
 
-		it("should show warning when no workflow exists", () => {
-			flowEdit(tmpDir, { name: "Novo" });
+		it("should show warning when no workflow exists", async () => {
+			await flowEdit(tmpDir, { name: "Novo" });
 			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("No workflow found"));
 		});
 	});
 
 	describe("flowDiff", () => {
-		it("should show diff between current and last backup", () => {
+		it("should show diff between current and last backup", async () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
-			flowEdit(tmpDir, { name: "Novo Nome" });
+			await flowEdit(tmpDir, { name: "Novo Nome" });
 			flowDiff(tmpDir);
 			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Novo Nome"));
 			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("test-project"));
 		});
 
-		it("should show diff between specific versions", () => {
+		it("should show diff between specific versions", async () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
-			flowEdit(tmpDir, { name: "Edit 1" });
-			flowEdit(tmpDir, { name: "Edit 2" });
+			await flowEdit(tmpDir, { name: "Edit 1" });
+			await flowEdit(tmpDir, { name: "Edit 2" });
 			flowDiff(tmpDir, "1.0.0", "1.1.0");
 			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Edit 1"));
 		});
 
-		it("should show message when no workflow found", () => {
+		it("should show message when no workflow found", async () => {
 			flowDiff(tmpDir);
 			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("No workflow found"));
 		});
 
-		it("should show message when no backup found", () => {
+		it("should show message when no backup found", async () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 			flowDiff(tmpDir);

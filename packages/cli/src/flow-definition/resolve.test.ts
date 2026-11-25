@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Workflow } from "../commands/flow-init.js";
 import type { HarnessManifest } from "../harness/types.js";
-import { resolveActiveFlowFrom } from "./resolve.js";
+import { resolveActiveFlowFrom, resolveFromWorkflowVersion } from "./resolve.js";
 
 function makeWorkflow(overrides?: Partial<Workflow>): Workflow {
 	return {
@@ -105,6 +105,274 @@ function makeHarness(): HarnessManifest {
 }
 
 describe("resolveActiveFlowFrom", () => {
+	it("resolves flow from workflow template and harness", () => {
+		const workflow = makeWorkflow({ template: "sdlc" });
+		const harness = makeHarness();
+		harness.flows.sdlc.stages[1]!.transitions = [{ target: "done", allowPendingAcceptanceCriteria: true }];
+		workflow.stages[1] = {
+			...workflow.stages[1],
+			name: "Legacy Design",
+			order: 99,
+			zone: "todo",
+		};
+		const result = resolveActiveFlowFrom(workflow, harness);
+		expect(result.flow?.source).toBe("workflow-template");
+		expect(result.flow?.id).toBe("sdlc");
+		expect(result.flow?.stages[1].name).toBe("Design");
+		expect(result.flow?.stages[1].order).toBe(1);
+		expect(result.flow?.stages[1].zone).toBe("doing");
+		expect(result.flow?.stages[1].gate?.id).toBe("spec-review");
+		expect(result.flow?.stages[1].agents).toEqual(["analyst"]);
+		expect(result.flow?.stages[1].transitions).toEqual([{ target: "done", allowPendingAcceptanceCriteria: true }]);
+		expect(result.flow?.stages[1].roleIds).toEqual(["analyst"]);
+		expect(result.flow?.stages[1].phases?.initialState).toBe("draft");
+		expect(result.flow?.stages[1].phases?.states.draft.transitions?.[0].gate?.id).toBe(
+			"spec-review",
+		);
+		expect(result.flow?.stages[1].activity?.gate?.signalCode).toBe("spec-approval");
+		expect(result.flow?.stages[1].activity?.design?.objective).toBe(
+			"Define the solution from harness metadata",
+		);
+	});
+
+	it("uses the unique blocking phase gate as the stage exit gate fallback", () => {
+		const harness = makeHarness();
+		harness.flows.sdlc.stages[1]!.gate = null;
+		const result = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness);
+		expect(result.flow?.stages[1]?.gate).toMatchObject({
+			id: "spec-review",
+			type: "human",
+			blocking: true,
+		});
+	});
+
+	it("falls back to workflow instance when no template exists", () => {
+		const result = resolveActiveFlowFrom(makeWorkflow(), makeHarness());
+		expect(result.flow?.source).toBe("workflow-instance");
+		expect(result.flow?.stages[1].gate).toBeNull();
+	});
+
+	it("falls back to legacy mode when template is declared but missing in harness", () => {
+		const result = resolveActiveFlowFrom(
+			makeWorkflow({ template: "custom-flow" }),
+			makeHarness(),
+		);
+		expect(result.flow?.source).toBe("legacy-fallback");
+		expect(result.flow?.id).toBe("custom-flow");
+		expect(result.flow?.warnings).toEqual(
+			expect.arrayContaining([expect.objectContaining({ code: "TEMPLATE_NOT_FOUND" })]),
+		);
+	});
+
+	it("returns null flow when workflow is absent", () => {
+		const result = resolveActiveFlowFrom(null, makeHarness());
+		expect(result.flow).toBeNull();
+	});
+
+	it("normalizes role labels and capabilities", () => {
+		const harness = makeHarness();
+		harness.roles.analyst = {
+			id: "analyst",
+			label: "Analista",
+			description: "Refines intent",
+			allowedStages: ["design"],
+			capabilities: ["spec:write"],
+		};
+
+		const result = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness);
+		expect(result.flow?.roles[0]).toEqual({
+			id: "analyst",
+			label: "Analista",
+			description: "Refines intent",
+			allowedStages: ["design"],
+			capabilities: ["spec:write"],
+		});
+		expect(result.flow?.stages[1].roles[0]?.label).toBe("Analista");
+		expect(result.flow?.warnings).toEqual([]);
+	});
+
+	it("keeps template and instance stage drift visible with stable warnings", () => {
+		const workflow = makeWorkflow({
+			template: "sdlc",
+			stages: [
+				{ id: "backlog", name: "Backlog", order: 0, zone: "todo" },
+				{ id: "custom", name: "Custom", order: 5, zone: "doing" },
+			],
+		});
+		const harness = makeHarness();
+		harness.roles.analyst = {
+			id: "analyst",
+			label: "Analyst",
+			description: "",
+			allowedStages: ["backlog", "design"],
+			capabilities: [],
+		};
+		const result = resolveActiveFlowFrom(workflow, harness);
+
+		expect(result.flow?.stages.map((stage) => stage.id)).toEqual([
+			"backlog",
+			"design",
+			"done",
+			"custom",
+		]);
+		expect(result.flow?.stages.find((stage) => stage.id === "custom")?.provenance).toBe(
+			"workflow-instance",
+		);
+		expect(result.flow?.warnings.map((warning) => warning.code)).toEqual([
+			"TEMPLATE_STAGE_NOT_IN_INSTANCE",
+			"TEMPLATE_STAGE_NOT_IN_INSTANCE",
+			"INSTANCE_STAGE_NOT_IN_TEMPLATE",
+		]);
+	});
+
+	it("reports unresolved role and phase gate references", () => {
+		const harness = makeHarness();
+		const transitions = harness.flows.sdlc.stages[1].phases?.states.draft.transitions;
+		expect(transitions).toBeDefined();
+		if (!transitions) throw new Error("Expected draft transitions in test harness");
+		transitions[0].gate = "missing-gate";
+		const result = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness);
+
+		expect(result.flow?.warnings).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ code: "ROLE_NOT_FOUND" }),
+				expect.objectContaining({
+					code: "GATE_NOT_FOUND",
+					artifactRef: expect.stringContaining("phase"),
+				}),
+			]),
+		);
+		expect(result.flow?.stages[1].phases?.states.draft.transitions?.[0]).toEqual(
+			expect.objectContaining({ gate: null, gateRef: "missing-gate" }),
+		);
+	});
+
+	it("does not share mutable nested data with workflow or harness inputs", () => {
+		const workflow = makeWorkflow({ template: "sdlc" });
+		const harness = makeHarness();
+		harness.roles.analyst = {
+			id: "analyst",
+			label: "Analista",
+			description: "Refines intent",
+			allowedStages: ["design"],
+			capabilities: ["spec:write"],
+		};
+		const result = resolveActiveFlowFrom(workflow, harness);
+		const flow = result.flow;
+		expect(flow).not.toBeNull();
+		if (!flow) throw new Error("Expected a resolved flow");
+
+		flow.stages.reverse();
+		flow.roles[0].capabilities.push("mutated");
+		flow.stages.find((stage) => stage.id === "design")?.roleIds.push("mutated");
+
+		expect(workflow.stages.map((stage) => stage.id)).toEqual(["backlog", "design", "done"]);
+		expect(harness.roles.analyst.capabilities).toEqual(["spec:write"]);
+		expect(harness.flows.sdlc.stages[1].agents).toEqual(["analyst"]);
+	});
+
+	it("propagates declarative operations, gate checks, and hook semantics", () => {
+		const harness = makeHarness();
+		harness.flows.sdlc.operations = {
+			inspect: { required_capability: "scan", requires_claim: true, allowed_in_stages: ["design"], allowed_actors: ["auditor"] },
+		};
+		harness.flows.sdlc.stages[1].hooks = { on_enter: [{ action: "capture_baseline", auto: true, requires_claim: true }] };
+		harness.gates["spec-review"].pre_check = "spec-linked";
+		harness.gates["spec-review"].check_type = "acceptance-complete";
+		const flow = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness).flow;
+		expect(flow?.operations.inspect).toMatchObject({ requiredCapability: "scan", requiresClaim: true, allowedInStages: ["design"], allowedActors: ["auditor"] });
+		expect(flow?.stages[1].hooks?.on_enter?.[0]).toMatchObject({ action: "capture_baseline", auto: true, requiresClaim: true });
+		expect(flow?.stages[1].gate).toMatchObject({ preCheck: "spec-linked", checkType: "acceptance-complete" });
+	});
+
+	it("validates hook actions reference declared operations (AC7)", () => {
+		const harness = makeHarness();
+		harness.flows.sdlc.stages[1].hooks = {
+			on_enter: [{ action: "security_scan", auto: true }],
+		};
+		const result = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness);
+		expect(result.flow?.warnings).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					code: "HOOK_OPERATION_NOT_DECLARED",
+					artifactRef: expect.stringContaining("stage"),
+				}),
+			]),
+		);
+	});
+
+	it("validates rework actions reference declared operations (AC7)", () => {
+		const harness = makeHarness();
+		harness.flows.sdlc.stages[1].rework = {
+			action: "rework_code_notexist",
+			target: "backlog",
+		};
+		const result = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness);
+		expect(result.flow?.warnings).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					code: "REWORK_OPERATION_NOT_DECLARED",
+					artifactRef: expect.stringContaining("stage"),
+				}),
+			]),
+		);
+	});
+
+	it("validates auto-transitions reference declared gates (AC7)", () => {
+		const harness = makeHarness();
+		harness.flows.sdlc.stages[1].auto_transitions = [
+			{ from: "draft", gate: "missing-gate" },
+		];
+		const result = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness);
+		expect(result.flow?.warnings).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					code: "AUTO_TRANSITION_GATE_NOT_DECLARED",
+					artifactRef: expect.stringContaining("stage"),
+				}),
+			]),
+		);
+	});
+
+	it("does not warn when hook action matches declared operation (AC7)", () => {
+		const harness = makeHarness();
+		harness.flows.sdlc.operations = {
+			security_scan: { required_capability: "security", requires_claim: true, allowed_in_stages: ["design"] },
+		};
+		harness.flows.sdlc.stages[1].hooks = {
+			on_enter: [{ action: "security_scan", auto: true }],
+		};
+		const result = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness);
+		expect(result.flow?.warnings).not.toEqual(
+			expect.arrayContaining([expect.objectContaining({ code: "HOOK_OPERATION_NOT_DECLARED" })]),
+		);
+	});
+
+	it("does not warn when rework action matches declared operation (AC7)", () => {
+		const harness = makeHarness();
+		harness.flows.sdlc.operations = {
+			rework_code: { required_capability: "review", requires_claim: false, allowed_in_stages: ["design"] },
+		};
+		harness.flows.sdlc.stages[1].rework = {
+			action: "rework_code",
+			target: "backlog",
+		};
+		const result = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness);
+		expect(result.flow?.warnings).not.toEqual(
+			expect.arrayContaining([expect.objectContaining({ code: "REWORK_OPERATION_NOT_DECLARED" })]),
+		);
+	});
+
+	it("does not warn when auto-transition references declared gate (AC7)", () => {
+		const harness = makeHarness();
+		harness.flows.sdlc.stages[1].auto_transitions = [
+			{ from: "draft", gate: "spec-review" },
+		];
+		const result = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness);
+		expect(result.flow?.warnings).not.toEqual(
+			expect.arrayContaining([expect.objectContaining({ code: "AUTO_TRANSITION_GATE_NOT_DECLARED" })]),
+		);
+	});
 	it("resolves flow from workflow template and harness", () => {
 		const workflow = makeWorkflow({ template: "sdlc" });
 		workflow.stages[1] = {
@@ -255,5 +523,82 @@ describe("resolveActiveFlowFrom", () => {
 		expect(workflow.stages.map((stage) => stage.id)).toEqual(["backlog", "design", "done"]);
 		expect(harness.roles.analyst.capabilities).toEqual(["spec:write"]);
 		expect(harness.flows.sdlc.stages[1].agents).toEqual(["analyst"]);
+	});
+
+	it("propagates declarative operations, gate checks, and hook semantics", () => {
+		const harness = makeHarness();
+		harness.flows.sdlc.operations = {
+			inspect: { required_capability: "scan", requires_claim: true, allowed_in_stages: ["design"], allowed_actors: ["auditor"] },
+		};
+		harness.flows.sdlc.stages[1].hooks = { on_enter: [{ action: "capture_baseline", auto: true, requires_claim: true }] };
+		harness.gates["spec-review"].pre_check = "spec-linked";
+		harness.gates["spec-review"].check_type = "acceptance-complete";
+		const flow = resolveActiveFlowFrom(makeWorkflow({ template: "sdlc" }), harness).flow;
+		expect(flow?.operations.inspect).toMatchObject({ requiredCapability: "scan", requiresClaim: true, allowedInStages: ["design"], allowedActors: ["auditor"] });
+		expect(flow?.stages[1].hooks?.on_enter?.[0]).toMatchObject({ action: "capture_baseline", auto: true, requiresClaim: true });
+		expect(flow?.stages[1].gate).toMatchObject({ preCheck: "spec-linked", checkType: "acceptance-complete" });
+	});
+});
+
+describe("resolveFromWorkflowVersion", () => {
+	it("authorizes stage roles from roleIds when a published stage has no allow", () => {
+		const version = {
+			id: "version-1",
+			workflowId: "workflow-1",
+			number: 1,
+			status: "published",
+			basedOnVersionId: null,
+			schemaVersion: "1",
+			contentHash: "hash",
+			revision: 1,
+			createdBy: "human:owner",
+			createdAt: "2026-11-22T00:00:00.000Z",
+			content: {
+				name: "copied from template",
+				initialStageId: "design",
+				stages: [
+					{ id: "design", roleIds: ["analyst"], transitions: [{ target: "code" }] },
+					{ id: "code", roleIds: ["analyst"], allow: ["implementer"], transitions: [{ target: "done" }] },
+					{ id: "done", final: true },
+				],
+			},
+		} as Parameters<typeof resolveFromWorkflowVersion>[0];
+
+		const { flow } = resolveFromWorkflowVersion(version, makeWorkflow(), makeHarness());
+
+		expect(flow?.stages.map((stage) => [stage.id, stage.agents])).toEqual([
+			["design", ["analyst"]],
+			["code", ["implementer"]],
+			["done", []],
+		]);
+	});
+});
+
+describe("resolveFromWorkflowVersion operations", () => {
+	function version(content: Record<string, unknown>) {
+		return {
+			id: "version-1", workflowId: "workflow-1", number: 1, status: "published", basedOnVersionId: null,
+			schemaVersion: "1", contentHash: "hash", revision: 1, createdBy: "human:owner", createdAt: "2026-11-22T00:00:00.000Z",
+			content: { name: "copied", stages: [{ id: "design", transitions: [{ target: "done" }] }, { id: "done", final: true }], ...content },
+		} as Parameters<typeof resolveFromWorkflowVersion>[0];
+	}
+
+	function harnessWithOperations(): HarnessManifest {
+		const harness = makeHarness();
+		harness.flows.sdlc.operations = {
+			security_review: { description: "scan", required_capability: "security_scan", requires_claim: true, allowed_in_stages: ["security"] },
+		} as HarnessManifest["flows"][string]["operations"];
+		return harness;
+	}
+
+	it("falls back to the template's operations when the version declares none", () => {
+		const { flow } = resolveFromWorkflowVersion(version({ template: "sdlc" }), makeWorkflow(), harnessWithOperations());
+		expect(flow?.operations.security_review).toMatchObject({ requiredCapability: "security_scan", requiresClaim: true });
+	});
+
+	it("keeps the operations the version declares", () => {
+		const own = { approve: { requiresClaim: false } };
+		const { flow } = resolveFromWorkflowVersion(version({ template: "sdlc", operations: own }), makeWorkflow(), harnessWithOperations());
+		expect(flow?.operations).toEqual(own);
 	});
 });

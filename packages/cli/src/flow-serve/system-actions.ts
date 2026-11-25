@@ -32,7 +32,7 @@ export const RECURRING_SYSTEM_ACTIONS: RecurringSystemActionDefinition[] = [
 		label: "Specs watcher",
 		trigger: "watch",
 		cadence: "sob mudança de arquivo",
-		cause: "Mudança em `.letra/specs/**`",
+		cause: "Mudança em `specs/**` no diretório de dados do workspace",
 		effect: "Atualiza a visão derivada de specs e emite `workflow-updated`",
 	},
 	{

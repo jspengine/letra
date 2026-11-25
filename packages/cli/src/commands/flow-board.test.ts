@@ -43,8 +43,8 @@ describe("flow-board", () => {
 	let tmpDir: string;
 
 	beforeEach(() => {
-		tmpDir = join(tmpdir(), `letra-flow-board-test-${Date.now()}`);
-		mkdirSync(tmpDir, { recursive: true });
+		tmpDir = join(tmpdir(), `letra-flow-board-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+		mkdirSync(join(tmpDir, ".letra"), { recursive: true });
 		vi.spyOn(console, "log").mockImplementation(() => {});
 	});
 

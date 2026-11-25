@@ -44,6 +44,26 @@ export function sendError(res: ServerResponse, status: number, message: string):
 	sendJson(res, status, { error: message });
 }
 
+/**
+ * A refused domain operation over HTTP: same cause, recovery and next command
+ * as the CLI and MCP (spec recusas-que-ensinam). `error` keeps the shape older
+ * clients read.
+ */
+export function sendRefusal(
+	res: ServerResponse,
+	status: number,
+	operation: { reason: string; reasonCode: string; recoveryActions?: string[]; nextCommand?: string; humanRequired?: boolean },
+): void {
+	sendJson(res, status, {
+		error: operation.reason,
+		code: operation.reasonCode,
+		reason: operation.reason,
+		recoveryActions: operation.recoveryActions ?? [],
+		nextCommand: operation.nextCommand ?? null,
+		humanRequired: operation.humanRequired ?? false,
+	});
+}
+
 export function routeParam(path: string, pattern: string): string | null {
 	const pathSegments = path.split("/").filter(Boolean);
 	const patternSegments = pattern.split("/").filter(Boolean);

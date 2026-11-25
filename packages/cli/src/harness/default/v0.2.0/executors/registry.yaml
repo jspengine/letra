@@ -1,4 +1,17 @@
 executors:
+  - id: codex
+    label: Codex CLI
+    capabilities:
+      - code
+      - review
+      - design
+      - security
+    notification:
+      - polling
+    heartbeat: true
+    maxExecutionTime: 1800
+    priority: 1
+
   - id: opencode
     label: OpenCode
     capabilities:
@@ -38,14 +51,18 @@ executors:
 
 stageExecutorPreferences:
   design:
+    - codex
     - opencode
     - claude-code
   code:
+    - codex
     - opencode
     - cursor
     - claude-code
   review:
+    - codex
     - cursor
     - opencode
   security:
+    - codex
     - opencode

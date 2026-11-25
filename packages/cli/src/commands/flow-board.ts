@@ -118,7 +118,7 @@ export function flowBoard(root: string): void {
 			if (item.spec) {
 				const specLink = workflow.specLinks?.[item.spec];
 				if (specLink) {
-					const specPath = join(root, specLink.path);
+					const specPath = join(getLetraDir(root), specLink.path.replace(/^\.letra[\\/]/, ""));
 					specInfo = existsSync(specPath)
 						? chalk.cyan(`📎${item.spec}`)
 						: chalk.red("⚠spec?");

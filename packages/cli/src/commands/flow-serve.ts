@@ -68,16 +68,50 @@ import { createWorkspaceRoutes } from "../flow-serve/routes/workspace-routes.js"
 import { createAdapterRoutes } from "../flow-serve/routes/adapter-routes.js";
 import { createHandoffRoutes } from "../flow-serve/routes/handoff-routes.js";
 import { createAgentRoutes } from "../flow-serve/routes/agent-routes.js";
+import { createSecurityReviewRoutes } from "../flow-serve/routes/security-review-routes.js";
+import {
+	createAutopilotRoutes,
+	type AutopilotStatus,
+} from "../flow-serve/routes/autopilot-routes.js";
 import { ClientAssets } from "../flow-serve/client-assets.js";
 import { AutomationRuntime, type AutomationBinding } from "../flow-serve/automation-runtime.js";
 import { Orchestrator } from "../orchestrator/orchestrator.js";
 import { PersistentDispatcher } from "../orchestrator/dispatcher.js";
-import { createSimulatedExecutor } from "../orchestrator/simulated-executor.js";
+import { createCodexExecutor } from "../orchestrator/codex-executor.js";
+import { HumanSessionGateway } from "../flow-serve/human-session.js";
+import { resolveExecutionWorkspace } from "../orchestrator/execution-workspace.js";
+import type { AgenticExecutor } from "../executor/executor.js";
+import { loadRuntimeAgentRegistry } from "../agents/service.js";
+import { resolveRuntimeBinding } from "../agents/runtime-binding.js";
+import { resolveAgentDirection, resolveDirection } from "../agent-direction/service.js";
+import { readExecutionRuns } from "../execution-runs/store.js";
+import { inspectWorkspaceIntegrity } from "../workspace/integrity.js";
+import {
+	claimOperation,
+	directionForOperation,
+	recordExecutionEvent,
+	submitEvidenceOperation,
+	requestTransitionOperation,
+	requestHandoffOperation,
+	requestPassageOperation,
+	runValidationOperation,
+	decideGateOperation,
+	releaseClaimOperation,
+	activateWorkOperation,
+	requestReworkOperation,
+	createItemOperation,
+	updateItemOperation,
+	deleteItemOperation,
+	reclaimExpiredClaimsOperation,
+	hasLiveClaim,
+	runSecurityReviewOperation,
+} from "../domain-operations/service.js";
 
 const DEFAULT_PORT = 3000;
 export interface FlowServerOptions {
 	autopilot?: boolean;
 	dispatcherIntervalMs?: number;
+	executorFactory?: (root: string, capabilities: string[]) => AgenticExecutor[];
 }
 
 /**
@@ -105,6 +139,7 @@ export class FlowServer {
 	private server: ReturnType<typeof createServer> | undefined;
 	private events = new FlowServerEvents();
 	private router = new FlowServerRouter();
+	private humanSessions: HumanSessionGateway;
 	private clientAssets: ClientAssets;
 	private automationRuntime: AutomationRuntime;
 	private orchestrator: Orchestrator;
@@ -115,16 +150,26 @@ export class FlowServer {
 	private activeWorkspaceRoot: string;
 	private activeDirectory: string | null = null;
 	private dispatcher: PersistentDispatcher | undefined;
+	private runtimeExecutors: AgenticExecutor[] = [];
+	private autopilotEnabled: boolean;
+	private autopilotUpdatedAt: string | null = null;
 	private readonly options: FlowServerOptions;
 
 	constructor(root: string, port: number = DEFAULT_PORT, options: FlowServerOptions = {}) {
 		this.options = options;
+		this.autopilotEnabled = options.autopilot === true;
 		this.clientAssets = new ClientAssets(root);
 		this.port = port;
 		this.resolution = resolveWorkspaceRoot(root);
-		this.activeWorkspaceRoot = this.resolution.workspaceRoot;
-		this.loadWorkflow = (overrideRoot?: string) =>
-			loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
+		// Keep an invalid link anchored at the caller's existing location. This
+		// lets HTTP operation routes reach the shared fail-closed gateway instead
+		// of dereferencing a missing canonical target or falling back to .letra.
+		this.activeWorkspaceRoot = this.resolution.errorCode === "WORKSPACE_LINK_INVALID"
+					? this.resolution.locationPath
+					: this.resolution.workspaceRoot;
+				this.humanSessions = new HumanSessionGateway(this.activeWorkspaceRoot);
+				this.loadWorkflow = (overrideRoot?: string) =>
+					loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
 		this.engine = new DiagnosticEngine(this.activeWorkspaceRoot);
 		this.automationRuntime = new AutomationRuntime({
 			runDiagnostics: runDiagnosticsAndSyncHealth,
@@ -144,24 +189,36 @@ export class FlowServer {
 			onHandoffEvent: (payload) => this.events.broadcastHandoff(payload),
 		});
 		this.orchestrator.registerFromManifest();
-		if (options.autopilot) this.dispatcher = this.createDispatcher();
+		if (this.autopilotEnabled) this.dispatcher = this.createDispatcher();
 		this.router.register((context) => {
 			if (context.path !== "/events") return false;
 			this.events.handleSse(context.req, context.res);
 			return true;
 		});
 		this.router.register(
-			createItemRoutes({
-				writeWorkflow,
-				loadHealthRecord,
-				writeFocusFile: writeFocusWithRecommendations,
-				logEntry,
-				resolveActiveFlow: resolveActiveFlowFor,
-				broadcast: () => this.broadcast(),
-				fireWebhooks: (workspaceRoot, event, payload) =>
-					this.fireWebhooks(workspaceRoot, event, payload),
-			}),
-		);
+					createItemRoutes({
+						writeWorkflow,
+						loadHealthRecord,
+						writeFocusFile: writeFocusWithRecommendations,
+						logEntry,
+						resolveActiveFlow: resolveActiveFlowFor,
+						decideGateOperation: (root, input) => decideGateOperation(root, input),
+						claimOperation: (root, input) => claimOperation(root, input),
+							releaseClaimOperation: (root, input) => releaseClaimOperation(root, input),
+						requestTransitionOperation: (root, input) => requestTransitionOperation(root, input),
+						requestPassageOperation: (root, input) => requestPassageOperation(root, input),
+						activateWorkOperation: (root, input) => activateWorkOperation(root, input),
+						requestReworkOperation: (root, input) => requestReworkOperation(root, input),
+						createItemOperation: (root, input) => createItemOperation(root, input),
+						updateItemOperation: (root, input) => updateItemOperation(root, input),
+						deleteItemOperation: (root, input) => deleteItemOperation(root, input),
+						runValidationOperation: (root, input) => runValidationOperation(root, input),
+						resolveHumanActor: (req) => this.humanSessions.resolveHumanActor(req),
+						broadcast: () => this.broadcast(),
+						fireWebhooks: (workspaceRoot, event, payload) =>
+							this.fireWebhooks(workspaceRoot, event, payload),
+					}),
+				);
 		this.router.register(
 			createSpecRoutes({
 				loadResolvedSpecs,
@@ -187,6 +244,7 @@ export class FlowServer {
 				getActiveEntries,
 				broadcast: () => this.broadcast(),
 				broadcastDiagnostics: (output) => this.broadcastDiagnostics(output),
+				inspectWorkspaceIntegrity,
 			}),
 		);
 		this.router.register(
@@ -216,6 +274,9 @@ export class FlowServer {
 				loadHarness: (workspaceRoot) =>
 					loadHarness(resolveHarnessWithShared(workspaceRoot)),
 				createFromTemplate: createWorkflowFromTemplateService,
+				// Publish/rollback is a human-confirmed action. Do not derive this
+				// identity from request bodies or a permissive default.
+				resolveHumanActor: (req) => this.humanSessions.resolveHumanActor(req),
 				broadcast: () => this.broadcast(),
 			}),
 		);
@@ -272,12 +333,102 @@ export class FlowServer {
 				},
 			}),
 		);
-		this.router.register(createAgentRoutes({ loadWorkflow: (root) => this.loadWorkflow(root), broadcast: () => this.broadcast() }));
+		this.router.register(createSecurityReviewRoutes());
+		this.router.register(createAgentRoutes({
+			loadWorkflow: (root) => this.loadWorkflow(root),
+			loadRuntimeRegistry: (root, workflow) => loadRuntimeAgentRegistry(root, workflow),
+			getExecutors: () => this.runtimeExecutors,
+			broadcast: () => this.broadcast(),
+		}));
+		this.router.register((context) => {
+			if (context.path !== "/api/runs" || context.method !== "GET") return false;
+			try {
+				const runs = readExecutionRuns(context.workspaceRoot).runs;
+				context.res.writeHead(200, { "Content-Type": "application/json" });
+				context.res.end(JSON.stringify(runs));
+			} catch (error) {
+				context.res.writeHead(500, { "Content-Type": "application/json" });
+				context.res.end(JSON.stringify({ error: error instanceof Error ? error.message : "RUN_STORE_UNAVAILABLE" }));
+			}
+			return true;
+		});
+		this.router.register(
+			createAutopilotRoutes({
+				getStatus: (workspaceRoot) => this.getAutopilotStatus(workspaceRoot),
+				setEnabled: (workspaceRoot, enabled) => this.setAutopilotEnabled(workspaceRoot, enabled),
+			}),
+		);
+	}
+
+	private getAutopilotStatus(workspaceRoot: string): AutopilotStatus {
+		const workflow = this.loadWorkflow(workspaceRoot);
+		const items = workflow?.items ?? [];
+		return {
+			enabled: this.autopilotEnabled,
+			activeItems: items.filter((item) => hasLiveClaim(item)).length,
+			waitingHuman: items.filter(
+				(item) => item.handoff?.to === "human" || item.handoff?.to?.startsWith("human:"),
+			).length,
+			updatedAt: this.autopilotUpdatedAt,
+		};
+	}
+
+	private setAutopilotEnabled(workspaceRoot: string, enabled: boolean): AutopilotStatus {
+		if (workspaceRoot !== this.activeWorkspaceRoot) {
+			throw new Error("Autopilot can only be controlled for the active workspace.");
+		}
+		if (enabled === this.autopilotEnabled) return this.getAutopilotStatus(workspaceRoot);
+
+		this.autopilotEnabled = enabled;
+		this.autopilotUpdatedAt = new Date().toISOString();
+		if (enabled) {
+			this.dispatcher ??= this.createDispatcher();
+			this.dispatcher.start();
+		} else {
+			this.dispatcher?.stop();
+		}
+		logEntry(
+			workspaceRoot,
+			"system",
+			`Autopilot ${enabled ? "enabled" : "paused"} via UI`,
+			{ details: { enabled, source: "web-ui", timestamp: this.autopilotUpdatedAt } },
+		);
+		this.broadcast();
+		return this.getAutopilotStatus(workspaceRoot);
 	}
 
 	private createDispatcher(): PersistentDispatcher {
-		const simulated = createSimulatedExecutor("letra-simulated");
 		const manifest = this.orchestrator.getManifest();
+		// The preview executor must use the canonical capability vocabulary from
+		// the active harness roles. Stage labels such as "code" are not
+		// protocol capabilities.
+		const harnessCapabilities = manifest
+			? Object.values(manifest.roles).flatMap((role) => role.capabilities)
+			: [];
+		const capabilities = harnessCapabilities.length > 0
+			? [...new Set(harnessCapabilities)]
+			: [
+					"read_code",
+					"write_spec",
+					"generate_doc",
+					"write_code",
+					"run_tests",
+					"review_code",
+					"security_scan",
+					"dependency_audit",
+				];
+		const executionWorkspace = resolveExecutionWorkspace({
+			workflow: this.loadWorkflow() ?? { version: "1", name: "empty", createdAt: "", updatedAt: "", stages: [], items: [], tools: [] },
+			workspaceRoot: this.activeWorkspaceRoot,
+			selectedDirectory: this.activeDirectory,
+		});
+		const executors = this.options.executorFactory
+			? this.options.executorFactory(this.activeWorkspaceRoot, capabilities)
+			: [createCodexExecutor({
+					root: executionWorkspace.ok ? executionWorkspace.root : this.activeWorkspaceRoot,
+					capabilities,
+				})];
+		this.runtimeExecutors = executors;
 		return new PersistentDispatcher(
 			{
 				loadWorkflow: () => {
@@ -285,25 +436,60 @@ export class FlowServer {
 					if (!workflow) throw new Error("No workflow found for dispatcher");
 					return workflow;
 				},
-				writeWorkflow: async (workflow) => {
-					writeWorkflow(this.activeWorkspaceRoot, {
-						workflow,
-						source: "orchestrator",
-						primaryItemId: workflow.primaryItemId,
-						skipSitrep: true,
-					});
-					this.broadcast();
+				operations: {
+					// Must be the direction the operations compare: it accounts for
+					// the item's active Run. resolveDirection(root, { itemId }) does
+					// not, so with a Run active every retry stayed DIRECTION_STALE.
+					getDirection: (itemId) =>
+						directionForOperation(this.activeWorkspaceRoot, itemId ? { itemId } : {}),
+					claim: (input) => claimOperation(this.activeWorkspaceRoot, { ...input, ttlMinutes: 30 }),
+					event: (input) => recordExecutionEvent(this.activeWorkspaceRoot, input),
+					evidence: (input) => submitEvidenceOperation(this.activeWorkspaceRoot, input),
+					validate: (input) => runValidationOperation(this.activeWorkspaceRoot, input),
+					securityReview: (input) => runSecurityReviewOperation(this.activeWorkspaceRoot, input),
+					transition: (input) => requestTransitionOperation(this.activeWorkspaceRoot, input),
+					handoff: (input) => requestHandoffOperation(this.activeWorkspaceRoot, input),
+					passage: async (input) => requestPassageOperation(this.activeWorkspaceRoot, input),
+					release: (input) => releaseClaimOperation(this.activeWorkspaceRoot, input),
+					reclaimExpired: (input) => reclaimExpiredClaimsOperation(this.activeWorkspaceRoot, input),
 				},
-				advance: () => undefined,
-				claim: (itemId, executorId, agentId) =>
-					this.orchestrator.autoClaim(itemId, executorId, agentId).success,
 			},
-			() => [simulated],
+			() => executors,
 			this.options.dispatcherIntervalMs ?? 30_000,
 			{
 				stageActors: (stageId) => {
 					const templateId = this.loadWorkflow()?.template ?? "flow-main";
 					return manifest?.flows[templateId]?.stages.find((stage) => stage.id === stageId)?.agents ?? [];
+				},
+				stageTransitions: (stageId) => {
+					const templateId = this.loadWorkflow()?.template ?? "flow-main";
+					return manifest?.flows[templateId]?.stages.find((stage) => stage.id === stageId)?.transitions;
+				},
+				stageCapability: (stage) => {
+					const templateId = this.loadWorkflow()?.template ?? "flow-main";
+					const stageDef = manifest?.flows[templateId]?.stages.find((entry) => entry.id === stage.id);
+					const roleId = stageDef?.agents?.[0];
+					return manifest?.roles[roleId ?? ""]?.capabilities?.find((capability) => capability !== "read_code") ?? stage.id;
+				},
+				executorPreference: (stage) => {
+					const templateId = this.loadWorkflow()?.template ?? "flow-main";
+					const roleId = manifest?.flows[templateId]?.stages.find((entry) => entry.id === stage.id)?.agents?.[0];
+					const configured = manifest?.executors?.stageExecutorPreferences?.[roleId ?? stage.id];
+					if (configured?.length) return configured;
+					const preferred = (stage as typeof stage & { preferredExecutor?: string }).preferredExecutor;
+					return preferred ? [preferred] : [];
+				},
+				resolveExecutionWorkspace: (_stage, _item) => {
+					const workflow = this.loadWorkflow();
+					if (!workflow) return { ok: false, reasonCode: "EXECUTION_WORKSPACE_UNAVAILABLE", reason: "Workflow indisponível para resolver o local de execução." };
+					return resolveExecutionWorkspace({ workflow, workspaceRoot: this.activeWorkspaceRoot, selectedDirectory: this.activeDirectory });
+				},
+				resolveBinding: (stage, item, actor, capability, runtimeExecutors) => {
+					const workflow = this.loadWorkflow();
+					if (!workflow) return { ok: false, reasonCode: "NO_COMPATIBLE_BINDING" as const, reason: "Workflow indisponível para resolver vínculo operacional." };
+					const active = resolveActiveFlowFor(this.activeWorkspaceRoot, workflow);
+					const registry = loadRuntimeAgentRegistry(this.activeWorkspaceRoot, workflow);
+					return resolveRuntimeBinding({ registry, workflow, manifest: active.harness ?? manifest, stageId: stage.id, actor, capability, executors: runtimeExecutors });
 				},
 				blocksHandoff: (stage, item) => {
 					const gate = stage.gate ? manifest?.gates[stage.gate] : undefined;
@@ -311,15 +497,13 @@ export class FlowServer {
 					// owns the current stage must still be allowed to execute and
 					// produce the evidence presented at that gate.
 					const currentActor = (manifest?.flows[this.loadWorkflow()?.template ?? "flow-main"]?.stages.find((entry) => entry.id === stage.id)?.agents ?? (stage as typeof stage & { agents?: string[] }).agents)?.[0];
-					return gate?.type === "human" && gate.blocksHandoff === true && item.handoff?.to !== currentActor;
+					return gate?.type === "human" && gate.blocking === true && gate.blocksHandoff === true && item.handoff?.to !== currentActor;
 				},
 				onResult: (result) => {
-					if (result.status === "dispatched" || result.status === "failed") {
-						logEntry(this.activeWorkspaceRoot, "agent_execution_event", `Autonomous dispatcher: ${result.status}`, {
-							itemId: result.itemId,
-							details: { status: result.status, reason: result.reason ?? null },
-						});
-					}
+					logEntry(this.activeWorkspaceRoot, "agent_execution_event", `Autonomous dispatcher: ${result.status}`, {
+						itemId: result.itemId,
+						details: { status: result.status, reason: result.reason ?? null },
+					});
 					this.broadcast();
 				},
 			},
@@ -329,6 +513,7 @@ export class FlowServer {
 	switchWorkspace(workspaceRoot: string) {
 		this.activeWorkspaceRoot = workspaceRoot;
 		this.activeDirectory = null;
+		this.runtimeExecutors = [];
 		this.resolution = resolveWorkspaceRoot(workspaceRoot);
 		this.loadWorkflow = (overrideRoot?: string) =>
 			loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
@@ -339,12 +524,11 @@ export class FlowServer {
 			onHandoffEvent: (payload) => this.events.broadcastHandoff(payload),
 		});
 		this.orchestrator.registerFromManifest();
-		if (this.options.autopilot) {
+		if (this.autopilotEnabled) {
 			this.dispatcher?.stop();
 			this.dispatcher = this.createDispatcher();
 			this.dispatcher.start();
 		}
-		this.orchestrator.startReclaimTimer();
 		this.broadcast();
 	}
 
@@ -370,6 +554,7 @@ export class FlowServer {
 	}
 
 	private handleRequest = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+		this.humanSessions.establishNavigationSession(req, res);
 		const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
 		const path = url.pathname;
 		const requestRoot = this.workspaceRootFor(url);
@@ -440,7 +625,6 @@ export class FlowServer {
 			this.server = createServer(this.handleRequest);
 			this.server.listen(this.port, () => {
 				this.automationRuntime.start(this.automationBinding());
-				this.orchestrator.startReclaimTimer();
 				this.dispatcher?.start();
 				resolve();
 			});
@@ -451,7 +635,6 @@ export class FlowServer {
 	stop(): void {
 		this.automationRuntime.stop();
 		this.dispatcher?.stop();
-		this.orchestrator.stopReclaimTimer();
 		if (this.server) this.server.close();
 		this.events.close();
 	}

@@ -95,7 +95,7 @@ export function writeFocusFile(
 	const content = [
 		`# Focus: ${specName}`,
 		"",
-		`**Path**: .letra/specs/${specName}/`,
+		`**Path**: specs/${specName}/` ,
 		`**Item**: ${itemId}`,
 		`**Outcome**: ${outcome}`,
 		"",

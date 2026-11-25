@@ -1,11 +1,20 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { claimCanonically } from "../test/canonical-claim.js";
+import { ensureSharedHarness } from "../workspace/resolution.js";
 import { handoffItem } from "./flow-handoff.js";
 import { loadWorkflow } from "./flow-init.js";
 
 const roots: string[] = [];
+
+// Canonical passage resolves the target role through the harness flow
+// (`main` template, v0.2.0). The test home is isolated and empty, so install
+// the shipped harness explicitly instead of relying on the developer's home.
+beforeAll(() => {
+	ensureSharedHarness("v0.2.0");
+});
 
 function tempRoot(): string {
 	const root = mkdtempSync(join(tmpdir(), "letra-handoff-"));
@@ -25,7 +34,7 @@ function createWorkflow(root: string, overrides?: Partial<Parameters<typeof hand
 		createdAt: "2026-01-01T00:00:00.000Z",
 		updatedAt: "2026-01-01T00:00:00.000Z",
 		harnessVersion: "v0.2.0",
-		template: "main",
+		template: "flow-main",
 		stages: [
 			{ id: "design", name: "Design", order: 0 },
 			{ id: "code", name: "Code", order: 1 },
@@ -39,8 +48,6 @@ function createWorkflow(root: string, overrides?: Partial<Parameters<typeof hand
 				stage: "code",
 				spec: "test-spec",
 				createdAt: "2026-01-01T00:00:00.000Z",
-				claimedBy: "opencode",
-				claimedAt: "2026-01-01T00:00:00.000Z",
 			},
 		],
 		tools: [],
@@ -50,31 +57,49 @@ function createWorkflow(root: string, overrides?: Partial<Parameters<typeof hand
 	return workflow;
 }
 
+// The implementer role holds the claim in `code`; "opencode" is the executor.
+// A claim written by hand (claimedBy only) is rejected by canonical passage.
+async function claimAsImplementer(root: string) {
+	await claimCanonically(root, {
+		itemId: "ITEM-1",
+		actor: "implementer",
+		executorId: "opencode",
+		capability: "write_code",
+	});
+}
+
 describe("FlowHandoff", () => {
 	it("creates handoff with valid input", async () => {
 		const root = tempRoot();
 		createWorkflow(root);
+		await claimAsImplementer(root);
+
+		// Current contract: file evidence must live inside the workspace data
+		// dir. Project-relative paths (e.g. "src/test.ts") are ITEM-34.
+		const evidenceFile = join(root, "evidence.md");
+		writeFileSync(evidenceFile, "# Evidence\n");
 
 		await handoffItem(root, "ITEM-1", {
 			to: "reviewer",
 			summary: "Implementation complete",
-			evidence: ["src/test.ts"],
+			evidence: [evidenceFile],
 		});
 
 		const workflow = loadWorkflow(root)!;
 		const item = workflow.items.find((i) => i.id === "ITEM-1");
 		expect(item).toBeDefined();
 		expect(item?.handoff).toBeDefined();
-		expect(item?.handoff?.from).toBe("opencode");
+		expect(item?.handoff?.from).toBe("implementer");
 		expect(item?.handoff?.to).toBe("reviewer");
 		expect(item?.handoff?.summary).toBe("Implementation complete");
-		expect(item?.handoff?.evidence).toEqual(["src/test.ts"]);
+		expect(item?.handoff?.evidence).toEqual([evidenceFile]);
 		expect(item?.handoff?.expiresAt).toBeDefined();
 	});
 
 	it("rolls back handoff", async () => {
 		const root = tempRoot();
 		createWorkflow(root);
+		await claimAsImplementer(root);
 
 		await handoffItem(root, "ITEM-1", {
 			to: "reviewer",
@@ -93,7 +118,8 @@ describe("FlowHandoff", () => {
 		const workflow2 = loadWorkflow(root)!;
 		const item = workflow2.items.find((i) => i.id === "ITEM-1");
 		expect(item?.handoff).toBeUndefined();
-		expect(item?.claimedBy).toBe("opencode");
+		expect(item?.claimedBy).toBe("implementer");
+		expect(item?.claimExecutorId).toBe("opencode");
 	});
 
 	it("fails for completed item", async () => {
@@ -159,6 +185,7 @@ describe("FlowHandoff", () => {
 	it("allows handoff when gate does not block", async () => {
 		const root = tempRoot();
 		createWorkflow(root);
+		await claimAsImplementer(root);
 
 		mkdirSync(join(root, ".letra", "harness", "gates"), { recursive: true });
 		writeFileSync(
