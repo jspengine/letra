@@ -1,9 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+	closeSessionLogHandles,
 	loadSessionLog,
 	logEntry,
 	pruneSessionLog,
@@ -16,12 +17,17 @@ import type { SessionLog } from "./session-log.js";
 describe("session-log", () => {
 	let tmpDir: string;
 
+	// Each test gets its own directory and closes the cached append handles.
+	// With `Date.now()` two tests in the same millisecond shared a path; the
+	// second wrote through the first test's still-open descriptor into a file
+	// already deleted (allowed on Linux) and then read an empty log, which made
+	// a different test fail in CI each time.
 	beforeEach(() => {
-		tmpDir = join(tmpdir(), `letra-log-test-${Date.now()}`);
-		mkdirSync(tmpDir, { recursive: true });
+		tmpDir = mkdtempSync(join(tmpdir(), "letra-log-test-"));
 	});
 
 	afterEach(() => {
+		closeSessionLogHandles();
 		if (existsSync(tmpDir)) {
 			rmSync(tmpDir, { recursive: true, force: true });
 		}

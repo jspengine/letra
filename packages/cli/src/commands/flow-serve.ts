@@ -11,7 +11,7 @@ import {
 	DEFAULT_HARNESS_VERSION,
 } from "../harness/loader";
 import { DiagnosticEngine } from "../diagnostics/engine.js";
-import { resolveWorkspaceRoot } from "../workspace/resolver.js";
+import { getLetraDir, resolveWorkspaceRoot } from "../workspace/resolver.js";
 import type { WorkspaceResolution } from "../workspace/resolver.js";
 import { listWorkspaces } from "../workspace/index.js";
 import {
@@ -167,7 +167,8 @@ export class FlowServer {
 		this.activeWorkspaceRoot = this.resolution.errorCode === "WORKSPACE_LINK_INVALID"
 					? this.resolution.locationPath
 					: this.resolution.workspaceRoot;
-				this.humanSessions = new HumanSessionGateway(this.activeWorkspaceRoot);
+				// ITEM-62: resolved per request, so a workspace switch also switches identity.
+				this.humanSessions = new HumanSessionGateway(() => this.activeWorkspaceRoot);
 				this.loadWorkflow = (overrideRoot?: string) =>
 					loadWorkflow(overrideRoot ?? this.activeWorkspaceRoot);
 		this.engine = new DiagnosticEngine(this.activeWorkspaceRoot);
@@ -639,6 +640,17 @@ export class FlowServer {
 		this.events.close();
 	}
 
+	/** Workspace and human identity the board acts as (ITEM-62). */
+	sessionSummary(): { workspaceDir: string; actor: string | null } {
+		let actor: string | null = null;
+		try {
+			actor = this.humanSessions.currentActor();
+		} catch {
+			actor = null;
+		}
+		return { workspaceDir: getLetraDir(this.activeWorkspaceRoot), actor };
+	}
+
 	getPort(): number {
 		return this.port;
 	}
@@ -661,6 +673,9 @@ export async function flowServeAction(
 	try {
 		await server.start();
 		console.log(`\n  Flow Board → http://localhost:${port}\n`);
+		const session = server.sessionSummary();
+		console.log(`  Workspace:  ${session.workspaceDir}`);
+		console.log(`  Identidade: ${session.actor ?? "indisponível (identidade local inválida)"}\n`);
 		console.log("  Press Ctrl+C to stop\n");
 
 		if (options?.open) {
