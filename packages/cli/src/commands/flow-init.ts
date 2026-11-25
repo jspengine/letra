@@ -51,6 +51,12 @@ export interface ItemHandoff {
 	executorId?: string;
 	targetExecutorId?: string;
 	targetIdentityId?: string;
+	/** When the recipient took the handoff (ITEM-56). */
+	acceptedAt?: string;
+	/** Taken after `expiresAt`: the reservation had lapsed, the handoff still held. */
+	lateAcceptance?: boolean;
+	/** Minutes between `expiresAt` and `acceptedAt` for a late acceptance. */
+	lateByMinutes?: number;
 }
 
 export interface Item {
