@@ -279,6 +279,32 @@ export default function flowCommand() {
 			});
 
 		workflow
+			.command("publish-initial")
+			.option("--actor <actor>", "Identity actor", undefined)
+			.description("Publish version 1 of the workspace template when no workflow is versioned yet (ITEM-35)")
+			.action(async (options: { actor?: string }) => {
+				const root = resolve(process.cwd());
+				const { publishInitialWorkflowVersion } = await import("../workflow-versions/bootstrap.js");
+				try {
+					const result = publishInitialWorkflowVersion(root, resolveCliActor(root, options.actor));
+					if (result.status === "published") {
+						console.log(chalk.green(`✓ Versão ${result.version.number} publicada a partir do template (${result.version.workflowId})`));
+						return;
+					}
+					const reasons = {
+						"already-versioned": "o workspace já tem workflow versionado; nada a fazer",
+						"no-template": "o workflow do workspace não declara template",
+						"template-unavailable": "o template não pôde ser carregado do harness; rode letra doctor",
+					} as const;
+					console.log(chalk.yellow(`Nada publicado: ${reasons[result.reason]}.`));
+					if (result.reason !== "already-versioned") process.exitCode = 1;
+				} catch (error) {
+					console.log(chalk.red(`Erro: ${error instanceof Error ? error.message : String(error)}`));
+					process.exitCode = 1;
+				}
+			});
+
+		workflow
 			.command("rollback <id>")
 			.option("--actor <actor>", "Identity actor", undefined)
 			.requiredOption("--version <version>", "Version number to restore")
