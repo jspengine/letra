@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, describe, expect, it } from "vitest";
-import { createLetraMcpServer } from "./server.js";
+import { AGENT_PROFILE_TOOLS, HUMAN_BOUND_TOOLS, createLetraMcpServer } from "./server.js";
 import { loadSessionLog } from "../session-log.js";
 import { resolveAgentDirection } from "../agent-direction/service.js";
 import { resolveLocalIdentity } from "../identity/service.js";
@@ -108,9 +108,12 @@ describe("Letra MCP read-only server", () => {
 		await server.connect(serverTransport);
 		await client.connect(clientTransport);
 		try {
-			const result = await client.callTool({ name: "workflow_create_definition", arguments: { name: "Forged", actor: "human:admin" } });
+			const names = (await client.listTools()).tools.map((tool) => tool.name);
+			for (const name of HUMAN_BOUND_TOOLS) expect(names).not.toContain(name);
+			const result = await client
+				.callTool({ name: "workflow_create_definition", arguments: { name: "Forged", actor: "human:admin" } })
+				.catch((error: unknown) => ({ isError: true, content: String(error) }));
 			expect(result.isError).toBe(true);
-			expect(JSON.stringify(result.content)).toContain("HUMAN_SESSION_REQUIRED");
 			expect(existsSync(join(root, ".letra", "identity", "local.json"))).toBe(false);
 		} finally {
 			await client.close();
@@ -127,9 +130,10 @@ describe("Letra MCP read-only server", () => {
 		await server.connect(serverTransport);
 		await client.connect(clientTransport);
 		try {
-			const result = await client.callTool({ name: "workflow_create_definition", arguments: { name: "Forged", actor } });
+			const result = await client
+				.callTool({ name: "workflow_create_definition", arguments: { name: "Forged", actor } })
+				.catch((error: unknown) => ({ isError: true, content: String(error) }));
 			expect(result.isError).toBe(true);
-			expect(JSON.stringify(result.content)).toContain("HUMAN_SESSION_REQUIRED");
 		} finally {
 			await client.close();
 			await server.close();
@@ -170,6 +174,25 @@ describe("Letra MCP read-only server", () => {
 			await server.close();
 		}
 	});
+	it("exposes only the executor surface in the agent profile and reports the CLI version", async () => {
+		const root = fixture();
+		const server = createLetraMcpServer(root, { profile: "agent", version: "9.9.9" });
+		const client = new Client({ name: "agent-profile", version: "1.0.0" });
+		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+		await server.connect(serverTransport);
+		await client.connect(clientTransport);
+		try {
+			expect(client.getServerVersion()).toMatchObject({ name: "letra", version: "9.9.9" });
+			const names = (await client.listTools()).tools.map((tool) => tool.name);
+			expect(new Set(names)).toEqual(AGENT_PROFILE_TOOLS);
+			expect(names).toContain("get_direction");
+			for (const name of HUMAN_BOUND_TOOLS) expect(names).not.toContain(name);
+		} finally {
+			await client.close();
+			await server.close();
+		}
+	});
+
 	it("exposes direction, active spec and health through tools and resources", async () => {
 		const root = fixture();
 		const server = createLetraMcpServer(root);
@@ -207,24 +230,18 @@ describe("Letra MCP read-only server", () => {
 						"workflow_get_version",
 						"workflow_get_active",
 						"workflow_get_draft",
-						"run_migrate_workflow",
-						"workflow_create_definition",
-						"workflow_create_draft",
-						"workflow_update_draft",
 						"workflow_validate_draft",
-						"workflow_publish",
-						"workflow_rollback",
 					]);
 					expect(
 						tools.tools.filter((tool) => tool.annotations?.readOnlyHint === true).length,
 				).toBe(14);
 			expect(
 						tools.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length,
-				).toBe(19);
+				).toBe(13);
 			expect(
 						tools.tools.filter((tool) => tool.inputSchema?.additionalProperties === false)
 						.length,
-				).toBe(27);
+				).toBe(21);
 
 			const direction = toolJson(
 				await client.callTool({ name: "get_direction", arguments: { itemId: "ITEM-1" } }),
