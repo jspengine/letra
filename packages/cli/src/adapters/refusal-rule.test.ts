@@ -8,6 +8,7 @@ import { buildHarnessSnapshot } from "./builder.js";
 import { renderLetraHarnessSkill } from "./codex-bootstrap.js";
 import { formatAdapterContent } from "./formatters.js";
 import { renderAdapterFiles, supportedAdapterTools } from "./generate.js";
+import { ADAPTER_ARTIFACTS } from "./registry.js";
 import { REFUSAL_RULE_HEADING, REFUSAL_RULE_LINES } from "./refusal-rule.js";
 
 // ITEM-55 (spec bootstrap-ensina-recusas): every agent instruction file tells
@@ -45,7 +46,8 @@ describe("AC2 — every generator carries the rule", () => {
 		const root = tempDir("letra-refusal-rule-");
 		const tools = supportedAdapterTools().map((tool) => tool.id);
 		const files = renderAdapterFiles(root, tools, { source: "init", quiet: true });
-		const instructions = files.filter((file) => !file.path.endsWith(".toml"));
+		// Config artifacts (.codex/config.toml, editor mcp.json) carry no instructions.
+		const instructions = files.filter((file) => ADAPTER_ARTIFACTS[file.artifactId as keyof typeof ADAPTER_ARTIFACTS]?.kind !== "config");
 		expect(instructions.length).toBeGreaterThanOrEqual(tools.length);
 		for (const file of instructions) expectRefusalRule(file.content, file.path);
 	});

@@ -220,7 +220,7 @@ export interface Workflow {
 
 export type AdapterLiveContextMode = "none" | "cli" | "mcp";
 export type AdapterRefreshMode = "session-start" | "on-demand";
-export type AdapterArtifactFormat = "at" | "text" | "toml" | "skill";
+export type AdapterArtifactFormat = "at" | "text" | "toml" | "json" | "skill";
 export type AdapterArtifactKind = "instructions" | "config" | "skill";
 
 export interface AdapterCapabilityProfile {
