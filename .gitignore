@@ -49,3 +49,6 @@ playwright.config.js.map
 playwright.config.d.ts.map
 packages/*/build/
 packages/ui/storybook-visual-snapshots/
+
+# Local git worktrees (never versioned)
+.worktrees/
