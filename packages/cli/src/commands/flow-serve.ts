@@ -108,6 +108,12 @@ import {
 } from "../domain-operations/service.js";
 
 const DEFAULT_PORT = 3000;
+/**
+ * ITEM-8: the board only accepts connections from this machine. It carries a
+ * human session that approves gates; listening on every interface exposed it
+ * to the network.
+ */
+export const BOARD_HOST = "127.0.0.1";
 export interface FlowServerOptions {
 	autopilot?: boolean;
 	dispatcherIntervalMs?: number;
@@ -623,7 +629,7 @@ export class FlowServer {
 	start(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			this.server = createServer(this.handleRequest);
-			this.server.listen(this.port, () => {
+			this.server.listen(this.port, BOARD_HOST, () => {
 				this.automationRuntime.start(this.automationBinding());
 				this.dispatcher?.start();
 				resolve();
@@ -660,7 +666,7 @@ export async function flowServeAction(
 	const server = new FlowServer(root, port, { autopilot: options?.autopilot });
 	try {
 		await server.start();
-		console.log(`\n  Flow Board → http://localhost:${port}\n`);
+		console.log(`\n  Flow Board → http://${BOARD_HOST}:${port}\n`);
 		console.log("  Press Ctrl+C to stop\n");
 
 		if (options?.open) {
@@ -672,7 +678,7 @@ export async function flowServeAction(
 						? "open"
 						: "xdg-open";
 			try {
-				execSync(`${cmd} http://localhost:${port}`, { stdio: "ignore" });
+				execSync(`${cmd} http://${BOARD_HOST}:${port}`, { stdio: "ignore" });
 			} catch {}
 		}
 
