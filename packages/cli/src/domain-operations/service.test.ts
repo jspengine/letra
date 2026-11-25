@@ -1287,6 +1287,119 @@ describe("domain operations", () => {
 		expect(readFileSync(join(root, ".letra", "specs", "controlled-operation", "spec.md"), "utf8")).toContain("- [ ] **AC1**");
 	});
 
+	it("ITEM-56 AC3: an expired handoff to a human does not block the human gate decision", async () => {
+		const root = fixture();
+		configureHarness(root);
+		const workflowPath = join(root, ".letra", "workflow.json");
+		const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
+		workflow.stages = [
+			{ id: "backlog", name: "Backlog", order: 0, zone: "todo" },
+			{ id: "design", name: "Design", order: 1, zone: "doing" },
+			{ id: "code", name: "Code", order: 2, zone: "doing" },
+			{ id: "review", name: "Review", order: 3, zone: "doing" },
+		];
+		workflow.items[0].stage = "design";
+		writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+
+		const flowPath = join(root, ".letra", "harness", "v0.2.0", "flows", "controlled-flow.yaml");
+		writeFileSync(flowPath, [
+			"id: controlled-flow",
+			"version: 1.0.0",
+			"name: Controlled Flow",
+			"description: spec approval test",
+			"defaultPolicy: default",
+			"stages:",
+			"  - id: backlog",
+			"    name: Backlog",
+			"    order: 0",
+			"    zone: todo",
+			"    agents: []",
+			"  - id: design",
+			"    name: Design",
+			"    order: 1",
+			"    zone: doing",
+			"    agents: [\"analyst\"]",
+			"    transitions:",
+			"      - target: code",
+			"    gate: null",
+			"    phases:",
+			"      initialState: define",
+			"      states:",
+			"        define:",
+			"          id: define",
+			"          label: Define",
+			"          description: Spec is ready for human approval",
+			"          transitions:",
+			"            - target: handoff",
+			"              gate: spec-approved",
+			"        handoff:",
+			"          id: handoff",
+			"          label: Handoff",
+			"          description: Approved for implementation",
+			"  - id: code",
+			"    name: Code",
+			"    order: 2",
+			"    zone: doing",
+			"    agents: [\"implementer\"]",
+			"  - id: review",
+			"    name: Review",
+			"    order: 3",
+			"    zone: doing",
+			"    agents: [\"reviewer\"]",
+		].join("\n"));
+		writeFileSync(join(root, ".letra", "harness", "v0.2.0", "gates", "spec-approved.yaml"), [
+			"id: spec-approved",
+			"name: Spec Approved",
+			"type: human",
+			"blocking: true",
+			"blocksHandoff: true",
+			"decisions:",
+			"  approve: code",
+			"  request-changes: design",
+			"  reject: backlog",
+		].join("\n"));
+
+		const actor = "human:owner";
+		const expectedRevision = resolveAgentDirection(root, "ITEM-1").revision;
+		const reason = "Spec approved; implementation ACs remain open.";
+		const approvalRequest = await requestTransitionOperation(root, {
+			itemId: "ITEM-1",
+			targetStageId: "code",
+			expectedRevision,
+			reason: "Request spec approval before implementation.",
+			actor,
+		});
+		expect(approvalRequest).toMatchObject({
+			outcome: "approval-required",
+			reasonCode: "HUMAN_APPROVAL_REQUIRED",
+			nextDirection: { pendingAC: undefined },
+		});
+		// The approval request waits on a human whose handoff deadline already passed.
+		const waiting = JSON.parse(readFileSync(workflowPath, "utf8"));
+		waiting.items[0].handoff = { from: "analyst", to: "human", summary: "Awaiting approval", evidence: [], timestamp: "2026-09-10T10:00:00.000Z", expiresAt: "2026-09-10T10:30:00.000Z" };
+		writeFileSync(workflowPath, JSON.stringify(waiting, null, 2));
+		const cwd = process.cwd();
+		const output: string[] = [];
+		const stdout = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+			output.push(String(chunk));
+			return true;
+		});
+		try {
+			process.chdir(root);
+			await operationCommand().parseAsync([
+				"gate-decision", "ITEM-1", "--decision", "approve",
+				"--expected-revision", expectedRevision, "--reason", reason,
+			], { from: "user" });
+		} finally {
+			process.chdir(cwd);
+			stdout.mockRestore();
+		}
+		const decision = JSON.parse(output.join(""));
+
+		expect(decision).toMatchObject({ outcome: "accepted", reasonCode: "GATE_DECISION_RECORDED", nextDirection: { item: { stage: "code" }, pendingAC: { id: "AC1" } } });
+		expect(readFileSync(join(root, ".letra", "specs", "controlled-operation", "spec.md"), "utf8")).toContain("- [ ] **AC1**");
+	});
+
 	it("rejects a forced transition without a human actor", async () => {
 		const root = fixture();
 		const before = resolveAgentDirection(root, "ITEM-1");
@@ -1489,7 +1602,7 @@ describe("domain operations", () => {
 		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0].claimExecutorId).toBe("other");
 	});
 
-	it("does not allow the recipient to claim an expired handoff", async () => {
+	it("lets the recipient take an expired handoff as an audited late acceptance (ITEM-56)", async () => {
 		const root = fixture();
 		configureHarness(root);
 		const workflowPath = join(root, ".letra", "workflow.json");
@@ -1497,9 +1610,9 @@ describe("domain operations", () => {
 		workflow.items[0].handoff = { from: "implementer", to: "implementer", summary: "Expired", evidence: [], timestamp: "2026-09-10T10:00:00.000Z", expiresAt: "2026-09-10T10:01:00.000Z", status: "pending" };
 		writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
 		const before = resolveAgentDirection(root, "ITEM-1");
-		const rejectedClaim = await claimOperation(root, { itemId: "ITEM-1", actor: "implementer", executorId: "codex", capability: "write_code", expectedRevision: before.revision, reason: "Expired handoffs cannot be claimed." });
-		expect(rejectedClaim).toMatchObject({ outcome: "rejected", reasonCode: "HANDOFF_EXPIRED", beforeRevision: before.revision, afterRevision: before.revision });
-		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0].handoff.status).toBe("pending");
+		const lateClaim = await claimOperation(root, { itemId: "ITEM-1", actor: "implementer", executorId: "codex", capability: "write_code", expectedRevision: before.revision, reason: "Expiry ends the reservation, not the handoff." });
+		expect(lateClaim).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED" });
+		expect(JSON.parse(readFileSync(workflowPath, "utf8")).items[0].handoff).toMatchObject({ status: "accepted", lateAcceptance: true });
 	});
 
 	it("lets the recipient renew its claim after an accepted handoff expires", async () => {

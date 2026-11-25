@@ -17,10 +17,12 @@ interface FixtureOptions {
 	harness?: boolean;
 	/** Give the Design stage a role. */
 	designRole?: boolean;
+	/** Roles of the Design stage besides `analyst` (all with `write_spec`). */
+	extraDesignRoles?: string[];
 	itemStage?: string;
 }
 
-function activationFixture({ harness = true, designRole = true, itemStage = "backlog" }: FixtureOptions = {}): string {
+function activationFixture({ harness = true, designRole = true, extraDesignRoles = [], itemStage = "backlog" }: FixtureOptions = {}): string {
 	const root = mkdtempSync(join(tmpdir(), "letra-refusal-guidance-"));
 	roots.push(root);
 	mkdirSync(join(root, ".letra", "identity"), { recursive: true });
@@ -37,7 +39,10 @@ function activationFixture({ harness = true, designRole = true, itemStage = "bac
 		mkdirSync(join(dir, "flows"), { recursive: true });
 		mkdirSync(join(dir, "roles"), { recursive: true });
 		mkdirSync(join(dir, "gates"), { recursive: true });
-		const designAgents = designRole ? "\n      - analyst" : " []";
+		const designRoles = designRole ? ["analyst", ...extraDesignRoles] : [];
+		const designAgents = designRoles.length ? designRoles.map((role) => `\n      - ${role}`).join("") : " []";
+		for (const extra of extraDesignRoles)
+			writeFileSync(join(dir, "roles", `${extra}.yaml`), `id: ${extra}\nlabel: ${extra}\ndescription: test\nallowedStages:\n  - design\ncapabilities:\n  - write_spec\n`);
 		writeFileSync(join(dir, "flows", "controlled-flow.yaml"), `id: controlled-flow\nversion: 1\nname: Controlled\ndescription: test\ndefaultPolicy: default\nstages:\n  - id: backlog\n    name: Backlog\n    order: 0\n    description: queued\n    agents: []\n    gate: null\n  - id: design\n    name: Design\n    order: 1\n    description: define\n    agents:${designAgents}\n    gate: null\n`);
 		writeFileSync(join(dir, "roles", "analyst.yaml"), "id: analyst\nlabel: Analyst\ndescription: test\nallowedStages:\n  - design\ncapabilities:\n  - write_spec\n");
 	}
@@ -143,20 +148,47 @@ describe("AC3 — claim names the accepted capability", () => {
 	});
 });
 
-describe("AC4 — expired handoff says how to recover and who acts", () => {
-	it("suggests the rollback and leaves re-issuing to the agent sender", async () => {
-		const root = activationFixture({ itemStage: "design" });
-		setHandoff(root, { from: "reviewer", to: "analyst", summary: "start", evidence: [], timestamp: minutesFromNow(-60), expiresAt: minutesFromNow(-30) });
-		const refusal = await claim(root, "analyst", "write_spec");
-		expect(refusal).toMatchObject({ reasonCode: "HANDOFF_EXPIRED", nextCommand: "letra flow handoff ITEM-1 --rollback", humanRequired: false });
-		expect(refusal.reason).toContain("reviewer reemite");
-	});
+// ITEM-56 (spec handoff-vencido-ainda-vale): expiry ends the reservation, not
+// the handoff. Supersedes the ITEM-28 refusal for the recipient.
+describe("ITEM-56 — an expired handoff still holds", () => {
+	const readHandoff = (root: string) => JSON.parse(readFileSync(join(root, ".letra", "workflow.json"), "utf8")).items[0].handoff;
 
-	it("flags a human sender: the agent must not re-issue a human handoff", async () => {
+	it("AC1/AC4: the recipient takes it late, without rollback, and the lateness is recorded", async () => {
 		const root = activationFixture({ itemStage: "design" });
 		setHandoff(root, { from: "human:owner", to: "analyst", summary: "start", evidence: [], timestamp: minutesFromNow(-60), expiresAt: minutesFromNow(-30) });
+		const late = await claim(root, "analyst", "write_spec");
+		expect(late).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED" });
+		const handoff = readHandoff(root);
+		expect(handoff).toMatchObject({ status: "accepted", lateAcceptance: true });
+		expect(handoff.lateByMinutes).toBeGreaterThanOrEqual(29);
+		expect(Date.parse(handoff.acceptedAt)).toBeGreaterThan(Date.parse(handoff.expiresAt));
+	});
+
+	it("AC1: an on-time acceptance is not marked late", async () => {
+		const root = activationFixture({ itemStage: "design" });
+		setHandoff(root, { from: "human:owner", to: "analyst", summary: "start", evidence: [], timestamp: minutesFromNow(0), expiresAt: minutesFromNow(30) });
+		expect(await claim(root, "analyst", "write_spec")).toMatchObject({ outcome: "accepted" });
+		const handoff = readHandoff(root);
+		expect(handoff).toMatchObject({ status: "accepted" });
+		expect(handoff.lateAcceptance).toBeUndefined();
+	});
+
+	it("AC2: the reservation holds until expiry, then another stage role may claim", async () => {
+		const reserved = activationFixture({ itemStage: "design", extraDesignRoles: ["architect"] });
+		setHandoff(reserved, { from: "human:owner", to: "analyst", summary: "start", evidence: [], timestamp: minutesFromNow(0), expiresAt: minutesFromNow(30) });
+		expect(await claim(reserved, "architect", "write_spec")).toMatchObject({ outcome: "rejected", reasonCode: "ACTOR_NOT_ALLOWED" });
+
+		const lapsed = activationFixture({ itemStage: "design", extraDesignRoles: ["architect"] });
+		setHandoff(lapsed, { from: "human:owner", to: "analyst", summary: "start", evidence: [], timestamp: minutesFromNow(-60), expiresAt: minutesFromNow(-30) });
+		expect(await claim(lapsed, "architect", "write_spec")).toMatchObject({ outcome: "accepted" });
+	});
+
+	it("AC3: an expired handoff to a human is not handed over to an agent", async () => {
+		const root = activationFixture({ itemStage: "design" });
+		setHandoff(root, { from: "analyst", to: "human", summary: "awaiting approval", evidence: [], timestamp: minutesFromNow(-60), expiresAt: minutesFromNow(-30) });
 		const refusal = await claim(root, "analyst", "write_spec");
-		expect(refusal).toMatchObject({ reasonCode: "HANDOFF_EXPIRED", humanRequired: true });
+		expect(refusal).toMatchObject({ outcome: "rejected", reasonCode: "HANDOFF_EXPIRED", humanRequired: true });
+		expect(refusal.reason).toContain("aguarda decisão de human");
 	});
 });
 
