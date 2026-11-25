@@ -1,261 +1,133 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import chalk from "chalk";
-import { loadWorkflow, writeWorkflow } from "./flow-init.js";
-import { writeFocusWithRecommendations } from "../adapters/focus-recommendations.js";
-import { logEntry, queryLog } from "../session-log.js";
-import { enterStage } from "../phases/engine.js";
-import { autopilotRun, canAutopilot } from "../phases/autopilot.js";
+import { loadWorkflow } from "./flow-init.js";
+import {
+	directionForRunAwareOperation,
+	requestPassageOperation,
+} from "../domain-operations/service.js";
+import { resolveLocalIdentity } from "../identity/service.js";
 import { resolveActiveFlow } from "../flow-definition/resolve.js";
-import { GateChecker } from "../harness/gate-checker.js";
-import { getLetraDir } from "./../workspace/resolver.js";
-
-function now(): string {
-	return new Date().toISOString();
-}
 
 function resolveStage(
 	workflow: { stages: Array<{ id: string; name: string }> },
 	input: string,
 ): string | null {
 	const lower = input.toLowerCase();
-	for (const stage of workflow.stages) {
-		if (stage.id === lower) return stage.id;
-		if (stage.name.toLowerCase() === lower) return stage.id;
-	}
-	return null;
+	return workflow.stages.find((stage) => stage.id === lower || stage.name.toLowerCase() === lower)?.id ?? null;
 }
 
 export async function flowMove(
 	root: string,
 	itemId: string,
 	targetStageInput: string,
-	options?: { auto?: boolean; force?: boolean },
-): Promise<void> {
+	options?: { auto?: boolean; force?: boolean; actor?: string; reason?: string; run?: string },
+): Promise<boolean> {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
 		console.log(chalk.red("No workflow found. Run 'letra flow init --quick' first"));
-		process.exit(1);
+		return false;
 	}
-
-	const item =
-		workflow.items.find((i) => i.id === itemId) ||
-		workflow.items.find((i) => i.id.toLowerCase() === itemId.toLowerCase()) ||
-		workflow.items.find((i) => i.description.toLowerCase() === itemId.toLowerCase());
+	const item = workflow.items.find((candidate) =>
+		candidate.id === itemId || candidate.id.toLowerCase() === itemId.toLowerCase() || candidate.description.toLowerCase() === itemId.toLowerCase());
 	if (!item) {
 		console.log(chalk.red(`Item "${itemId}" not found`));
-		process.exit(1);
+		return false;
 	}
-
 	if (options?.auto) {
-		const currentStage = workflow.stages.find((s) => s.id === item.stage);
-		if (!currentStage) {
+		const current = workflow.stages.find((stage) => stage.id === item.stage);
+		if (!current) {
 			console.log(chalk.red(`Stage "${item.stage}" not found in workflow`));
-			process.exit(1);
-			return;
+			return false;
 		}
-		const nextStage = workflow.stages
-			.filter((s) => s.order > currentStage.order)
-			.sort((a, b) => a.order - b.order)[0];
-		if (!nextStage) {
-			console.log(
-				chalk.yellow(`Item ${itemId} is already at the last stage (${currentStage.name})`),
-			);
-			return;
+		const next = workflow.stages.filter((stage) => stage.order > current.order).sort((a, b) => a.order - b.order)[0];
+		if (!next) {
+			console.log(chalk.yellow(`Item ${itemId} is already at the last stage (${current.name})`));
+			return false;
 		}
-		targetStageInput = nextStage.id;
-
-		if (!options?.force && item.spec) {
-			const specFile = join(getLetraDir(root), "specs", item.spec, "spec.md");
-			if (existsSync(specFile)) {
-				const content = readFileSync(specFile, "utf-8");
-				const pendingACs = content.match(/^- \[ \]/gm) || [];
-				if (pendingACs.length > 0) {
-					console.log(
-						chalk.yellow(
-							`⚠ Item ${itemId} has ${pendingACs.length} pending AC(s) in "${item.spec}"`,
-						),
-					);
-					console.log(
-						chalk.yellow("  Use --force to move anyway, or complete ACs first."),
-					);
-					return;
-				}
-				const doneACs = content.match(/^- \[[xX]\]/gm) || [];
-				if (doneACs.length > 0) {
-					const acLogEntries = queryLog(root, { itemId, action: "ac_done", limit: 999 });
-					if (acLogEntries.length < doneACs.length) {
-						console.log(
-							chalk.yellow(
-								`⚠ ${doneACs.length - acLogEntries.length} AC(s) marked [x] without "ac done" log entry.`,
-							),
-						);
-						console.log(
-							chalk.yellow("  Run letra ac done <ID> for each completed AC."),
-						);
-					}
-				}
-			}
-		}
+		targetStageInput = next.id;
 	}
-
-	if (!options?.auto && !options?.force && item.spec) {
-		const specFile = join(getLetraDir(root), "specs", item.spec, "spec.md");
-		if (existsSync(specFile)) {
-			const content = readFileSync(specFile, "utf-8");
-			const pendingACs = content.match(/^- \[ \]/gm) || [];
-			if (pendingACs.length > 0) {
-				console.log(
-					chalk.yellow(
-						`⚠ Item ${itemId} has ${pendingACs.length} pending AC(s) in "${item.spec}"`,
-					),
-				);
-				console.log(chalk.yellow("  Use --force to move anyway, or complete ACs first."));
-				return;
-			}
-			const doneACs = content.match(/^- \[[xX]\]/gm) || [];
-			if (doneACs.length > 0) {
-				const acLogEntries = queryLog(root, { itemId, action: "ac_done", limit: 999 });
-				if (acLogEntries.length < doneACs.length) {
-					console.log(
-						chalk.yellow(
-							`⚠ ${doneACs.length - acLogEntries.length} AC(s) marked [x] without "ac done" log entry.`,
-						),
-					);
-					console.log(chalk.yellow("  Run letra ac done <ID> for each completed AC."));
-				}
-			}
-		}
-	}
-
-	{
-		const resolved = resolveActiveFlow(root);
-		const targetDef = resolved.flow?.stages.find((stage) => stage.id === targetStageInput);
-		const gate = targetDef?.gate;
-		if (gate?.blocking) {
-			if (gate.type === "human") {
-				if (options?.force) {
-					console.log(chalk.yellow(`  Gate "${gate.name}" bypassado via --force`));
-				} else {
-					const resolvedTarget =
-						resolveStage(workflow, targetStageInput) || targetStageInput;
-					console.log(chalk.red(`Gate bloqueante: ${gate.name}`));
-					console.log(
-						chalk.yellow(
-							`  Aprovação humana necessária para entrar em "${resolvedTarget}".`,
-						),
-					);
-					return;
-				}
-			} else {
-				const checker = new GateChecker(root);
-				const result = checker.check(gate.id, item);
-				if (!result.allowed) {
-					const resolvedTarget =
-						resolveStage(workflow, targetStageInput) || targetStageInput;
-					console.log(chalk.red(`Gate bloqueante: ${gate.name}`));
-					console.log(chalk.yellow(`  ${result.reason}`));
-					console.log(
-						chalk.yellow(
-							`  Aprovação humana necessária para entrar em "${resolvedTarget}".`,
-						),
-					);
-					return;
-				}
-			}
-		}
-	}
-
 	const targetStageId = resolveStage(workflow, targetStageInput);
 	if (!targetStageId) {
-		const valid = workflow.stages.map((s) => `${s.id} (${s.name})`).join(", ");
-		console.log(chalk.red(`Stage "${targetStageInput}" not found. Valid stages: ${valid}`));
-		process.exit(1);
+		console.log(chalk.red(`Stage "${targetStageInput}" not found`));
+		return false;
 	}
-
 	if (item.stage === targetStageId) {
+		// Idempotent: the requested state already holds, so this is not a refusal.
 		console.log(chalk.yellow(`Item ${itemId} is already in stage "${targetStageId}"`));
-		return;
+		return true;
 	}
-
-	const fromStage = workflow.stages.find((s) => s.id === item.stage)?.name || item.stage;
-	const toStage = workflow.stages.find((s) => s.id === targetStageId)?.name || targetStageId;
-
-	item.stage = targetStageId;
-	const phaseResult = enterStage(workflow, item);
-	if (phaseResult.phase) {
-		logEntry(root, "system", `phase_entry: ${item.id} → ${phaseResult.phase}` as const);
+	const fromStage = workflow.stages.find((stage) => stage.id === item.stage)?.name ?? item.stage;
+	const toStage = workflow.stages.find((stage) => stage.id === targetStageId)?.name ?? targetStageId;
+	if (!item.claimExecutorId) {
+		console.log(chalk.red(`Cannot move ${itemId}: item não possui claim ativa; adquira uma claim antes da passagem.`));
+		return false;
 	}
-	workflow.updatedAt = now();
-
-	if (phaseResult.ok && item.currentPhase && canAutopilot(workflow, item)) {
-		console.log(
-			`  ${chalk.cyan("⏩")} Auto-pilot disponível para ${item.id} (fase inicial tem auto-transition)`,
-		);
-		const pilotResult = await autopilotRun(root, workflow, item);
-		if (pilotResult.ok) {
-			console.log(
-				`  ${chalk.green("✓")} Auto-pilot: ${pilotResult.transitionsApplied} transição(ões) — parou em "${pilotResult.finalPhase || "__EXIT__"}"`,
-			);
-		} else {
-			console.log(
-				`  ${chalk.yellow("⏸")} Auto-pilot: ${pilotResult.error} — parou em "${pilotResult.finalPhase}"`,
-			);
-		}
+	const activeFlow = resolveActiveFlow(root, { itemId: item.id, workflowVersionId: item.workflowVersionId }).flow;
+	const destination = activeFlow?.stages.find((stage) => stage.id === targetStageId);
+	const recipients = destination?.roleIds?.length ? destination.roleIds : destination?.agents ?? [];
+	if (!recipients.length) {
+		console.log(chalk.red(`Cannot move ${itemId}: estágio ${targetStageId} sem papel/destinatário configurado.`));
+		return false;
 	}
-
-	const targetStageIsDone = workflow.stages.find((s) => s.id === targetStageId)?.zone === "done";
-	if (targetStageIsDone && item.claimedBy) {
-		if (item.claimedBy === "opencode") {
-			console.log(
-				`  ${chalk.gray("Release automático:")} ${itemId} não está mais sob responsabilidade do agente`,
-			);
-		}
-		item.claimedBy = undefined;
-		item.claimedAt = undefined;
+	if (recipients.length > 1) {
+		console.log(chalk.red(`Cannot move ${itemId}: múltiplos destinatários configurados (${recipients.join(", ")}); escolha explícita ainda não está disponível neste comando.`));
+		return false;
 	}
-
-	const result = await writeWorkflow(root, {
-		workflow,
-		source: "flow-move",
-		primaryItemId: itemId,
-		skipSitrep: true,
-	});
-
-	if (item.spec) {
-		writeFocusWithRecommendations(root, item.spec, item.id);
-	}
-
-	logEntry(root, "item_move", `Item ${itemId} movido: ${fromStage} → ${toStage}`, {
+	const operation = await requestPassageOperation(root, {
 		itemId,
-		details: { from: item.stage, to: targetStageId },
+		targetStageId,
+		runId: options?.run,
+		to: recipients[0],
+		executorId: item.claimExecutorId,
+		summary: `Passagem solicitada pela CLI: ${fromStage} → ${toStage}.`,
+		evidence: [],
+		actor: options?.actor?.trim() || resolveLocalIdentity(root).id,
+		// The revision requestPassageOperation compares (run-aware, bound to
+		// the claim's executor); resolveAgentDirection diverges once a Run exists.
+		expectedRevision: directionForRunAwareOperation(root, {
+			itemId: item.id,
+			runId: options?.run,
+			executorId: item.claimExecutorId,
+		}).revision,
+		reason: options?.reason?.trim() || `Transição solicitada pela CLI: ${fromStage} → ${toStage}.`,
 	});
-
-	console.log(
-		`  ${chalk.green("✓")} Item ${chalk.cyan(itemId)} moved: ${chalk.yellow(fromStage)} → ${chalk.green(toStage)}`,
-	);
-	if (result.ok && result.filesUpdated.length > 0) {
-		console.log(`  ${chalk.gray("Updated:")} ${result.filesUpdated.join(", ")}`);
+	if (operation.outcome === "approval-required") {
+		// Not a refusal: the passage was accepted and now waits for a human gate.
+		console.log(chalk.yellow(`Passagem de ${itemId} aguarda aprovação humana [${operation.reasonCode}]: ${operation.reason}`));
+		return true;
 	}
+	if (operation.outcome !== "accepted") {
+		console.log(chalk.red(`Cannot move ${itemId} [${operation.reasonCode}]: ${operation.reason}${operation.recoveryActions?.length ? `\nRecuperação: ${operation.recoveryActions.join("; ")}` : ""}`));
+		if (operation.nextCommand)
+			console.log(`${operation.humanRequired ? "Próximo passo é humano; para diagnóstico" : "Próximo comando"}: ${operation.nextCommand}`);
+		return false;
+	}
+	console.log(`  ${chalk.green("✓")} Item ${chalk.cyan(itemId)} moved: ${chalk.yellow(fromStage)} → ${chalk.green(toStage)}`);
+	return true;
 }
 
 function normalizeItemId(input: string): string {
 	if (/^ITEM-\d+$/i.test(input)) return input.toUpperCase();
 	if (/^\d+$/.test(input)) return `ITEM-${input}`;
 	console.log(chalk.red(`Invalid item ID: "${input}". Use a number (e.g. 34) or ITEM-N format.`));
-	process.exit(1);
+	return input;
 }
 
 export function flowMoveAction(
 	targetPath: string | undefined,
 	itemId: string,
-	options: { to?: string; auto?: boolean; force?: boolean },
-): void {
+	options: { to?: string; auto?: boolean; force?: boolean; actor?: string; reason?: string; run?: string },
+): Promise<void> {
 	const root = resolve(process.cwd(), targetPath || ".");
-	const normalized = normalizeItemId(itemId);
-	if (options.auto) {
-		flowMove(root, normalized, options.to || "", { auto: true, force: options.force });
-	} else {
-		flowMove(root, normalized, options.to || "", { force: options.force });
-	}
+	// ITEM-25: the exit code is the only signal a script reads; a refused or
+	// crashed passage must not look like success.
+	return flowMove(root, normalizeItemId(itemId), options.to || "", options).then(
+		(moved) => {
+			if (!moved) process.exitCode = 1;
+		},
+		(error: unknown) => {
+			console.log(chalk.red(`Cannot move ${itemId}: ${error instanceof Error ? error.message : String(error)}`));
+			process.exitCode = 1;
+		},
+	);
 }

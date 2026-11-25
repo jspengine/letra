@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { ResolvedSpec, Workflow, Item } from "@letra/types";
-import { Badge, Icon, Button, Progress, Card, CardContent, Tag, AgentAvatar } from "@letra/ui";
+import { Badge, Icon, Button, Progress, Card, CardContent, Tag, AgentAvatar, Input, Tooltip, ButtonGroup, ButtonGroupItem, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from "@letra/ui";
 import type { AgentIdentity } from "@letra/types";
 import { cn } from "../../lib/utils";
 import { computeSlug } from "../../lib/item-utils";
@@ -83,7 +83,7 @@ function computeItemState(state: OperationalState): {
 		};
 	return {
 		key: state,
-		label: "Na fila",
+		label: "Aguardando executor",
 		variant: "info",
 		tagVariant: "default",
 		action: "Aguardando responsável",
@@ -131,6 +131,7 @@ function ItemCard({
 	specs,
 	agents,
 	onClick,
+	onItemDecided,
 	onOpenSpec,
 	onDragStart,
 	onDragEnd,
@@ -141,6 +142,7 @@ function ItemCard({
 	specs: ResolvedSpec[];
 	agents: AgentIdentity[];
 	onClick: () => void;
+	onItemDecided?: () => void;
 	onOpenSpec?: () => void;
 	onDragStart: (e: React.DragEvent) => void;
 	onDragEnd: (e: React.DragEvent) => void;
@@ -265,6 +267,7 @@ function ItemCard({
 						{agentName}
 					</Tag>
 					<Tag>{persona}</Tag>
+					{!item.claimedBy && agent?.status === "offline" ? <Tag variant="warning">Executor offline</Tag> : null}
 				</div>
 
 				{hasProgress ? (
@@ -283,6 +286,19 @@ function ItemCard({
 							size="xs"
 							state={progressState}
 						/>
+					</div>
+				) : null}
+
+				{isHumanGate ? (
+					<div
+						className="grid gap-2 rounded-[var(--radius-md)] border border-[color-mix(in_oklch,var(--color-success)_35%,var(--color-border))] bg-[color-mix(in_oklch,var(--color-success)_6%,var(--color-bg-surface))] p-2"
+						onClick={(event) => event.stopPropagation()}
+					>
+						<div className="flex items-center gap-2 text-caption font-medium text-[var(--color-success)]">
+							<Icon name="clock" size={12} />
+							<span>Aprovação necessária</span>
+						</div>
+						<GateDecisionActions itemId={item.id} onDecided={onItemDecided} />
 					</div>
 				) : null}
 
@@ -311,8 +327,10 @@ export default function KanbanBoard({
 	className,
 }: Props) {
 	const [dragOver, setDragOver] = useState<string | null>(null);
-	const [draggingId, setDraggingId] = useState<string | null>(null);
-	const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
+		const [draggingId, setDraggingId] = useState<string | null>(null);
+		const [searchQuery, setSearchQuery] = useState("");
+		const [selectedStage, setSelectedStage] = useState<string | null>(null);
+			const [specs, setSpecs] = useState<ResolvedSpec[]>([]);
 	const [agents, setAgents] = useState<AgentIdentity[]>([]);
 	const dragItem = useRef<Workflow["items"][0] | null>(null);
 
@@ -401,7 +419,15 @@ export default function KanbanBoard({
 		done: (it) => doneStages.has(it.stage),
 	};
 	const activeFilter = filterMap[filter] || filterMap.all;
-	const visibleItems = workflow.items.filter(activeFilter);
+		const visibleItems = workflow.items.filter((item) => {
+			if (!activeFilter(item)) return false;
+			if (!searchQuery.trim()) return true;
+			const query = searchQuery.toLowerCase();
+			return (
+				item.id.toLowerCase().includes(query) ||
+				item.description.toLowerCase().includes(query)
+			);
+		});
 	const emptyState = emptyStateForFilter(filter);
 
 	function renderColumn(col: (typeof stageCols)[0]) {
@@ -420,32 +446,41 @@ export default function KanbanBoard({
 					data-gate={isHumanGate && hasAnyItems ? "true" : "false"}
 				>
 					<div className="flex min-w-0 items-center gap-2">
-						{isHumanGate && hasAnyItems ? (
-							<div className="w-2 h-4 rounded-full bg-[var(--color-success)] animate-timeline-dot" />
-						) : (
-							<div
-								className="w-1.5 h-4 rounded-full"
-								style={{ background: col.color }}
-							/>
-						)}
-						<span
-							className={cn(
-								"min-w-0 truncate text-xs font-semibold",
-								isHumanGate && hasAnyItems && "text-[var(--color-success)]",
-							)}
-						>
-							{col.label}
-						</span>
-						<Badge
-							variant={isHumanGate && hasAnyItems ? "amber" : "info"}
-							className={cn(
-								"shrink-0 text-caption px-1.5",
-								isHumanGate && hasAnyItems && "animate-pulse",
-							)}
-						>
-							{workflow.items.filter((it) => it.stage === col.id).length}
-						</Badge>
-					</div>
+												{isHumanGate && hasAnyItems ? (
+													<div className="w-2 h-4 rounded-full bg-[var(--color-success)] animate-timeline-dot" />
+												) : (
+													<div
+														className="w-1.5 h-4 rounded-full"
+														style={{ background: col.color }}
+													/>
+												)}
+												<span
+													className={cn(
+														"min-w-0 truncate text-xs font-semibold",
+														isHumanGate && hasAnyItems && "text-[var(--color-success)]",
+													)}
+												>
+													{col.label}
+												</span>
+												<Badge
+													variant={isHumanGate && hasAnyItems ? "amber" : "info"}
+													className={cn(
+														"shrink-0 text-caption px-1.5",
+														isHumanGate && hasAnyItems && "animate-pulse",
+													)}
+												>
+													{workflow.items.filter((it) => it.stage === col.id).length}
+												</Badge>
+											</div>
+											<Tooltip content={col.id} position="bottom">
+												<button
+													className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs ml-auto"
+													onClick={() => setSelectedStage(col.id)}
+													title="Informações do estágio"
+												>
+													<Icon name="info" size={12} />
+												</button>
+											</Tooltip>
 				</div>
 
 				<div
@@ -472,45 +507,63 @@ export default function KanbanBoard({
 							specs={specs}
 							agents={agents}
 							onClick={() => onSelectItem(item.id)}
+							onItemDecided={onItemDecided}
 							onOpenSpec={item.spec && onOpenSpec ? onOpenSpec : undefined}
 							onDragStart={(e) => handleDragStart(e, item.id)}
 							onDragEnd={handleDragEnd}
 						/>
 					))}
 
-					{isHumanGate && hasAnyItems && (
-						<div className="app-board-gate-banner mt-1 pt-2">
-							<div className="flex items-center gap-2 text-caption mb-1.5 px-1">
-								<Icon
-									name="clock"
-									size={10}
-									style={{ color: "var(--color-success)" }}
-								/>
-								<span
-									style={{ color: "var(--color-success)" }}
-									className="font-medium"
-								>
-									Aprovação necessária
-								</span>
-							</div>
-							{items.map((item) => (
-								<div key={item.id} className="mb-2">
-									<GateDecisionActions
-										itemId={item.id}
-										onDecided={onItemDecided}
-									/>
-								</div>
-							))}
-						</div>
-					)}
 				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4", className)}>
-			{visibleItems.length === 0 ? (
+			<div className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4", className)}>
+				{/* Busca textual */}
+				<div className="flex items-center gap-2">
+										<Input
+											placeholder="Buscar item por ID ou descrição..."
+											value={searchQuery}
+											onChange={(e) => setSearchQuery(e.target.value)}
+											className="max-w-xs"
+										/>
+										{searchQuery && (
+											<button
+												className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-xs"
+												onClick={() => setSearchQuery("")}
+											>
+												Limpar
+											</button>
+										)}
+										{searchQuery && (
+											<span className="text-caption text-[var(--color-text-secondary)]">
+												{visibleItems.length} resultado(s)
+											</span>
+										)}
+									</div>
+									{/* Filtros */}
+									<div className="flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]">
+										<ButtonGroup ariaLabel="Filtrar trabalho" className="w-max max-w-none flex-nowrap sm:w-auto sm:max-w-full sm:flex-wrap">
+											{([
+												{ key: "all", label: "Todos" },
+												{ key: "attention", label: "Atenção" },
+												{ key: "running", label: "Rodando" },
+												{ key: "queued", label: "Fila" },
+												{ key: "done", label: "Concluído" },
+											] as const).map(({ key, label }) => (
+												<ButtonGroupItem
+													key={key}
+													selected={filter === key}
+													onClick={() => {}}
+												>
+													{label}
+												</ButtonGroupItem>
+											))}
+										</ButtonGroup>
+									</div>
+				{visibleItems.length === 0 ? (
 				<div className="app-board-filter-empty flex min-h-[16rem] flex-1 flex-col items-center justify-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] p-6 text-center">
 					<div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-bg-sunken)] text-[var(--color-text-secondary)]">
 						<Icon
@@ -536,7 +589,7 @@ export default function KanbanBoard({
 					</div>
 				</div>
 			) : (
-				<div className="flex min-w-max gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]">
+				<div className="flex min-w-0 gap-4 pb-2 [scrollbar-width:thin]">
 					{stageCols.map(renderColumn)}
 				</div>
 			)}
@@ -548,6 +601,12 @@ export default function KanbanBoard({
 					</Button>
 				</div>
 			)}
+	{/* Scroll indicator */}
+	<div className="flex justify-center py-1 opacity-50 hover:opacity-100 transition-opacity">
+		<span className="text-[var(--color-text-secondary)] text-xs">
+			← Arraste ou use scroll horizontal →
+		</span>
+	</div>
 		</div>
 	);
 }

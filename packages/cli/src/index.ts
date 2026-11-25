@@ -18,12 +18,16 @@ import mcpCommand from "./commands/mcp.js";
 import operationCommand from "./commands/operation.js";
 import { init } from "./commands/init.js";
 import { lint } from "./commands/lint.js";
-import { specLink, specNew } from "./commands/spec.js";
+import { specCatalog, specLink, specNew } from "./commands/spec.js";
 import { validate } from "./commands/validate.js";
 import { diagnose } from "./commands/diagnose.js";
 import { status } from "./commands/status.js";
 import gateCommand from "./commands/gate.js";
 import { checkDs } from "./commands/check-ds.js";
+import doctorCommand from "./commands/doctor.js";
+import specLintCommand from "./commands/spec-lint.js";
+import specMigrateFrontmatterCommand from "./commands/spec-migrate-frontmatter.js";
+import securityCommand from "./commands/security.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(readFileSync(join(resolve(__dirname, ".."), "package.json"), "utf-8"));
@@ -117,6 +121,12 @@ specCmd
 	.description("Link an existing spec to an item")
 	.action((itemId, specName) => specLink(itemId, specName));
 
+specCmd
+	.command("catalog [path]")
+	.option("--json", "Exibir a matriz completa em JSON")
+	.description("Gerar a matriz canônica de specs e itens")
+	.action((path, options) => specCatalog(path, options));
+
 program.command("lint [path]").description("Validate spec format and completeness").action(lint);
 
 program
@@ -128,8 +138,10 @@ program
 	.command("validate [path]")
 	.option("--watch", "Watch specs and re-validate on change")
 	.option("--format <type>", "Output format: text, github-annotation, junit")
+	.option("--json", "Output results as JSON (equivalent to --format json)")
 	.description("Check if artifacts meet acceptance criteria")
 	.action(async (path, options) => {
+		if (options.json) options.format = "json";
 		await validate(path, { ...options });
 	});
 
@@ -159,5 +171,9 @@ program.addCommand(sitrepCommand());
 program.addCommand(syncCommand());
 program.addCommand(migrateCommand());
 program.addCommand(gateCommand());
+program.addCommand(doctorCommand());
+program.addCommand(specLintCommand());
+program.addCommand(specMigrateFrontmatterCommand());
+program.addCommand(securityCommand());
 
 program.parse();

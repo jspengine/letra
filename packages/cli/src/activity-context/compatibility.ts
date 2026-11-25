@@ -38,10 +38,10 @@ const MUST_NOT_DO: Record<ActivityKind, string[]> = {
 	],
 	implement: [
 		"Não editar `workflow.json` manualmente.",
-		"Não implementar fora do escopo da spec ativa.",
+		"Não implementar fora do escopo da direção atribuída.",
 	],
 	review: [
-		"Não focar em novas features fora do diff/spec analisado.",
+		"Não focar em novas features fora do diff/direção analisada.",
 		"Não aprovar sem checar riscos, ACs e sinais ativos.",
 	],
 	diagnose: [
@@ -59,15 +59,17 @@ function compatibilityReferences(
 	context: CompatibilityIntentContext,
 ): ActivityContextReference[] {
 	const references: ActivityContextReference[] = [
-		{ path: ".letra/context.md", reason: "Contexto operacional do workspace" },
 		{ path: ".letra/constitution.md", reason: "Regras não negociáveis do Letra" },
 	];
-	if (context.hasFocus) {
-		references.push({ path: ".letra/focus.md", reason: "Foco e outcome da sessão atual" });
+	if (activity === "design" || activity === "diagnose") {
+		references.push({
+			path: ".letra/context.md",
+			reason: "Memória humana curada de produto/domínio; não usar como estado vivo",
+		});
 	}
 	if (context.specName) {
 		references.push({
-			path: `.letra/specs/${context.specName}/spec.md`,
+			path: `specs/${context.specName}/spec.md`,
 			reason: "Spec e critérios do trabalho atual",
 		});
 	}
@@ -81,12 +83,6 @@ function compatibilityReferences(
 		references.push({
 			path: ".letra/health-record.json",
 			reason: "Estado persistente dos alertas ativos",
-		});
-	}
-	if (!context.hasCurrentItem) {
-		references.push({
-			path: ".letra/workflow.json",
-			reason: "Fonte de verdade para triagem e escolha do próximo item",
 		});
 	}
 	return references;
@@ -118,7 +114,7 @@ function currentItemActions(
 		case "implement":
 			return [
 				{
-					label: "Executar item ativo",
+					label: "Executar item atribuído",
 					description: `Implementar o próximo passo observando os ACs da ${specRef}.`,
 				},
 				{
@@ -207,9 +203,9 @@ export function getCompatibilityActivityIntent(
 							"Escolher ou criar um item ativo antes de aprofundar a execução.",
 					},
 					{
-						label: "Confirmar foco",
+					label: "Confirmar atribuição",
 						description:
-							"Validar se a sessão deve seguir descoberta, design ou backlog.",
+						"Aguardar atribuição ou solicitar seleção explícita de execução.",
 					},
 				],
 	};

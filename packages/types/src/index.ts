@@ -84,10 +84,30 @@ export interface AgentIdentity {
 	stageBindings: string[];
 	adapterHints?: Record<string, string>;
 }
+
+/**
+ * Versioned operational link between the visual persona, a harness role and
+ * the executor that is allowed to carry work for that persona.  The binding
+ * deliberately lives beside the identity registry: identity is descriptive;
+ * a binding is an enforceable runtime contract.
+ */
+export interface AgentRuntimeBinding {
+	version: "1";
+	id: string;
+	identityId: string;
+	roleId: string;
+	executorId: string;
+	capabilities: string[];
+	stageIds: string[];
+	availability: "online-required";
+	harnessVersion: string;
+	promptTemplate?: string;
+}
 export interface AgentRegistry {
 	version: "1";
 	updatedAt: string;
 	agents: AgentIdentity[];
+	runtimeBindings?: AgentRuntimeBinding[];
 }
 
 export interface Stage {
@@ -110,6 +130,19 @@ export interface Task {
 	done: boolean;
 }
 
+/** Evidence emitted by the canonical validation operation for a work item. */
+export interface ValidationEvidence {
+	schemaVersion: "1";
+	outcome: "accepted" | "rejected";
+	validatedAt: string;
+	expiresAt: string;
+	summary: {
+		passed: number;
+		failed: number;
+		warnings: number;
+	};
+}
+
 export interface Item {
 	id: string;
 	description: string;
@@ -130,7 +163,9 @@ export interface Item {
 	activityStartedAt?: string;
 	lastHeartbeatAt?: string;
 	lastFailure?: { code: string; message: string; recovery: string; at: string };
+	validation?: ValidationEvidence;
 	currentPhase?: string;
+	repetitionState?: Record<string, { count: number; firstTraversalAt: string }>;
 	handoff?: {
 		from: string;
 		to: string;
@@ -139,6 +174,8 @@ export interface Item {
 		timestamp: string;
 		expiresAt: string;
 		executorId?: string;
+		targetExecutorId?: string;
+		targetIdentityId?: string;
 	};
 }
 
@@ -243,17 +280,42 @@ export interface AgentDirectionSnapshot {
 	schemaVersion: "1";
 	revision: string;
 	generatedAt: string;
+	run?: {
+		id: string;
+		itemId: string;
+		executorId: string;
+		workflowVersionId: string;
+		status: "queued" | "running" | "failed" | "completed" | "waiting-human";
+	};
+	assignment?: {
+		status: "assigned" | "unassigned" | "selection-required";
+		runId?: string;
+		candidateRunIds?: string[];
+	};
 	source: {
 		harnessVersion: string | null;
 		flowId: string | null;
 		workspaceRoot: string;
+		workspaceDir?: string;
+		locationPath?: string;
+		resolutionMode?: "local" | "manifest" | "env" | "flag" | "linked" | "direct";
+		workflowVersionId?: string | null;
+		workflowVersionNumber?: number | null;
 	};
 	mode: "active" | "degraded" | "unconfigured";
+	/** Resolution failure details; present only when the workspace authority is invalid. */
+	workspace?: {
+		code: "WORKSPACE_LINK_INVALID";
+		paths: string[];
+		recovery: string;
+	};
 	item: {
 		id: string;
 		description: string;
 		stage: string;
 		spec: string | null;
+		workflowVersionId?: string | null;
+		workflowVersionNumber?: number | null;
 		claimedBy?: string | null;
 		claimedAt?: string | null;
 		claimExpiresAt?: string | null;
@@ -265,6 +327,7 @@ export interface AgentDirectionSnapshot {
 		activityStartedAt?: string | null;
 		lastHeartbeatAt?: string | null;
 		lastFailure?: { code: string; message: string; recovery: string; at: string } | null;
+		validation?: ValidationEvidence | null;
 	} | null;
 	roleIds: string[];
 	allowedStageIds: string[];
@@ -274,6 +337,14 @@ export interface AgentDirectionSnapshot {
 		description: string;
 	} | null;
 	commands: AgentDirectionCommand[];
+	/**
+	 * `command` is the real CLI command when it differs from the operation id
+	 * (e.g. security_review → `letra security review`); `humanRequired` marks
+	 * operations only a human may perform (spec recusas-que-ensinam AC5).
+	 */
+	operations?: Array<{ id: string; description?: string; requiredCapability?: string; requiresClaim: boolean; allowedInStages: string[]; allowedActors: string[]; command?: string; humanRequired?: boolean }>;
+	gates?: Array<{ id: string; name: string; type: "human" | "automated" | "external"; blocking: boolean; policyRef?: string; checkType?: ResolvedGateCheckType }>;
+	references?: Array<{ id: string; path: string; reason: string; sha256: string | null; available: boolean }>;
 	prohibitions: string[];
 	requiredEvidence: string[];
 	nextActions: AgentDirectionAction[];
@@ -299,6 +370,26 @@ export interface ResolvedFlowGate {
 	policyRef?: string;
 	description: string;
 	decisions?: Partial<Record<GateDecision, string>>;
+	preCheck?: ResolvedGateCheckType;
+	checkType?: ResolvedGateCheckType;
+}
+
+export type ResolvedGateCheckType = "validation" | "security-scoped" | "spec-linked" | "acceptance-complete";
+
+export interface ResolvedFlowOperation {
+	requiredCapability?: string;
+	requiresClaim?: boolean;
+	allowedInStages: string[];
+	allowedActors: string[];
+	actorPrefix?: string;
+	description?: string;
+}
+
+export interface ResolvedStageHook {
+	action: string;
+	auto: boolean;
+	requiresClaim: boolean;
+	params?: Record<string, unknown>;
 }
 
 export interface ResolvedFlowRole {
@@ -400,7 +491,11 @@ export type FlowDefinitionWarningCode =
 	| "ROLE_NOT_FOUND"
 	| "INSTANCE_STAGE_NOT_IN_TEMPLATE"
 	| "TEMPLATE_STAGE_NOT_IN_INSTANCE"
-	| "CONSTITUTION_MISSING";
+	| "CONSTITUTION_MISSING"
+	| "WORKSPACE_LINK_INVALID"
+	| "HOOK_OPERATION_NOT_DECLARED"
+	| "REWORK_OPERATION_NOT_DECLARED"
+	| "AUTO_TRANSITION_GATE_NOT_DECLARED";
 
 export interface FlowDefinitionWarning {
 	code: FlowDefinitionWarningCode;
@@ -419,19 +514,39 @@ export interface ResolvedFlowStage {
 	/** @deprecated Use roleIds and roles. */
 	agents: string[];
 	gate: ResolvedFlowGate | null;
+	transitions?: Array<{ target: string; allowPendingAcceptanceCriteria?: boolean; repetition?: { mode: "finite"; maxTraversals: number } | { mode: "exit-condition"; condition: { field: string; operator: "eq" | "neq" | "gt" | "gte" | "lt" | "lte"; value: string | number | boolean | null } } | { mode: "timeout"; timeoutMs: number; timeoutResult: { type: "wait-human" } | { type: "transition"; target: string } } }>;
 	preferredExecutor?: string;
 	phases?: ResolvedStagePhases;
 	activity?: ResolvedFlowActivity;
-	provenance: "harness" | "workflow-instance";
+	provenance: "harness" | "workflow-instance" | "workflow-version";
+	rework?: {
+		target?: string;
+		allowed_actors?: string[];
+		create_ac?: boolean;
+	};
+	hooks?: {
+		on_enter?: ResolvedStageHook[];
+		on_exit?: ResolvedStageHook[];
+	};
+	auto_transitions?: Array<{
+		from?: string;
+		gate?: string;
+		allow_claim?: boolean;
+		condition?: string;
+	}>;
 }
 
 export interface ResolvedFlowDefinition {
 	id: string | null;
-	source: "workflow-template" | "workflow-instance" | "legacy-fallback";
+	source: "workflow-version" | "workflow-template" | "workflow-instance" | "legacy-fallback";
 	harnessVersion: string | null;
 	templateVersion: string | null;
 	name: string;
 	stages: ResolvedFlowStage[];
 	roles: ResolvedFlowRole[];
+	operations: Record<string, ResolvedFlowOperation>;
 	warnings: FlowDefinitionWarning[];
+	workflowVersionId?: string | null;
+	workflowVersionNumber?: number | null;
+	contentHash?: string | null;
 }

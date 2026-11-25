@@ -24,6 +24,28 @@ export interface Gate {
 	policyRef?: string;
 	description: string;
 	decisions?: Partial<Record<"approve" | "request-changes" | "reject", string>>;
+	/** Pre-check to run before the main gate check (e.g., "security-scoped" for human gates). */
+	pre_check?: GateCheckType;
+	/** Check type for automated gates (e.g., "validation", "security-scoped"). */
+	check_type?: GateCheckType;
+}
+
+export type GateCheckType = "validation" | "security-scoped" | "spec-linked" | "acceptance-complete";
+
+export interface FlowOperationDef {
+	required_capability?: string;
+	requires_claim?: boolean;
+	allowed_in_stages?: string[];
+	allowed_actors?: string[];
+	actor_prefix?: string;
+	description?: string;
+}
+
+export interface StageHookDef {
+	action: string;
+	auto?: boolean;
+	requires_claim?: boolean;
+	params?: Record<string, unknown>;
 }
 
 export type HarnessActivityKind = "design" | "implement" | "review" | "diagnose" | "gate";
@@ -83,6 +105,11 @@ export interface PhaseTransition {
 	auto?: boolean;
 }
 
+export interface StageTransition {
+	target: string;
+	allowPendingAcceptanceCriteria?: boolean;
+}
+
 export type PhaseAction =
 	| { type: "agent-prompt"; prompt: string }
 	| { type: "command"; cmd: string }
@@ -122,8 +149,25 @@ export interface StageDef {
 	agents: string[];
 	gate: string | null;
 	preferredExecutor?: string;
+	transitions?: StageTransition[];
 	phases?: StagePhases;
 	activity?: StageActivityContextConfig;
+	rework?: {
+		target?: string;
+		action?: string;
+		allowed_actors?: string[];
+		create_ac?: boolean;
+	};
+	hooks?: {
+		on_enter?: StageHookDef[];
+		on_exit?: StageHookDef[];
+	};
+	auto_transitions?: Array<{
+		from?: string;
+		gate?: string;
+		allow_claim?: boolean;
+		condition?: string;
+	}>;
 }
 
 export interface FlowTemplate {
@@ -132,6 +176,7 @@ export interface FlowTemplate {
 	name: string;
 	description: string;
 	defaultPolicy: string;
+	operations?: Record<string, FlowOperationDef>;
 	stages: StageDef[];
 }
 

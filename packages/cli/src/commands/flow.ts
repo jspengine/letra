@@ -1,5 +1,7 @@
 import { Command } from "commander";
 import chalk from "chalk";
+import { resolve } from "node:path";
+import { resolveLocalIdentity } from "../identity/service.js";
 import { backlogActionAdd, backlogActionList } from "./flow-backlog.js";
 import { flowBoardAction } from "./flow-board.js";
 import { flowDiffAction, flowEditAction } from "./flow-edit-diff.js";
@@ -16,6 +18,20 @@ import { flowPhasesAction, flowPhaseTransitionAction } from "./flow-phases.js";
 import { flowAutopilotAction } from "./flow-autopilot.js";
 import { flowPhaseRunAction } from "./flow-phase-run.js";
 import { flowBindAction } from "./flow-bind.js";
+import {
+	workflowDraftCommand,
+	workflowDraftRevisionsCommand,
+	workflowTemplateCommand,
+	workflowAdaptersCommand,
+	workflowLocationsCommand,
+	workflowListCommands,
+	workflowPublishCommand,
+	workflowRollbackCommand,
+	workflowShowCommand,
+	workflowUpdateDraftCommand,
+	workflowValidateCommand,
+	workflowVersionsCommand,
+} from "./flow-workflow.js";
 
 export default function flowCommand() {
 	const cmd = new Command("flow");
@@ -40,9 +56,10 @@ export default function flowCommand() {
 	backlog
 		.command("add <description>")
 		.option("--spec <name>", "Spec name to link")
+		.option("--id <item-id>", "Use a specific ITEM-N identifier instead of the next sequential ID")
 		.description("Add item to the first stage")
-		.action((description: string, options: { spec?: string }) => {
-			backlogActionAdd(undefined, description, options.spec);
+		.action(async (description: string, options: { spec?: string; id?: string }) => {
+			await backlogActionAdd(undefined, description, options.spec, options.id);
 		});
 
 	backlog
@@ -74,14 +91,17 @@ export default function flowCommand() {
 	cmd.command("move <item-id>")
 		.option("--to <stage>", "Target stage id or name")
 		.option("--auto", "Automatically discover next stage by order")
-		.option("--force", "Skip pre-move validation (pending ACs, etc)")
+		.option("--force", "Deprecated; does not bypass workflow passage rules")
+		.option("--actor <actor>", "Auditable human identity required with --force")
+		.option("--reason <reason>", "Auditable reason required with --force")
+		.option("--run <run-id>", "Select the active Run for this item")
 		.description("Move item to another stage and regenerate adapters")
-		.action((itemId: string, options: { to?: string; auto?: boolean; force?: boolean }) => {
+		.action((itemId: string, options: { to?: string; auto?: boolean; force?: boolean; actor?: string; reason?: string; run?: string }) => {
 			if (!options.to && !options.auto) {
 				console.log(chalk.red("Either --to or --auto is required"));
 				process.exit(1);
 			}
-			flowMoveAction(undefined, itemId, options);
+			return flowMoveAction(undefined, itemId, options);
 		});
 
 	cmd.command("board")
@@ -99,8 +119,8 @@ export default function flowCommand() {
 
 	cmd.command("import <file>")
 		.description("Import workflow from a JSON file")
-		.action((file: string) => {
-			flowImportAction(undefined, file);
+		.action(async (file: string) => {
+			await flowImportAction(undefined, file);
 		});
 
 	cmd.command("serve")
@@ -168,8 +188,8 @@ export default function flowCommand() {
 		.option("--name <name>", "New workflow name")
 		.option("--desc <desc>", "New workflow description")
 		.description("Edit workflow metadata")
-		.action((options: { name?: string; desc?: string }) => {
-			flowEditAction(undefined, options);
+		.action(async (options: { name?: string; desc?: string }) => {
+			await flowEditAction(undefined, options);
 		});
 
 	cmd.command("bind")
@@ -209,10 +229,113 @@ export default function flowCommand() {
 		});
 
 	cmd.command("phase-run <item-id>")
-		.description("Execute actions of the current phase for an item")
-		.action((itemId: string) => {
-			flowPhaseRunAction(itemId);
-		});
+			.description("Execute actions of the current phase for an item")
+			.action((itemId: string) => {
+				flowPhaseRunAction(itemId);
+			});
 
-	return cmd;
+		const workflow = cmd.command("workflow").description("Manage versioned workflow definitions");
+
+		workflow
+			.command("list")
+			.description("List all workflow definitions")
+			.action(() => {
+				workflowListCommands(resolve(process.cwd()));
+			});
+
+		workflow
+			.command("show <id>")
+			.description("Show workflow definition details")
+			.action((id: string) => {
+				workflowShowCommand(resolve(process.cwd()), id);
+			});
+
+		workflow
+			.command("draft <id>")
+			.option("--actor <actor>", "Identity actor", undefined)
+			.option("--based-on <version>", "Base version number", undefined)
+			.description("Create a draft for editing")
+			.action((id: string, options: { actor: string; basedOn?: string }) => {
+				const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+				workflowDraftCommand(resolve(process.cwd()), id, actor, options.basedOn ? Number(options.basedOn) : undefined);
+			});
+
+		workflow
+			.command("validate <id>")
+			.description("Validate current draft")
+			.action((id: string) => {
+				workflowValidateCommand(resolve(process.cwd()), id);
+			});
+
+		workflow
+			.command("publish <id>")
+			.option("--actor <actor>", "Identity actor", undefined)
+			.requiredOption("--revision <revision>", "Expected revision number")
+			.requiredOption("--reason <reason>", "Publication reason")
+			.description("Publish current draft as new version")
+			.action((id: string, options: { actor: string; revision: string; reason: string }) => {
+				const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+				workflowPublishCommand(resolve(process.cwd()), id, actor, Number(options.revision), options.reason);
+			});
+
+		workflow
+			.command("rollback <id>")
+			.option("--actor <actor>", "Identity actor", undefined)
+			.requiredOption("--version <version>", "Version number to restore")
+			.requiredOption("--reason <reason>", "Rollback reason")
+			.description("Rollback to a previous version (publishes new derived version)")
+			.action((id: string, options: { actor: string; version: string; reason: string }) => {
+				const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+				workflowRollbackCommand(resolve(process.cwd()), id, actor, Number(options.version), options.reason);
+			});
+
+		workflow
+			.command("versions <id>")
+			.description("List all published versions")
+			.action((id: string) => {
+				workflowVersionsCommand(resolve(process.cwd()), id);
+			});
+
+		workflow
+			.command("history <id>")
+			.description("List draft revision history")
+			.action((id: string) => {
+				workflowDraftRevisionsCommand(resolve(process.cwd()), id);
+			});
+
+		workflow
+			.command("template <id>")
+			.option("--template <name>", "Template name")
+			.option("--name <name>", "Workflow name")
+			.option("--actor <actor>", "Identity actor", undefined)
+			.description("Create workflow from template")
+			.action((id: string, options: { template?: string; name?: string; actor: string }) => {
+				const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+				workflowTemplateCommand(resolve(process.cwd()), id, actor, options.template ?? "", options);
+			});
+
+		workflow
+			.command("adapters <id>")
+			.option("--tools <tools>", "Comma-separated tools")
+			.option("--list", "List active adapters")
+			.option("--actor <actor>", "Identity actor", undefined)
+			.description("Manage workflow adapters")
+			.action((id: string, options: { tools?: string; list?: boolean; actor: string }) => {
+				const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+				workflowAdaptersCommand(resolve(process.cwd()), id, { tools: options.tools, list: options.list });
+			});
+
+		workflow
+			.command("locations <id>")
+			.option("--add <path>", "Add location")
+			.option("--remove <id>", "Remove location")
+			.option("--list", "List locations")
+			.option("--actor <actor>", "Identity actor", undefined)
+			.description("Manage workflow locations")
+			.action((id: string, options: { add?: string; remove?: string; list?: boolean; actor: string }) => {
+				const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+				workflowLocationsCommand(resolve(process.cwd()), id, { add: options.add, remove: options.remove, list: options.list });
+			});
+
+		return cmd;
 }

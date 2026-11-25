@@ -55,7 +55,7 @@ export const missingSpecLinkDetector: Detector = {
 							if (target) {
 								target.spec = exact;
 								if (!wf.specLinks) wf.specLinks = {};
-								wf.specLinks[exact] = { path: `.letra/specs/${exact}/spec.md` };
+								wf.specLinks[exact] = { path: `specs/${exact}/spec.md` };
 								wf.updatedAt = new Date().toISOString();
 								return {
 									files: [
@@ -80,7 +80,7 @@ export const missingSpecLinkDetector: Detector = {
 							if (target) {
 								target.spec = partial;
 								if (!wf.specLinks) wf.specLinks = {};
-								wf.specLinks[partial] = { path: `.letra/specs/${partial}/spec.md` };
+								wf.specLinks[partial] = { path: `specs/${partial}/spec.md` };
 								wf.updatedAt = new Date().toISOString();
 								return {
 									files: [

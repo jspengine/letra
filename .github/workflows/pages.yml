@@ -3,8 +3,16 @@ name: Launch Site Pages
 on:
   push:
     branches: ["main"]
+    paths:
+      - "apps/launch-site/**"
+      - "scripts/check-launch-site.mjs"
+      - ".github/workflows/pages.yml"
   pull_request:
     branches: ["main"]
+    paths:
+      - "apps/launch-site/**"
+      - "scripts/check-launch-site.mjs"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:

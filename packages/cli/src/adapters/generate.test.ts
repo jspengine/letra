@@ -1,7 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildHarnessSnapshot } from "./builder.js";
 import { formatAdapterContent } from "./formatters.js";
@@ -65,7 +64,7 @@ describe("adapters", () => {
 				displayName: "Cursor",
 			});
 
-			expect(content).toContain("@.letra/context.md");
+			expect(content).not.toContain("@.letra/context.md");
 			expect(content).toContain("@.letra/constitution.md");
 			expect(content).toContain("@.letra/glossary.md");
 			expect(content).toContain("# Rules");
@@ -78,7 +77,7 @@ describe("adapters", () => {
 				displayName: "OpenCode",
 			});
 
-			expect(content).toContain("- .letra/context.md");
+			expect(content).not.toContain("- .letra/context.md");
 			expect(content).toContain("- .letra/constitution.md");
 		});
 
@@ -113,7 +112,7 @@ describe("adapters", () => {
 				displayName: "Cursor",
 			});
 
-			expect(content).toContain("@.letra/context.md");
+			expect(content).not.toContain("@.letra/context.md");
 			expect(content).toContain("@.letra/focus.md");
 			expect(content).toContain("## Regras");
 			expect(content).not.toContain("ITEM-33:");
@@ -222,7 +221,8 @@ describe("adapters", () => {
 				displayName: "OpenCode",
 			});
 			expect(content).toContain("PASSO OBRIGATÓRIO #1");
-			expect(content).toContain("Identifique o item ativo via `letra pulse`");
+			expect(content).toContain("Sem item atribuído, aguarde atribuição ou selecione um item pela operação canônica");
+			expect(content).not.toContain("Identifique o item ativo via `letra pulse`");
 			expect(content).not.toContain("Trabalhe no item ativo");
 		});
 
@@ -585,8 +585,8 @@ describe("adapters", () => {
 				source: "flow-move",
 				displayName: "OpenCode",
 			});
+			expect(content).toContain("letra direction --json");
 			expect(content).toContain("## Comandos");
-			expect(content).toContain("`letra pulse`");
 			expect(content).toContain("`letra validate`");
 		});
 
@@ -602,8 +602,8 @@ describe("adapters", () => {
 				quiet: true,
 			});
 			const content = readFileSync(join(tmpDir, "AGENTS.md"), "utf-8");
-			expect(content).toContain("## Comandos");
-			expect(content).toContain("`letra pulse`");
+			expect(content).toContain("Follow only the selected Run");
+			expect(content).not.toContain("ITEM-1");
 		});
 	});
 
@@ -734,8 +734,8 @@ describe("adapters", () => {
 				quiet: true,
 			});
 			const content = readFileSync(join(tmpDir, "AGENTS.md"), "utf-8");
-			expect(content).toContain("## Checklist de Encerramento");
-			expect(content).toContain("**CONTINUE**");
+			expect(content).toContain("Follow only the selected Run");
+			expect(content).not.toContain("**CONTINUE**");
 		});
 	});
 
@@ -753,9 +753,30 @@ describe("adapters", () => {
 			expect(first.filter((file) => file.path === "AGENTS.md")).toHaveLength(1);
 			expect(reversed.filter((file) => file.path === "AGENTS.md")).toHaveLength(1);
 			expect(first).toEqual(reversed);
-			expect(first.find((file) => file.path === "AGENTS.md")?.content).toContain(
-				"Letra Context — OpenCode + Codex Adapter",
-			);
+			expect(first.find((file) => file.path === "AGENTS.md")?.content).toContain("# Letra Agent Bootstrap");
+		});
+
+		it("keeps persisted adapter bootstrap unchanged when workflow direction changes", () => {
+			const first = renderAdapterFiles(tmpDir, ["codex"], {
+				source: "flow-move",
+				workflow: { name: "Flow", stages: [{ id: "code", name: "Code" }], items: [{ id: "ITEM-1", description: "Private task", stage: "code" }] },
+				activeStageId: "code",
+				primaryItemId: "ITEM-1",
+				quiet: true,
+			});
+			const second = renderAdapterFiles(tmpDir, ["codex"], {
+				source: "flow-move",
+				workflow: { name: "Other flow", stages: [{ id: "review", name: "Review" }], items: [{ id: "ITEM-2", description: "Different task", stage: "review" }] },
+				activeStageId: "review",
+				primaryItemId: "ITEM-2",
+				quiet: true,
+			});
+			const firstBootstrap = first.find((file) => file.path === "AGENTS.md")!.content;
+			const secondBootstrap = second.find((file) => file.path === "AGENTS.md")!.content;
+			expect(firstBootstrap).toBe(secondBootstrap);
+			expect(firstBootstrap).not.toContain("ITEM-1");
+			expect(firstBootstrap).not.toContain("ITEM-2");
+			expect(firstBootstrap).toContain("letra direction --json");
 		});
 
 		it("writes cursor adapter with L1 after flow-move", () => {
@@ -772,7 +793,7 @@ describe("adapters", () => {
 
 			const content = readFileSync(join(tmpDir, ".cursorrules"), "utf-8");
 			expect(content).toContain("Gerado por letra flow move");
-			expect(content).toContain("@.letra/context.md");
+			expect(content).not.toContain("@.letra/context.md");
 			expect(content).not.toContain("ITEM-1:");
 		});
 
@@ -785,9 +806,9 @@ describe("adapters", () => {
 				"utf-8",
 			);
 			expect(content).toContain("Generated by letra init");
-			expect(content).toContain("- .letra/context.md");
-			expect(content).toContain("OpenCode + Codex Adapter");
-			expect(opencodeContent).toContain("OpenCode Adapter");
+			expect(content).not.toContain("- .letra/context.md");
+			expect(content).toContain("# Letra Agent Bootstrap");
+			expect(opencodeContent).toContain("# Letra Agent Bootstrap");
 		});
 
 		it("adds clickable file links for rules, focus, spec and active item", () => {
@@ -817,18 +838,10 @@ describe("adapters", () => {
 			});
 
 			const content = readFileSync(join(tmpDir, "AGENTS.md"), "utf-8");
-			expect(content).toContain(
-				`[Constitution](${pathToFileURL(join(tmpDir, ".letra", "constitution.md")).href})`,
-			);
-			expect(content).toContain(
-				`[Focus](${pathToFileURL(join(tmpDir, ".letra", "focus.md")).href})`,
-			);
-			expect(content).toContain(
-				`[Spec: auth](${pathToFileURL(join(specDir, "spec.md")).href})`,
-			);
-			expect(content).toContain(
-				`[ITEM-1](${pathToFileURL(join(tmpDir, ".letra", "workflow.json")).href})`,
-			);
+			expect(content).toContain("Load only references listed by the direction");
+			expect(content).not.toContain("ITEM-1");
+			expect(content).not.toContain("Authentication");
+			expect(content).not.toContain("Spec: auth");
 		});
 
 		it("generates adapters for multiple tools in single event", () => {
@@ -844,15 +857,37 @@ describe("adapters", () => {
 
 			// Assert cursor has @ format
 			const cursor = readFileSync(join(tmpDir, ".cursorrules"), "utf-8");
-			expect(cursor).toContain("@.letra/context.md");
+			expect(cursor).not.toContain("@.letra/context.md");
 
 			// Assert opencode has bullet format
 			const opencode = readFileSync(join(tmpDir, "AGENTS.md"), "utf-8");
-			expect(opencode).toContain("- .letra/context.md");
+			expect(opencode).not.toContain("- .letra/context.md");
 
 			// Assert vscode has bullet format
 			const vscode = readFileSync(join(tmpDir, ".github/copilot-instructions.md"), "utf-8");
-			expect(vscode).toContain("- .letra/context.md");
+			expect(vscode).not.toContain("- .letra/context.md");
+		});
+
+		it("keeps already generated adapters intact when a later destination cannot be published", () => {
+			generateAdapters(tmpDir, ["cursor", "opencode"], { source: "init", quiet: true });
+			const cursorPath = join(tmpDir, ".cursorrules");
+			const agentsPath = join(tmpDir, "AGENTS.md");
+			const cursorBefore = readFileSync(cursorPath, "utf-8");
+			const agentsBefore = readFileSync(agentsPath, "utf-8");
+			rmSync(agentsPath);
+			mkdirSync(agentsPath);
+			writeFileSync(join(agentsPath, "blocker"), "directory prevents staging");
+
+			expect(() => generateAdapters(tmpDir, ["cursor", "opencode"], {
+				source: "flow-move",
+				quiet: true,
+			})).toThrow();
+
+			expect(readFileSync(cursorPath, "utf-8")).not.toBe(cursorBefore);
+			expect(readFileSync(cursorPath, "utf-8")).toContain("# Letra Agent Bootstrap");
+			expect(existsSync(`${cursorPath}.letra-stage-${process.pid}-0`)).toBe(false);
+			expect(existsSync(`${cursorPath}.letra-backup-${process.pid}-0`)).toBe(false);
+			expect(agentsBefore).toContain("# Letra Agent Bootstrap");
 		});
 
 		describe("handoff section", () => {

@@ -27,6 +27,8 @@ import {
 import { cn } from "../../lib/utils";
 import { createEventSourceWithReconnect } from "../../lib/withReconnect";
 import { computeSlug, countACs } from "../../lib/item-utils";
+import { selectPassageRecipient } from "../../lib/passage-recipient";
+import { activateFromBoard, boardClaimRequest, gateDecisionRequiredMessage, isBacklogActivation, stageExitRequiresGateDecision } from "../../lib/board-passage";
 import { translateTerm } from "../../lib/term-translations";
 import {
 	itemOperationalState,
@@ -150,7 +152,7 @@ export default function ItemDetailModal({
 	const owner = item.claimedBy ?? curStage?.roles[0]?.label ?? "Não atribuído";
 	const availableStages = resolvedStages.filter((stage) => stage.id !== item.stage);
 	const heartbeatAge = item.lastHeartbeatAt ? Date.now() - new Date(item.lastHeartbeatAt).getTime() : null;
-	const heartbeatStale = heartbeatAge !== null && heartbeatAge > 60_000;
+	const heartbeatStale = heartbeatAge !== null && heartbeatAge > 90_000;
 	const retryCount = activities.filter((entry) => /retry|retrying|re-emit/i.test(`${entry.action} ${entry.description}`)).length;
 
 	useEffect(() => {
@@ -232,15 +234,57 @@ export default function ItemDetailModal({
 
 	const handleMove = useCallback(() => {
 		if (!moveTarget) return;
-		fetch(`/api/items/${item.id}`, {
-			method: "PATCH",
+		const destination = resolvedStages.find((stage) => stage.id === moveTarget);
+		const recipients = destination?.roleIds?.length ? destination.roleIds : destination?.agents ?? [];
+		// The gate of the CURRENT stage guards its exit; entering a gated stage is a passage.
+		if (curStage && stageExitRequiresGateDecision(curStage)) {
+			window.alert(gateDecisionRequiredMessage(curStage));
+			return;
+		}
+		if (isBacklogActivation(curStage)) {
+			activateFromBoard(item.id)
+				.then(() => { onItemMoved(); setMoveTarget(""); })
+				.catch((error) => window.alert(error instanceof Error ? error.message : "Falha ao iniciar o item."));
+			return;
+		}
+		if (!item.claimExecutorId) {
+			window.alert("Não há claim ativa para fazer a passagem. Use \"Reivindicar como papel\" e tente novamente.");
+			return;
+		}
+		const selection = selectPassageRecipient(recipients, destination?.name ?? moveTarget, (message, initial) => window.prompt(message, initial));
+		if (selection.error) { window.alert(selection.error); return; }
+		const to = selection.recipient;
+		if (!to) return;
+		fetch(`/api/items/${item.id}/passage`, {
+			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ stage: moveTarget }),
-		}).then(() => {
+			body: JSON.stringify({ targetStageId: moveTarget, to, executorId: item.claimExecutorId, summary: `Passagem solicitada pela interface para ${destination?.name ?? moveTarget}.`, evidence: [] }),
+		}).then(async (response) => {
+			const data = await response.json();
+			if (!response.ok) throw new Error([data.code, data.reason ?? data.error, ...(data.recoveryActions ?? [])].filter(Boolean).join(" — "));
 			onItemMoved();
 			setMoveTarget("");
-		});
-	}, [item.id, moveTarget, onItemMoved]);
+		}).catch((error) => window.alert(error instanceof Error ? error.message : "Falha ao fazer passagem."));
+	}, [item.id, item.claimExecutorId, curStage, moveTarget, onItemMoved, resolvedStages]);
+
+	const claimRequest = item.claimedBy || curStage?.zone === "done" ? null : boardClaimRequest(item, curStage, activeFlow);
+	const [claimPending, setClaimPending] = useState(false);
+	const handleClaim = useCallback(() => {
+		if (!claimRequest || claimRequest.error) return;
+		setClaimPending(true);
+		fetch(`/api/items/${item.id}/claim`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ role: claimRequest.role, capability: claimRequest.capability, executorId: claimRequest.executorId }),
+		})
+			.then(async (response) => {
+				const data = await response.json().catch(() => ({}));
+				if (!response.ok) throw new Error(data.error || "Falha ao reivindicar o item.");
+				onItemMoved();
+			})
+			.catch((error) => window.alert(error instanceof Error ? error.message : "Falha ao reivindicar o item."))
+			.finally(() => setClaimPending(false));
+	}, [claimRequest, item.id, onItemMoved]);
 
 	const handleDelete = useCallback(() => {
 		fetch(`/api/items/${item.id}`, { method: "DELETE" }).then(() => {
@@ -398,6 +442,15 @@ export default function ItemDetailModal({
 										{item.handoff.evidence.length > 0 ? <span className="break-words">{item.handoff.evidence.join(" · ")}</span> : <span className="app-section-muted">Nenhuma evidência anexada ao handoff.</span>}
 									</div>
 								) : <p className="app-section-muted text-xs">Nenhum handoff pendente.</p>}
+								{claimRequest ? (
+									claimRequest.error ? (
+										<p className="app-section-muted text-xs">{claimRequest.error}</p>
+									) : (
+										<Button size="sm" variant="secondary" disabled={claimPending} onClick={handleClaim}>
+											{claimPending ? "Reivindicando…" : `Reivindicar como ${claimRequest.role}`}
+										</Button>
+									)
+								) : null}
 								{item.lastFailure ? <p className="text-xs text-[var(--color-danger)]">Falha {item.lastFailure.code}: {item.lastFailure.message} · recuperação: {item.lastFailure.recovery}</p> : null}
 							</CardContent>
 						</Card>

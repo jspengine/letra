@@ -28,13 +28,7 @@ function writeWorkflow(dir: string) {
 					{ id: "done", name: "Done", order: 2, zone: "done" },
 				],
 				items: [
-					{
-						id: "ITEM-47",
-						description: "Activity Context core",
-						stage: "design",
-						createdAt: new Date().toISOString(),
-						spec: "activity-context",
-					},
+					{ id: "ITEM-47", description: "Activity Context core", stage: "design", createdAt: new Date().toISOString(), spec: "activity-context" },
 				],
 				tools: ["opencode"],
 			},
@@ -91,7 +85,8 @@ describe("activity-context command", () => {
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("# Activity Context: implement");
-		expect(output).toContain("Item: ITEM-47");
+		expect(output).toContain("Item: nenhum item ativo");
+		expect(output).toContain("Nenhuma execução foi atribuída");
 		expect(output).toContain("Must Read:");
 	});
 

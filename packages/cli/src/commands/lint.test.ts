@@ -2,15 +2,15 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { init } from "./init.js";
 import { lint } from "./lint.js";
+import { getLetraDir } from "../workspace/resolver.js";
 
 describe("lint command", () => {
 	let tmpDir: string;
 
 	beforeEach(async () => {
-		tmpDir = join(tmpdir(), `letra-lint-test-${Date.now()}`);
-		await init(tmpDir);
+		tmpDir = join(tmpdir(), `letra-lint-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+		mkdirSync(join(tmpDir, ".letra", "specs"), { recursive: true });
 	});
 
 	afterEach(() => {
@@ -21,7 +21,7 @@ describe("lint command", () => {
 
 	it("should pass for valid spec with all required sections", async () => {
 		const specName = "valid-spec";
-		const specDir = join(tmpDir, ".letra", "specs", specName);
+		const specDir = join(getLetraDir(tmpDir), "specs", specName);
 		mkdirSync(specDir, { recursive: true });
 
 		const validSpec = `# Spec: ${specName}
@@ -67,7 +67,7 @@ Why we are building this. Trade-offs considered.
 
 	it("should fail for spec missing required sections", async () => {
 		const specName = "invalid-spec";
-		const specDir = join(tmpDir, ".letra", "specs", specName);
+		const specDir = join(getLetraDir(tmpDir), "specs", specName);
 		mkdirSync(specDir, { recursive: true });
 
 		const invalidSpec = `# Spec: ${specName}\n\nNo required sections here.`;
@@ -92,7 +92,7 @@ Why we are building this. Trade-offs considered.
 
 	it("should warn when spec exceeds 3000 chars", async () => {
 		const specName = "long-spec";
-		const specDir = join(tmpDir, ".letra", "specs", specName);
+		const specDir = join(getLetraDir(tmpDir), "specs", specName);
 		mkdirSync(specDir, { recursive: true });
 
 		const longSpec = `# Spec: ${specName}
@@ -135,7 +135,7 @@ ${"F".repeat(500)}
 
 	it("should fail for spec with acceptance criteria section but no checklist", async () => {
 		const specName = "no-checklist";
-		const specDir = join(tmpDir, ".letra", "specs", specName);
+		const specDir = join(getLetraDir(tmpDir), "specs", specName);
 		mkdirSync(specDir, { recursive: true });
 
 		const spec = `# Spec: ${specName}

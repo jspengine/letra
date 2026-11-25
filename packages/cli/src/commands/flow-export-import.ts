@@ -26,7 +26,12 @@ function now(): string {
 	return new Date().toISOString();
 }
 
-export function flowImport(root: string, filePath: string): void {
+/**
+ * Validation runs synchronously (invalid input exits before any write); the
+ * returned promise settles when the workflow is persisted under the
+ * workspace transaction lock.
+ */
+export function flowImport(root: string, filePath: string): Promise<void> {
 	if (!existsSync(filePath)) {
 		console.log(chalk.red(`File not found: ${filePath}`));
 		process.exit(1);
@@ -68,12 +73,17 @@ export function flowImport(root: string, filePath: string): void {
 
 	imported.createdAt = now();
 	imported.updatedAt = now();
-	writeWorkflow(root, { workflow: imported, source: "flow-import", skipSitrep: true });
-
-	console.log(chalk.green(`Workflow imported: ${imported.name} (${imported.version})`));
+	return writeWorkflow(root, { workflow: imported, source: "flow-import", skipSitrep: true }).then(
+		() => {
+			console.log(chalk.green(`Workflow imported: ${imported.name} (${imported.version})`));
+		},
+	);
 }
 
-export function flowImportAction(targetPath: string | undefined, filePath: string): void {
+export async function flowImportAction(
+	targetPath: string | undefined,
+	filePath: string,
+): Promise<void> {
 	const root = resolve(process.cwd(), targetPath || ".");
-	flowImport(root, filePath);
+	await flowImport(root, filePath);
 }

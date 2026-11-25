@@ -6,10 +6,35 @@ export interface ExecutorEntity { id: string; capabilities: string[]; status: "o
 export interface ActorBinding { actorId: string; identityId: string; roleId: string; executorId: string; }
 export interface WorkItemEntity { id: string; workspaceId: string; specId?: string; stage: string; }
 export interface ClaimEntity { itemId: string; actorId: string; executorId: string; capability: string; revision: string; expiresAt: string; }
-export interface HandoffEntity { itemId: string; fromActorId: string; toActorId: string; evidenceIds: string[]; createdAt: string; expiresAt: string; }
+export interface HandoffEntity { itemId: string; fromActorId: string; toActorId: string; evidenceIds: string[]; createdAt: string; expiresAt: string; fromStageId?: string; toStageId?: string; transitionId?: string; summary?: string; reason?: string; }
 export interface GateDecisionEntity { id: string; itemId: string; gateId: string; decision: "approve" | "request-changes" | "reject"; decidedBy: string; decidedAt: string; }
 export interface EvidenceEntity { id: string; itemId: string; kind: "diff" | "file" | "command" | "test" | "artifact"; uri: string; sha256?: string; observedAt: string; }
-export interface RunEntity { id: string; itemId: string; binding: ActorBinding; claim?: ClaimEntity; handoffs: HandoffEntity[]; gateDecisions: GateDecisionEntity[]; evidence: EvidenceEntity[]; status: "queued" | "running" | "failed" | "completed" | "waiting-human"; }
+export interface RunAuthorization { kind: "claim" | "handoff" | "manual"; actorId: string; referenceId: string; grantedAt: string; revision: string; }
+export interface RunLease { expiresAt: string; heartbeatAt: string | null; ttlMinutes: number; }
+export interface RunCycle { number: number; startedAt: string; endedAt: string | null; }
+export interface RunResult { outcome: "succeeded" | "failed" | "cancelled"; finishedAt: string; summary?: string; evidenceIds: string[]; }
+export interface RunEntity {
+	id: string;
+	workspaceId: string;
+	itemId: string;
+	binding: ActorBinding;
+	authorization: RunAuthorization;
+	workflowVersionId: string;
+	workflowStageId?: string;
+	workflowMigrationHistory?: Array<{ fromWorkflowVersionId: string; toWorkflowVersionId: string; fromStageId: string; toStageId: string; actorId: string; reason: string; migratedAt: string; revision: number }>;
+	cycle: RunCycle;
+	lease: RunLease | null;
+	revision: number;
+	directionRevision: string;
+	createdAt: string;
+	updatedAt: string;
+	result: RunResult | null;
+	claim?: ClaimEntity;
+	handoffs: HandoffEntity[];
+	gateDecisions: GateDecisionEntity[];
+	evidence: EvidenceEntity[];
+	status: "queued" | "running" | "failed" | "completed" | "waiting-human";
+}
 
 export interface DomainCatalog {
 	workspace: WorkspaceEntity;

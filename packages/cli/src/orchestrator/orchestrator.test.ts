@@ -43,7 +43,7 @@ function createWorkflow(root: string) {
 		createdAt: "2026-01-01T00:00:00.000Z",
 		updatedAt: "2026-01-01T00:00:00.000Z",
 		harnessVersion: "v0.2.0",
-		template: "main",
+		template: "flow-main",
 		stages: [
 			{ id: "design", name: "Design", order: 0 },
 			{ id: "code", name: "Code", order: 1 },
@@ -67,7 +67,7 @@ function createWorkflow(root: string) {
 
 describe("Orchestrator", () => {
 	describe("registerExecutor", () => {
-		it("registers an executor", () => {
+		it("registers an executor", async () => {
 			const root = tempRoot();
 			const orchestrator = new Orchestrator({ root });
 
@@ -89,7 +89,7 @@ describe("Orchestrator", () => {
 	});
 
 	describe("detectPendingHandoff", () => {
-		it("detects pending handoff for agent", () => {
+		it("detects pending handoff for agent", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
@@ -112,7 +112,7 @@ describe("Orchestrator", () => {
 			expect(pending?.handoff.to).toBe("reviewer");
 		});
 
-		it("returns null for expired handoff", () => {
+		it("returns null for expired handoff", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
@@ -135,12 +135,12 @@ describe("Orchestrator", () => {
 	});
 
 	describe("autoClaim", () => {
-		it("claims item with CAS", () => {
+		it("claims item with CAS", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
-			const result = orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
+			const result = await orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
 			expect(result.success).toBe(true);
 
 			const workflow = loadWorkflow(root)!;
@@ -148,19 +148,19 @@ describe("Orchestrator", () => {
 			expect(item?.claimedBy).toBe("opencode");
 		});
 
-		it("rejects claim when already claimed", () => {
+		it("rejects claim when already claimed", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
-			orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
+			await orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
 
-			const result = orchestrator.autoClaim("ITEM-1", "cursor", "implementer");
+			const result = await orchestrator.autoClaim("ITEM-1", "cursor", "implementer");
 			expect(result.success).toBe(false);
 			expect(result.reason).toContain("already claimed");
 		});
 
-		it("allows claim when handoff matches agent", () => {
+		it("allows claim when handoff matches agent", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
@@ -177,25 +177,25 @@ describe("Orchestrator", () => {
 			writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify(workflow, null, 2));
 
 			const orchestrator = new Orchestrator({ root });
-			const result = orchestrator.autoClaim("ITEM-1", "cursor", "reviewer");
+			const result = await orchestrator.autoClaim("ITEM-1", "cursor", "reviewer");
 			expect(result.success).toBe(true);
 		});
 	});
 
 	describe("reclaimStaleItems", () => {
-		it("reclaims stale items", () => {
+		it("reclaims stale items", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
-			orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
+			await orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
 
 			const lockPath = join(root, ".letra", "locks", "ITEM-1.lock");
 			const lock = JSON.parse(readFileSync(lockPath, "utf-8"));
 			lock.claimedAt = Date.now() - 2 * 60 * 60 * 1000;
 			writeFileSync(lockPath, JSON.stringify(lock, null, 2));
 
-			const reclaimed = orchestrator.reclaimStaleItems();
+			const reclaimed = await orchestrator.reclaimStaleItems();
 			expect(reclaimed).toContain("ITEM-1");
 
 			const workflow = loadWorkflow(root)!;
@@ -205,7 +205,7 @@ describe("Orchestrator", () => {
 	});
 
 	describe("heartbeat", () => {
-		it("updates heartbeat timestamp", () => {
+		it("updates heartbeat timestamp", async () => {
 			const root = tempRoot();
 			const orchestrator = new Orchestrator({ root });
 
@@ -229,7 +229,7 @@ describe("Orchestrator", () => {
 	});
 
 	describe("getAllExecutorStatuses", () => {
-		it("returns all executor statuses", () => {
+		it("returns all executor statuses", async () => {
 			const root = tempRoot();
 			const orchestrator = new Orchestrator({ root });
 
@@ -259,7 +259,7 @@ describe("Orchestrator", () => {
 	});
 
 	describe("buildContext", () => {
-		it("includes promptTemplate from manifest role", () => {
+		it("includes promptTemplate from manifest role", async () => {
 			const root = tempRoot();
 			writeHarnessFile(
 				root,
@@ -285,7 +285,7 @@ describe("Orchestrator", () => {
 			expect(context?.promptTemplate).toBe("roles/prompts/implementer.md");
 		});
 
-		it("returns null promptTemplate when no role has template", () => {
+		it("returns null promptTemplate when no role has template", async () => {
 			const root = tempRoot();
 			writeHarnessFile(
 				root,
@@ -313,7 +313,7 @@ describe("Orchestrator", () => {
 	});
 
 	describe("autoClaim with maxExecutionTime from executor config", () => {
-		it("uses executor maxExecutionTime for lock expiry", () => {
+		it("uses executor maxExecutionTime for lock expiry", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
@@ -328,7 +328,7 @@ describe("Orchestrator", () => {
 				priority: 1,
 			});
 
-			const first = orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
+			const first = await orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
 			expect(first.success).toBe(true);
 
 			const lockPath = join(root, ".letra", "locks", "ITEM-1.lock");
@@ -336,11 +336,11 @@ describe("Orchestrator", () => {
 			lock.claimedAt = Date.now() - 61 * 1000;
 			writeFileSync(lockPath, JSON.stringify(lock, null, 2));
 
-			const result = orchestrator.autoClaim("ITEM-1", "cursor", "implementer");
+			const result = await orchestrator.autoClaim("ITEM-1", "cursor", "implementer");
 			expect(result.success).toBe(true);
 		});
 
-		it("rejects claim when within executor maxExecutionTime", () => {
+		it("rejects claim when within executor maxExecutionTime", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
@@ -355,27 +355,27 @@ describe("Orchestrator", () => {
 				priority: 1,
 			});
 
-			orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
+			await orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
 
 			const lockPath = join(root, ".letra", "locks", "ITEM-1.lock");
 			const lock = JSON.parse(readFileSync(lockPath, "utf-8"));
 			lock.claimedAt = Date.now() - 30 * 1000;
 			writeFileSync(lockPath, JSON.stringify(lock, null, 2));
 
-			const result = orchestrator.autoClaim("ITEM-1", "cursor", "implementer");
+			const result = await orchestrator.autoClaim("ITEM-1", "cursor", "implementer");
 			expect(result.success).toBe(false);
 			expect(result.reason).toContain("already claimed");
 		});
 	});
 
 	describe("emitHandoff writes file watch", () => {
-		it("creates handoff file on emit", () => {
+		it("creates handoff file on emit", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
 			const now = new Date();
-			const result = orchestrator.emitHandoff({
+			const result = await orchestrator.emitHandoff({
 				itemId: "ITEM-1",
 				from: "opencode",
 				to: "reviewer",
@@ -393,13 +393,13 @@ describe("Orchestrator", () => {
 			expect(data.from).toBe("opencode");
 		});
 
-		it("removes handoff file on autoClaim", () => {
+		it("removes handoff file on autoClaim", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
 			const now = new Date();
-			orchestrator.emitHandoff({
+			await orchestrator.emitHandoff({
 				itemId: "ITEM-1",
 				from: "opencode",
 				to: "reviewer",
@@ -412,13 +412,13 @@ describe("Orchestrator", () => {
 			const handoffFile = join(root, ".letra", "handoffs", "ITEM-1.json");
 			expect(existsSync(handoffFile)).toBe(true);
 
-			orchestrator.autoClaim("ITEM-1", "cursor", "reviewer");
+			await orchestrator.autoClaim("ITEM-1", "cursor", "reviewer");
 			expect(existsSync(handoffFile)).toBe(false);
 		});
 	});
 
 	describe("retryHandoff", () => {
-		it("re-emits expired handoff to next executor", () => {
+		it("re-emits expired handoff to next executor", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 			writeHarnessFile(
@@ -444,7 +444,7 @@ describe("Orchestrator", () => {
 
 			const orchestrator = new Orchestrator({ root });
 			const past = new Date(Date.now() - 2 * 60 * 60 * 1000);
-			orchestrator.emitHandoff({
+			await orchestrator.emitHandoff({
 				itemId: "ITEM-1",
 				from: "opencode",
 				to: "reviewer",
@@ -455,7 +455,7 @@ describe("Orchestrator", () => {
 				executorId: "opencode",
 			});
 
-			const result = orchestrator.retryHandoff("ITEM-1");
+			const result = await orchestrator.retryHandoff("ITEM-1");
 			expect(result.success).toBe(true);
 			expect(result.reEmittedTo).toBeDefined();
 
@@ -465,13 +465,13 @@ describe("Orchestrator", () => {
 			expect(item?.handoff?.executorId).not.toBe("opencode");
 		});
 
-		it("fails when handoff has not expired", () => {
+		it("fails when handoff has not expired", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
 			const future = new Date(Date.now() + 30 * 60 * 1000);
-			orchestrator.emitHandoff({
+			await orchestrator.emitHandoff({
 				itemId: "ITEM-1",
 				from: "opencode",
 				to: "reviewer",
@@ -481,18 +481,18 @@ describe("Orchestrator", () => {
 				expiresAt: future.toISOString(),
 			});
 
-			const result = orchestrator.retryHandoff("ITEM-1");
+			const result = await orchestrator.retryHandoff("ITEM-1");
 			expect(result.success).toBe(false);
 			expect(result.reason).toContain("not expired");
 		});
 
-		it("fails when no other executor available", () => {
+		it("fails when no other executor available", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
 			const past = new Date(Date.now() - 2 * 60 * 60 * 1000);
-			orchestrator.emitHandoff({
+			await orchestrator.emitHandoff({
 				itemId: "ITEM-1",
 				from: "opencode",
 				to: "reviewer",
@@ -503,20 +503,20 @@ describe("Orchestrator", () => {
 				executorId: "opencode",
 			});
 
-			const result = orchestrator.retryHandoff("ITEM-1");
+			const result = await orchestrator.retryHandoff("ITEM-1");
 			expect(result.success).toBe(false);
 			expect(result.reason).toContain("No executor registry");
 		});
 	});
 
 	describe("getPendingHandoffFiles", () => {
-		it("returns pending handoffs from files", () => {
+		it("returns pending handoffs from files", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
 			const future = new Date(Date.now() + 30 * 60 * 1000);
-			orchestrator.emitHandoff({
+			await orchestrator.emitHandoff({
 				itemId: "ITEM-1",
 				from: "opencode",
 				to: "reviewer",
@@ -532,13 +532,13 @@ describe("Orchestrator", () => {
 			expect(pending[0].to).toBe("reviewer");
 		});
 
-		it("excludes expired handoff files", () => {
+		it("excludes expired handoff files", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
 			const past = new Date(Date.now() - 60 * 60 * 1000);
-			orchestrator.emitHandoff({
+			await orchestrator.emitHandoff({
 				itemId: "ITEM-1",
 				from: "opencode",
 				to: "reviewer",
@@ -554,12 +554,12 @@ describe("Orchestrator", () => {
 	});
 
 	describe("file lock persistence", () => {
-		it("writes lock file to disk on claim", () => {
+		it("writes lock file to disk on claim", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
-			orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
+			await orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
 
 			const lockPath = join(root, ".letra", "locks", "ITEM-1.lock");
 			expect(existsSync(lockPath)).toBe(true);
@@ -569,45 +569,45 @@ describe("Orchestrator", () => {
 			expect(lock.claimedAt).toBeDefined();
 		});
 
-		it("reads lock from another orchestrator instance", () => {
+		it("reads lock from another orchestrator instance", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orchestrator1 = new Orchestrator({ root });
-			orchestrator1.autoClaim("ITEM-1", "opencode", "implementer");
+			await orchestrator1.autoClaim("ITEM-1", "opencode", "implementer");
 
 			const orchestrator2 = new Orchestrator({ root });
-			const result = orchestrator2.autoClaim("ITEM-1", "cursor", "implementer");
+			const result = await orchestrator2.autoClaim("ITEM-1", "cursor", "implementer");
 			expect(result.success).toBe(false);
 			expect(result.reason).toContain("already claimed");
 		});
 
-		it("deletes lock file on reclaim", () => {
+		it("deletes lock file on reclaim", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orchestrator = new Orchestrator({ root });
-			orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
+			await orchestrator.autoClaim("ITEM-1", "opencode", "implementer");
 
 			const lockPath = join(root, ".letra", "locks", "ITEM-1.lock");
 			const lock = JSON.parse(readFileSync(lockPath, "utf-8"));
 			lock.claimedAt = Date.now() - 2 * 60 * 60 * 1000;
 			writeFileSync(lockPath, JSON.stringify(lock, null, 2));
 
-			orchestrator.reclaimStaleItems();
+			await orchestrator.reclaimStaleItems();
 			expect(existsSync(lockPath)).toBe(false);
 		});
 	});
 
 	describe("onHandoffEvent callback", () => {
-		it("calls onHandoffEvent on emitHandoff", () => {
+		it("calls onHandoffEvent on emitHandoff", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const onHandoffEvent = vi.fn();
 			const orchestrator = new Orchestrator({ root, onHandoffEvent });
 
-			orchestrator.emitHandoff({
+			await orchestrator.emitHandoff({
 				itemId: "ITEM-1",
 				from: "opencode",
 				to: "reviewer",
@@ -625,14 +625,14 @@ describe("Orchestrator", () => {
 			);
 		});
 
-		it("calls onHandoffEvent on autoClaim with handoff", () => {
+		it("calls onHandoffEvent on autoClaim with handoff", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const onHandoffEvent = vi.fn();
 			const orchestrator = new Orchestrator({ root, onHandoffEvent });
 
-			orchestrator.emitHandoff({
+			await orchestrator.emitHandoff({
 				itemId: "ITEM-1",
 				from: "opencode",
 				to: "reviewer",
@@ -642,7 +642,7 @@ describe("Orchestrator", () => {
 				expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
 			});
 
-			orchestrator.autoClaim("ITEM-1", "cursor", "reviewer");
+			await orchestrator.autoClaim("ITEM-1", "cursor", "reviewer");
 
 			expect(onHandoffEvent).toHaveBeenCalledWith(
 				expect.objectContaining({
@@ -652,7 +652,7 @@ describe("Orchestrator", () => {
 			);
 		});
 
-		it("calls onHandoffEvent on retryHandoff", () => {
+		it("calls onHandoffEvent on retryHandoff", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 			writeHarnessFile(
@@ -680,7 +680,7 @@ describe("Orchestrator", () => {
 			const orchestrator = new Orchestrator({ root, onHandoffEvent });
 
 			const past = new Date(Date.now() - 60 * 60 * 1000);
-			orchestrator.emitHandoff({
+			await orchestrator.emitHandoff({
 				itemId: "ITEM-1",
 				from: "opencode",
 				to: "reviewer",
@@ -690,7 +690,7 @@ describe("Orchestrator", () => {
 				expiresAt: past.toISOString(),
 			});
 
-			orchestrator.retryHandoff("ITEM-1");
+			await orchestrator.retryHandoff("ITEM-1");
 
 			expect(onHandoffEvent).toHaveBeenCalledWith(
 				expect.objectContaining({
@@ -702,22 +702,22 @@ describe("Orchestrator", () => {
 	});
 
 	describe("cross-process concurrency", () => {
-		it("second orchestrator cannot claim item locked by first", () => {
+		it("second orchestrator cannot claim item locked by first", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
 			const orch1 = new Orchestrator({ root });
 			const orch2 = new Orchestrator({ root });
 
-			const result1 = orch1.autoClaim("ITEM-1", "opencode", "implementer");
+			const result1 = await orch1.autoClaim("ITEM-1", "opencode", "implementer");
 			expect(result1.success).toBe(true);
 
-			const result2 = orch2.autoClaim("ITEM-1", "cursor", "implementer");
+			const result2 = await orch2.autoClaim("ITEM-1", "cursor", "implementer");
 			expect(result2.success).toBe(false);
 			expect(result2.reason).toContain("already claimed");
 		});
 
-		it("second orchestrator can claim after lock expires", () => {
+		it("second orchestrator can claim after lock expires", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
@@ -732,7 +732,7 @@ describe("Orchestrator", () => {
 				priority: 1,
 			});
 
-			orch1.autoClaim("ITEM-1", "opencode", "implementer");
+			await orch1.autoClaim("ITEM-1", "opencode", "implementer");
 
 			const lockPath = join(root, ".letra", "locks", "ITEM-1.lock");
 			const lock = JSON.parse(readFileSync(lockPath, "utf-8"));
@@ -750,11 +750,11 @@ describe("Orchestrator", () => {
 				priority: 1,
 			});
 
-			const result = orch2.autoClaim("ITEM-1", "cursor", "implementer");
+			const result = await orch2.autoClaim("ITEM-1", "cursor", "implementer");
 			expect(result.success).toBe(true);
 		});
 
-		it("concurrent claim attempts result in exactly one winner", () => {
+		it("concurrent claim attempts result in exactly one winner", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
@@ -762,7 +762,7 @@ describe("Orchestrator", () => {
 			const orchestrators = Array.from({ length: 5 }, () => new Orchestrator({ root }));
 
 			for (const orch of orchestrators) {
-				const result = orch.autoClaim("ITEM-1", `executor-${Math.random()}`, "implementer");
+				const result = await orch.autoClaim("ITEM-1", `executor-${Math.random()}`, "implementer");
 				results.push(result.success);
 			}
 
@@ -772,7 +772,7 @@ describe("Orchestrator", () => {
 	});
 
 	describe("full flow regression", () => {
-		it("design -> code -> review -> security -> done", () => {
+		it("design -> code -> review -> security -> done", async () => {
 			const root = tempRoot();
 
 			writeHarnessFile(
@@ -991,7 +991,7 @@ describe("Orchestrator", () => {
 			});
 
 			// design -> code
-			orch.emitHandoff({
+			await orch.emitHandoff({
 				itemId: "ITEM-REG",
 				from: "analyst",
 				to: "implementer",
@@ -1002,7 +1002,7 @@ describe("Orchestrator", () => {
 			});
 			let wf = loadWorkflow(root)!;
 			expect(wf.items[0].handoff?.to).toBe("implementer");
-			orch.autoClaim("ITEM-REG", "implementer", "implementer");
+			await orch.autoClaim("ITEM-REG", "implementer", "implementer");
 			wf = loadWorkflow(root)!;
 			expect(wf.items[0].stage).toBe("design");
 			expect(wf.items[0].claimedBy).toBe("implementer");
@@ -1014,7 +1014,7 @@ describe("Orchestrator", () => {
 			writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify(wf, null, 2));
 
 			// code -> review
-			orch.emitHandoff({
+			await orch.emitHandoff({
 				itemId: "ITEM-REG",
 				from: "implementer",
 				to: "reviewer",
@@ -1023,7 +1023,7 @@ describe("Orchestrator", () => {
 				timestamp: new Date().toISOString(),
 				expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
 			});
-			orch.autoClaim("ITEM-REG", "reviewer", "reviewer");
+			await orch.autoClaim("ITEM-REG", "reviewer", "reviewer");
 			wf = loadWorkflow(root)!;
 			expect(wf.items[0].stage).toBe("code");
 
@@ -1034,7 +1034,7 @@ describe("Orchestrator", () => {
 			writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify(wf, null, 2));
 
 			// review -> security
-			orch.emitHandoff({
+			await orch.emitHandoff({
 				itemId: "ITEM-REG",
 				from: "reviewer",
 				to: "security",
@@ -1043,7 +1043,7 @@ describe("Orchestrator", () => {
 				timestamp: new Date().toISOString(),
 				expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
 			});
-			orch.autoClaim("ITEM-REG", "security", "security");
+			await orch.autoClaim("ITEM-REG", "security", "security");
 			wf = loadWorkflow(root)!;
 			expect(wf.items[0].stage).toBe("review");
 
@@ -1054,7 +1054,7 @@ describe("Orchestrator", () => {
 			writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify(wf, null, 2));
 
 			// security -> done
-			orch.emitHandoff({
+			await orch.emitHandoff({
 				itemId: "ITEM-REG",
 				from: "security",
 				to: "done",
@@ -1078,7 +1078,7 @@ describe("Orchestrator", () => {
 	});
 
 	describe("cross-adapter handoff", () => {
-		it("handoff from opencode to cursor with context transfer", () => {
+		it("handoff from opencode to cursor with context transfer", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
@@ -1128,7 +1128,7 @@ describe("Orchestrator", () => {
 			orch.registerFromManifest();
 
 			// opencode claims and works on item
-			orch.autoClaim("ITEM-1", "opencode", "implementer");
+			await orch.autoClaim("ITEM-1", "opencode", "implementer");
 			let wf = loadWorkflow(root)!;
 			expect(wf.items[0].claimedBy).toBe("opencode");
 
@@ -1137,7 +1137,7 @@ describe("Orchestrator", () => {
 			unlinkSync(lockPath);
 
 			// opencode hands off to reviewer (cursor)
-			const emitResult = orch.emitHandoff({
+			const emitResult = await orch.emitHandoff({
 				itemId: "ITEM-1",
 				from: "opencode",
 				to: "reviewer",
@@ -1161,7 +1161,7 @@ describe("Orchestrator", () => {
 			expect(pending).not.toBeNull();
 			expect(pending?.item.id).toBe("ITEM-1");
 
-			const claimResult = orch.autoClaim("ITEM-1", "cursor", "reviewer");
+			const claimResult = await orch.autoClaim("ITEM-1", "cursor", "reviewer");
 			expect(claimResult.success).toBe(true);
 
 			wf = loadWorkflow(root)!;
@@ -1175,7 +1175,7 @@ describe("Orchestrator", () => {
 			expect(context?.agent).toBe("reviewer");
 		});
 
-		it("retry handoff falls back to next executor by priority", () => {
+		it("retry handoff falls back to next executor by priority", async () => {
 			const root = tempRoot();
 			createWorkflow(root);
 
@@ -1228,7 +1228,7 @@ describe("Orchestrator", () => {
 
 			// emit handoff with opencode as executor
 			const past = new Date(Date.now() - 60 * 60 * 1000);
-			orch.emitHandoff({
+			await orch.emitHandoff({
 				itemId: "ITEM-1",
 				from: "analyst",
 				to: "implementer",
@@ -1240,7 +1240,7 @@ describe("Orchestrator", () => {
 			});
 
 			// retry should go to cursor (priority 2)
-			const retryResult = orch.retryHandoff("ITEM-1");
+			const retryResult = await orch.retryHandoff("ITEM-1");
 			expect(retryResult.success).toBe(true);
 			expect(retryResult.reEmittedTo).toBe("cursor");
 

@@ -17,6 +17,7 @@ import {
 	useToast,
 } from "@letra/ui";
 import type { WorkspaceData } from "../WorkspacesView";
+import WorkflowDefinitionPage from "../../Flow/WorkflowDefinitionPage";
 
 interface WorkflowLocation {
 	id: string;
@@ -72,6 +73,7 @@ export default function WorkspaceSettings({
 }: Props) {
 	const { toast, toastWithOptions } = useToast();
 	const [activeTab, setActiveTab] = useState("general");
+	const [flowPageOpen, setFlowPageOpen] = useState(false);
 	const [name, setName] = useState(workspace.name);
 	const [description, setDescription] = useState(workspace.description || "");
 	const [saving, setSaving] = useState(false);
@@ -625,6 +627,10 @@ export default function WorkspaceSettings({
 		browseDir();
 	}
 
+	if (flowPageOpen) {
+		return <WorkflowDefinitionPage onBack={() => setFlowPageOpen(false)} />;
+	}
+
 	return (
 		<div className="flex h-full flex-col">
 			{/* Page header */}
@@ -1021,6 +1027,13 @@ export default function WorkspaceSettings({
 
 							{activeId === "flow" && (
 								<div className="space-y-4">
+									<section className="grid gap-3 rounded-lg border border-[var(--color-border)] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" aria-label="Definições versionadas do fluxo">
+										<div>
+											<h2 className="font-semibold">Definições versionadas</h2>
+											<p className="mt-1 text-sm text-[var(--color-text-secondary)]">Consulte a versão publicada, o rascunho e o mapa de estágios em uma página dedicada.</p>
+										</div>
+										<Button type="button" onClick={() => setFlowPageOpen(true)}>Abrir configuração do fluxo</Button>
+									</section>
 									<p
 										className="text-caption"
 										style={{ color: "var(--color-text-secondary)" }}

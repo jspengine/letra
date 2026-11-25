@@ -60,7 +60,10 @@ function backupFilePath(root: string, version: string): string {
 	return join(getLetraDir(root), `workflow.v${version}.json`);
 }
 
-export function flowEdit(root: string, options: { name?: string; desc?: string }): void {
+export async function flowEdit(
+	root: string,
+	options: { name?: string; desc?: string },
+): Promise<void> {
 	const workflow = loadWorkflow(root);
 	if (!workflow) {
 		console.log(chalk.yellow("No workflow found. Run 'letra flow init --quick' first"));
@@ -83,7 +86,9 @@ export function flowEdit(root: string, options: { name?: string; desc?: string }
 
 	workflow.version = incrementVersion(workflow.version);
 	workflow.updatedAt = now();
-	writeWorkflow(root, { workflow, source: "flow-edit", skipSitrep: true });
+	// writeWorkflow runs under the workspace transaction lock: only report
+	// success after it has actually persisted.
+	await writeWorkflow(root, { workflow, source: "flow-edit", skipSitrep: true });
 
 	console.log(`  ${chalk.green("✓")} Workflow updated to v${workflow.version}`);
 	if (options.name !== undefined) {
@@ -232,12 +237,12 @@ export function flowDiff(root: string, v1?: string, v2?: string): void {
 	}
 }
 
-export function flowEditAction(
+export async function flowEditAction(
 	targetPath: string | undefined,
 	options: { name?: string; desc?: string },
-): void {
+): Promise<void> {
 	const root = resolve(process.cwd(), targetPath || ".");
-	flowEdit(root, options);
+	await flowEdit(root, options);
 }
 
 export function flowDiffAction(targetPath: string | undefined, v1?: string, v2?: string): void {

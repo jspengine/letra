@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, watch } from "node:fs";
-import { join, resolve, dirname } from "node:path";
+import { join, resolve } from "node:path";
 import chalk from "chalk";
 import { getHeuristicConfig, loadConfig } from "../config.js";
 import { logEntry } from "../session-log.js";
@@ -11,6 +11,8 @@ import {
 	checkSpecContent,
 } from "../validation/content.js";
 import { getLetraDir } from "./../workspace/resolver.js";
+import { loadWorkflow } from "./flow-init.js";
+import { validateSpecCatalog } from "../spec-catalog/service.js";
 
 export {
 	checkBinaryCriteria,
@@ -20,7 +22,7 @@ export {
 	checkSpecContent,
 };
 
-type Format = "text" | "github-annotation" | "junit" | "silent";
+type Format = "text" | "github-annotation" | "junit" | "silent" | "json";
 
 export interface ValidationSummary {
 	passed: number;
@@ -38,7 +40,7 @@ function out(
 ) {
 	if (format === "silent") return;
 	if (format === "github-annotation") {
-		const file = spec ? `.letra/specs/${spec}/spec.md` : "";
+		const file = spec ? `specs/${spec}/spec.md` : "";
 		if (level === "fail") {
 			console.log(`::error file=${file},title=${label}::${message} ${note}`);
 		} else if (level === "warning") {
@@ -49,9 +51,10 @@ function out(
 		return;
 	}
 	if (format === "junit") {
-		return;
-	}
-	const icon =
+			return;
+		}
+		if (format === "json") return;
+		const icon =
 		level === "pass"
 			? chalk.green("✓")
 			: level === "fail"
@@ -141,12 +144,27 @@ function flushResults(
 	}
 
 	if (format === "github-annotation") {
-		for (const r of results) {
-			out(format, r.level, r.spec, r.label, r.message, r.note);
+			for (const r of results) {
+				out(format, r.level, r.spec, r.label, r.message, r.note);
+			}
 		}
-	}
 
-	console.log(
+		if (format === "json") {
+			const groups: Record<string, { pass: number; fail: number; warning: number }> = {};
+			for (const [name, counts] of specGroups) {
+				groups[name] = counts;
+			}
+			console.log(
+				JSON.stringify(
+					{ passed: totalPass, failed: totalFail, warnings: totalWarning, specs: groups },
+					null,
+					2,
+				),
+			);
+			return;
+		}
+
+		console.log(
 		chalk.gray(
 			`\nResults: ${totalPass} passed, ${totalFail} failed${totalWarning > 0 ? `, ${totalWarning} warnings` : ""}`,
 		),
@@ -158,32 +176,18 @@ export async function validate(
 	options?: { watch?: boolean; format?: string; exit?: boolean; log?: boolean },
 ): Promise<ValidationSummary> {
 	const root = resolve(process.cwd(), targetPath || ".");
-	let specsDir = join(getLetraDir(root), "specs");
+	const specsDir = join(getLetraDir(root), "specs");
 	const fmt: Format = (options?.format as Format) || "text";
 
 	if (!existsSync(specsDir)) {
-		let found = false;
-		let search = root;
-		const fsRoot = resolve("/").replace(/\\/g, "/");
-		while (search && search !== fsRoot && search !== dirname(search)) {
-			const candidate = join(search, ".letra", "specs");
-			if (existsSync(candidate)) {
-				specsDir = candidate;
-				found = true;
-				break;
-			}
-			search = dirname(search);
+		const msg = "Error: workspace specs/ not found. Run 'letra init' first.";
+		if (options?.exit === false) throw new Error(msg);
+		if (fmt === "github-annotation") {
+			console.log(`::error file=,title=Init Required::${msg}`);
+		} else {
+			console.log(chalk.red(msg));
 		}
-		if (!found) {
-			const msg = "Error: .letra/specs/ not found. Run 'letra init' first.";
-			if (options?.exit === false) throw new Error(msg);
-			if (fmt === "github-annotation") {
-				console.log(`::error file=,title=Init Required::${msg}`);
-			} else {
-				console.log(chalk.red(msg));
-			}
-			process.exit(1);
-		}
+		process.exit(1);
 	}
 
 	async function runValidation(): Promise<ValidationSummary> {
@@ -493,6 +497,24 @@ export async function validate(
 					totalFail++;
 				}
 			}
+		}
+
+		const catalogValidation = validateSpecCatalog(root, loadWorkflow(root));
+		for (const issue of catalogValidation.issues) {
+			const level = "fail" as const;
+			collectResult(
+				allResults,
+				level,
+				issue.specId ?? "(spec-catalog)",
+				`Catálogo ${issue.code}`,
+				issue.message,
+				issue.itemId ? `item=${issue.itemId}` : "",
+			);
+			totalFail++;
+		}
+		if (catalogValidation.valid) {
+			collectResult(allResults, "pass", "(spec-catalog)", "Catálogo íntegro", "Disposições, referências e reversibilidade válidas", "");
+			totalPass++;
 		}
 
 		if (fmt === "text" || fmt === "github-annotation") {

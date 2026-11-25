@@ -2,9 +2,14 @@ name: Letra CI
 
 on:
   push:
-    branches: ["main", "development"]
   pull_request:
     branches: ["main", "development"]
+
+# Um push novo cancela a execução anterior do mesmo branch. Push e PR do mesmo
+# branch caem no mesmo grupo (head_ref no PR, ref_name no push).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   package:
@@ -43,8 +48,7 @@ jobs:
           node-version: 22.x
           cache: "npm"
       - run: npm ci
-      - run: npm -w packages/cli run typecheck
-      - run: npm -w packages/ui run typecheck
+      - run: npm run typecheck
 
   tests:
     name: Run Tests

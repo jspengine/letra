@@ -85,6 +85,7 @@ stages:
 				name: "Test",
 				harnessVersion: "v0.1.3",
 				template: "flow-main",
+				primaryItemId: "ITEM-1",
 				stages: [
 					{ id: "design", name: "Design", order: 0 },
 					{ id: "code", name: "Code", order: 1 },
@@ -187,7 +188,8 @@ stages:
 			tmpDir,
 			buildOptions({
 				activeStageId: "empty-stage",
-				primaryItemId: undefined,
+				// Explicit: adapters no longer infer the first stage item.
+				primaryItemId: "ITEM-2",
 				workflow: {
 					name: "Test",
 					stages: [{ id: "empty-stage", name: "Empty", order: 0 }],
@@ -349,7 +351,7 @@ stages:
 		expect(dirSection).not.toContain("**Gate**");
 	});
 
-	it("resolves ITEM-ID fallback to items[0] when primaryItemId is null", () => {
+	it("does not use the first item as direction when primaryItemId is null", () => {
 		const specDir = join(tmpDir, ".letra", "specs", "test-spec");
 		mkdirSync(specDir, { recursive: true });
 		writeFileSync(
@@ -382,7 +384,8 @@ stages:
 			source: "flow-ac",
 			displayName: "Test",
 		});
-		expect(content).toContain("ITEM-FALLBACK");
+		expect(content).not.toContain("ITEM-FALLBACK");
+		expect(content).toContain("Nenhum item em andamento");
 	});
 
 	it("produces valid harness-direction for all adapter sources", () => {

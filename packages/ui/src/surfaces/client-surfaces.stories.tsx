@@ -130,6 +130,7 @@ const activeFlow: ResolvedFlowDefinition = {
 			capabilities: ["security"],
 		},
 	],
+	operations: {},
 	warnings: [],
 	stages: workflow.stages.map((stage) => ({
 		id: stage.id,

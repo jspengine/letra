@@ -41,7 +41,7 @@ describe("focus command", () => {
 
 		const content = readFileSync(focusFile, "utf-8");
 		expect(content).toContain("# Focus: auth");
-		expect(content).toContain("**Path**: .letra/specs/auth/");
+		expect(content).toContain("**Path**: specs/auth/");
 		expect(content).toContain("User authentication flow.");
 
 		logSpy.mockRestore();

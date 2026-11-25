@@ -2,6 +2,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AgentIdentity, AgentRegistry, Workflow, ExternalProtocolActor, ExternalProtocolExecutor } from "@letra/types";
 import { getLetraDir, resolveWorkspaceRoot } from "../workspace/resolver.js";
+import { resolveActiveFlow } from "../flow-definition/resolve.js";
+import { bindingsChanged, normalizeRuntimeBindings } from "./runtime-binding.js";
 
 const DEFAULTS: Record<string, Omit<AgentIdentity, "id" | "role">> = {
 	analyst: { displayName: "Analista", bio: "Analisa contexto e define direção.", avatar: { type: "emoji", value: "🔎" }, color: "oklch(0.72 0.14 220)", skills: [{ id: "analysis", label: "Análise", level: "expert", category: "process" }], status: "offline", stageBindings: ["design"], adapterHints: {} },
@@ -37,8 +39,27 @@ export function loadAgents(root: string, workflow?: Workflow): AgentRegistry {
 }
 export function saveAgents(root: string, registry: AgentRegistry): void { const file = pathFor(root); mkdirSync(join(file, ".."), { recursive: true }); writeFileSync(file, JSON.stringify({ ...registry, version: "1", updatedAt: new Date().toISOString() }, null, 2) + "\n"); }
 export function listAgents(root: string, workflow?: Workflow): AgentIdentity[] { return loadAgents(root, workflow).agents; }
+
+/**
+ * Materializes the versioned runtime contract once per registry migration.
+ * Runtime presence remains a projection and is intentionally not persisted.
+ */
+export function loadRuntimeAgentRegistry(root: string, workflow?: Workflow): AgentRegistry {
+	const resolved = resolveWorkspaceRoot(root).workspaceRoot;
+	const active = workflow ?? resolveActiveFlow(resolved).workflow ?? undefined;
+	const registry = loadAgents(resolved, active);
+	if (!active) return registry;
+	const manifest = resolveActiveFlow(resolved).harness;
+	const runtimeBindings = normalizeRuntimeBindings(registry, active, manifest);
+	if (bindingsChanged(registry, runtimeBindings)) {
+		const next = { ...registry, runtimeBindings };
+		saveAgents(resolved, next);
+		return next;
+	}
+	return { ...registry, runtimeBindings };
+}
 export function createAgent(root: string, agent: AgentIdentity, workflow?: Workflow): AgentIdentity { const r = loadAgents(root, workflow); assertAgent(agent); if (r.agents.some((a) => a.id === agent.id)) throw new Error(`Agent ${agent.id} already exists`); r.agents.push(agent); saveAgents(root, r); return agent; }
-export function updateAgent(root: string, id: string, patch: Partial<AgentIdentity>, workflow?: Workflow): AgentIdentity { const r = loadAgents(root, workflow); const i = r.agents.findIndex((a) => a.id === id); if (i < 0) throw new Error(`Agent ${id} not found`); const next = assertAgent({ ...r.agents[i], ...patch, avatar: patch.avatar ?? r.agents[i].avatar, skills: patch.skills ?? r.agents[i].skills, stageBindings: patch.stageBindings ?? r.agents[i].stageBindings, adapterHints: patch.adapterHints ?? r.agents[i].adapterHints, id }); r.agents[i] = next; saveAgents(root, r); return next; }
+export function updateAgent(root: string, id: string, patch: Partial<AgentIdentity>, workflow?: Workflow): AgentIdentity { const r = loadAgents(root, workflow); const i = r.agents.findIndex((a) => a.id === id); if (i < 0) throw new Error(`Agent ${id} not found`); const { status: _runtimeOnlyStatus, ...identityPatch } = patch; const next = assertAgent({ ...r.agents[i], ...identityPatch, avatar: identityPatch.avatar ?? r.agents[i].avatar, skills: identityPatch.skills ?? r.agents[i].skills, stageBindings: identityPatch.stageBindings ?? r.agents[i].stageBindings, adapterHints: identityPatch.adapterHints ?? r.agents[i].adapterHints, id }); r.agents[i] = next; saveAgents(root, r); return next; }
 export function deleteAgent(root: string, id: string, workflow?: Workflow): void { const r = loadAgents(root, workflow); if (!r.agents.some((a) => a.id === id)) throw new Error(`Agent ${id} not found`); if (workflow?.items.some((item) => item.claimedBy === id)) throw new Error(`Agent ${id} possui claims ativos`); r.agents = r.agents.filter((a) => a.id !== id); saveAgents(root, r); }
 export function agentsFor(root?: string, workflow?: Workflow): AgentIdentity[] { const resolved = resolveWorkspaceRoot(root); return listAgents(resolved.workspaceRoot, workflow); }
 /** Canonical identity ↔ protocol mapping used by adapters and claims. */

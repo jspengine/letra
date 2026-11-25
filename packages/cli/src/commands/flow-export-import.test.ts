@@ -58,12 +58,12 @@ describe("flow-export-import", () => {
 	});
 
 	describe("flowExport", () => {
-		it("should show warning when no workflow exists", () => {
+		it("should show warning when no workflow exists", async () => {
 			flowExport(tmpDir);
 			expect(console.log).toHaveBeenCalledWith(expect.stringContaining("No workflow found"));
 		});
 
-		it("should print formatted JSON", () => {
+		it("should print formatted JSON", async () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 			flowExport(tmpDir);
@@ -72,7 +72,7 @@ describe("flow-export-import", () => {
 			expect(output).toContain("  ");
 		});
 
-		it("should print minified JSON with --minified", () => {
+		it("should print minified JSON with --minified", async () => {
 			const workflow = createTestWorkflow();
 			saveWorkflow(tmpDir, workflow);
 			flowExport(tmpDir, { minified: true });
@@ -83,12 +83,12 @@ describe("flow-export-import", () => {
 	});
 
 	describe("flowImport", () => {
-		it("should import valid workflow JSON", () => {
+		it("should import valid workflow JSON", async () => {
 			const importData = createImportWorkflow();
 			const importFile = join(tmpDir, "import.json");
 			writeFileSync(importFile, JSON.stringify(importData, null, 2));
 
-			flowImport(tmpDir, importFile);
+			await flowImport(tmpDir, importFile);
 
 			const saved = readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8");
 			const parsed = JSON.parse(saved);
@@ -97,7 +97,7 @@ describe("flow-export-import", () => {
 			expect(parsed.stages).toHaveLength(2);
 		});
 
-		it("should create backup of existing workflow", () => {
+		it("should create backup of existing workflow", async () => {
 			const existing = createTestWorkflow();
 			saveWorkflow(tmpDir, existing);
 
@@ -105,7 +105,7 @@ describe("flow-export-import", () => {
 			const importFile = join(tmpDir, "import.json");
 			writeFileSync(importFile, JSON.stringify(importData, null, 2));
 
-			flowImport(tmpDir, importFile);
+			await flowImport(tmpDir, importFile);
 
 			const backupPath = join(tmpDir, ".letra", "workflow.v1.0.json");
 			expect(existsSync(backupPath)).toBe(true);
@@ -113,21 +113,21 @@ describe("flow-export-import", () => {
 			expect(backupContent.name).toBe("test-project");
 		});
 
-		it("should reject invalid JSON", () => {
+		it("should reject invalid JSON", async () => {
 			const importFile = join(tmpDir, "invalid.json");
 			writeFileSync(importFile, "not json");
 
 			expect(() => flowImport(tmpDir, importFile)).toThrow();
 		});
 
-		it("should reject JSON without stages", () => {
+		it("should reject JSON without stages", async () => {
 			const importFile = join(tmpDir, "no-stages.json");
 			writeFileSync(importFile, JSON.stringify({ name: "test" }));
 
 			expect(() => flowImport(tmpDir, importFile)).toThrow();
 		});
 
-		it("should reject JSON with empty name", () => {
+		it("should reject JSON with empty name", async () => {
 			const importFile = join(tmpDir, "empty-name.json");
 			writeFileSync(
 				importFile,
@@ -140,19 +140,19 @@ describe("flow-export-import", () => {
 			expect(() => flowImport(tmpDir, importFile)).toThrow();
 		});
 
-		it("should reject JSON with empty stages array", () => {
+		it("should reject JSON with empty stages array", async () => {
 			const importFile = join(tmpDir, "empty-stages.json");
 			writeFileSync(importFile, JSON.stringify({ name: "test", stages: [] }));
 
 			expect(() => flowImport(tmpDir, importFile)).toThrow();
 		});
 
-		it("should not create backup when no existing workflow", () => {
+		it("should not create backup when no existing workflow", async () => {
 			const importData = createImportWorkflow();
 			const importFile = join(tmpDir, "import.json");
 			writeFileSync(importFile, JSON.stringify(importData, null, 2));
 
-			flowImport(tmpDir, importFile);
+			await flowImport(tmpDir, importFile);
 
 			const backupPath = join(tmpDir, ".letra", "workflow.v2.0.json");
 			expect(existsSync(backupPath)).toBe(false);

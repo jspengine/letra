@@ -1,3 +1,4 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
 import type { GateDecision, ResolvedFlowDefinition } from "@letra/types";
 import type { Workflow } from "../../commands/flow-init.js";
 import type { loadHealthRecord } from "../../health-record.js";
@@ -5,435 +6,697 @@ import type { logEntry } from "../../session-log.js";
 import type { writeFocusFile } from "../../adapters/focus-sync.js";
 import type { writeWorkflow } from "../../commands/flow-init.js";
 import type { resolveActiveFlowFor } from "../../flow-definition/resolve.js";
-import { HttpBodyError, readJson, routeParam, sendError, sendJson } from "../http.js";
+import {
+  HttpBodyError,
+  readJson,
+  routeParam,
+  sendError,
+  sendJson,
+  sendRefusal,
+} from "../http.js";
 import type { RouteHandler } from "../router.js";
+import {
+  activateWorkOperation,
+  claimOperation,
+  createItemOperation,
+  decideGateOperation,
+  directionForOperation,
+  directionForRunAwareOperation,
+  deleteItemOperation,
+  releaseClaimOperation,
+  requestPassageOperation,
+  requestReworkOperation,
+  requestTransitionOperation,
+  runValidationOperation,
+  updateItemOperation,
+} from "../../domain-operations/service.js";
+import { resolveLocalIdentity } from "../../identity/service.js";
+import { signLocalOperation } from "../../identity/signing.js";
+import type { HumanSessionGateway } from "../human-session.js";
 
 export interface ItemRouteDependencies {
-	writeWorkflow: typeof writeWorkflow;
-	loadHealthRecord: typeof loadHealthRecord;
-	writeFocusFile: typeof writeFocusFile;
-	logEntry: typeof logEntry;
-	resolveActiveFlow: typeof resolveActiveFlowFor;
-	broadcast: () => void;
-	fireWebhooks: (
-		workspaceRoot: string,
-		event: string,
-		payload: Record<string, unknown>,
-	) => Promise<void>;
+  writeWorkflow: typeof writeWorkflow;
+  loadHealthRecord: typeof loadHealthRecord;
+  writeFocusFile: typeof writeFocusFile;
+  logEntry: typeof logEntry;
+  resolveActiveFlow: typeof resolveActiveFlowFor;
+  broadcast: () => void;
+  fireWebhooks: (
+    workspaceRoot: string,
+    event: string,
+    payload: Record<string, unknown>,
+  ) => Promise<void>;
+  decideGateOperation?: typeof decideGateOperation;
+  claimOperation?: typeof claimOperation;
+  releaseClaimOperation?: typeof releaseClaimOperation;
+  requestTransitionOperation?: typeof requestTransitionOperation;
+  requestPassageOperation?: typeof requestPassageOperation;
+  activateWorkOperation?: typeof activateWorkOperation;
+  runValidationOperation?: typeof runValidationOperation;
+  requestReworkOperation?: typeof requestReworkOperation;
+  createItemOperation?: typeof createItemOperation;
+  updateItemOperation?: typeof updateItemOperation;
+  deleteItemOperation?: typeof deleteItemOperation;
+  resolveHumanActor?: (req: IncomingMessage) => string | null;
 }
 
 interface CreateItemBody {
-	id?: string;
-	description?: string;
-	stage?: string;
+  id?: string;
+  description?: string;
+  stage?: string;
+  actor?: string;
+  expectedRevision?: string;
+  reason?: string;
+  idempotencyKey?: string;
 }
 
 interface UpdateItemBody {
-	description?: string;
-	stage?: string;
-	tasks?: Workflow["items"][number]["tasks"];
+  description?: string;
+  stage?: string;
+  actor?: string;
+  expectedRevision?: string;
+  idempotencyKey?: string;
+  reason?: string;
+  tasks?: Workflow["items"][number]["tasks"];
 }
 
 interface GateDecisionBody {
-	decision?: GateDecision;
-	reason?: string;
+  decision?: GateDecision;
+  reason?: string;
+  actor?: string;
+  expectedRevision?: string;
+  idempotencyKey?: string;
+}
+
+interface ClaimBody {
+  actor?: string;
+  /** Workflow role the board claims for (e.g. the active handoff recipient). */
+  role?: string;
+  executorId?: string;
+  capability?: string;
+  expectedRevision?: string;
+  idempotencyKey?: string;
+}
+
+interface ActivateWorkBody {
+  actor?: string;
+  expectedRevision?: string;
+  reason?: string;
+}
+interface ValidationOperationBody {
+  itemId?: string;
+  actor?: string;
+  expectedRevision?: string;
+  reason?: string;
+}
+interface ReworkBody {
+  actor?: string;
+  expectedRevision?: string;
+  reason?: string;
+  acceptanceCriteria?: Array<{ id?: string; description?: string }>;
 }
 
 function resolveDecisionTarget(
-	flow: ResolvedFlowDefinition,
-	currentStageId: string,
-	target: string,
+  flow: ResolvedFlowDefinition,
+  currentStageId: string,
+  target: string,
 ): string | null {
-	const currentIndex = flow.stages.findIndex((stage) => stage.id === currentStageId);
-	if (currentIndex === -1) return null;
-	if (target === "next") return flow.stages[currentIndex + 1]?.id ?? null;
-	if (target === "previous") return flow.stages[currentIndex - 1]?.id ?? null;
-	if (target === "first") return flow.stages[0]?.id ?? null;
-	return flow.stages.some((stage) => stage.id === target) ? target : null;
+  const currentIndex = flow.stages.findIndex(
+    (stage) => stage.id === currentStageId,
+  );
+  if (currentIndex === -1) return null;
+  if (target === "next") return flow.stages[currentIndex + 1]?.id ?? null;
+  if (target === "previous") return flow.stages[currentIndex - 1]?.id ?? null;
+  if (target === "first") return flow.stages[0]?.id ?? null;
+  return flow.stages.some((stage) => stage.id === target) ? target : null;
 }
 
-function sendBodyError(error: unknown, res: Parameters<typeof sendError>[0]): void {
-	if (error instanceof HttpBodyError) {
-		sendError(res, error.status, error.message);
-		return;
-	}
-	sendError(res, 400, (error as Error).message);
+function sendBodyError(
+  error: unknown,
+  res: Parameters<typeof sendError>[0],
+): void {
+  if (error instanceof HttpBodyError) {
+    sendError(res, error.status, error.message);
+    return;
+  }
+  sendError(res, 400, (error as Error).message);
 }
 
-export function createItemRoutes(dependencies: ItemRouteDependencies): RouteHandler {
-	return async (context) => {
-		const { method, path, req, res, workspaceRoot, workflow } = context;
+export function createItemRoutes(
+  dependencies: ItemRouteDependencies,
+): RouteHandler {
+  return async (context) => {
+    const { method, path, req, res, workspaceRoot, workflow } = context;
+    // Request bodies do not establish identity. A server-owned session is
+    // required even if the caller supplies an actor field.
+    const itemMutation =
+      method !== "GET" &&
+      (path === "/api/operations/validate" ||
+        path === "/api/items" ||
+        path.startsWith("/api/items/"));
+    const sessionActor = itemMutation
+      ? dependencies.resolveHumanActor?.(req)
+      : null;
+    if (itemMutation && !sessionActor) {
+      sendError(res, 403, "HUMAN_CONFIRMATION_REQUIRED");
+      return true;
+    }
+    if (path === "/api/operations/validate" && method === "POST") {
+      try {
+        if (!dependencies.runValidationOperation) {
+          sendError(res, 503, "Canonical validation operation unavailable");
+          return true;
+        }
+        const data = await readJson<ValidationOperationBody>(req);
+        if (!data.expectedRevision && !data.itemId) {
+          sendError(res, 400, "itemId or expectedRevision required");
+          return true;
+        }
+        const operation = await dependencies.runValidationOperation(
+          workspaceRoot,
+          {
+            itemId: data.itemId,
+            expectedRevision:
+              data.expectedRevision ??
+              directionForOperation(workspaceRoot, { itemId: data.itemId }).revision,
+            reason: data.reason?.trim() || "Validação solicitada pela UI.",
+            actor: sessionActor!,
+          },
+        );
+        if (operation.outcome !== "accepted") {
+          sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
+          return true;
+        }
+        dependencies.broadcast();
+        sendJson(res, 200, operation);
+      } catch (error) {
+        sendBodyError(error, res);
+      }
+      return true;
+    }
+    const passageMatch =
+      method === "POST" ? path.match(/^\/api\/items\/([^/]+)\/passage$/) : null;
+    if (passageMatch) {
+      if (!dependencies.requestPassageOperation) {
+        sendError(res, 503, "Canonical passage operation unavailable");
+        return true;
+      }
+      try {
+        const data = await readJson<{
+          targetStageId: string;
+          to: string;
+          executorId: string;
+          runId?: string;
+          summary: string;
+          evidence?: string[];
+          expectedRevision?: string;
+          reason?: string;
+          idempotencyKey?: string;
+        }>(req);
+        const itemId = decodeURIComponent(passageMatch[1]);
+        // The passage is performed by the role holding the source claim (the
+        // handoff recipient the board claimed for). The authenticated human
+        // session stays on record as the requester in the reason.
+        const claimHolder = workflow?.items.find(
+          (candidate) => candidate.id === itemId,
+        )?.claimedBy;
+        const passageReason =
+          data.reason?.trim() || "Passagem solicitada pela UI.";
+        const operation = await dependencies.requestPassageOperation(
+          workspaceRoot,
+          {
+            itemId,
+            targetStageId: data.targetStageId,
+            to: data.to,
+            executorId: data.executorId,
+            runId: data.runId,
+            summary: data.summary,
+            evidence: data.evidence ?? [],
+            actor: claimHolder ?? sessionActor!,
+            expectedRevision:
+              data.expectedRevision ??
+              directionForRunAwareOperation(workspaceRoot, {
+                itemId,
+                runId: data.runId,
+                executorId: data.executorId,
+              }).revision,
+            reason:
+              claimHolder && claimHolder !== sessionActor
+                ? `${passageReason} (solicitada por ${sessionActor})`
+                : passageReason,
+            idempotencyKey: data.idempotencyKey,
+          },
+        );
+        if (operation.outcome !== "accepted") {
+          sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
+          return true;
+        }
+        dependencies.broadcast();
+        sendJson(res, 200, operation);
+      } catch (error) {
+        sendBodyError(error, res);
+      }
+      return true;
+    }
 
-		if (path === "/api/items/alerts" && method === "GET") {
-			const record = dependencies.loadHealthRecord(workspaceRoot);
-			const itemAlerts: Record<string, number> = {};
-			for (const entry of record.entries) {
-				if (entry.status !== "novo") continue;
-				const match = entry.id.match(/_([A-Z]+-\d+)_/);
-				if (!match) continue;
-				const itemId = match[1];
-				itemAlerts[itemId] = (itemAlerts[itemId] ?? 0) + 1;
-			}
-			sendJson(res, 200, { itemAlerts });
-			return true;
-		}
+    if (path === "/api/items/alerts" && method === "GET") {
+      const record = dependencies.loadHealthRecord(workspaceRoot);
+      const itemAlerts: Record<string, number> = {};
+      for (const entry of record.entries) {
+        if (entry.status !== "novo") continue;
+        const match = entry.id.match(/_([A-Z]+-\d+)_/);
+        if (!match) continue;
+        const itemId = match[1];
+        itemAlerts[itemId] = (itemAlerts[itemId] ?? 0) + 1;
+      }
+      sendJson(res, 200, { itemAlerts });
+      return true;
+    }
 
-		if (path === "/api/items" && method === "POST") {
-			try {
-				const data = await readJson<CreateItemBody>(req);
-				if (!data.id || !data.description || !data.stage) {
-					sendError(res, 400, "id, description, and stage required");
-					return true;
-				}
-				if (!workflow) {
-					sendError(res, 404, "No workflow");
-					return true;
-				}
-				const item: Workflow["items"][number] = {
-					id: data.id,
-					description: data.description,
-					stage: data.stage,
-					createdAt: new Date().toISOString(),
-					tasks: [],
-				};
-				workflow.items.push(item);
-				workflow.updatedAt = new Date().toISOString();
-				dependencies.writeWorkflow(workspaceRoot, {
-					workflow,
-					source: "web-ui",
-					primaryItemId: item.id,
-					skipSitrep: true,
-					quiet: true,
-				});
-				dependencies.broadcast();
-				sendJson(res, 200, item);
-			} catch (error) {
-				sendBodyError(error, res);
-			}
-			return true;
-		}
+    if (path === "/api/items" && method === "POST") {
+      try {
+        const data = await readJson<CreateItemBody>(req);
+        if (!data.id || !data.description || !data.stage) {
+          sendError(res, 400, "id, description, and stage required");
+          return true;
+        }
+        if (!dependencies.createItemOperation) {
+          sendError(res, 503, "Canonical item creation operation unavailable");
+          return true;
+        }
+        const operation = await dependencies.createItemOperation(
+          workspaceRoot,
+          {
+            id: data.id,
+            description: data.description,
+            stage: data.stage,
+            actor: sessionActor!,
+            expectedRevision:
+              data.expectedRevision ??
+              directionForOperation(workspaceRoot, {}).revision,
+            reason: data.reason?.trim() || "Item criado pela UI.",
+            idempotencyKey: data.idempotencyKey,
+          },
+        );
+        if (operation.outcome !== "accepted") {
+          const status =
+            operation.reasonCode === "DIRECTION_STALE"
+              ? 409
+              : operation.reasonCode === "ITEM_NOT_FOUND"
+                ? 404
+                : operation.reasonCode === "ITEM_COMPLETED"
+                  ? 400
+                  : 422;
+          sendRefusal(res, status, operation);
+          return true;
+        }
+        dependencies.broadcast();
+        sendJson(res, 200, operation);
+      } catch (error) {
+        sendBodyError(error, res);
+      }
+      return true;
+    }
 
-		const gateDecisionItemId = routeParam(path, "/api/items/:id/gate-decisions");
-		if (gateDecisionItemId !== null && method === "POST") {
-			try {
-				const data = await readJson<GateDecisionBody>(req);
-				if (!workflow) {
-					sendError(res, 404, "No workflow");
-					return true;
-				}
-				if (
-					!data.decision ||
-					!["approve", "request-changes", "reject"].includes(data.decision)
-				) {
-					sendError(res, 400, "decision must be approve, request-changes, or reject");
-					return true;
-				}
-				const reason = data.reason?.trim();
-				if (data.decision !== "approve" && !reason) {
-					sendError(res, 400, "reason is required for request-changes and reject");
-					return true;
-				}
-				const item = workflow.items.find(
-					(candidate) => candidate.id === gateDecisionItemId,
-				);
-				if (!item) {
-					sendError(res, 404, "Item not found");
-					return true;
-				}
-				const resolved = dependencies.resolveActiveFlow(workspaceRoot, workflow);
-				const flow = resolved.flow;
-				const currentStage = flow?.stages.find((stage) => stage.id === item.stage);
-				const gate = currentStage?.gate;
-				if (!flow || gate?.type !== "human" || !gate.blocking) {
-					sendError(res, 422, "Item is not waiting at a blocking human gate");
-					return true;
-				}
-				const targetRule = gate.decisions?.[data.decision];
-				if (!targetRule) {
-					sendError(
-						res,
-						422,
-						`Gate "${gate.name}" does not define the "${data.decision}" decision in the harness`,
-					);
-					return true;
-				}
-				const targetStage = resolveDecisionTarget(flow, item.stage, targetRule);
-				if (!targetStage) {
-					sendError(
-						res,
-						422,
-						`Gate "${gate.name}" resolves "${data.decision}" to an invalid stage`,
-					);
-					return true;
-				}
+    const gateDecisionItemId = routeParam(
+      path,
+      "/api/items/:id/gate-decisions",
+    );
+    if (gateDecisionItemId !== null && method === "POST") {
+      try {
+        const data = await readJson<GateDecisionBody>(req);
+        if (!workflow) {
+          sendError(res, 404, "No workflow");
+          return true;
+        }
+        if (
+          !data.decision ||
+          !["approve", "request-changes", "reject"].includes(data.decision)
+        ) {
+          sendError(
+            res,
+            400,
+            "decision must be approve, request-changes, or reject",
+          );
+          return true;
+        }
+        const reason = data.reason?.trim();
+        if (data.decision !== "approve" && !reason) {
+          sendError(
+            res,
+            400,
+            "reason is required for request-changes and reject",
+          );
+          return true;
+        }
+        if (!dependencies.decideGateOperation) {
+          sendError(res, 503, "Canonical gate decision operation unavailable");
+          return true;
+        }
+        {
+          // The revision decideGateOperation compares: it accounts for the
+          // item's active Run. The item-only direction hashed differently, so
+          // every UI approval was DIRECTION_STALE while a Run was active.
+          const expectedRevision =
+            data.expectedRevision ??
+            directionForOperation(workspaceRoot, { itemId: gateDecisionItemId })
+              .revision;
+          const operationReason =
+            reason ?? "Aprovação humana registrada pela UI.";
+          const proof = signLocalOperation(
+            workspaceRoot,
+            sessionActor!,
+            "gate.decision",
+            {
+              itemId: gateDecisionItemId,
+              decision: data.decision,
+              expectedRevision,
+              reason: operationReason,
+            },
+          );
+          const operation = await dependencies.decideGateOperation(
+            workspaceRoot,
+            {
+              itemId: gateDecisionItemId,
+              decision: data.decision,
+              actor: sessionActor!,
+              expectedRevision,
+              reason: operationReason,
+              proof,
+              idempotencyKey: data.idempotencyKey,
+            },
+          );
+          if (operation.outcome !== "accepted") {
+            sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
+            return true;
+          }
+          dependencies.broadcast();
+          void dependencies.fireWebhooks(workspaceRoot, "gate.decided", {
+            itemId: gateDecisionItemId,
+            decision: data.decision,
+            reason: reason ?? null,
+          });
+          sendJson(res, 200, operation);
+          return true;
+        }
+      } catch (error) {
+        sendBodyError(error, res);
+      }
+      return true;
+    }
 
-				const sourceStage = item.stage;
-				item.stage = targetStage;
-				// A decision creates the next durable handoff. Without replacing the
-				// previous handoff, request-changes could leave the item addressed to
-				// the old role and the dispatcher would pause forever at the gate.
-				const targetStageDefinition = flow.stages.find((stage) => stage.id === targetStage);
-				const targetActor = targetStageDefinition?.agents[0];
-				if (targetActor) {
-					item.handoff = {
-						from: "human:web-ui",
-						to: targetActor,
-						summary: `Gate ${gate.name} decision ${data.decision}; continue at ${targetStageDefinition?.name ?? targetStage}.`,
-						evidence: [`gate:${gate.id}:${data.decision}`],
-						timestamp: new Date().toISOString(),
-						expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
-					};
-				} else {
-					item.handoff = undefined;
-				}
-				workflow.updatedAt = new Date().toISOString();
-				await dependencies.writeWorkflow(workspaceRoot, {
-					workflow,
-					source: "web-ui-gate-decision",
-					primaryItemId: item.id,
-					skipSitrep: true,
-					quiet: true,
-				});
-				dependencies.logEntry(
-					workspaceRoot,
-					"decision",
-					`Gate ${gate.name}: ${data.decision} (${item.id})`,
-					{
-						itemId: item.id,
-						details: {
-							kind: "gate",
-							gateId: gate.id,
-							decision: data.decision,
-							reason: reason ?? null,
-							from: sourceStage,
-							to: targetStage,
-							by: "human:web-ui",
-							outcome: "completed",
-						},
-					},
-				);
-				if (item.spec) {
-					dependencies.writeFocusFile(workspaceRoot, item.spec, item.id);
-				}
-				dependencies.broadcast();
-				void dependencies.fireWebhooks(workspaceRoot, "gate.decided", {
-					itemId: item.id,
-					gateId: gate.id,
-					decision: data.decision,
-					reason: reason ?? null,
-					sourceStage,
-					targetStage,
-				});
-				sendJson(res, 200, {
-					item,
-					decision: {
-						gateId: gate.id,
-						value: data.decision,
-						reason: reason ?? null,
-						sourceStage,
-						targetStage,
-					},
-				});
-			} catch (error) {
-				sendBodyError(error, res);
-			}
-			return true;
-		}
+    const activateItemId = routeParam(path, "/api/items/:id/activate");
+    if (activateItemId !== null && method === "POST") {
+      if (!dependencies.activateWorkOperation) {
+        sendError(res, 501, "Ativação canônica não está disponível.");
+        return true;
+      }
+      try {
+        const data = await readJson<ActivateWorkBody>(req);
+        const operation = await dependencies.activateWorkOperation(
+          workspaceRoot,
+          {
+            itemId: activateItemId,
+            actor: sessionActor!,
+            // The revision activateWorkOperation compares (ITEM-39).
+            expectedRevision:
+              data.expectedRevision ??
+              directionForOperation(workspaceRoot, { itemId: activateItemId })
+                .revision,
+            reason:
+              data.reason?.trim() || "Item priorizado para início do fluxo.",
+          },
+        );
+        if (operation.outcome !== "accepted") {
+          sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
+          return true;
+        }
+        dependencies.broadcast();
+        sendJson(res, 200, operation);
+      } catch (error) {
+        sendBodyError(error, res);
+      }
+      return true;
+    }
 
-		const itemId = routeParam(path, "/api/items/:id");
-		if (itemId !== null && method === "GET") {
-			if (!workflow) {
-				sendError(res, 404, "No workflow");
-				return true;
-			}
-			const item = workflow.items.find((candidate) => candidate.id === itemId);
-			if (!item) {
-				sendError(res, 404, "Item not found");
-				return true;
-			}
-			sendJson(res, 200, item);
-			return true;
-		}
+    const reworkItemId = routeParam(path, "/api/items/:id/request-rework");
+    if (reworkItemId !== null && method === "POST") {
+      if (!dependencies.requestReworkOperation) {
+        sendError(
+          res,
+          501,
+          "Retorno canônico para retrabalho não está disponível.",
+        );
+        return true;
+      }
+      try {
+        const data = await readJson<ReworkBody>(req);
+        const acceptanceCriteria = (data.acceptanceCriteria ?? []).map(
+          (criterion) => ({
+            id: criterion.id,
+            description: criterion.description?.trim() ?? "",
+          }),
+        );
+        const operation = await dependencies.requestReworkOperation(
+          workspaceRoot,
+          {
+            itemId: reworkItemId,
+            actor: sessionActor!,
+            expectedRevision:
+              data.expectedRevision ??
+              directionForOperation(workspaceRoot, { itemId: reworkItemId }).revision,
+            reason:
+              data.reason?.trim() ||
+              "A revisão encontrou correções necessárias.",
+            acceptanceCriteria,
+          },
+        );
+        if (operation.outcome !== "accepted") {
+          sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
+          return true;
+        }
+        dependencies.broadcast();
+        sendJson(res, 200, operation);
+      } catch (error) {
+        sendBodyError(error, res);
+      }
+      return true;
+    }
 
-		if (itemId !== null && method === "PATCH") {
-			try {
-				const data = await readJson<UpdateItemBody>(req);
-				if (!workflow) {
-					sendError(res, 404, "No workflow");
-					return true;
-				}
-				const item = workflow.items.find((candidate) => candidate.id === itemId);
-				if (!item) {
-					sendError(res, 404, "Item not found");
-					return true;
-				}
-				const oldStage = item.stage;
-				if (data.stage !== undefined && data.stage !== oldStage) {
-					const resolved = dependencies.resolveActiveFlow(workspaceRoot, workflow);
-					const sourceStage = resolved.flow?.stages.find(
-						(stage) => stage.id === oldStage,
-					);
-					if (sourceStage?.gate?.type === "human" && sourceStage.gate.blocking) {
-						sendError(
-							res,
-							422,
-							`Gate bloqueante: ${sourceStage.gate.name}. Use uma decisão humana explícita para sair de "${sourceStage.name}".`,
-						);
-						return true;
-					}
-					const targetStage = resolved.flow?.stages.find(
-						(stage) => stage.id === data.stage,
-					);
-					const gate = targetStage?.gate;
-					if (gate?.type === "human" && gate.blocking) {
-						sendError(
-							res,
-							422,
-							`Gate bloqueante: ${gate.name}. Aprovação humana necessária para entrar em "${targetStage?.name ?? data.stage}".`,
-						);
-						return true;
-					}
-					item.stage = data.stage;
-				}
-				if (data.description !== undefined) item.description = data.description;
-				if (data.tasks !== undefined) item.tasks = data.tasks;
-				workflow.updatedAt = new Date().toISOString();
-				dependencies.writeWorkflow(workspaceRoot, {
-					workflow,
-					source: "web-ui",
-					primaryItemId: itemId,
-					skipSitrep: true,
-					quiet: true,
-				});
-				dependencies.broadcast();
+    const itemId = routeParam(path, "/api/items/:id");
+    if (itemId !== null && method === "GET") {
+      if (!workflow) {
+        sendError(res, 404, "No workflow");
+        return true;
+      }
+      const item = workflow.items.find((candidate) => candidate.id === itemId);
+      if (!item) {
+        sendError(res, 404, "Item not found");
+        return true;
+      }
+      sendJson(res, 200, item);
+      return true;
+    }
 
-				if (data.stage !== undefined && data.stage !== oldStage) {
-					if (item.spec) {
-						dependencies.writeFocusFile(workspaceRoot, item.spec, item.id);
-						dependencies.logEntry(
-							workspaceRoot,
-							"focus_sync",
-							`Focus synced to ${item.spec} via item move (${item.id})`,
-							{ itemId: item.id, spec: item.spec },
-						);
-						console.log(`  [focus] Synced to ${item.spec} via drag`);
-					}
-					void dependencies.fireWebhooks(workspaceRoot, "item.moved", {
-						itemId: item.id,
-						itemDescription: item.description,
-						sourceStage: oldStage,
-						targetStage: data.stage,
-					});
-				}
-				sendJson(res, 200, item);
-			} catch (error) {
-				sendBodyError(error, res);
-			}
-			return true;
-		}
+    if (itemId !== null && method === "PATCH") {
+      try {
+        const data = await readJson<UpdateItemBody>(req);
+        const item = workflow?.items.find(
+          (candidate) => candidate.id === itemId,
+        );
+        if (!workflow || !item) {
+          sendError(res, 404, "Item not found");
+          return true;
+        }
+        const oldStage = item.stage;
+        if (data.stage !== undefined && data.stage !== oldStage) {
+          sendError(res, 422, "Stage changes require the canonical /passage operation with destination role, executor, summary and evidence.");
+          return true;
+        }
+        if (
+          data.stage !== undefined &&
+          data.stage !== oldStage &&
+          (data.description !== undefined || data.tasks !== undefined)
+        ) {
+          sendError(
+            res,
+            400,
+            "Stage transition must be submitted separately from item edits",
+          );
+          return true;
+        }
+        if (!dependencies.updateItemOperation) {
+          sendError(res, 503, "Canonical item update operation unavailable");
+          return true;
+        }
+        const operation = await dependencies.updateItemOperation(
+          workspaceRoot,
+          {
+            itemId,
+            description: data.description,
+            tasks: data.tasks,
+            actor: sessionActor!,
+            expectedRevision:
+              data.expectedRevision ??
+              directionForOperation(workspaceRoot, { itemId: itemId }).revision,
+            reason: "Alteração de item solicitada pela UI.",
+            idempotencyKey: data.idempotencyKey,
+          },
+        );
+        if (operation.outcome !== "accepted") {
+          sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
+          return true;
+        }
+        dependencies.broadcast();
+        sendJson(res, 200, operation);
+      } catch (error) {
+        sendBodyError(error, res);
+      }
+      return true;
+    }
 
-		if (itemId !== null && method === "DELETE") {
-			if (!workflow) {
-				sendError(res, 404, "No workflow");
-				return true;
-			}
-			const index = workflow.items.findIndex((candidate) => candidate.id === itemId);
-			if (index === -1) {
-				sendError(res, 404, "Item not found");
-				return true;
-			}
-			workflow.items.splice(index, 1);
-			workflow.updatedAt = new Date().toISOString();
-			dependencies.writeWorkflow(workspaceRoot, {
-				workflow,
-				source: "web-ui",
-				skipSitrep: true,
-				quiet: true,
-			});
-			dependencies.broadcast();
-			sendJson(res, 200, { deleted: itemId });
-			return true;
-		}
+    if (itemId !== null && method === "DELETE") {
+      if (!dependencies.deleteItemOperation) {
+        sendError(res, 503, "Canonical item deletion operation unavailable");
+        return true;
+      }
+      let data: Pick<
+        UpdateItemBody,
+        "actor" | "expectedRevision" | "idempotencyKey"
+      > = {};
+      try {
+        data = await readJson<typeof data>(req);
+      } catch {
+        /* empty body uses current revision */
+      }
+      const operation = await dependencies.deleteItemOperation(workspaceRoot, {
+        itemId,
+        actor: sessionActor!,
+        expectedRevision:
+          data.expectedRevision ??
+          directionForOperation(workspaceRoot, { itemId: itemId }).revision,
+        reason: "Remoção de item solicitada pela UI.",
+        idempotencyKey: data.idempotencyKey,
+      });
+      if (operation.outcome !== "accepted") {
+        sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
+        return true;
+      }
+      dependencies.broadcast();
+      sendJson(res, 200, operation);
+      return true;
+    }
 
-		const claimId = routeParam(path, "/api/items/:id/claim");
-		if (claimId !== null && method === "POST") {
-			if (!workflow) {
-				sendError(res, 404, "No workflow");
-				return true;
-			}
-			const item = workflow.items.find((candidate) => candidate.id === claimId);
-			if (!item) {
-				sendError(res, 404, "Item not found");
-				return true;
-			}
-			const doneZones = new Set(
-				workflow.stages.filter((stage) => stage.zone === "done").map((stage) => stage.id),
-			);
-			if (doneZones.has(item.stage)) {
-				sendError(res, 400, "Cannot claim a completed item");
-				return true;
-			}
-			item.claimedBy = "web-ui";
-			item.claimedAt = new Date().toISOString();
-			workflow.updatedAt = new Date().toISOString();
-			dependencies.writeWorkflow(workspaceRoot, {
-				workflow,
-				source: "web-ui",
-				primaryItemId: item.id,
-				skipSitrep: true,
-				quiet: true,
-			});
-			dependencies.broadcast();
-			sendJson(res, 200, item);
-			return true;
-		}
+    const claimId = routeParam(path, "/api/items/:id/claim");
+    if (claimId !== null && method === "POST") {
+      if (!dependencies.claimOperation) {
+        sendError(res, 503, "Canonical claim operation unavailable");
+        return true;
+      }
+      try {
+        const data = await readJson<ClaimBody>(req);
+        // The board claims on behalf of a workflow role (normally the active
+        // handoff recipient). The domain still decides whether that role may
+        // claim; identities (human:/mcp:) cannot be impersonated this way.
+        const role = data.role?.trim();
+        if (role && /^(human|mcp)(:|$)/.test(role)) {
+          sendError(res, 400, "role must be a workflow role id");
+          return true;
+        }
+        const operation = await dependencies.claimOperation(workspaceRoot, {
+          itemId: claimId,
+          actor: role || sessionActor!,
+          executorId: data.executorId ?? "web-ui",
+          capability: data.capability ?? "read_code",
+          // claimOperation compares directionForOperation, which accounts for
+          // the item's active Run (present after any handoff). The item-only
+          // direction made the board's handoff claim DIRECTION_STALE (ITEM-39).
+          expectedRevision:
+            data.expectedRevision ??
+            directionForOperation(workspaceRoot, { itemId: claimId }).revision,
+          reason: role
+            ? `Claim solicitado pela UI para o papel ${role} por ${sessionActor}.`
+            : "Claim solicitado pela UI.",
+          idempotencyKey: data.idempotencyKey,
+        });
+        if (operation.outcome !== "accepted") {
+          const status =
+            operation.reasonCode === "DIRECTION_STALE"
+              ? 409
+              : operation.reasonCode === "ITEM_NOT_FOUND"
+                ? 404
+                : operation.reasonCode === "ITEM_COMPLETED"
+                  ? 400
+                  : 422;
+          sendRefusal(res, status, operation);
+          return true;
+        }
+        dependencies.broadcast();
+        sendJson(res, 200, operation);
+      } catch (error) {
+        sendBodyError(error, res);
+      }
+      return true;
+    }
 
-		const releaseId = routeParam(path, "/api/items/:id/release");
-		if (releaseId !== null && method === "POST") {
-			if (!workflow) {
-				sendError(res, 404, "No workflow");
-				return true;
-			}
-			const item = workflow.items.find((candidate) => candidate.id === releaseId);
-			if (!item) {
-				sendError(res, 404, "Item not found");
-				return true;
-			}
-			item.claimedBy = undefined;
-			item.claimedAt = undefined;
-			workflow.updatedAt = new Date().toISOString();
-			dependencies.writeWorkflow(workspaceRoot, {
-				workflow,
-				source: "web-ui",
-				skipSitrep: true,
-				quiet: true,
-			});
-			dependencies.broadcast();
-			sendJson(res, 200, item);
-			return true;
-		}
+    const releaseId = routeParam(path, "/api/items/:id/release");
+    if (releaseId !== null && method === "POST") {
+      if (!dependencies.releaseClaimOperation) {
+        sendError(res, 503, "Canonical release operation unavailable");
+        return true;
+      }
+      try {
+        const data = await readJson<ClaimBody>(req);
+        const operation = await dependencies.releaseClaimOperation(
+          workspaceRoot,
+          {
+            itemId: releaseId,
+            actor: sessionActor!,
+            expectedRevision:
+              data.expectedRevision ??
+              directionForOperation(workspaceRoot, { itemId: releaseId }).revision,
+            reason: "Release solicitado pela UI.",
+            idempotencyKey: data.idempotencyKey,
+          },
+        );
+        if (operation.outcome !== "accepted") {
+          sendRefusal(res, operation.reasonCode === "DIRECTION_STALE" ? 409 : 422, operation);
+          return true;
+        }
+        dependencies.broadcast();
+        sendJson(res, 200, operation);
+      } catch (error) {
+        sendBodyError(error, res);
+      }
+      return true;
+    }
 
-		const focusId = routeParam(path, "/api/items/:id/focus");
-		if (focusId !== null && method === "POST") {
-			if (!workflow) {
-				sendError(res, 404, "No workflow");
-				return true;
-			}
-			const item = workflow.items.find((candidate) => candidate.id === focusId);
-			if (!item) {
-				sendError(res, 404, "Item not found");
-				return true;
-			}
-			const specName = item.spec || focusId;
-			dependencies.writeFocusFile(workspaceRoot, specName, item.id);
-			dependencies.logEntry(workspaceRoot, "focus_set", `Focus set via UI: ${specName}`, {
-				itemId: focusId,
-			});
-			dependencies.broadcast();
-			sendJson(res, 200, { itemId: focusId, spec: specName });
-			return true;
-		}
+    const focusId = routeParam(path, "/api/items/:id/focus");
+    if (focusId !== null && method === "POST") {
+      if (!workflow) {
+        sendError(res, 404, "No workflow");
+        return true;
+      }
+      const item = workflow.items.find((candidate) => candidate.id === focusId);
+      if (!item) {
+        sendError(res, 404, "Item not found");
+        return true;
+      }
+      const specName = item.spec || focusId;
+      dependencies.writeFocusFile(workspaceRoot, specName, item.id);
+      dependencies.logEntry(
+        workspaceRoot,
+        "focus_set",
+        `Focus set via UI: ${specName}`,
+        {
+          itemId: focusId,
+        },
+      );
+      dependencies.broadcast();
+      sendJson(res, 200, { itemId: focusId, spec: specName });
+      return true;
+    }
 
-		return false;
-	};
+    return false;
+  };
 }

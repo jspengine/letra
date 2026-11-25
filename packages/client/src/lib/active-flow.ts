@@ -14,6 +14,20 @@ export type ActiveFlowStage = ResolvedFlowStage;
 export type ActiveFlowDefinition = ResolvedFlowDefinition;
 export type OperationalState = "idle" | "running" | "done" | "blocked" | "waiting";
 
+/** A stale activity marker is historical data, not proof of live execution. */
+export const ACTIVE_HEARTBEAT_WINDOW_MS = 90_000;
+
+export function hasActiveExecution(item: Item, now = Date.now()): boolean {
+	if (!item.claimedBy || !item.claimExpiresAt || !item.lastHeartbeatAt) return false;
+	const leaseExpiresAt = Date.parse(item.claimExpiresAt);
+	const heartbeatAt = Date.parse(item.lastHeartbeatAt);
+	if (!Number.isFinite(leaseExpiresAt) || !Number.isFinite(heartbeatAt)) return false;
+	if (leaseExpiresAt <= now) return false;
+	const heartbeatAge = now - heartbeatAt;
+	return heartbeatAge >= 0 && heartbeatAge <= ACTIVE_HEARTBEAT_WINDOW_MS &&
+		(item.activityStatus === "started" || item.activityStatus === "heartbeat");
+}
+
 export interface StagePresentation {
 	actorLabel: string;
 	actionLabel: string;
@@ -143,11 +157,11 @@ export function itemOperationalState(
 	activeFlow: ActiveFlowDefinition | null,
 ): OperationalState {
 	const stage = orderedStages(workflow, activeFlow).find((entry) => entry.id === item.stage);
-	if (!stage) return item.claimedBy ? "running" : "idle";
+	if (!stage) return hasActiveExecution(item) ? "running" : "idle";
 	if (stage.zone === "done") return "done";
+	if (item.activityStatus === "failed" || item.lastFailure) return "blocked";
 	if (stage.gate?.type === "human" && stage.gate.blocking) return "waiting";
-	if (stage.gate?.blocking) return "blocked";
-	if (item.claimedBy) return "running";
+	if (hasActiveExecution(item)) return "running";
 	return "idle";
 }
 

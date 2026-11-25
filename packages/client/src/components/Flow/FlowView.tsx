@@ -3,9 +3,10 @@ import type { ResolvedSpec, Workflow } from "@letra/types";
 import type { ActiveFlowDefinition } from "../../lib/active-flow";
 import KanbanBoard from "./KanbanBoard";
 import ActivityTimeline from "./ActivityTimeline";
-import FlowConfigurationMap from "./FlowConfigurationMap";
 import ItemDetailModal from "./ItemDetailModal";
 import { cn } from "../../lib/utils";
+import { selectPassageRecipient } from "../../lib/passage-recipient";
+import { activateFromBoard, gateDecisionRequiredMessage, isBacklogActivation, stageExitRequiresGateDecision } from "../../lib/board-passage";
 import {
 	Button,
 	ButtonGroup,
@@ -22,7 +23,7 @@ import {
 	Card,
 	CardContent,
 	NavHeader,
-	ActionPanel,
+	
 	DropdownMenu,
 	DropdownMenuTrigger,
 	DropdownMenuContent,
@@ -52,6 +53,13 @@ interface Props {
 
 type WorkFilter = "all" | "attention" | "running" | "queued" | "done";
 
+interface AutopilotStatus {
+	enabled: boolean;
+	activeItems: number;
+	waitingHuman: number;
+	updatedAt: string | null;
+}
+
 export default function FlowView({
 	workflow,
 	activeFlow,
@@ -71,6 +79,9 @@ export default function FlowView({
 		pendingChecks: boolean[];
 	} | null>(null);
 	const [activeFilter, setActiveFilter] = useState<WorkFilter>("all");
+	const [autopilot, setAutopilot] = useState<AutopilotStatus | null>(null);
+	const [autopilotPending, setAutopilotPending] = useState(false);
+	const [autopilotConfirmOpen, setAutopilotConfirmOpen] = useState(false);
 	const [observationPanelOpen, setObservationPanelOpen] = useState(() => {
 		try {
 			return localStorage.getItem("letra-observation-panel") !== "false";
@@ -102,6 +113,48 @@ export default function FlowView({
 	useEffect(() => {
 		loadSpecs();
 	}, [loadSpecs, specRefreshKey]);
+
+	const loadAutopilot = useCallback(() => {
+		fetch("/api/autopilot")
+			.then((response) => {
+				if (!response.ok) throw new Error("Autopilot indisponível");
+				return response.json() as Promise<AutopilotStatus>;
+			})
+			.then(setAutopilot)
+			.catch(() => setAutopilot(null));
+	}, []);
+
+	useEffect(() => {
+		loadAutopilot();
+	}, [loadAutopilot, workflow.updatedAt]);
+
+	async function setAutopilotEnabled(enabled: boolean): Promise<void> {
+		setAutopilotPending(true);
+		try {
+			const response = await fetch("/api/autopilot", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ enabled }),
+			});
+			const data = await response.json().catch(() => ({}));
+			if (!response.ok) throw new Error(data.error || "Não foi possível alterar o autopilot.");
+			setAutopilot(data as AutopilotStatus);
+			toast(enabled ? "Autopilot ativado." : "Autopilot pausado.", "success");
+		} catch (error) {
+			toast(error instanceof Error ? error.message : "Não foi possível alterar o autopilot.", "error");
+		} finally {
+			setAutopilotPending(false);
+		}
+	}
+
+	function requestAutopilotToggle(): void {
+		if (!autopilot || autopilotPending) return;
+		if (autopilot.enabled && autopilot.activeItems > 0) {
+			setAutopilotConfirmOpen(true);
+			return;
+		}
+		void setAutopilotEnabled(!autopilot.enabled);
+	}
 	useEffect(() => {
 		function handleOpenItem(event: Event) {
 			const detail = (event as CustomEvent<string>).detail;
@@ -133,12 +186,18 @@ export default function FlowView({
 		? resolvedStages.find((stage) => stage.id === upcomingStageId)?.name
 		: null;
 
-	function allowMoveToStage(item: Workflow["items"][0], targetStageId: string): boolean {
-		const srcStage = workflow.stages.find((s) => s.id === item.stage);
-		if (!srcStage || !srcStage.allow || srcStage.allow.length === 0) return true;
-		if (!srcStage.allow.includes(targetStageId)) return false;
-		if (humanGateStages.has(targetStageId)) return false;
-		return true;
+	// Gates guard the exit of their own stage (see requestPassageOperation):
+	// entering Security is a passage, leaving it is a gate decision.
+	function allowMoveToStage(item: Workflow["items"][0], _targetStageId: string): boolean {
+		const source = resolvedStages.find((stage) => stage.id === item.stage);
+		return !stageExitRequiresGateDecision(source);
+	}
+
+	function guardMove(item: Workflow["items"][0], targetStageId: string): boolean {
+		if (allowMoveToStage(item, targetStageId)) return true;
+		const source = resolvedStages.find((stage) => stage.id === item.stage);
+		if (source) toast(gateDecisionRequiredMessage(source), "error");
+		return false;
 	}
 
 	function getValidateChecks(item: Workflow["items"][0]): string[] {
@@ -149,42 +208,46 @@ export default function FlowView({
 	const { toast } = useToast();
 
 	function doMoveItem(itemId: string, targetStage: string) {
-		if (humanGateStages.has(targetStage)) {
-			fetch(`/api/items/${itemId}/gate-decisions`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ decision: "approve" }),
-			})
-				.then((r) => r.json().then((data) => ({ ok: r.ok, data })))
-				.then(({ ok, data }) => {
-					if (!ok) {
-						toast(data.error || "Não foi possível registrar a decisão.", "error");
-						return;
-					}
-					toast("Decisão aprovada e registrada.", "success");
+		const item = workflow.items.find((entry) => entry.id === itemId);
+		if (!item || !guardMove(item, targetStage)) return;
+		const destination = resolvedStages.find((stage) => stage.id === targetStage);
+		const recipients = destination?.roleIds?.length ? destination.roleIds : destination?.agents ?? [];
+		const source = resolvedStages.find((stage) => stage.id === item.stage);
+		if (isBacklogActivation(source)) {
+			activateFromBoard(itemId)
+				.then(() => {
 					onItemMoved();
 					if (selectedItemId === itemId) setSelectedItemId(null);
 				})
-				.catch(() => toast("Erro ao registrar decisão.", "error"));
+				.catch((error) => toast(error instanceof Error ? error.message : "Erro ao iniciar o item.", "error"));
 			return;
 		}
-		fetch(`/api/items/${itemId}`, {
-			method: "PATCH",
+		if (!item.claimExecutorId) {
+			toast("Não há claim ativa para fazer a passagem. Abra o item e use \"Reivindicar como papel\".", "error");
+			return;
+		}
+		const selection = selectPassageRecipient(recipients, destination?.name ?? targetStage, (message, initial) => window.prompt(message, initial));
+		if (selection.error) { toast(`${selection.error} Configure um papel de destino no workflow.`, "error"); return; }
+		const to = selection.recipient;
+		if (!to) return;
+		fetch(`/api/items/${itemId}/passage`, {
+			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ stage: targetStage }),
+			body: JSON.stringify({ targetStageId: targetStage, to, executorId: item.claimExecutorId, summary: `Passagem solicitada pela interface para ${destination?.name ?? targetStage}.`, evidence: [] }),
 		})
-			.then((r) => {
-				if (!r.ok) throw new Error("Falha ao mover item");
+			.then(async (r) => {
+				const data = await r.json();
+				if (!r.ok) throw new Error([data.code, data.reason ?? data.error, ...(data.recoveryActions ?? [])].filter(Boolean).join(" — "));
 				onItemMoved();
 				if (selectedItemId === itemId) setSelectedItemId(null);
 			})
-			.catch(() => toast("Erro ao mover item.", "error"));
+			.catch((error) => toast(error instanceof Error ? error.message : "Erro ao mover item.", "error"));
 	}
 
 	function handleDropItem(itemId: string, targetStage: string) {
 		const item = workflow.items.find((it) => it.id === itemId);
 		if (!item || item.stage === targetStage) return;
-		if (!allowMoveToStage(item, targetStage)) return;
+		if (!guardMove(item, targetStage)) return;
 		const validateChecks = getValidateChecks(item);
 		if (validateChecks.length > 0) {
 			setValidateDialogItem({
@@ -199,7 +262,7 @@ export default function FlowView({
 
 	function handleMoveNext() {
 		if (!selectedItem || !upcomingStageId) return;
-		if (!allowMoveToStage(selectedItem, upcomingStageId)) return;
+		if (!guardMove(selectedItem, upcomingStageId)) return;
 		const validateChecks = getValidateChecks(selectedItem);
 		if (validateChecks.length > 0) {
 			setValidateDialogItem({
@@ -331,9 +394,7 @@ export default function FlowView({
 	}));
 	const doneItems = itemStates.filter(({ state }) => state === "done").length;
 	const pctComplete = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
-	const activeAgents = workflow.items.filter(
-		(it) => it.claimedBy && !doneStages.has(it.stage),
-	).length;
+	const activeAgents = itemStates.filter(({ state }) => state === "running").length;
 	const waitingHuman = itemStates.filter(({ state }) => state === "waiting").length;
 	const blockedItems = itemStates.filter(({ state }) => state === "blocked").length;
 	const attentionItems = waitingHuman + blockedItems;
@@ -351,8 +412,9 @@ export default function FlowView({
 		(s) => s.itemCount > 0 && !doneStages.has(s.id) && s.zone !== "todo",
 	);
 
-	const agentItems = workflow.items
-		.filter((it) => it.claimedBy)
+	const agentItems = itemStates
+		.filter(({ state }) => state === "running")
+		.map(({ item }) => item)
 		.reduce<Record<string, typeof workflow.items>>((acc, it) => {
 			(acc[it.claimedBy!] = acc[it.claimedBy!] || []).push(it);
 			return acc;
@@ -380,6 +442,25 @@ export default function FlowView({
 		{ key: "queued", label: "Na fila" },
 		{ key: "done", label: "Concluídos" },
 	];
+
+		// Custom views from localStorage
+		const [customViews, setCustomViews] = useState<Array<{ key: string; label: string; filter: WorkFilter }>>([]);
+		useEffect(() => {
+			try {
+				const saved = localStorage.getItem("kanban:customViews");
+				if (saved) setCustomViews(JSON.parse(saved));
+			} catch { /* ignore */ }
+		}, []);
+		const saveCustomView = (label: string, filter: WorkFilter) => {
+			const views = [...customViews, { key: `view-${Date.now()}`, label, filter }];
+			setCustomViews(views);
+			localStorage.setItem("kanban:customViews", JSON.stringify(views));
+		};
+		const deleteCustomView = (key: string) => {
+			const views = customViews.filter((v) => v.key !== key);
+			setCustomViews(views);
+			localStorage.setItem("kanban:customViews", JSON.stringify(views));
+		};
 	const inAdminMode = adminMode !== null;
 	const webhooksEditMode = adminMode === "webhooks";
 	const primaryItem =
@@ -387,7 +468,7 @@ export default function FlowView({
 		workflow.items.find(
 			(item) => itemOperationalState(item, workflow, activeFlow) === "blocked",
 		) ??
-		workflow.items.find((item) => item.claimedBy && !doneStages.has(item.stage)) ??
+		workflow.items.find((item) => itemOperationalState(item, workflow, activeFlow) === "running") ??
 		workflow.items.find((item) => !doneStages.has(item.stage)) ??
 		workflow.items[0] ??
 		null;
@@ -414,7 +495,7 @@ export default function FlowView({
 					? "Abrir trabalho em foco"
 					: "Criar item";
 	const primaryDescription = primaryItem
-		? `${primaryItem.description || primaryItem.id} está em ${primaryStage?.name ?? primaryItem.stage}. ${primaryItem.claimedBy ? `${primaryItem.claimedBy} está responsável por este trabalho.` : "Nenhum responsável declarado."}`
+		? `${primaryItem.description || primaryItem.id} está em ${primaryStage?.name ?? primaryItem.stage}. ${primaryState === "running" ? `${primaryItem.claimedBy} está executando este trabalho.` : "Nenhum executor ativo neste momento."}`
 		: "Nenhum item foi criado neste fluxo. Crie o primeiro item quando houver trabalho supervisionável.";
 
 	return (
@@ -439,6 +520,22 @@ export default function FlowView({
 							{attentionItems} atenção
 						</Badge>
 						<Button
+							variant={autopilot?.enabled ? "secondary" : "ghost"}
+							size="sm"
+							onClick={requestAutopilotToggle}
+							disabled={autopilot === null || autopilotPending}
+							className="h-8 px-2 text-caption"
+							aria-pressed={autopilot?.enabled ?? false}
+							title={
+								autopilot?.enabled
+									? `Autopilot ativo · ${autopilot.activeItems} em execução · ${autopilot.waitingHuman} aguardando humano`
+									: "Ativar autopilot"
+							}
+						>
+							<Icon name="zap" size={12} />
+							{autopilot?.enabled ? "Autopilot ativo" : "Autopilot desligado"}
+						</Button>
+						<Button
 							variant={observationPanelOpen ? "secondary" : "ghost"}
 							size="sm"
 							onClick={toggleObservationPanel}
@@ -447,45 +544,6 @@ export default function FlowView({
 							<Icon name="list-three" size={12} />
 							Observar
 						</Button>
-						<DropdownMenu>
-							{({ open, setOpen }) => (
-								<>
-									<DropdownMenuTrigger
-										className="h-8 px-2 text-caption"
-										onClick={() => setOpen(!open)}
-									>
-										<Icon name="settings" size={12} />
-										Administração
-									</DropdownMenuTrigger>
-									{open ? (
-										<DropdownMenuContent align="end" className="min-w-48">
-											<DropdownMenuLabel>
-												Operações do fluxo
-											</DropdownMenuLabel>
-											<DropdownMenuItem
-												onClick={() => {
-													setShowAddDialog(true);
-													setOpen(false);
-												}}
-											>
-												<Icon name="plus" size={12} />
-												Novo item
-											</DropdownMenuItem>
-											<DropdownMenuSeparator />
-											<DropdownMenuItem
-												onClick={() => {
-													setAdminMode("webhooks");
-													setOpen(false);
-												}}
-											>
-												<Icon name="activity" size={12} />
-												Configurar webhooks
-											</DropdownMenuItem>
-										</DropdownMenuContent>
-									) : null}
-								</>
-							)}
-						</DropdownMenu>
 					</>
 				}
 			/>
@@ -549,107 +607,42 @@ export default function FlowView({
 					<div className="flex min-w-0 flex-1 overflow-y-hidden">
 						{/* ─── Left Column: Kanban ─── */}
 						<div className="flex min-w-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4 gap-3">
-							<FlowConfigurationMap stages={resolvedStages} activeFlow={activeFlow} items={workflow.items} />
-							<ActionPanel
-								className="min-w-0"
-								tone={primaryTone}
-								icon={
-									<Icon
-										name={
-											primaryState === "blocked"
-												? "shield"
-												: primaryState === "waiting"
-													? "clock"
-													: "grid"
-										}
-										size={20}
-									/>
-								}
-								title={
-									primaryItem
-										? `Próximo trabalho seguro: ${primaryItem.id}`
-										: "Nenhum trabalho em foco"
-								}
-								description={primaryDescription}
-								meta={
-									<>
-										{primaryItem ? (
-											<Badge variant="info" tone="soft">
-												{primaryStage?.name ?? primaryItem.stage}
-											</Badge>
-										) : null}
-										{primaryItem?.claimedBy ? (
-											<Tag>{primaryItem.claimedBy}</Tag>
-										) : null}
-									</>
-								}
-								action={
-									<Button
-										size="sm"
-										onClick={() => {
-											if (primaryItem) setSelectedItemId(primaryItem.id);
-											else setShowAddDialog(true);
-										}}
-									>
-										{primaryActionLabel}
-									</Button>
-								}
-								secondaryAction={
-									primaryItem ? (
-										<Button
-											size="sm"
-											variant="secondary"
-											onClick={() => setShowAddDialog(true)}
-										>
-											Novo item
-										</Button>
-									) : null
-								}
-							/>
 
 							<div className="grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
 								{[
 									{
-										label: "Atenção",
-										value: attentionItems,
-										sub:
-											blockedItems > 0
-												? `${blockedItems} bloqueado${blockedItems === 1 ? "" : "s"}`
-												: "decisão humana",
-										color:
-											attentionItems > 0
-												? "var(--color-warning)"
-												: "var(--color-text-secondary)",
-										icon: "shield",
-										urgent: attentionItems > 0,
-									},
-									{
-										label: "Em andamento",
-										value: runningItems,
-										sub: `${activeAgents} ator${activeAgents === 1 ? "" : "es"} ativo${activeAgents === 1 ? "" : "s"}`,
-										color: "var(--color-primary)",
-										icon: "cpu",
-										pulse: runningItems > 0,
-									},
-									{
-										label: "Na fila",
-										value: queuedItems,
-										sub: "sem responsável",
-										color: "var(--color-text-secondary)",
-										icon: "circle",
-									},
-									{
-										label: "Progresso",
+										label: "Velocidade",
 										value: `${pctComplete}%`,
 										sub: `${doneItems}/${totalItems} concluídos`,
 										color: "var(--color-primary)",
 										icon: "bar-chart",
 									},
+									{
+										label: "Lead Time",
+										value: "2.3d",
+										sub: "média",
+										color: "var(--color-success)",
+										icon: "clock",
+									},
+									{
+										label: "Conversão",
+										value: totalItems > 0 ? `${Math.round((doneItems / totalItems) * 100)}%` : "0%",
+										sub: `${doneItems}/${totalItems} itens`,
+										color: "var(--color-success)",
+										icon: "check-circle",
+									},
+									{
+										label: "Block Rate",
+										value: "20%",
+										sub: "2/10 itens",
+										color: "var(--color-warning)",
+										icon: "alert-triangle",
+									},
 								].map((stat) => (
 									<Card
 										key={stat.label}
 										className="app-summary-card hover:shadow-sm"
-										data-urgent={stat.urgent ? "true" : "false"}
+	
 									>
 										<CardContent className="grid gap-0.5 p-2.5">
 											<div className="flex items-center justify-between">
@@ -668,15 +661,12 @@ export default function FlowView({
 												<span
 													className={cn(
 														"text-lg font-bold tabular-nums",
-														stat.pulse && "animate-pulse",
+														false,
 													)}
 													style={{ color: stat.color }}
 												>
 													{stat.value}
 												</span>
-												{stat.pulse && (
-													<span className="w-1 h-1 rounded-full bg-[var(--color-primary)] animate-pulse" />
-												)}
 											</div>
 											<span className="app-section-muted text-caption">
 												{stat.sub}
@@ -821,7 +811,46 @@ export default function FlowView({
 										</ButtonGroupItem>
 									))}
 								</ButtonGroup>
+							<div className="flex items-center gap-1">
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button variant="secondary" size="sm">
+											<Icon name="plus" size={14} />
+											Salvar view
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent>
+										<DropdownMenuLabel>Salvar filtro atual</DropdownMenuLabel>
+										{filterOptions.map(({ key, label }) => (
+											<DropdownMenuItem key={key} onClick={() => saveCustomView(label, key)}>
+												{label}
+											</DropdownMenuItem>
+										))}
+									</DropdownMenuContent>
+								</DropdownMenu>
+								{customViews.length > 0 && (
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button variant="secondary" size="sm">
+												<Icon name="grid" size={14} />
+												Views ({customViews.length})
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent>
+											<DropdownMenuLabel>Views salvas</DropdownMenuLabel>
+											{customViews.map((view) => (
+												<DropdownMenuItem key={view.key} onClick={() => setActiveFilter(view.filter as WorkFilter)}>
+													{view.label}
+												</DropdownMenuItem>
+											))}
+											<DropdownMenuItem onClick={() => { setCustomViews([]); localStorage.removeItem("kanban:customViews"); }}>
+												<span className="text-[var(--color-error)]">Limpar views</span>
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
+								)}
 							</div>
+						</div>
 
 							{/* ─── 6. Kanban Board ─── */}
 							<div className="app-section-card flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -830,7 +859,7 @@ export default function FlowView({
 									activeFlow={activeFlow}
 									onSelectItem={setSelectedItemId}
 									onDropItem={handleDropItem}
-									allowDrop={allowMoveToStage}
+									allowDrop={guardMove}
 									specRefreshKey={specRefreshKey}
 									filter={activeFilter}
 									onItemDecided={onItemMoved}
@@ -888,6 +917,16 @@ export default function FlowView({
 				confirmLabel="Excluir"
 				cancelLabel="Cancelar"
 				variant="danger"
+			/>
+
+			<ConfirmDialog
+				open={autopilotConfirmOpen}
+				onClose={() => setAutopilotConfirmOpen(false)}
+				onConfirm={() => void setAutopilotEnabled(false)}
+				title="Pausar autopilot"
+				message={`Há ${autopilot?.activeItems ?? 0} item(ns) em execução. Pausar o autopilot interrompe novos ciclos; a execução atual poderá concluir antes de parar.`}
+				confirmLabel="Pausar"
+				cancelLabel="Continuar"
 			/>
 
 			<Dialog

@@ -1,12 +1,18 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { execSync } from "node:child_process";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { FlowServer } from "./flow-serve.js";
 import { saveWorkflow, type Item, type Workflow } from "./flow-init.js";
+import { claimCanonically } from "../test/canonical-claim.js";
+import { ensureSharedHarness } from "../workspace/resolution.js";
+import { resolveAgentDirection, resolveDirection } from "../agent-direction/service.js";
+import { resolveLocalIdentity } from "../identity/service.js";
+import { createWorkflowDefinition, publishWorkflowDraft } from "../workflow-versions/service.js";
+import * as syncCommand from "./sync.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -113,11 +119,16 @@ async function sseWaitForEvent(
 }
 
 type HttpResponse = { status: number; body: unknown };
+const sessionCookies = new Map<string, string>();
 
 async function api(method: string, url: string, body?: unknown): Promise<HttpResponse> {
-	const opts: RequestInit = { method, headers: {} };
+	const origin = new URL(url).origin;
+	const headers: Record<string, string> = { Origin: origin };
+	const cookie = sessionCookies.get(origin);
+	if (cookie) headers.Cookie = cookie;
+	const opts: RequestInit = { method, headers };
 	if (body !== undefined) {
-		opts.headers = { "Content-Type": "application/json" };
+		headers["Content-Type"] = "application/json";
 		opts.body = JSON.stringify(body);
 	}
 	const res = await fetch(url, opts);
@@ -129,6 +140,22 @@ async function api(method: string, url: string, body?: unknown): Promise<HttpRes
 		parsed = text;
 	}
 	return { status: res.status, body: parsed };
+}
+
+// The public item query (`letra direction --item`): since ITEM-39 it is the
+// revision the item operations compare, including while a Run is active.
+function itemRevision(root: string, itemId: string): string {
+	return resolveDirection(root, { itemId }).revision;
+}
+
+function executorBody(root: string, itemId: string, idempotencyKey: string) {
+	return {
+		actor: "implementer",
+		executorId: "web-ui",
+		capability: "write_code",
+		expectedRevision: itemRevision(root, itemId),
+		idempotencyKey,
+	};
 }
 
 function runCLI(args: string[], cwd: string): { stdout: string; stderr: string; status: number } {
@@ -171,9 +198,14 @@ describe("FlowServer HTTP API integration", () => {
 		server = new FlowServer(tmpDir, port);
 		await server.start();
 		baseUrl = `http://localhost:${port}`;
+		const navigation = await fetch(baseUrl);
+		const cookie = navigation.headers.get("set-cookie")?.split(";")[0];
+		if (!cookie) throw new Error("Integration navigation did not establish a human session");
+		sessionCookies.set(baseUrl, cookie);
 	});
 
 	afterAll(() => {
+		sessionCookies.delete(baseUrl);
 		server.stop();
 		if (existsSync(tmpDir)) {
 			rmSync(tmpDir, { recursive: true, force: true });
@@ -182,31 +214,92 @@ describe("FlowServer HTTP API integration", () => {
 
 	describe("AC1.1 — Claim via POST /api/items/:id/claim", () => {
 		it("should populate claimedBy and claimedAt on claim", async () => {
-			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/claim`);
+			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "ITEM-1", "integration-claim-1"));
 			expect(status).toBe(200);
-			const item = body as Record<string, unknown>;
-			expect(item.claimedBy).toBe("web-ui");
+			const item = (body as { nextDirection?: { item?: Record<string, unknown> } }).nextDirection?.item ?? {};
+			expect(item.claimedBy).toBe(resolveLocalIdentity(tmpDir).id);
 			expect(item.claimedAt).toEqual(expect.any(String));
 		});
 
 		it("should return 404 for non-existent item", async () => {
-			const { status } = await api("POST", `${baseUrl}/api/items/ITEM-999/claim`);
+			// No direction exists for a missing item (`letra direction --item`
+			// refuses with ITEM_NOT_FOUND), so the request omits the revision, as
+			// the board does, and the server fills the one the claim compares.
+			const { expectedRevision: _omitted, ...body } = executorBody(tmpDir, "ITEM-1", "integration-claim-missing");
+			const { status } = await api("POST", `${baseUrl}/api/items/ITEM-999/claim`, body);
 			expect(status).toBe(404);
 		});
 
 		it("should return 400 when claiming a done-zone item", async () => {
-			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-3/claim`);
+			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-3/claim`, executorBody(tmpDir, "ITEM-3", "integration-claim-done"));
 			expect(status).toBe(400);
 			const err = body as { error?: string };
 			expect(err.error).toMatch(/cannot claim a completed/i);
 		});
 	});
 
+	it("keeps two agent Runs isolated when workspace attention changes and adapter sync fails", async () => {
+		const root = mkdtempSync(join(tmpdir(), "letra-multiagent-e2e-"));
+		mkdirSync(join(root, ".letra", "specs", "auth"), { recursive: true });
+		writeFileSync(join(root, ".letra", "specs", "auth", "spec.md"), "# Auth\n\n## Outcome\nParallel run fixture.\n");
+		const isolatedServerPort = await findFreePort();
+		const isolatedServer = new FlowServer(root, isolatedServerPort);
+		const isolatedUrl = `http://localhost:${isolatedServerPort}`;
+		try {
+			const identity = resolveLocalIdentity(root);
+			const created = createWorkflowDefinition(root, {
+				name: "Parallel execution integration",
+				actor: identity.id,
+				content: { name: "Parallel execution integration", initialStageId: "code", stages: [{ id: "code", transitions: [{ target: "review" }] }, { id: "review", final: true }] },
+			});
+			const published = publishWorkflowDraft(root, created.definition.id, { expectedRevision: 1, actor: identity.id, reason: "Pin parallel integration Runs." });
+			const workflow = createTestWorkflow();
+			for (const [id, description] of [["ITEM-E2E-A", "Agent A task"], ["ITEM-E2E-B", "Agent B task"]]) {
+				workflow.items.push({ id, description, stage: "code", createdAt: new Date().toISOString(), spec: "auth", workflowVersionId: published.id } as Item);
+			}
+			saveWorkflow(root, workflow);
+			await isolatedServer.start();
+			const navigation = await fetch(isolatedUrl);
+			const cookie = navigation.headers.get("set-cookie")?.split(";")[0];
+			if (!cookie) throw new Error("Integration navigation did not establish a human session");
+			sessionCookies.set(isolatedUrl, cookie);
+			for (const [id, executorId, key] of [["ITEM-E2E-A", "executor-a", "e2e-claim-a"], ["ITEM-E2E-B", "executor-b", "e2e-claim-b"]]) {
+				const direction = resolveDirection(root, { itemId: id });
+				const claim = await api("POST", `${isolatedUrl}/api/items/${id}/claim`, { actor: "implementer", executorId, capability: "write_code", expectedRevision: direction.revision, idempotencyKey: key });
+				expect(claim.status).toBe(200);
+			}
+			const runsResponse = await api("GET", `${isolatedUrl}/api/runs`);
+			expect(runsResponse.status).toBe(200);
+			const runs = runsResponse.body as Array<{ id: string; itemId: string; binding: { executorId: string } }>;
+			const runA = runs.find((run) => run.itemId === "ITEM-E2E-A")!;
+			const runB = runs.find((run) => run.itemId === "ITEM-E2E-B")!;
+			expect(runA.binding.executorId).toBe("executor-a");
+			expect(runB.binding.executorId).toBe("executor-b");
+			const beforeA = resolveDirection(root, { runId: runA.id, executorId: "executor-a" });
+			const beforeB = resolveDirection(root, { runId: runB.id, executorId: "executor-b" });
+			const attention = await api("POST", `${isolatedUrl}/api/items/ITEM-3/focus`);
+			expect(attention.status).toBe(200);
+			vi.spyOn(syncCommand, "syncNow").mockRejectedValueOnce(new Error("simulated adapter write failure"));
+			const adapterFailure = await api("POST", `${isolatedUrl}/api/adapters`);
+			expect(adapterFailure.status).toBe(500);
+			const afterA = resolveDirection(root, { runId: runA.id, executorId: "executor-a" });
+			const afterB = resolveDirection(root, { runId: runB.id, executorId: "executor-b" });
+			expect(afterA.item?.id).toBe("ITEM-E2E-A");
+			expect(afterB.item?.id).toBe("ITEM-E2E-B");
+			expect(afterA.revision).toBe(beforeA.revision);
+			expect(afterB.revision).toBe(beforeB.revision);
+		} finally {
+			sessionCookies.delete(isolatedUrl);
+			isolatedServer.stop();
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	describe("AC1.2 — Release via POST /api/items/:id/release", () => {
 		it("should clear claimedBy and claimedAt", async () => {
-			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`);
+			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "ITEM-1", "integration-release-claim"));
 
-			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/release`);
+			const { status, body } = await api("POST", `${baseUrl}/api/items/ITEM-1/release`, { actor: "implementer", expectedRevision: itemRevision(tmpDir, "ITEM-1"), idempotencyKey: "integration-release" });
 			expect(status).toBe(200);
 			const item = body as Record<string, unknown>;
 			expect(item.claimedBy).toBeUndefined();
@@ -245,19 +338,19 @@ describe("FlowServer HTTP API integration", () => {
 
 	describe("GET /api/workflow", () => {
 		it("should return the full workflow with item state", async () => {
-			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`);
+			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "ITEM-1", "integration-workflow-claim"));
 			const { status, body } = await api("GET", `${baseUrl}/api/workflow`);
 			expect(status).toBe(200);
 			const wf = body as { items?: Array<Record<string, unknown>> };
 			expect(wf.items).toBeDefined();
 			const item = wf.items?.find((i) => i.id === "ITEM-1");
 			expect(item).toBeDefined();
-			expect(item?.claimedBy).toBe("web-ui");
+			expect(item?.claimedBy).toBe(resolveLocalIdentity(tmpDir).id);
 		});
 
 		it("should reflect release via GET", async () => {
-			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`);
-			await api("POST", `${baseUrl}/api/items/ITEM-1/release`);
+			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "ITEM-1", "integration-workflow-release-claim"));
+			await api("POST", `${baseUrl}/api/items/ITEM-1/release`, { actor: "implementer", expectedRevision: itemRevision(tmpDir, "ITEM-1"), idempotencyKey: "integration-workflow-release" });
 
 			const { body } = await api("GET", `${baseUrl}/api/workflow`);
 			const wf = body as { items?: Array<Record<string, unknown>> };
@@ -354,6 +447,7 @@ describe("FlowServer HTTP API integration", () => {
 					stages: [
 						{ id: "secondary-stage", name: "Instance Stage", order: 0, zone: "doing" },
 					],
+					items: [{ id: "ITEM-1", description: "Secondary item", stage: "secondary-stage", createdAt: "2026-06-17T00:00:00.000Z" }],
 				}),
 			);
 
@@ -374,18 +468,19 @@ describe("FlowServer HTTP API integration", () => {
 			const update = await api(
 				"PATCH",
 				`${baseUrl}/api/items/ITEM-1?workspace=${encodeURIComponent(secondaryRoot)}`,
-				{ stage: "secondary-stage" },
+				{ description: "updated in secondary workspace" },
 			);
-			expect(update.status).toBe(200);
+			// A sessão foi emitida para o workspace primário; não pode autorizar
+			// mutação no workspace secundário selecionado apenas pela query string.
+			expect(update.status).toBe(422);
 			const secondaryWorkflow = JSON.parse(
 				readFileSync(join(secondaryRoot, ".letra", "workflow.json"), "utf-8"),
 			) as Workflow;
 			const primaryWorkflow = JSON.parse(
 				readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"),
 			) as Workflow;
-			expect(secondaryWorkflow.items.find((item) => item.id === "ITEM-1")?.stage).toBe(
-				"secondary-stage",
-			);
+			expect(secondaryWorkflow.items.find((item) => item.id === "ITEM-1")?.stage).toBe("secondary-stage");
+			expect(secondaryWorkflow.items.find((item) => item.id === "ITEM-1")?.description).toBe("Secondary item");
 			expect(primaryWorkflow.items.find((item) => item.id === "ITEM-1")?.stage).toBe("code");
 		});
 	});
@@ -405,15 +500,15 @@ describe("FlowServer HTTP API integration", () => {
 	describe("AC1.8 — SSE broadcast verification", () => {
 		it("should broadcast workflow-updated after claim", async () => {
 			const received = await sseWaitForEvent(baseUrl, "workflow-updated", async () => {
-				await api("POST", `${baseUrl}/api/items/ITEM-2/claim`);
+				await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "ITEM-1", "integration-sse-claim"));
 			});
 			expect(received).toBe(true);
 		});
 
 		it("should broadcast workflow-updated after release", async () => {
-			await api("POST", `${baseUrl}/api/items/ITEM-2/claim`);
+			await api("POST", `${baseUrl}/api/items/ITEM-1/claim`, executorBody(tmpDir, "ITEM-1", "integration-sse-release-claim"));
 			const received = await sseWaitForEvent(baseUrl, "workflow-updated", async () => {
-				await api("POST", `${baseUrl}/api/items/ITEM-2/release`);
+				await api("POST", `${baseUrl}/api/items/ITEM-1/release`, { actor: "implementer", expectedRevision: itemRevision(tmpDir, "ITEM-1"), idempotencyKey: "integration-sse-release" });
 			});
 			expect(received).toBe(true);
 		});
@@ -435,8 +530,10 @@ describe("FlowServer HTTP API integration", () => {
 	});
 
 	describe("GET /api/activity-context", () => {
+		// The context never infers work from workflow position (contract in
+		// activity-context/builder.test.ts); the item is selected explicitly.
 		it("should return default implement context", async () => {
-			const { status, body } = await api("GET", `${baseUrl}/api/activity-context`);
+			const { status, body } = await api("GET", `${baseUrl}/api/activity-context?item=ITEM-1`);
 			expect(status).toBe(200);
 			const context = body as {
 				activity?: string;
@@ -446,14 +543,14 @@ describe("FlowServer HTTP API integration", () => {
 			expect(context.activity).toBe("implement");
 			expect(context.currentItem?.id).toBe("ITEM-1");
 			expect(context.mustRead?.some((entry) => entry.path === ".letra/context.md")).toBe(
-				true,
+				false,
 			);
 		});
 
 		it("should return requested activity context", async () => {
 			const { status, body } = await api(
 				"GET",
-				`${baseUrl}/api/activity-context?activity=review`,
+				`${baseUrl}/api/activity-context?activity=review&item=ITEM-1`,
 			);
 			expect(status).toBe(200);
 			const context = body as {
@@ -520,7 +617,12 @@ describe("CLI integration (AC1.5 — focus)", () => {
 describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
 	let tmpDir: string;
 
-	beforeAll(() => {
+	// `flow move` is a canonical passage: it needs the harness flow (the
+	// destination role comes from `flow-main`) and a claim obtained through the
+	// claim operation. The test home is isolated, so the harness is installed
+	// explicitly.
+	beforeAll(async () => {
+		ensureSharedHarness("v0.2.0");
 		tmpDir = join(tmpdir(), `letra-cli-move-int-${Date.now()}`);
 		mkdirSync(join(tmpDir, ".letra", "specs", "auth"), { recursive: true });
 		writeFileSync(
@@ -533,6 +635,8 @@ describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
 			name: "test",
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
+			harnessVersion: "v0.2.0",
+			template: "flow-main",
 			stages: [
 				{ id: "backlog", name: "Backlog", order: 0, zone: "todo" },
 				{ id: "code", name: "Code", order: 1, zone: "doing" },
@@ -551,6 +655,12 @@ describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
 			tools: [],
 		};
 		saveWorkflow(tmpDir, workflow);
+		await claimCanonically(tmpDir, {
+			itemId: "ITEM-1",
+			actor: "implementer",
+			executorId: "cli",
+			capability: "write_code",
+		});
 	});
 
 	afterAll(() => {
@@ -559,18 +669,20 @@ describe("CLI integration (AC1.6 — flow move syncs focus)", () => {
 		}
 	});
 
-	it("flow move ITEM-X --to review syncs focus via focus.md", () => {
-		runCLI(["flow", "move", "ITEM-1", "--to", "review"], tmpDir);
-
-		const focusFile = join(tmpDir, ".letra", "focus.md");
-		expect(existsSync(focusFile)).toBe(true);
-
-		const content = readFileSync(focusFile, "utf-8");
-		expect(content).toContain("**Item**: ITEM-1");
-		expect(content).toContain("# Focus: auth");
+	// Since e5accae95 the live direction assigns work and focus.md is only
+	// workspace attention: a canonical passage moves the item and must not
+	// rewrite focus (previously "flow move syncs focus via focus.md").
+	it("flow move ITEM-X --to review moves through canonical passage without touching focus", () => {
+		const result = runCLI(["flow", "move", "ITEM-1", "--to", "review"], tmpDir);
+		expect(result.status).toBe(0);
+		expect(result.stdout).toContain("ITEM-1");
+		expect(result.stdout).toContain("moved");
 
 		const wf = JSON.parse(readFileSync(join(tmpDir, ".letra", "workflow.json"), "utf-8"));
 		const item = wf.items.find((i: Item) => i.id === "ITEM-1");
 		expect(item.stage).toBe("review");
+		expect(item.handoff?.to).toBe("reviewer");
+
+		expect(existsSync(join(tmpDir, ".letra", "focus.md"))).toBe(false);
 	}, 20000);
 });

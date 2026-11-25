@@ -1,22 +1,12 @@
-# Gerado por letra ac. Nao edite manualmente.
-# Letra Context — VSCode Copilot Adapter
-Read the following files before starting any task:
-- .letra/context.md
-- .letra/constitution.md
-- .letra/glossary.md
-- .letra/constraints.md
-- .letra/focus.md
+# Gerado por letra sync. Nao edite manualmente.
+# Letra Agent Bootstrap
 
-# Rules
-- Always read specs in .letra/specs/ before writing code
-- Run `letra validate` to check acceptance criteria
-- Execute `letra ac done <ID>` after implementing each AC
-- Follow the constitution.md rules strictly
-- Use formal tone in all generated content
+Use the live execution contract for every task; this file contains no task assignment.
 
-<!-- mermaid-ai-skills:start -->
-## Mermaid Diagrams
+1. Query `get_direction` or run `letra direction --json` before acting. To act on an item, read `letra direction --item <ITEM-ID> --json` (or `--run <RUN-ID>`): its revision is the one the operations compare.
+2. Follow only the selected Run. If assignment is unassigned or selection-required, acquire or select a Run explicitly.
+3. Load only references listed by the direction and verify their SHA-256 values.
+4. Include the current direction revision and an explicit target on every mutation.
+5. Report evidence and completion through the Letra operation contract.
 
-When the user asks to create, edit, or visualize a diagram, follow the
-instructions in `.github/instructions/mermaid.instructions.md`.
-<!-- mermaid-ai-skills:end -->
+Workspace attention, generated prompts, and cached snapshots do not grant execution authority.

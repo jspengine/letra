@@ -3,8 +3,18 @@ name: DS Catalog
 on:
   pull_request:
     branches: ["main", "development"]
+    paths:
+      - "packages/ui/**"
+      - "packages/design-toolkit/**"
+      - "package-lock.json"
+      - ".github/workflows/ds-catalog.yml"
   push:
     branches: ["main", "development"]
+    paths:
+      - "packages/ui/**"
+      - "packages/design-toolkit/**"
+      - "package-lock.json"
+      - ".github/workflows/ds-catalog.yml"
 
 jobs:
   storybook-catalog:

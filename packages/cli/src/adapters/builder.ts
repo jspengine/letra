@@ -174,11 +174,13 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 		}
 	}
 
+	// The adapter never infers an assignment: without an explicit primary item
+	// in the active stage, it shows no current item and agents must ask the
+	// live direction. Falling back to the first stage item made generated
+	// adapters point at the wrong item.
 	let primaryItemId: string | null = null;
-	if (options.primaryItemId && stageItems.some((i) => i.id === options.primaryItemId)) {
+	if (options.primaryItemId && stageItems.some((item) => item.id === options.primaryItemId)) {
 		primaryItemId = options.primaryItemId;
-	} else if (stageItems.length > 0) {
-		primaryItemId = stageItems[0].id;
 	}
 
 	const items: HarnessItem[] = stageItems.map((item) => ({
@@ -195,12 +197,12 @@ export function buildHarnessSnapshot(root: string, options: GenerateOptions): Ha
 	const parsedFocus = readFocusFile(root);
 	if (parsedFocus) {
 		focusSpec = parsedFocus.specName;
-		focusPath = `${isWorkspace ? "specs/" : ".letra/specs/"}${parsedFocus.specName}/`;
+		focusPath = `specs/${parsedFocus.specName}/`;
 	} else {
 		const primaryItem = items.find((i) => i.id === primaryItemId);
 		if (primaryItem?.spec) {
 			focusSpec = primaryItem.spec;
-			focusPath = `${isWorkspace ? "specs/" : ".letra/specs/"}${primaryItem.spec}/`;
+			focusPath = `specs/${primaryItem.spec}/`;
 		}
 	}
 

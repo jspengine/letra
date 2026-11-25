@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { getLetraDir } from "./workspace/resolver.js";
+import { recoverWorkspaceTransaction, withWorkspaceTransactionLockSync } from "./domain-operations/workspace-transaction.js";
 
 export type LogAction =
 	| "validate"
@@ -82,7 +83,7 @@ function logDir(root: string): string {
 	return join(getLetraDir(root), LOG_DIR);
 }
 
-function jsonlPathForDate(root: string, date = new Date()): string {
+export function jsonlPathForDate(root: string, date = new Date()): string {
 	const iso = date.toISOString();
 	const year = iso.slice(0, 4);
 	const month = iso.slice(5, 7);
@@ -202,6 +203,7 @@ export function closeSessionLogHandles(): void {
 }
 
 export function loadSessionLog(root: string): SessionLog {
+	recoverWorkspaceTransaction(root);
 	return {
 		schemaVersion: SCHEMA_VERSION,
 		entries: [...readLegacyEntries(root), ...readJsonlEntries(root)],
@@ -295,8 +297,17 @@ export function logEntry(
 	description: string,
 	options?: LogEntryOptions,
 ): LogEntry {
+	return withWorkspaceTransactionLockSync(root, () => {
+		const entry = createLogEntry(action, description, options);
+		const file = jsonlPathForDate(root, new Date(entry.timestamp));
+		appendJsonlLine(file, JSON.stringify(entry));
+		return entry;
+	});
+}
+
+export function createLogEntry(action: string, description: string, options?: LogEntryOptions): LogEntry {
 	const now = new Date();
-	const entry: LogEntry = {
+	return {
 		id: nextId(),
 		timestamp: now.toISOString(),
 		action,
@@ -306,15 +317,13 @@ export function logEntry(
 		details: options?.details ?? {},
 		level: inferLogLevel(action, options),
 	};
-	const file = jsonlPathForDate(root, now);
-	appendJsonlLine(file, JSON.stringify(entry));
-	return entry;
 }
 
 export interface LogQuery {
 	limit?: number;
 	offset?: number;
 	itemId?: string;
+	runId?: string;
 	action?: LogAction | string;
 	since?: string;
 	all?: boolean;
@@ -382,6 +391,7 @@ function _applyFilters(allEntries: LogEntry[], query?: LogQuery): LogEntry[] {
 	let entries = [...allEntries];
 	if (!query?.debug) entries = entries.filter((e) => e.level !== "debug");
 	if (query?.itemId) entries = entries.filter((e) => e.itemId === query.itemId);
+	if (query?.runId) entries = entries.filter((e) => e.details?.runId === query.runId);
 	if (query?.action) entries = entries.filter((e) => e.action === query.action);
 	if (query?.spec) {
 		const spec = query.spec.toLowerCase();
@@ -444,3 +454,4 @@ export function pruneSessionLog(root: string, keepDays: number, now = new Date()
 	}
 	return removed;
 }
+

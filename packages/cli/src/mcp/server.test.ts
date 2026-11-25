@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -6,6 +6,8 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { createLetraMcpServer } from "./server.js";
 import { loadSessionLog } from "../session-log.js";
+import { resolveAgentDirection } from "../agent-direction/service.js";
+import { resolveLocalIdentity } from "../identity/service.js";
 
 const roots: string[] = [];
 
@@ -24,7 +26,10 @@ function fixture(): string {
 				template: "missing-template",
 				harnessVersion: "missing-version",
 				stages: [
-					{ id: "build", name: "Build", order: 0, zone: "doing" },
+					// Edges are explicit since f62e36d90 (workflow-instance edges
+					// come from `allow`); build -> review exists, and the tests
+					// check that using it still requires the canonical passage.
+					{ id: "build", name: "Build", order: 0, zone: "doing", allow: ["review"] },
 					{ id: "review", name: "Review", order: 1, zone: "doing" },
 				],
 				items: [
@@ -53,6 +58,36 @@ function fixture(): string {
 	return root;
 }
 
+function configureCodeReviewGate(root: string): void {
+	const workflowPath = join(root, ".letra", "workflow.json");
+	const workflow = JSON.parse(readFileSync(workflowPath, "utf-8"));
+	workflow.template = "controlled-flow";
+	workflow.harnessVersion = "v0.2.0";
+	workflow.stages = [
+		{ id: "code", name: "Code", order: 0, zone: "doing" },
+		{ id: "review", name: "Review", order: 1, zone: "doing" },
+	];
+	workflow.items[0].stage = "code";
+	writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+	const harness = join(root, ".letra", "harness", "v0.2.0");
+	mkdirSync(join(harness, "flows"), { recursive: true });
+	mkdirSync(join(harness, "gates"), { recursive: true });
+	// The loader only accepts a harness with flows/, gates/ and roles/; without
+	// roles/ it fell back to the global harness (the developer's home).
+	mkdirSync(join(harness, "roles"), { recursive: true });
+	// Edges are explicit since f62e36d90: the code -> review edge exists, and
+	// the test checks that using it still requires the canonical passage.
+	writeFileSync(join(harness, "flows", "controlled-flow.yaml"), [
+		"id: controlled-flow", "version: 1", "name: Controlled", "description: test", "defaultPolicy: default", "stages:",
+		"  - id: code", "    name: Code", "    order: 0", "    zone: doing", "    gate: gates/code-reviewed.yaml",
+		"    transitions:", "      - target: review",
+		"  - id: review", "    name: Review", "    order: 1", "    zone: doing",
+	].join("\n"));
+	// Same contract as the shipped gate: the canonical validation clears it
+	// (a static "status: pending" gate could never be cleared by validate).
+	writeFileSync(join(harness, "gates", "code-reviewed.yaml"), "id: code-reviewed\nname: Code reviewed\ntype: automated\nblocking: true\ncheck_type: validation\n");
+}
+
 function toolJson(result: Awaited<ReturnType<Client["callTool"]>>): Record<string, unknown> {
 	const content = (result as { content: Array<{ type: string; text?: string }> }).content;
 	const text = content.find((entry) => entry.type === "text");
@@ -65,6 +100,76 @@ afterEach(() => {
 });
 
 describe("Letra MCP read-only server", () => {
+	it("does not mint a human identity or accept a forged actor for workflow mutation", async () => {
+		const root = fixture();
+		const server = createLetraMcpServer(root);
+		const client = new Client({ name: "unbound-agent", version: "1.0.0" });
+		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+		await server.connect(serverTransport);
+		await client.connect(clientTransport);
+		try {
+			const result = await client.callTool({ name: "workflow_create_definition", arguments: { name: "Forged", actor: "human:admin" } });
+			expect(result.isError).toBe(true);
+			expect(JSON.stringify(result.content)).toContain("HUMAN_SESSION_REQUIRED");
+			expect(existsSync(join(root, ".letra", "identity", "local.json"))).toBe(false);
+		} finally {
+			await client.close();
+			await server.close();
+		}
+	});
+
+	it("rejects an unbound MCP agent even when a local identity already exists", async () => {
+		const root = fixture();
+		const actor = resolveLocalIdentity(root).id;
+		const server = createLetraMcpServer(root);
+		const client = new Client({ name: "unbound-agent", version: "1.0.0" });
+		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+		await server.connect(serverTransport);
+		await client.connect(clientTransport);
+		try {
+			const result = await client.callTool({ name: "workflow_create_definition", arguments: { name: "Forged", actor } });
+			expect(result.isError).toBe(true);
+			expect(JSON.stringify(result.content)).toContain("HUMAN_SESSION_REQUIRED");
+		} finally {
+			await client.close();
+			await server.close();
+		}
+	});
+
+	it("allows a trusted host to bind a verified local human session", async () => {
+		const root = fixture();
+		const actor = resolveLocalIdentity(root).id;
+		let boundActor: string | null = actor;
+		const server = createLetraMcpServer(root, { resolveBoundHumanActor: () => boundActor });
+		const client = new Client({ name: "bound-agent", version: "1.0.0" });
+		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+		await server.connect(serverTransport);
+		await client.connect(clientTransport);
+		try {
+			const result = toolJson(await client.callTool({ name: "workflow_create_definition", arguments: { name: "Bound" } }));
+			expect(result.definition).toMatchObject({ name: "Bound" });
+			expect(result.draft).toMatchObject({ createdBy: actor });
+			const workflowId = (result.definition as { id: string }).id;
+			const content = { name: "Bound", initialStageId: "start", stages: [{ id: "start", transitions: [{ target: "done" }] }, { id: "done", final: true }] };
+			const draft = toolJson(await client.callTool({ name: "workflow_update_draft", arguments: { workflowId, expectedRevision: 1, content } }));
+			expect(draft.revision).toBe(2);
+			boundActor = null;
+			const unbound = await client.callTool({ name: "workflow_publish", arguments: { workflowId, expectedRevision: 2, reason: "Release" } });
+			expect(unbound.isError).toBe(true);
+			expect(JSON.stringify(unbound.content)).toContain("HUMAN_SESSION_REQUIRED");
+			boundActor = "human:forged";
+			const forged = await client.callTool({ name: "workflow_publish", arguments: { workflowId, expectedRevision: 2, reason: "Release" } });
+			expect(forged.isError).toBe(true);
+			boundActor = actor;
+			const published = toolJson(await client.callTool({ name: "workflow_publish", arguments: { workflowId, expectedRevision: 2, reason: "Release" } }));
+			expect(published).toMatchObject({ number: 1, publishedBy: actor });
+			const restored = toolJson(await client.callTool({ name: "workflow_rollback", arguments: { workflowId, versionNumber: 1, reason: "Restore" } }));
+			expect(restored).toMatchObject({ number: 2, publishedBy: actor, restoredFromVersionId: published.id });
+		} finally {
+			await client.close();
+			await server.close();
+		}
+	});
 	it("exposes direction, active spec and health through tools and resources", async () => {
 		const root = fixture();
 		const server = createLetraMcpServer(root);
@@ -76,40 +181,59 @@ describe("Letra MCP read-only server", () => {
 		try {
 			const tools = await client.listTools();
 			expect(tools.tools.map((tool) => tool.name)).toEqual([
-				"get_direction",
-				"get_active_spec",
-				"get_health",
-				"validate",
-				"complete_ac",
-				"request_transition",
-				"get_context",
-				"get_activity",
-				"claim",
-				"execution_event",
-				"submit_evidence",
-				"request_handoff",
-				"list_gates",
-				"list_roles",
-			]);
+						"get_direction",
+						"get_active_spec",
+						"get_health",
+						"validate",
+						"complete_ac",
+						"request_transition",
+						"get_context",
+						"get_activity",
+						"get_spec_catalog",
+						"load_reference",
+						"claim",
+						"create_item",
+						"link_item_spec",
+						"execution_event",
+						"submit_evidence",
+						"security_review",
+						"request_handoff",
+						"request_passage",
+						"request_rework",
+						"list_gates",
+						"list_roles",
+						"workflow_list_definitions",
+						"workflow_list_versions",
+						"workflow_get_version",
+						"workflow_get_active",
+						"workflow_get_draft",
+						"run_migrate_workflow",
+						"workflow_create_definition",
+						"workflow_create_draft",
+						"workflow_update_draft",
+						"workflow_validate_draft",
+						"workflow_publish",
+						"workflow_rollback",
+					]);
+					expect(
+						tools.tools.filter((tool) => tool.annotations?.readOnlyHint === true).length,
+				).toBe(14);
 			expect(
-				tools.tools.filter((tool) => tool.annotations?.readOnlyHint === true).length,
-			).toBe(7);
+						tools.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length,
+				).toBe(19);
 			expect(
-				tools.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length,
-			).toBe(7);
-			expect(
-				tools.tools.filter((tool) => tool.inputSchema?.additionalProperties === false)
-					.length,
-			).toBe(8);
+						tools.tools.filter((tool) => tool.inputSchema?.additionalProperties === false)
+						.length,
+				).toBe(27);
 
 			const direction = toolJson(
-				await client.callTool({ name: "get_direction", arguments: {} }),
+				await client.callTool({ name: "get_direction", arguments: { itemId: "ITEM-1" } }),
 			);
 			expect(direction.item).toMatchObject({ id: "ITEM-1", stage: "build" });
 			expect(direction.revision).toMatch(/^sha256:/);
 
 			const spec = toolJson(
-				await client.callTool({ name: "get_active_spec", arguments: {} }),
+				await client.callTool({ name: "get_active_spec", arguments: { itemId: "ITEM-1" } }),
 			);
 			expect(spec).toMatchObject({ name: "live-direction" });
 
@@ -117,9 +241,10 @@ describe("Letra MCP read-only server", () => {
 			expect(health).toMatchObject({ active: [] });
 
 			const resources = await client.listResources();
-			expect(resources.resources.map((resource) => resource.uri)).toEqual([
+				expect(resources.resources.map((resource) => resource.uri)).toEqual([
 				"letra://direction",
 				"letra://spec/active",
+				"letra://spec-catalog",
 				"letra://constitution",
 				"letra://health",
 				"letra://harness/templates",
@@ -166,6 +291,60 @@ describe("Letra MCP read-only server", () => {
 		}
 	});
 
+	it("reads active spec from canonical workspace before stale nested .letra projection", async () => {
+		const root = fixture();
+		const canonicalRoot = join(root, "canonical-data");
+		mkdirSync(canonicalRoot, { recursive: true });
+		writeFileSync(join(canonicalRoot, "workflow.json"), readFileSync(join(root, ".letra", "workflow.json"), "utf8"));
+		const link = join(root, ".letra-link");
+		writeFileSync(link, canonicalRoot);
+		const workflowPath = join(root, ".letra", "workflow.json");
+		const workflow = JSON.parse(readFileSync(workflowPath, "utf8"));
+		workflow.items[0].stage = "review";
+		workflow.stages = [{ id: "build", name: "Build", order: 0, zone: "doing" }, { id: "review", name: "Review", order: 1, zone: "doing" }];
+		writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
+		mkdirSync(join(canonicalRoot, "specs", "live-direction"), { recursive: true });
+		writeFileSync(join(canonicalRoot, "specs", "live-direction", "spec.md"), "# Canonical\n- [x] **AC1 — Done**: complete\n- [ ] **AC2 — Next**: canonical content\n");
+		const server = createLetraMcpServer(root);
+		const client = new Client({ name: "letra-test", version: "1.0.0" });
+		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+		await server.connect(serverTransport);
+		await client.connect(clientTransport);
+		try {
+			const spec = toolJson(await client.callTool({ name: "get_active_spec", arguments: { itemId: "ITEM-1" } }));
+			expect(spec.path).toContain("/specs/live-direction/spec.md");
+			expect(spec.content).toContain("AC2 — Next");
+			expect(spec.content).not.toContain("AC1 — Live");
+		} finally {
+			await client.close();
+			await server.close();
+		}
+	});
+
+	it("loads direction references and detects content drift by SHA-256", async () => {
+		const root = fixture();
+		const server = createLetraMcpServer(root);
+		const client = new Client({ name: "letra-test", version: "1.0.0" });
+		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+		await server.connect(serverTransport);
+		await client.connect(clientTransport);
+		try {
+			const direction = toolJson(await client.callTool({ name: "get_direction", arguments: { itemId: "ITEM-1" } }));
+			const unknown = toolJson(await client.callTool({ name: "load_reference", arguments: { id: "unknown-reference", itemId: "ITEM-1" } }));
+			expect(unknown).toMatchObject({ reasonCode: "REFERENCE_NOT_FOUND" });
+			const reference = (direction.references as Array<{ id: string; path: string }>).find((entry) => entry.path === "specs/live-direction/spec.md");
+			expect(reference).toBeDefined();
+			const loaded = toolJson(await client.callTool({ name: "load_reference", arguments: { id: reference!.id, itemId: "ITEM-1" } }));
+			expect(loaded).toMatchObject({ status: "current", verified: true, path: reference!.path });
+			writeFileSync(join(root, ".letra", reference!.path), "# Changed after snapshot\n");
+			const drifted = toolJson(await client.callTool({ name: "load_reference", arguments: { id: reference!.id, itemId: "ITEM-1", expectedSha256: loaded.sha256 } }));
+			expect(drifted).toMatchObject({ status: "stale", reasonCode: "REFERENCE_STALE", verified: false });
+		} finally {
+			await client.close();
+			await server.close();
+		}
+	});
+
 	it("applies controlled mutations with evidence, revision checks and audit IDs", async () => {
 		const root = fixture();
 		const server = createLetraMcpServer(root);
@@ -176,12 +355,13 @@ describe("Letra MCP read-only server", () => {
 
 		try {
 			const direction = toolJson(
-				await client.callTool({ name: "get_direction", arguments: {} }),
+				await client.callTool({ name: "get_direction", arguments: { itemId: "ITEM-1" } }),
 			);
 			const rejected = toolJson(
 				await client.callTool({
 					name: "complete_ac",
 					arguments: {
+						itemId: "ITEM-1",
 						acId: "AC1",
 						expectedRevision: direction.revision,
 						evidence: [],
@@ -193,13 +373,20 @@ describe("Letra MCP read-only server", () => {
 				outcome: "rejected",
 				reasonCode: "REGRESSION_EVIDENCE_REQUIRED",
 			});
+			const claimed = toolJson(await client.callTool({ name: "claim", arguments: {
+				itemId: "ITEM-1", executorId: "mcp-executor", capability: "write_code",
+				expectedRevision: direction.revision, reason: "Claim para teste MCP.",
+			} }));
+			expect(claimed).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED" });
 
 			const completed = toolJson(
 				await client.callTool({
 					name: "complete_ac",
 					arguments: {
+						itemId: "ITEM-1",
 						acId: "AC1",
-						expectedRevision: direction.revision,
+						expectedRevision: claimed.afterRevision,
+						executorId: "mcp-executor",
 						evidence: ["MCP contract test passed"],
 						reason: "Criterion verified.",
 					},
@@ -222,19 +409,13 @@ describe("Letra MCP read-only server", () => {
 					},
 				}),
 			);
-			expect(transitioned).toMatchObject({
-				outcome: "accepted",
-				reasonCode: "TRANSITION_COMPLETED",
-				nextDirection: expect.objectContaining({
-					item: expect.objectContaining({ stage: "review" }),
-				}),
-			});
+			expect(transitioned).toMatchObject({ outcome: "rejected", reasonCode: "CANONICAL_PASSAGE_REQUIRED" });
 			const mutationEntries = loadSessionLog(root).entries.filter(
 				(entry) =>
 					entry.action === "agent_ac_completion_requested" ||
 					entry.action === "agent_transition_requested",
 			);
-			expect(mutationEntries).toHaveLength(2);
+			expect(mutationEntries).toHaveLength(1);
 			expect(
 				mutationEntries.every(
 					(entry) =>
@@ -251,6 +432,107 @@ describe("Letra MCP read-only server", () => {
 		}
 	});
 
+	it("blocks MCP mutations before a broken link can fall back to a local projection", async () => {
+		const root = mkdtempSync(join(tmpdir(), "letra-mcp-invalid-link-"));
+		roots.push(root);
+		mkdirSync(join(root, ".letra"), { recursive: true });
+		writeFileSync(join(root, ".letra-link"), "missing-canonical-workspace\n", "utf8");
+		writeFileSync(join(root, ".letra", "workflow.json"), JSON.stringify({ version: "local", items: [] }), "utf8");
+
+		const server = createLetraMcpServer(root);
+		const client = new Client({ name: "letra-invalid-link-test", version: "1.0.0" });
+		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+		await server.connect(serverTransport);
+		await client.connect(clientTransport);
+		try {
+			const expectedRevision = resolveAgentDirection(root).revision;
+			const expectedDiagnostic = {
+				code: "WORKSPACE_LINK_INVALID",
+				recovery: expect.stringContaining("letra sync --mirror link-to-workspace"),
+			};
+			for (const [name, args] of [
+				["get_direction", {}],
+				["get_active_spec", {}],
+				["get_health", {}],
+				["get_context", {}],
+				["get_activity", {}],
+				["list_gates", {}],
+				["list_roles", {}],
+			] as const) {
+				const payload = toolJson(await client.callTool({ name, arguments: args }));
+				expect(payload).toMatchObject({ reasonCode: "WORKSPACE_LINK_INVALID", workspace: expectedDiagnostic });
+			}
+			const validation = toolJson(await client.callTool({ name: "validate", arguments: {
+				expectedRevision,
+				reason: "Validate through MCP with invalid link.",
+			} }));
+			expect(validation).toMatchObject({
+				outcome: "rejected",
+				reasonCode: "WORKSPACE_LINK_INVALID",
+				workspace: {
+					code: "WORKSPACE_LINK_INVALID",
+					recovery: expect.stringContaining("letra sync --mirror link-to-workspace"),
+				},
+			});
+			expect((validation.workspace as { paths: string[] }).paths).toContain(join(root, ".letra-link"));
+			const readResourceJson = async (uri: string) => {
+				const response = await client.readResource({ uri });
+				const content = response.contents[0];
+				if (!("text" in content) || typeof content.text !== "string") throw new Error(`Expected text resource for ${uri}`);
+				return JSON.parse(content.text) as Record<string, unknown>;
+			};
+			for (const uri of [
+				"letra://direction",
+				"letra://spec/active",
+				"letra://constitution",
+				"letra://health",
+				"letra://harness/templates",
+				"letra://harness/templates/flow-main",
+				"letra://harness/gates",
+				"letra://harness/roles",
+			]) {
+				const payload = await readResourceJson(uri);
+				expect(payload).toMatchObject({ reasonCode: "WORKSPACE_LINK_INVALID", workspace: expectedDiagnostic });
+			}
+			expect(existsSync(join(root, ".letra", "operations"))).toBe(false);
+		} finally {
+			await client.close();
+			await server.close();
+		}
+	});
+
+	it("requires canonical passage after MCP Code to Review validation", async () => {
+		const root = fixture();
+		configureCodeReviewGate(root);
+		const server = createLetraMcpServer(root);
+		const client = new Client({ name: "letra-test", version: "1.0.0" });
+		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+		await server.connect(serverTransport);
+		await client.connect(clientTransport);
+		try {
+			const direction = toolJson(await client.callTool({ name: "get_direction", arguments: { itemId: "ITEM-1" } }));
+			const claimed = toolJson(await client.callTool({ name: "claim", arguments: {
+				itemId: "ITEM-1", executorId: "mcp-executor", capability: "write_code",
+				expectedRevision: direction.revision, reason: "Claim para teste MCP.",
+			} }));
+			expect(claimed).toMatchObject({ outcome: "accepted", reasonCode: "CLAIM_ACCEPTED" });
+			const completed = toolJson(await client.callTool({ name: "complete_ac", arguments: {
+				itemId: "ITEM-1", acId: "AC1", executorId: "mcp-executor", expectedRevision: claimed.afterRevision, evidence: ["MCP contract"], reason: "Complete criterion.",
+			} }));
+			const validation = toolJson(await client.callTool({ name: "validate", arguments: {
+				itemId: "ITEM-1", expectedRevision: completed.afterRevision, reason: "Validate before review.",
+			} }));
+			expect(validation).toMatchObject({ outcome: "accepted", reasonCode: "VALIDATION_COMPLETED" });
+			const transition = toolJson(await client.callTool({ name: "request_transition", arguments: {
+				itemId: "ITEM-1", targetStageId: "review", expectedRevision: validation.afterRevision, reason: "Request review.",
+			} }));
+			expect(transition).toMatchObject({ outcome: "rejected", reasonCode: "CANONICAL_PASSAGE_REQUIRED" });
+		} finally {
+			await client.close();
+			await server.close();
+		}
+	});
+
 	it("returns a new revision after canonical state changes in the same session", async () => {
 		const root = fixture();
 		const server = createLetraMcpServer(root);
@@ -261,7 +543,7 @@ describe("Letra MCP read-only server", () => {
 
 		try {
 			const before = toolJson(
-				await client.callTool({ name: "get_direction", arguments: {} }),
+				await client.callTool({ name: "get_direction", arguments: { itemId: "ITEM-1" } }),
 			);
 			const workflowPath = join(root, ".letra", "workflow.json");
 			const workflow = JSON.parse(readFileSync(workflowPath, "utf-8"));
@@ -269,7 +551,7 @@ describe("Letra MCP read-only server", () => {
 			workflow.updatedAt = "2026-07-04T01:00:00.000Z";
 			writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
 
-			const after = toolJson(await client.callTool({ name: "get_direction", arguments: {} }));
+			const after = toolJson(await client.callTool({ name: "get_direction", arguments: { itemId: "ITEM-1" } }));
 
 			expect(after.item).toMatchObject({ id: "ITEM-1", stage: "review" });
 			expect(after.revision).not.toBe(before.revision);
@@ -288,9 +570,9 @@ describe("Letra MCP read-only server", () => {
 		await client.connect(clientTransport);
 
 		try {
-			await client.callTool({ name: "get_direction", arguments: {} });
-			await client.callTool({ name: "get_direction", arguments: {} });
-			await client.callTool({ name: "get_active_spec", arguments: {} });
+			await client.callTool({ name: "get_direction", arguments: { itemId: "ITEM-1" } });
+			await client.callTool({ name: "get_direction", arguments: { itemId: "ITEM-1" } });
+			await client.callTool({ name: "get_active_spec", arguments: { itemId: "ITEM-1" } });
 
 			const reads = loadSessionLog(root).entries.filter(
 				(entry) => entry.action === "agent_direction_read",
@@ -458,32 +740,33 @@ describe("Letra MCP read-only server", () => {
 		}
 	});
 
-	it("rejects malformed mutation input at the MCP schema boundary", async () => {
-		const root = fixture();
-		const server = createLetraMcpServer(root);
-		const client = new Client({ name: "schema-client", version: "1.0.0" });
-		const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-		await server.connect(serverTransport);
-		await client.connect(clientTransport);
+		it("rejects malformed mutation input at the MCP schema boundary", async () => {
+			const root = fixture();
+			const server = createLetraMcpServer(root);
+			const client = new Client({ name: "schema-client", version: "1.0.0" });
+			const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+			await server.connect(serverTransport);
+			await client.connect(clientTransport);
 
-		try {
-			const response = await client.callTool({
-				name: "request_transition",
-				arguments: {
-					itemId: "../../outside",
-					targetStageId: "../review",
-					expectedRevision: "not-a-revision",
-					reason: "",
-					command: "Remove-Item -Recurse",
-				},
-			});
-			expect(response.isError).toBe(true);
-			expect(readFileSync(join(root, ".letra", "workflow.json"), "utf-8")).toContain(
-				'"stage": "build"',
-			);
-		} finally {
-			await client.close();
-			await server.close();
-		}
-	});
+			try {
+				const response = await client.callTool({
+					name: "request_transition",
+					arguments: {
+						itemId: "../../outside",
+						targetStageId: "../review",
+						expectedRevision: "not-a-revision",
+						reason: "",
+						command: "Remove-Item -Recurse",
+					},
+				});
+				expect(response.isError).toBe(true);
+				expect(readFileSync(join(root, ".letra", "workflow.json"), "utf-8")).toContain(
+					'"stage": "build"',
+				);
+			} finally {
+				await client.close();
+				await server.close();
+			}
+		});
+
 });

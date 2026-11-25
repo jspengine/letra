@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { Workflow } from "../commands/flow-init.js";
 import { validateSpecStructure } from "../validation/structure.js";
 import { getLetraDir } from "./../workspace/resolver.js";
+import { readSpecCatalog } from "../spec-catalog/service.js";
 
 export interface ResolvedSpec {
 	id: string;
@@ -11,9 +12,15 @@ export interface ResolvedSpec {
 
 export function loadResolvedSpecs(root: string, workflow: Workflow | null): ResolvedSpec[] {
 	const result: ResolvedSpec[] = [];
+	const catalog = readSpecCatalog(root);
+	const isActiveSpec = (id: string): boolean => {
+		const disposition = catalog?.specs.find((spec) => spec.id === id)?.disposition.disposition;
+		return disposition !== "archived";
+	};
 
 	if (workflow?.specLinks) {
 		for (const [id, link] of Object.entries(workflow.specLinks)) {
+			if (!isActiveSpec(id)) continue;
 			const filePath = join(root, link.path);
 			if (existsSync(filePath)) {
 				result.push({ id, content: readFileSync(filePath, "utf-8") });
@@ -26,7 +33,7 @@ export function loadResolvedSpecs(root: string, workflow: Workflow | null): Reso
 	if (!existsSync(specsDir)) return result;
 
 	for (const entry of readdirSync(specsDir, { withFileTypes: true })) {
-		if (!entry.isDirectory() || registered.has(entry.name)) continue;
+		if (!entry.isDirectory() || registered.has(entry.name) || !isActiveSpec(entry.name)) continue;
 		const specPath = join(specsDir, entry.name, "spec.md");
 		if (!existsSync(specPath)) continue;
 		result.push({ id: entry.name, content: readFileSync(specPath, "utf-8") });
@@ -40,7 +47,13 @@ export function readAllowedContextFile(workspaceDir: string, file: string): stri
 	if (!allowedFiles.has(file)) return null;
 	const filePath = join(workspaceDir, file);
 	if (!existsSync(filePath)) return null;
-	return readFileSync(filePath, "utf-8");
+	const content = readFileSync(filePath, "utf-8");
+	return file === "context.md" ? stripSitrepSnapshots(content) : content;
+}
+
+/** Legacy sitrep blocks are operational snapshots and are excluded from curated context. */
+export function stripSitrepSnapshots(content: string): string {
+	return content.replace(/\r?\n?<!-- sitrep:start -->[\s\S]*?<!-- sitrep:end -->\r?\n?/g, "\n").trimEnd() + "\n";
 }
 
 export function writeSpec(workspaceDir: string, id: string, content: string): void {
