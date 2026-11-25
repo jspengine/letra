@@ -96,7 +96,47 @@ export const ADAPTER_ARTIFACTS = {
 		consumers: ["hermes"],
 		ownership: "letra-owned",
 	},
+	"kiro-steering": {
+		id: "kiro-steering",
+		// Sem frontmatter, o Kiro aplica o steering com inclusion "always".
+		path: ".kiro/steering/letra.md",
+		format: "text",
+		kind: "instructions",
+		consumers: ["kiro"],
+		ownership: "letra-owned",
+	},
+	"vscode-mcp-config": {
+		id: "vscode-mcp-config",
+		path: ".vscode/mcp.json",
+		format: "json",
+		kind: "config",
+		consumers: ["vscode"],
+		ownership: "managed-section",
+	},
+	"cursor-mcp-config": {
+		id: "cursor-mcp-config",
+		path: ".cursor/mcp.json",
+		format: "json",
+		kind: "config",
+		consumers: ["cursor"],
+		ownership: "managed-section",
+	},
+	"kiro-mcp-config": {
+		id: "kiro-mcp-config",
+		path: ".kiro/settings/mcp.json",
+		format: "json",
+		kind: "config",
+		consumers: ["kiro"],
+		ownership: "managed-section",
+	},
 } as const satisfies Record<string, AdapterArtifactContract>;
+
+/** Artefatos JSON de MCP e o dialeto (chave raiz) que cada editor espera. */
+export const MCP_JSON_CONFIG_ARTIFACTS = {
+	"vscode-mcp-config": "servers",
+	"cursor-mcp-config": "mcpServers",
+	"kiro-mcp-config": "mcpServers",
+} as const;
 
 const staticCapabilities = {
 	instructions: true,
@@ -108,12 +148,20 @@ const staticCapabilities = {
 	refreshMode: "session-start",
 } as const satisfies AdapterCapabilityProfile;
 
+/** Instruções estáticas + servidor MCP do Letra registrado na config do editor. */
+const mcpCapabilities = {
+	...staticCapabilities,
+	mcp: true,
+	liveContext: "mcp",
+	refreshMode: "on-demand",
+} as const satisfies AdapterCapabilityProfile;
+
 export const ADAPTER_REGISTRY = {
 	cursor: {
 		id: "cursor",
 		displayName: "Cursor",
-		capabilities: staticCapabilities,
-		artifactIds: ["cursor-rules"],
+		capabilities: mcpCapabilities,
+		artifactIds: ["cursor-rules", "cursor-mcp-config"],
 		detectionPaths: [".cursorrules"],
 		fallbackTransport: "cli-json",
 	},
@@ -136,8 +184,8 @@ export const ADAPTER_REGISTRY = {
 	vscode: {
 		id: "vscode",
 		displayName: "VSCode Copilot",
-		capabilities: staticCapabilities,
-		artifactIds: ["vscode-instructions"],
+		capabilities: mcpCapabilities,
+		artifactIds: ["vscode-instructions", "vscode-mcp-config"],
 		detectionPaths: [".github/copilot-instructions.md"],
 		fallbackTransport: "cli-json",
 	},
@@ -174,6 +222,14 @@ export const ADAPTER_REGISTRY = {
 		capabilities: staticCapabilities,
 		artifactIds: ["hermes-instructions"],
 		detectionPaths: [".hermes/instructions.md"],
+		fallbackTransport: "cli-json",
+	},
+	kiro: {
+		id: "kiro",
+		displayName: "Kiro",
+		capabilities: mcpCapabilities,
+		artifactIds: ["kiro-steering", "kiro-mcp-config"],
+		detectionPaths: [".kiro/steering/letra.md"],
 		fallbackTransport: "cli-json",
 	},
 } as const satisfies Record<string, AdapterContract>;
