@@ -36,6 +36,7 @@ import {
   validateWorkflowContent,
 } from "../workflow-versions/service.js";
 import { evaluateTransitionRepetition } from "../workflow-versions/repetition-policy.js";
+import { PUBLISH_INITIAL_VERSION_COMMAND } from "../workflow-versions/bootstrap.js";
 import { generateAdapters } from "../adapters/generate.js";
 import { writeFocusWithRecommendations } from "../adapters/focus-recommendations.js";
 import { loadWorkflow, writeWorkflow } from "../commands/flow-init.js";
@@ -677,14 +678,7 @@ async function createItemOperationLocked(
       run.binding.executorId !== input.executorId ||
       run.itemId !== sourceItem?.id
     ) {
-      return rejected(
-        workspaceRoot,
-        before,
-        "ACTIVE_RUN_REQUIRED",
-        "Criação por agente exige a Run ativa do próprio executor.",
-        input,
-        subject,
-      );
+      return activeRunRequired(workspaceRoot, before, "Criação por agente exige a Run ativa do próprio executor.", input, subject);
     }
     const expires = sourceItem?.claimExpiresAt
       ? Date.parse(sourceItem.claimExpiresAt)
@@ -949,14 +943,7 @@ async function linkItemSpecOperationLocked(
     run.binding.executorId !== input.executorId ||
     before.item?.id !== input.itemId
   )
-    return rejected(
-      workspaceRoot,
-      before,
-      "ACTIVE_RUN_REQUIRED",
-      "Vincular spec por agente exige a Run ativa do item e do executor.",
-      input,
-      subject,
-    );
+    return activeRunRequired(workspaceRoot, before, "Vincular spec por agente exige a Run ativa do item e do executor.", input, subject);
   const resolvedActor = resolveMcpActor(
     workspaceRoot,
     input.actor ?? "",
@@ -1471,6 +1458,34 @@ function directionQueryCommand(
   return target
     ? `letra direction --item ${target} --json`
     : "letra direction --json";
+}
+
+/**
+ * ITEM-35 AC4: a Run only exists for items pinned to a published workflow
+ * version. In a workspace without one, ACTIVE_RUN_REQUIRED names that cause and
+ * the human command that fixes it, instead of only re-reading the direction.
+ */
+function activeRunRequired(
+  root: string,
+  direction: AgentDirectionSnapshot,
+  reason: string,
+  context: OperationContext,
+  subject: { itemId?: string; acId?: string; operation: string },
+): OperationResult {
+  const unversioned = !listWorkflowDefinitions(root).some(
+    (definition) => definition.activeVersionId,
+  );
+  return unversioned
+    ? rejected(
+        root,
+        direction,
+        "ACTIVE_RUN_REQUIRED",
+        `${reason} O workspace não tem versão de workflow publicada, então nenhum claim cria Run; um humano publica a versão inicial do template.`,
+        context,
+        subject,
+        { nextCommand: PUBLISH_INITIAL_VERSION_COMMAND, humanRequired: true },
+      )
+    : rejected(root, direction, "ACTIVE_RUN_REQUIRED", reason, context, subject);
 }
 
 /** Double-quoted shell argument that survives bash and PowerShell. */
