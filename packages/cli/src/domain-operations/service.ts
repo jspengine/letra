@@ -1800,27 +1800,30 @@ export async function claimOperation(
   const retryClaim = (actor: string, capability: string): RefusalGuidance => ({
     nextCommand: claimCommand(item.id, actor, capability, input, before.revision),
   });
+  // ITEM-56: expiry ends the reservation, not the handoff. Its recipient may
+  // still take it (a late acceptance, audited); other stage roles may claim
+  // too once the reservation lapsed. Only a handoff waiting on a human stays
+  // closed to agents: the lapsed deadline does not hand the decision over.
+  const lapsedHandoff =
+    item.handoff && item.handoff.status !== "accepted" && !activeHandoff
+      ? item.handoff
+      : undefined;
   if (
-    item.handoff &&
-    item.handoff.status !== "accepted" &&
-    !activeHandoff &&
-    (item.handoff.to === actorForClaim || item.handoff.to.startsWith("human"))
+    lapsedHandoff?.to.startsWith("human") &&
+    !actorForClaim.startsWith("human")
   )
     return rejected(
       workspaceRoot,
       before,
       "HANDOFF_EXPIRED",
-      `O handoff de ${item.handoff.from} para ${item.handoff.to} expirou em ${item.handoff.expiresAt} e não pode ser reivindicado. Recuperação: desfaça o handoff vencido (ele fica no histórico) e ${item.handoff.from} reemite o handoff para ${item.handoff.to}.`,
+      `O item aguarda decisão de ${lapsedHandoff.to} (handoff de ${lapsedHandoff.from}, prazo vencido em ${lapsedHandoff.expiresAt}); o prazo vencido não transfere a decisão para um agente.`,
       input,
       subject,
-      {
-        nextCommand: `letra flow handoff ${item.id} --rollback`,
-        // Re-issuing restates the sender's decision; a human sender must do it.
-        humanRequired: item.handoff.from.startsWith("human"),
-      },
+      { humanRequired: true },
     );
+  const lateRecipient = lapsedHandoff?.to === actorForClaim;
   const activeHandoffForActor =
-    activeHandoff && item.handoff?.to === actorForClaim;
+    (activeHandoff && item.handoff?.to === actorForClaim) || lateRecipient;
   if (activeHandoff && item.handoff && item.handoff.to !== actorForClaim) {
     const recipient = item.handoff.to;
     const recipientCapabilities = roleCapabilities(recipient);
@@ -1845,8 +1848,18 @@ export async function claimOperation(
   const claimIdentityId = requestedActor.startsWith("mcp:")
     ? requestedActor
     : actorForClaim;
-  if (isCurrentHandoffRecipient && item.handoff)
+  if (isCurrentHandoffRecipient && item.handoff) {
+    const acceptedAt = new Date();
     item.handoff.status = "accepted";
+    item.handoff.acceptedAt = acceptedAt.toISOString();
+    if (lateRecipient) {
+      item.handoff.lateAcceptance = true;
+      item.handoff.lateByMinutes = Math.max(
+        0,
+        Math.round((acceptedAt.getTime() - handoffExpiresAt) / 60_000),
+      );
+    }
+  }
   if (
     stage?.agents.length &&
     !stage.agents.includes(actorForClaim) &&
@@ -2126,6 +2139,13 @@ export async function claimOperation(
       runId: claimedRun?.id,
       runRevision: claimedRun?.revision,
       cycle: claimedRun?.cycle.number,
+      ...(lateRecipient
+        ? {
+            lateAcceptance: true,
+            lateByMinutes: item.handoff?.lateByMinutes,
+            handoffExpiresAt: item.handoff?.expiresAt,
+          }
+        : {}),
     },
   });
   for (const hook of claimHooks) {
