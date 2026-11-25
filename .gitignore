@@ -52,3 +52,8 @@ packages/ui/storybook-visual-snapshots/
 
 # Local git worktrees (never versioned)
 .worktrees/
+
+# Generated test output and logs (ITEM-4)
+output/
+playwright-report/
+debug.log

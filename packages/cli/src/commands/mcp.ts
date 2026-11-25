@@ -8,10 +8,16 @@ export default function mcpCommand(): Command {
 	command
 		.command("serve")
 		.option("--stdio", "Use the local stdio transport")
-		.description("Start the local read-only Letra MCP server")
-		.action(async () => {
+		.option("--profile <profile>", "Tool surface: agent (executor tools only) or full", "agent")
+		.description("Start the local Letra MCP server")
+		.action(async (opts: { profile: string }) => {
+			if (opts.profile !== "agent" && opts.profile !== "full") {
+				console.error(`Invalid --profile "${opts.profile}". Use "agent" or "full".`);
+				process.exitCode = 1;
+				return;
+			}
 			const { startLetraMcpServer } = await import("../mcp/server.js");
-			await startLetraMcpServer(resolve(process.cwd()));
+			await startLetraMcpServer(resolve(process.cwd()), { profile: opts.profile, version: command.parent?.version() });
 		});
 
 	command

@@ -88,6 +88,14 @@ import { loadAgents } from "../agents/service.js";
 import { executorSupports } from "../agents/runtime-binding.js";
 
 /**
+ * Transport that carried the operation, for audit entries. The concrete client
+ * (e.g. "mcp:Visual Studio Code") stays in `details.by`.
+ */
+function auditAdapter(actor: string | undefined): "mcp" | "cli" {
+  return actor?.startsWith("mcp:") ? "mcp" : "cli";
+}
+
+/**
  * Resolves actor from MCP format (e.g., "mcp:opencode") to role ID (e.g., "implementer")
  * using the runtimeBindings from agents.json.
  */
@@ -1404,7 +1412,7 @@ function audit(
     itemId: input.itemId,
     acId: input.acId,
     details: {
-      adapter: "codex",
+      adapter: auditAdapter(input.actor),
       by: input.actor ?? "agent:codex",
       revision: direction.revision,
       outcome: input.outcome,
@@ -3870,7 +3878,7 @@ export function requestPassageOperation(
   const entry = createLogEntry("agent_execution_event", input.reason, {
     itemId: item.id,
     details: {
-      adapter: "codex",
+      adapter: auditAdapter(input.actor),
       by: input.actor,
       revision: before.revision,
       outcome: "accepted",

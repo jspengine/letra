@@ -17,7 +17,7 @@ export function resolveFallbackDirection(root: string, options: ResolveDirection
 			logEntry(root, "adapter_degraded", "MCP não está disponível; modo degradado ativado.", {
 				itemId: canonical.item?.id,
 				details: {
-					adapter: "codex",
+					adapter: "cli",
 					mode: "degraded",
 					revision: canonical.revision,
 					outcome: "accepted",
