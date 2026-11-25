@@ -127,7 +127,64 @@ function resourceText(uri: string, text: string, mimeType = "application/json") 
 	};
 }
 
-export function createLetraMcpServer(root: string, options: { resolveBoundHumanActor?: () => string | null } = {}): McpServer {
+export type McpToolProfile = "agent" | "full";
+
+/**
+ * Tools que só executam com uma sessão humana vinculada pelo host
+ * (requireHumanActor). Sem `resolveBoundHumanActor` elas falham sempre com
+ * HUMAN_SESSION_REQUIRED, então expô-las só custa contexto ao agente.
+ */
+export const HUMAN_BOUND_TOOLS: ReadonlySet<string> = new Set([
+	"run_migrate_workflow",
+	"workflow_create_definition",
+	"workflow_create_draft",
+	"workflow_update_draft",
+	"workflow_publish",
+	"workflow_rollback",
+]);
+
+/**
+ * Perfil `agent`: superfície mínima de um executor de Run. Cada tool listada
+ * aqui custa contexto em toda sessão de clientes que não carregam schemas sob
+ * demanda; o perfil `full` continua expondo tudo.
+ */
+export const AGENT_PROFILE_TOOLS: ReadonlySet<string> = new Set([
+	// 1. Orientar-se: direção vigente (já traz gates, operations e warnings),
+	//    spec do item e referências verificadas por SHA-256.
+	"get_direction",
+	"get_active_spec",
+	"load_reference",
+	// 2. Assumir e executar a Run.
+	"claim",
+	"execution_event",
+	// 3. Provar o trabalho.
+	"submit_evidence",
+	"validate",
+	"complete_ac",
+	"security_review",
+	// 4. Sair do estágio: avançar (passage), repassar (handoff) ou devolver (rework).
+	"request_passage",
+	"request_handoff",
+	"request_rework",
+	// Fora (use --profile full): get_context duplica direction+spec+health;
+	// request_transition é coberto por request_passage; create_item/link_item_spec
+	// são planejamento; get_activity, get_spec_catalog, get_health, list_gates,
+	// list_roles e workflow_* de leitura são observação/administração.
+]);
+
+export interface LetraMcpServerOptions {
+	resolveBoundHumanActor?: () => string | null;
+	profile?: McpToolProfile;
+	version?: string;
+}
+
+export function exposesTool(name: string, options: LetraMcpServerOptions = {}): boolean {
+	if (HUMAN_BOUND_TOOLS.has(name) && !options.resolveBoundHumanActor) return false;
+	if ((options.profile ?? "full") === "agent") return AGENT_PROFILE_TOOLS.has(name);
+	return true;
+}
+
+export function createLetraMcpServer(root: string, options: LetraMcpServerOptions = {}): McpServer {
 	const resolution = resolveWorkspaceRoot(root);
 	const workspaceDir = resolution.workspaceDir;
 	// An invalid link may point at a directory that no longer exists. Build the
@@ -159,8 +216,13 @@ export function createLetraMcpServer(root: string, options: { resolveBoundHumanA
 	const auditedReads = new Set<string>();
 	const server = new McpServer({
 		name: "letra",
-		version: "0.6.2",
+		version: options.version ?? "0.0.0-dev",
 	});
+	// Filtra a superfície exposta pelo perfil sem tocar em cada registro abaixo:
+	// tools fora do perfil simplesmente não são registradas (nem listadas).
+	const registerToolUnfiltered = server.registerTool.bind(server) as (...args: unknown[]) => unknown;
+	server.registerTool = ((name: string, ...rest: unknown[]) =>
+		exposesTool(name, options) ? registerToolUnfiltered(name, ...rest) : undefined) as typeof server.registerTool;
 	const readOnlyAnnotations = {
 		readOnlyHint: true,
 		destructiveHint: false,
@@ -716,7 +778,7 @@ export function createLetraMcpServer(root: string, options: { resolveBoundHumanA
 					return server;
 }
 
-export async function startLetraMcpServer(root: string): Promise<void> {
-	const server = createLetraMcpServer(root);
+export async function startLetraMcpServer(root: string, options: Pick<LetraMcpServerOptions, "profile" | "version"> = {}): Promise<void> {
+	const server = createLetraMcpServer(root, options);
 	await server.connect(new StdioServerTransport());
 }
