@@ -276,8 +276,10 @@ export function createItemRoutes(
     if (path === "/api/items" && method === "POST") {
       try {
         const data = await readJson<CreateItemBody>(req);
-        if (!data.id || !data.description || !data.stage) {
-          sendError(res, 400, "id, description, and stage required");
+        // ITEM-64: id and stage are optional; the canonical operation assigns the
+        // next ITEM-N and the first stage, as `letra flow backlog add` does.
+        if (!data.description?.trim()) {
+          sendError(res, 400, "description required");
           return true;
         }
         if (!dependencies.createItemOperation) {
@@ -287,9 +289,9 @@ export function createItemRoutes(
         const operation = await dependencies.createItemOperation(
           workspaceRoot,
           {
-            id: data.id,
-            description: data.description,
-            stage: data.stage,
+            ...(data.id ? { id: data.id } : {}),
+            description: data.description.trim(),
+            ...(data.stage ? { stage: data.stage } : {}),
             actor: sessionActor!,
             expectedRevision:
               data.expectedRevision ??
