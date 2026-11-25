@@ -12,8 +12,27 @@ import { writeWorkflow } from "./flow-init.js";
 import type { Workflow } from "./flow-init.js";
 import { initWorkspace, ensureDefaultHarness } from "../workspace/index.js";
 import { LINK_FILE, clearWorkspaceCache, getLetraDir } from "./../workspace/resolver.js";
+import { resolveCliActor } from "../identity/agent-runtime.js";
+import { PUBLISH_INITIAL_VERSION_COMMAND, publishInitialWorkflowVersion } from "../workflow-versions/bootstrap.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
+
+/**
+ * ITEM-35: publishes version 1 of the template for a new workspace and
+ * returns a line for the init summary. A failure (e.g. init run inside an
+ * agent, where publishing is a human operation) never breaks the init.
+ */
+function publishInitialVersionForInit(workspaceDir: string): string | null {
+	try {
+		const result = publishInitialWorkflowVersion(workspaceDir, resolveCliActor(workspaceDir));
+		return result.status === "published"
+			? `  ${chalk.gray("Workflow:")}  versão ${result.version.number} publicada a partir do template`
+			: null;
+	} catch (error) {
+		const cause = error instanceof Error ? error.message : String(error);
+		return chalk.yellow(`  Workflow sem versão publicada (${cause}); agentes não terão Run até um humano rodar: ${PUBLISH_INITIAL_VERSION_COMMAND}`);
+	}
+}
 
 function ask(query: string, options: string[]): Promise<string> {
 	if (!process.stdin.isTTY) return Promise.resolve(options[0]);
@@ -167,7 +186,10 @@ export async function init(
 			for (const path of regenerated.conflicts) {
 				console.log(chalk.yellow(`  Arquivo de autoria humana preservado: ${path}`));
 			}
+			// ITEM-35: without a published version no Run is created on claim.
+			const initialVersion = publishInitialVersionForInit(workspaceDir);
 			spinner.succeed(chalk.green(`Workspace "${options.workspace}" created`));
+			if (initialVersion) console.log(initialVersion);
 			console.log(`  ${chalk.gray("Data dir:")}  ${workspaceDir}`);
 			console.log(`  ${chalk.gray("Project:")}   ${root}`);
 			console.log(`  ${chalk.gray("Link:")}      ${join(root, LINK_FILE)}`);
