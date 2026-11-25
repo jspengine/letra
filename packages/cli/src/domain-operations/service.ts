@@ -1536,6 +1536,8 @@ function rejected(
 const HUMAN_ONLY_REFUSALS = new Set([
   "HUMAN_APPROVAL_REQUIRED",
   "HUMAN_ACTOR_REQUIRED",
+  // Signed operations (gate decision, Run migration) need the human's key.
+  "SIGNED_OPERATION_REQUIRED",
 ]);
 
 /**

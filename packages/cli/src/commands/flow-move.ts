@@ -5,7 +5,7 @@ import {
 	directionForRunAwareOperation,
 	requestPassageOperation,
 } from "../domain-operations/service.js";
-import { resolveLocalIdentity } from "../identity/service.js";
+import { resolveCliActor } from "../identity/agent-runtime.js";
 import { resolveActiveFlow } from "../flow-definition/resolve.js";
 
 function resolveStage(
@@ -81,7 +81,7 @@ export async function flowMove(
 		executorId: item.claimExecutorId,
 		summary: `Passagem solicitada pela CLI: ${fromStage} → ${toStage}.`,
 		evidence: [],
-		actor: options?.actor?.trim() || resolveLocalIdentity(root).id,
+		actor: resolveCliActor(root, options?.actor),
 		// The revision requestPassageOperation compares (run-aware, bound to
 		// the claim's executor); resolveAgentDirection diverges once a Run exists.
 		expectedRevision: directionForRunAwareOperation(root, {
