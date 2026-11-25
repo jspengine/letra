@@ -47,25 +47,47 @@ function lockOwnerPid(path: string): number | null {
     return Number.isInteger(value.pid) && value.pid! > 0 ? value.pid! : null;
   } catch { return null; }
 }
+/**
+ * ITEM-58 AC2: waits between attempts to take the lock. Another process (the
+ * board, an agent) usually holds it for milliseconds, so giving up on the
+ * first collision turned a momentary overlap into a failed operation.
+ */
+export const LOCK_RETRY_DELAYS_MS: readonly number[] = [10, 25, 50, 100, 200, 400, 800, 800];
+const sleepBuffer = new Int32Array(new SharedArrayBuffer(4));
+function sleepSync(ms: number): void {
+  Atomics.wait(sleepBuffer, 0, 0, ms);
+}
 function acquire(root: string): () => void {
   const location = paths(root);
   mkdirSync(location.runtime, { recursive: true });
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt <= LOCK_RETRY_DELAYS_MS.length; attempt++) {
     try {
       const fd = openSync(location.lock, "wx", 0o600);
       writeFileSync(fd, JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() }));
       return () => { closeSync(fd); try { unlinkSync(location.lock); } catch { /* preserve operation outcome */ } };
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      const pid = lockOwnerPid(location.lock);
-      if (pid === null) throw new Error("WORKSPACE_TRANSACTION_BUSY");
-      try { process.kill(pid, 0); } catch (probeError) {
-        if ((probeError as NodeJS.ErrnoException).code === "ESRCH") {
-          try { unlinkSync(location.lock); } catch { throw new Error("WORKSPACE_TRANSACTION_BUSY"); }
-          continue;
+      const code = (error as NodeJS.ErrnoException).code;
+      // EPERM: Windows denies opening a lock file another process is deleting.
+      if (code !== "EEXIST" && code !== "EPERM") throw error;
+      if (code === "EEXIST") {
+        const pid = lockOwnerPid(location.lock);
+        // A null PID means the owner created the file and has not written it
+        // yet: a live, momentary hold, not a reason to give up.
+        // Held by this very process (re-entry outside the owning async
+        // context): waiting cannot help, keep the immediate answer.
+        if (pid === process.pid) break;
+        if (pid !== null) {
+          try { process.kill(pid, 0); } catch (probeError) {
+            if ((probeError as NodeJS.ErrnoException).code === "ESRCH") {
+              try { unlinkSync(location.lock); } catch { /* another process won the cleanup */ }
+              continue;
+            }
+          }
         }
       }
-      throw new Error("WORKSPACE_TRANSACTION_BUSY");
+      const delay = LOCK_RETRY_DELAYS_MS[attempt];
+      if (delay === undefined) break;
+      sleepSync(delay);
     }
   }
   throw new Error("WORKSPACE_TRANSACTION_BUSY");
