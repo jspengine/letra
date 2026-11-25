@@ -309,6 +309,43 @@ describe("item routes", () => {
 		expect(res.writeHead).toHaveBeenCalledWith(200, { "Content-Type": "application/json" });
 	});
 
+	// ITEM-64: the board sends only the description; the canonical operation
+	// assigns the next ITEM-N and the first stage.
+	it("creates an item from a description alone", async () => {
+		const { deps, createItemOperation } = dependencies();
+		deps.resolveHumanActor = vi.fn().mockReturnValue("human:web-ui");
+		const res = response();
+		const context = createRequestContext(
+			request("POST", '{"description":"  Exportar o board em CSV  ","expectedRevision":"sha256:create"}'),
+			res,
+			new URL("http://localhost/api/items"),
+			{ workspaceRoot: "C:\\workspace-b", workspaceDir: "C:\\workspace-b\\.letra", workflow: workflow() },
+		);
+
+		await expect(createItemRoutes(deps)(context)).resolves.toBe(true);
+		const input = vi.mocked(createItemOperation).mock.calls[0]?.[1] as Record<string, unknown>;
+		expect(input).toMatchObject({ description: "Exportar o board em CSV", actor: "human:web-ui" });
+		expect(input).not.toHaveProperty("id");
+		expect(input).not.toHaveProperty("stage");
+		expect(res.writeHead).toHaveBeenCalledWith(200, { "Content-Type": "application/json" });
+	});
+
+	it("refuses an item without description", async () => {
+		const { deps, createItemOperation } = dependencies();
+		deps.resolveHumanActor = vi.fn().mockReturnValue("human:web-ui");
+		const res = response();
+		const context = createRequestContext(
+			request("POST", '{"description":"   "}'),
+			res,
+			new URL("http://localhost/api/items"),
+			{ workspaceRoot: "C:\\workspace-b", workspaceDir: "C:\\workspace-b\\.letra", workflow: workflow() },
+		);
+
+		await expect(createItemRoutes(deps)(context)).resolves.toBe(true);
+		expect(createItemOperation).not.toHaveBeenCalled();
+		expect(res.writeHead).toHaveBeenCalledWith(400, { "Content-Type": "application/json" });
+	});
+
 	it("returns the stable malformed-body response", async () => {
 		const { deps, writeWorkflow } = dependencies();
 		const res = response();
