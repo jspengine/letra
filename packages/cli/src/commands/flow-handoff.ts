@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import chalk from "chalk";
-import { resolveLocalIdentity } from "../identity/service.js";
+import { resolveCliActor } from "../identity/agent-runtime.js";
 import { type Item, loadWorkflow } from "./flow-init.js";
 import { loadHarness, resolveHarnessRoot, DEFAULT_HARNESS_VERSION } from "../harness/loader.js";
 import {
@@ -51,7 +51,7 @@ export async function handoffItem(
 			process.exit(1);
 		}
 		const previousFrom = item.handoff.from;
-		const actor = resolveLocalIdentity(root).id;
+		const actor = resolveCliActor(root);
 		const operation = await rollbackHandoffOperation(root, {
 			itemId,
 			actor,

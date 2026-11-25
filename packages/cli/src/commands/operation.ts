@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { Command, Option } from "commander";
-import { resolveLocalIdentity } from "../identity/service.js";
+import { resolveCliActor } from "../identity/agent-runtime.js";
 import { activityOperation, migrateRunWorkflowOperation } from "../domain-operations/service.js";
 import { signLocalOperation } from "../identity/signing.js";
 
@@ -36,9 +36,11 @@ export default function operationCommand(): Command {
 		.requiredOption("--reason <reason>", "Audited migration reason")
 		.action((runId: string, options: { toVersion: string; toStage: string; runRevision: number; expectedRevision: string; reason: string }) => {
 			const root = resolve(process.cwd());
-			const actor = resolveLocalIdentity(root).id;
+			const actor = resolveCliActor(root);
 			const details = { runId, toWorkflowVersionId: options.toVersion, toStageId: options.toStage, expectedRunRevision: options.runRevision, expectedDirectionRevision: options.expectedRevision, reason: options.reason };
-			const proof = signLocalOperation(root, actor, "run.workflow.migrate", details);
+			// Only a human identity can sign; an agent actor reaches the domain unsigned
+			// and is refused there, audited, with humanRequired (ITEM-51).
+			const proof = actor.startsWith("human:") ? signLocalOperation(root, actor, "run.workflow.migrate", details) : undefined;
 			printJson(migrateRunWorkflowOperation(root, { ...details, expectedRevision: options.expectedRevision, actor, proof }));
 		});
 
@@ -117,7 +119,7 @@ export default function operationCommand(): Command {
 		.requiredOption("--reason <reason>", "Human prioritization reason")
 		.option("--actor <actor>", "Identidade humana", undefined)
 		.action(async (itemId: string, options: { expectedRevision: string; reason: string; actor: string }) => {
-			const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+			const actor = resolveCliActor(resolve(process.cwd()), options.actor);
 			const { activateWorkOperation } = await import("../domain-operations/service.js");
 			printJson(await activateWorkOperation(resolve(process.cwd()), { itemId, expectedRevision: options.expectedRevision, reason: options.reason, actor }));
 		});
@@ -140,9 +142,9 @@ export default function operationCommand(): Command {
 		.requiredOption("--reason <reason>", "Audited human decision reason")
 		.action(async (itemId: string, options: { decision: "approve" | "request-changes" | "reject"; expectedRevision: string; reason: string }) => {
 			const root = resolve(process.cwd());
-			const actor = resolveLocalIdentity(root).id;
+			const actor = resolveCliActor(root);
 			const details = { itemId, decision: options.decision, expectedRevision: options.expectedRevision, reason: options.reason };
-			const proof = signLocalOperation(root, actor, "gate.decision", details);
+			const proof = actor.startsWith("human:") ? signLocalOperation(root, actor, "gate.decision", details) : undefined;
 			const { decideGateOperation } = await import("../domain-operations/service.js");
 			printJson(await decideGateOperation(root, { ...details, actor, proof }));
 		});
