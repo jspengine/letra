@@ -7,7 +7,7 @@ import {
 } from "./registry.js";
 
 describe("adapter registry", () => {
-	it("publishes the seven supported adapters through one typed contract", () => {
+	it("publishes the eight supported adapters through one typed contract", () => {
 		expect(Object.keys(ADAPTER_REGISTRY)).toEqual([
 			"cursor",
 			"claude-code",
@@ -16,6 +16,7 @@ describe("adapter registry", () => {
 			"opencode",
 			"codex",
 			"hermes",
+			"kiro",
 		]);
 
 		expect(supportedAdapterTools().find((adapter) => adapter.id === "codex")).toMatchObject({

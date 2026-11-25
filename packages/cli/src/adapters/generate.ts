@@ -16,10 +16,12 @@ import {
 } from "./codex-bootstrap.js";
 import {
 	ADAPTER_ARTIFACTS,
+	MCP_JSON_CONFIG_ARTIFACTS,
 	adapterInstructionTargets,
 	instructionArtifactsForAdapters,
 	supportedAdapterTools,
 } from "./registry.js";
+import { mergeMcpJsonConfig } from "./mcp-json-config.js";
 import type { AdapterSource, GenerateOptions } from "./types.js";
 import { loadAgents } from "../agents/service.js";
 import { buildSkillInstructions } from "./skill-bridge.js";
@@ -97,6 +99,23 @@ export function renderAdapterFiles(
 			path: artifact.path,
 			content: header + content,
 		});
+	}
+	for (const [artifactId, dialect] of Object.entries(MCP_JSON_CONFIG_ARTIFACTS)) {
+		const artifact = ADAPTER_ARTIFACTS[artifactId as keyof typeof MCP_JSON_CONFIG_ARTIFACTS];
+		const tool = artifact.consumers.find((consumer) => tools.includes(consumer));
+		if (!tool) continue;
+		const configPath = join(root, artifact.path);
+		const existing = existsSync(configPath) ? readFileSync(configPath, "utf-8") : "";
+		let content: string;
+		try {
+			content = mergeMcpJsonConfig(existing, dialect, artifact.path);
+		} catch (error) {
+			// A config de MCP do editor é do usuário; uma entrada própria ou um
+			// JSONC não podem travar a regeneração das instruções (flow move/sync).
+			if (!options.quiet) console.warn(`  ${chalk.yellow("Skipped")} ${artifact.path}: ${(error as Error).message}`);
+			continue;
+		}
+		files.push({ tool, artifactId: artifact.id, path: artifact.path, content });
 	}
 	if (tools.includes("codex")) {
 		const configArtifact = ADAPTER_ARTIFACTS["codex-project-config"];
