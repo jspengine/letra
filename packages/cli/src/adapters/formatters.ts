@@ -4,6 +4,7 @@ import type {
 	HarnessSnapshot,
 	HarnessDirectionActivity,
 } from "./types.js";
+import { refusalRuleSection } from "./refusal-rule.js";
 
 const L1_FILES = [".letra/constitution.md", ".letra/glossary.md", ".letra/constraints.md"] as const;
 
@@ -484,7 +485,7 @@ export function formatAdapterContent(
 		if (snapshot.hasFocus)
 			sections[1] += format === "at" ? "\n@.letra/focus.md" : "\n- .letra/focus.md";
 		sections.push(`## Referências\n\n${formatMarkdownReferences(snapshot)}`);
-		sections.push(...["", formatRulesText()]);
+		sections.push(...["", formatRulesText(), "", refusalRuleSection(1)]);
 		return sections.join("\n");
 	}
 
@@ -528,6 +529,7 @@ export function formatAdapterContent(
 	}
 
 	sections.push(`## Regras (Violação = Erro Grave)\n\n${formatProhibitionRules()}`);
+	sections.push(refusalRuleSection(2));
 
 	if (snapshot.hasWorkflow) {
 		sections.push(`## Fluxo de Execução\n\n${formatExecutionFlow()}`);

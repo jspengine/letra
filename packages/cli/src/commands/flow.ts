@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { resolve } from "node:path";
-import { resolveLocalIdentity } from "../identity/service.js";
+import { resolveCliActor } from "../identity/agent-runtime.js";
 import { backlogActionAdd, backlogActionList } from "./flow-backlog.js";
 import { flowBoardAction } from "./flow-board.js";
 import { flowDiffAction, flowEditAction } from "./flow-edit-diff.js";
@@ -256,7 +256,7 @@ export default function flowCommand() {
 			.option("--based-on <version>", "Base version number", undefined)
 			.description("Create a draft for editing")
 			.action((id: string, options: { actor: string; basedOn?: string }) => {
-				const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+				const actor = resolveCliActor(resolve(process.cwd()), options.actor);
 				workflowDraftCommand(resolve(process.cwd()), id, actor, options.basedOn ? Number(options.basedOn) : undefined);
 			});
 
@@ -274,7 +274,7 @@ export default function flowCommand() {
 			.requiredOption("--reason <reason>", "Publication reason")
 			.description("Publish current draft as new version")
 			.action((id: string, options: { actor: string; revision: string; reason: string }) => {
-				const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+				const actor = resolveCliActor(resolve(process.cwd()), options.actor);
 				workflowPublishCommand(resolve(process.cwd()), id, actor, Number(options.revision), options.reason);
 			});
 
@@ -285,7 +285,7 @@ export default function flowCommand() {
 			.requiredOption("--reason <reason>", "Rollback reason")
 			.description("Rollback to a previous version (publishes new derived version)")
 			.action((id: string, options: { actor: string; version: string; reason: string }) => {
-				const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+				const actor = resolveCliActor(resolve(process.cwd()), options.actor);
 				workflowRollbackCommand(resolve(process.cwd()), id, actor, Number(options.version), options.reason);
 			});
 
@@ -310,7 +310,7 @@ export default function flowCommand() {
 			.option("--actor <actor>", "Identity actor", undefined)
 			.description("Create workflow from template")
 			.action((id: string, options: { template?: string; name?: string; actor: string }) => {
-				const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+				const actor = resolveCliActor(resolve(process.cwd()), options.actor);
 				workflowTemplateCommand(resolve(process.cwd()), id, actor, options.template ?? "", options);
 			});
 
@@ -321,7 +321,7 @@ export default function flowCommand() {
 			.option("--actor <actor>", "Identity actor", undefined)
 			.description("Manage workflow adapters")
 			.action((id: string, options: { tools?: string; list?: boolean; actor: string }) => {
-				const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+				const actor = resolveCliActor(resolve(process.cwd()), options.actor);
 				workflowAdaptersCommand(resolve(process.cwd()), id, { tools: options.tools, list: options.list });
 			});
 
@@ -333,7 +333,7 @@ export default function flowCommand() {
 			.option("--actor <actor>", "Identity actor", undefined)
 			.description("Manage workflow locations")
 			.action((id: string, options: { add?: string; remove?: string; list?: boolean; actor: string }) => {
-				const actor = options.actor ?? resolveLocalIdentity(resolve(process.cwd())).id;
+				const actor = resolveCliActor(resolve(process.cwd()), options.actor);
 				workflowLocationsCommand(resolve(process.cwd()), id, { add: options.add, remove: options.remove, list: options.list });
 			});
 
