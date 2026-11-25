@@ -300,26 +300,26 @@ export default function FlowView({
 		}).then(() => onItemMoved());
 	}
 
-	function handleAddItem(name: string) {
-		const firstStage = resolvedStages[0]?.id;
-		if (!firstStage) return;
+	// ITEM-64: the server assigns the next ITEM-N and the first stage; a refusal
+	// (e.g. an expired human session) is shown instead of silently ignored.
+	function handleAddItem(description: string) {
+		if (!description.trim()) return;
 		fetch("/api/items", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				id: name
-					.trim()
-					.toLowerCase()
-					.replace(/\s+/g, "-")
-					.replace(/[^a-z0-9-]/g, ""),
-				description: name.trim(),
-				stage: firstStage,
-			}),
+			body: JSON.stringify({ description: description.trim() }),
 		})
-			.then((r) => r.json())
-			.then((data) => {
-				if (data && !data.error) onItemMoved();
-			});
+			.then(async (response) => {
+				const data = await response.json().catch(() => ({}));
+				if (response.ok && !data.error) {
+					onItemMoved();
+					return;
+				}
+				const next = data.nextCommand ? `
+Próximo passo: ${data.nextCommand}` : "";
+				window.alert(`Não foi possível criar o item: ${data.reason ?? data.error ?? response.statusText}${next}`);
+			})
+			.catch((error) => window.alert(`Não foi possível criar o item: ${error instanceof Error ? error.message : String(error)}`));
 	}
 
 	function handleSaveWebhooks() {
@@ -864,6 +864,7 @@ export default function FlowView({
 									filter={activeFilter}
 									onItemDecided={onItemMoved}
 									onOpenSpec={onOpenSpec}
+									onAddItem={() => setShowAddDialog(true)}
 								/>
 							</div>
 						</div>
@@ -903,8 +904,8 @@ export default function FlowView({
 				onClose={() => setShowAddDialog(false)}
 				onSubmit={handleAddItem}
 				title="Adicionar Item"
-				label="Nome do item"
-				placeholder="ex: my-feature"
+				label="Descrição do item"
+				placeholder="ex: Permitir exportar o board em CSV"
 				submitLabel="Criar"
 			/>
 
