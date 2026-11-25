@@ -1,370 +1,344 @@
 # Letra
 
-> **Sua spec é a fonte da verdade.**
+## Turn intent into coordinated work
 
-Letra é um framework de **Specification-Driven Development (SDD) agnóstico a ferramentas**. Captura direção, intenção e contexto, enriquecendo prompts de agentes de código — funcionando como uma **memória persistente** do projeto.
+**Letra is a Human + AI Work Orchestration platform.**
 
-Inclui CLI, SPA web UI e adapters para Cursor, Claude Code, Windsurf, VS Code e OpenCode.
+It helps people turn an intention into structured, coordinated work performed by humans, AI agents and connected tools — while preserving context, visibility, governance and human oversight.
 
-## O Problema
+You should not need to understand models, prompts, agents, orchestration frameworks or infrastructure to get useful work done with AI.
 
-- **Spec-Code Drift**: Especificações ficam desatualizadas conforme o código evolui.
-- **Markdown Madness**: Specs de 50k+ tokens que ninguém lê.
-- **Perda de Contexto**: Decisões vivem só no histórico do chat.
-- **Tool Lock-in**: Ferramentas presas a um IDE ou modelo específico.
-- **Workflow Invisível**: Não dá pra ver o que está em progresso, o que já foi feito.
+You bring the intent. **Letra organizes the work.**
 
-## A Solução
+---
 
-- **Thin Specs**: Máximo 1 página por feature.
-- **Spec-Anchored**: Spec vive junto com o código, atualizada como parte do DoD.
-- **Context First**: Intent, constraints e "porquês" — não markdown verbose.
-- **Workflow Engine**: Board visual, backlog, movimentação entre estágios.
-- **Web UI**: Interface gráfica para não-devs gerenciarem specs e workflow.
-- **Agnóstico**: Adapters para OpenCode, Cursor, VS Code, Claude Code, Windsurf.
+## Why Letra exists
 
-## Quick Start
+AI is becoming capable of doing increasingly complex work.
 
-```bash
-# Inicializar projeto
-npx @letra-ai/cli init meu-projeto
+But using AI effectively still requires people to make too many technical decisions:
 
-# Criar uma spec
-npx @letra-ai/cli spec minha-feature
+- Which model should I use?
+- Which agent should perform the task?
+- How should the prompt be written?
+- What context does the agent need?
+- Which tools should it access?
+- When should another agent take over?
+- When should a human review the result?
+- How do I understand what happened after the work is done?
 
-# Validar
-npx @letra-ai/cli validate
+For technical users, this complexity is manageable.
+
+For everyone else, it becomes a barrier.
+
+And even for experienced engineers, the problem changes quickly when multiple agents, tools, decisions and workflows start working together.
+
+The challenge is no longer only **generating an answer or producing code**.
+
+The challenge becomes **coordinating work**.
+
+That is the problem Letra is designed to explore and solve.
+
+---
+
+## The core idea
+
+A person should be able to start with something simple:
+
+> “This is what I need to accomplish.”
+
+From there, Letra should help transform that intention into an understandable plan of work.
+
+Depending on the situation, the platform can help:
+
+1. understand the goal;
+2. break the work into steps;
+3. identify the skills or agents required;
+4. select the right models and tools;
+5. distribute responsibilities;
+6. preserve context between participants;
+7. execute and monitor the work;
+8. request human decisions when they matter;
+9. review the result;
+10. preserve a traceable history of how the outcome was produced.
+
+The user defines the **intent**.
+
+Letra coordinates the path toward the **outcome**.
+
+---
+
+## Human + AI collaboration
+
+Letra is not based on the idea that humans should disappear from the process.
+
+It is based on the opposite idea:
+
+> As AI becomes more capable, we need better ways for humans and AI to work together.
+
+Some activities can be delegated almost completely.
+
+Others require context, judgment, responsibility or approval from a person.
+
+Letra treats human participation as part of the workflow — not as an exception to it.
+
+This makes it possible to design processes in which agents can operate with autonomy while important decisions remain visible and governable.
+
+---
+
+## More than a chat interface
+
+Chat is a powerful way to interact with AI, but it is not enough to coordinate complex work.
+
+When work involves multiple steps, people, agents and tools, we need more than a conversation history.
+
+We need to understand:
+
+- what is being worked on;
+- who or what is responsible for each step;
+- what decisions have already been made;
+- what context needs to move to the next participant;
+- what is blocked;
+- what requires human attention;
+- what changed;
+- and why a particular outcome was produced.
+
+Letra explores a different interaction model: **work as a visible, collaborative system**.
+
+Agents are not hidden behind a single chat window. They can participate as specialized collaborators with responsibilities, context, tools and observable activity.
+
+---
+
+## From intent to delivery
+
+The underlying model is intentionally simple:
+
+```text
+Intent
+  ↓
+Understand
+  ↓
+Plan
+  ↓
+Delegate
+  ↓
+Execute
+  ↓
+Review
+  ↓
+Deliver
 ```
 
-## CLI Commands
+Underneath this flow, Letra can coordinate:
 
-### `letra init`
-
-Inicializa a estrutura `.letra/` no projeto.
-
-```bash
-letra init                  # Modo interativo (pergunta tipo de projeto + ferramenta)
-letra init --yes            # Usa defaults, sem perguntas
-letra init --serve          # Inicializa e abre web UI
+```text
+Humans + AI Agents + Models + Tools + Context + Decisions
 ```
 
-Cria: `context.md`, `constitution.md`, `glossary.md`, `lessons-learned.md`, `config.json`, adapters, estrutura `specs/`, `decisions/`.
+The complexity belongs inside the platform — not in front of the user.
 
-### `letra spec`
+---
 
-```bash
-letra spec new <nome>                       # Criar spec com template default
-letra spec new <nome> --template web-api    # Template REST/GraphQL
-letra spec new <nome> --template cli-tool   # Template CLI
-letra spec new <nome> --template mobile-feature  # Template mobile
+## Starting with software engineering
+
+The vision for Letra is broader than software development.
+
+It is intended to eventually help different kinds of people organize and execute knowledge work with AI, including people with little or no technical background.
+
+However, **software engineering is the first domain being used to develop and validate the model**.
+
+There is a practical reason for this.
+
+Software development exposes many of the hardest coordination problems very clearly:
+
+- discovery;
+- architecture;
+- specification;
+- specialized roles;
+- dependencies;
+- tools;
+- execution;
+- testing;
+- review;
+- human approval;
+- delivery;
+- auditability.
+
+The current Letra workflow explores a software delivery process such as:
+
+```text
+Discovery
+  ↓
+Design / Architecture
+  ↓
+Specification
+  ↓
+Human Review
+  ↓
+Code
+  ↓
+Code Review
+  ↓
+Human Review
+  ↓
+Pull Request
+  ↓
+Done
 ```
 
-Templates custom: coloque arquivos `.md` em `.letra/templates/`.
+Different agents can participate throughout this process, for example:
 
-### `letra lint`
+- Discovery
+- Product
+- Architect
+- Backend
+- Frontend
+- Security
+- Reviewer
 
-Valida formato e completude das specs (seções obrigatórias, tamanho, checklist).
+The goal is not simply to make these agents generate more code.
 
-```bash
-letra lint
-```
+The goal is to understand how they can collaborate without losing context, responsibility, traceability and architectural coherence.
 
-### `letra validate`
+---
 
-Verifica acceptance criteria com 8 heurísticas configuráveis.
+## Beyond engineering
 
-```bash
-letra validate                                          # Terminal colorido
-letra validate --format github-annotation               # GitHub Actions annotations
-letra validate --format junit                            # XML para CI tools
-letra validate --watch                                   # Re-valida ao salvar
-letra validate --watch --format github-annotation        # Combinar flags
-```
+The same orchestration model can eventually support many other types of work.
 
-### `letra decision`
+A marketing professional could say:
 
-Registros de Decisão.
+> “I need to launch a campaign for a new product.”
 
-```bash
-letra decision new "Usar Commander em vez de Yargs"
-letra decision list
-```
+A small business owner could say:
 
-Registros salvos em `.letra/decisions/{slug}.md` com template Contexto → Decisão → Consequências.
+> “I need to understand why sales dropped and prepare an action plan.”
 
-### `letra focus`
+A consultant could say:
 
-Define o foco da sessão atual para guiar o agente de IA.
+> “Analyze these documents and prepare a presentation for my client.”
 
-```bash
-letra focus validate-conflict      # Define foco em uma spec
-letra focus                         # Ver foco atual
-letra focus --clear                 # Limpar foco
-```
+A non-technical founder could say:
 
-Cria `.letra/focus.md` com o Outcome da spec referenciada.
+> “I have an idea for an application and I want to turn it into a working product.”
 
-### `letra migrate`
+The agents, tools and workflows may change.
 
-Externaliza o diretório de dados do workspace para fora do repositório.
+The underlying problem remains the same:
 
-```bash
-letra migrate                       # copy .leta/ → ~/.leta/workspaces/<slug> + link
-letra migrate . --clean             # ...e remove a pasta .leta/ original
-letra migrate . --to ./out          # externaliza para diretório custom
-letra migrate . --dry-run           # pré-visualiza sem escrever
-```
+**turning intent into coordinated work.**
 
-> Veja [Externalização de Dados](#externalização-de-dados) para detalhes sobre leitura via link e harness compartilhado.
+---
 
-### `letra flow`
+## Product principles
 
-Workflow engine completo.
+### 1. Intent before configuration
+The user should begin by explaining what they want to achieve, not by configuring AI infrastructure.
 
-```bash
-# Inicializar workflow
-letra flow init --quick             # Setup com 3 perguntas
-letra flow init                     # Setup interativo completo
+### 2. Complexity should stay behind the interface
+Models, routing, prompts, tools and orchestration are implementation concerns whenever possible.
 
-# Gerenciar backlog
-letra flow backlog add "Implementar login"
-letra flow backlog list
-letra flow backlog import github owner/repo --label bug --limit 20
-letra flow backlog import linear MYTEAM --limit 50
+### 3. Humans remain part of the system
+Human judgment, approval and accountability should be explicit parts of workflows when needed.
 
-# Mover itens entre estágios
-letra flow move ITEM-1 --to Code
-letra flow move "Implementar login" --to Review
+### 4. Context must survive handoffs
+An agent should not need to rediscover decisions another agent has already made.
 
-# Visualizar
-letra flow board                     # Board no terminal
-letra flow visualize                  # Diagrama Mermaid
-letra flow visualize --output diagram.html
+### 5. Work should be observable
+People need to understand what is happening, what happened and what needs attention.
 
-# Editar metadados
-letra flow edit --name "Novo Nome" --desc "Descrição"
-letra flow diff                      # Diff com último backup
-letra flow diff v1 v2                # Diff entre versões
+### 6. Decisions should be traceable
+Important outcomes should preserve the reasoning, interactions and actions that led to them.
 
-# Exportar/Importar
-letra flow export                     # JSON pretty
-letra flow export --minified          # JSON minificado
-letra flow import workflow.json
+### 7. Different work deserves different intelligence
+Not every task requires the same model, agent or level of autonomy.
 
-# Servidor web + API
-letra flow serve                      # http://localhost:3000
-letra flow serve --port 8080 --open
-```
-
-## Web UI
-
-## Externalização de Dados
-
-O diretório de dados do workspace (`.leta/`) pode viver fora do repositório, numa
-pasta compartilhada por todos os workspaces — útil para monorepos, CI sem
-credenciais locais e para manter o histórico do repositório limpo.
-
-- **Layout padrão**: `<workspace-root>/.leta/` (dados embutidos no projeto).
-- **Layout externalizado**: `~/.le.etra/workspaces/<slug>/` + link `.leta-link`
-  na raiz do workspace. Leituras via `letra migrate` e via `GET /api/workspaces`
-  (`dataDir`) passam a resolver pelo link.
-- **Harness compartilhado**: `~/.le.tera/shared-harness/<versão>/`. O `flow-serve`
-  faz *bootstrap* automático a partir dos templates embutidos na CLI
-  (`src/harness/default/`) na primeira requisição que precisa de harness.
-
-### `letra migrate`
-
-Externalize o diretório de dados do workspace atual (ou de um caminho explícito).
-
-```bash
-letra migrate                       # copy .leta/ → ~/.leta/workspaces/<slug>, deixa .leta-link
-letra migrate . --clean             # ... e remove a pasta .leta/ original
-letra migrate . --to /caminho/usado # externaliza para um diretório custom
-letra migrate . --dry-run           # mostra o que seria feito sem escrever
-letra migrate . --clean --to ./out  # combina opções
-```
-
-> Após migrar, comandos como `letra flow init`, `flow serve`, `sitrep` e
-> `focus` resolvem os dados pelo link — nenhuma flag extra é necessária.
-
-
-Acesse via `letra init --serve` ou `letra flow serve` — abre em `http://localhost:3000`.
-
-### Home
-- Métricas: specs válidas, drift, foco atual, stale items
-- Pipeline mini-kanban com drag-and-drop
-- Specs recentes com progresso de ACs
-- Decisões recentes
-- Detecção de bottlenecks
-
-### Specs
-- CRUD visual de specs com busca e filtros (all/errors/warnings/valid)
-- Editor Markdown inline com AC checklist toggle
-- Validação on-demand
-
-### Flow
-- Kanban board com drag-and-drop
-- Detail panel: header, tasks, spec rendering
-- Stage management: zonas, cores, transições, validações
-- Gerenciamento de webhooks
-
-### Context
-- Visualização de context.md, constitution.md, glossary.md
-- Decision browser com formatação
-
-## Validação
-
-8 heurísticas configuráveis via `.letra/config.json`:
-
-| Heurística | O que detecta | Severidade |
-|---|---|---|
-| **Seções Vazias** | Placeholder text nas seções obrigatórias | warning |
-| **Conteúdo Mínimo** | Outcome muito curto (<50 chars) | warning |
-| **ACs sem Métrica** | Critérios vagos sem métrica | warning |
-| **Consistência Terminologia** | Termos fora do glossário | warning |
-| **Detecção de Tom** | Gírias e informalidade | warning |
-| **Baixa Confiança** | "provavelmente", "talvez" | warning |
-| **Drift Temporal** | Specs desatualizadas (>30d) | warning |
-| **Conflito entre Specs** | ACs contraditórios (MECE) | warning |
-
-## Adapters
-
-| Ferramenta | Artefato | Regeneração |
-|---|---|---|
-| Cursor | `.cursorrules` | `flow move` |
-| Claude Code | `CLAUDE.md` | `flow move` |
-| Windsurf | `.windsurfrules` | `flow move` |
-| VS Code Copilot | `.github/copilot-instructions.md` | `flow move` |
-| OpenCode | `AGENTS.md` | `flow move` |
-| Hermes Agent | `.hermes/instructions.md` | `flow move` |
-
-## REST API (flow serve)
-
-| Método | Endpoint | Descrição |
-|---|---|---|
-| GET | `/api/workflow` | Obter workflow |
-| PATCH | `/api/workflow` | Atualizar workflow |
-| POST | `/api/workflow/template` | Criar de template (padrão/kanban/ágil/custom) |
-| POST | `/api/workflow/migrate-harness` | Externalize o `.leta/` do workspace para `~/.le.etra/workspaces/<slug>` (body: `{ workspaceRoot?, clean?, dryRun? }`) |
-| GET | `/api/specs` | Listar specs |
-| POST | `/api/specs` | Criar spec |
-| PUT | `/api/specs/:id` | Atualizar spec |
-| DELETE | `/api/specs/:id` | Deletar spec |
-| POST | `/api/specs/:id/validate` | Validar spec |
-| POST | `/api/items` | Criar item |
-| PATCH | `/api/items/:id` | Atualizar item |
-| DELETE | `/api/items/:id` | Deletar item |
-| GET | `/api/focus` | Obter foco |
-| GET | `/api/context?file=` | Obter arquivo de contexto |
-| GET | `/events` | SSE live updates |
-
-## Design System
-
-18 componentes React com dark/light mode e zero runtime dependencies:
-
-- **Button** — default/secondary/outline/ghost, sm/lg
-- **Badge** — default/secondary/outline/success/warning
-- **Card** — Card, CardContent, CardHeader, CardTitle
-- **Icon** — 28 SVG icons (home, specs, flow, context, etc.)
-- **Dialog** — Dialog, ConfirmDialog (danger variant), PromptDialog
-- **Checkbox, Input, Textarea, Skeleton, Tabs, Progress, Alert, Tooltip, Avatar, Toast, EmptyState**
-- **cn()** — classnames utility
-
-Tokens CSS em OKLCH (~70 variáveis): surface, text, border, brand, semânticos.
-
-## Config System
-
-`.letra/config.json` com heurísticas ajustáveis por projeto:
-
-```json
-{
-  "heuristics": {
-    "conteudo-minimo": { "severity": "warning", "minChars": 50 },
-    "drift-temporal": { "severity": "error", "maxDays": 14 },
-    "detecao-tom": { "severity": "off" }
-  }
-}
-```
-
-## Data Resilience
-
-- Backup automático: `.letra/backups/workflow-{timestamp}.json`
-- Versionamento: `workflow.v{version}.json` a cada `flow edit`
-- Merge preserva dados existentes em re-setup
-
-## Estrutura de Memória
-
-```
-.letra/
-├── context.md              # Intent global, domínio, restrições
-├── constitution.md          # Regras não-negociáveis
-├── glossary.md              # Termos do domínio
-├── lessons-learned.md       # Erros recorrentes
-├── config.json              # Heurísticas configuráveis
-├── workflow.json            # Workflow (estágios, items, specs)
-├── focus.md                 # Foco da sessão atual
-├── decisions/               # Registros de Decisão
-│   └── usar-commander.md
-├── specs/
-│   └── minha-feature/
-│       ├── spec.md          # Spec (1 página max)
-│       └── acceptance.md    # Critérios binários
-├── templates/               # Templates custom de spec
-├── adapters/                # Configuração de adapters
-└── backups/                 # Backups automáticos
-```
-
-## Exemplo Completo
-
-```bash
-# Criar projeto
-mkdir meu-app && cd meu-app
-npx @letra-ai/cli init --yes
-
-# Criar spec
-npx @letra-ai/cli spec auth --template web-api
-
-# Editar .letra/specs/auth/spec.md com sua intenção
-# Desenvolver...
-
-# Validar
-npx @letra-ai/cli validate
-
-# Gerenciar workflow
-npx @letra-ai/cli flow init --quick
-npx @letra-ai/cli flow backlog add "Tela de login"
-npx @letra-ai/cli flow move ITEM-1 --to Code
-npx @letra-ai/cli flow move ITEM-1 --to Review
-npx @letra-ai/cli flow board
-npx @letra-ai/cli flow visualize --output workflow.html
-
-# Abrir web UI
-npx @letra-ai/cli flow serve --open
-```
-
-## Monorepo Structure
-
-```
-packages/
-├── cli/              # CLI (Commander, tsup build)
-├── client/           # SPA React (Vite 6, Tailwind v4)
-├── ui/               # Design system components
-├── types/            # Shared TypeScript interfaces
-└── design-toolkit/   # Playground + token validation (internal)
-```
-
-## Desenvolvimento
-
-```bash
-npm install
-npm run dev            # Dev mode (CLI)
-npm run dev:client     # Dev mode (Vite client)
-npm run lint           # Biome check
-npm run typecheck      # TypeScript check
-npm test               # Vitest (111+ tests)
-npm run build          # Build CLI + client
-```
-
-## Licença
-
-MIT
+### 8. AI should expand human capability, not create more operational complexity
+The platform exists to make sophisticated AI collaboration usable by more people.
+
+---
+
+## What Letra is not
+
+Letra is not intended to be:
+
+- just another AI chat interface;
+- only a code generator;
+- a collection of autonomous agents without supervision;
+- a platform that requires every user to become a prompt engineer;
+- a system that hides decisions behind AI-generated output.
+
+The ambition is to create an understandable layer between **human intent** and **AI-enabled execution**.
+
+---
+
+## Positioning
+
+### Category
+
+**Human + AI Work Orchestration**
+
+### Core promise
+
+> **Turn intent into coordinated work.**
+
+### Supporting message
+
+> Coordinate humans, AI agents and connected tools from intent to delivery — with context, governance and traceability.
+
+### Simple explanation
+
+> You bring the intent. Letra organizes the work.
+
+### Portuguese
+
+> **Você traz a intenção. O Letra organiza o trabalho.**
+
+### About the “Mission Control” metaphor
+
+“Mission Control” can be useful as a secondary metaphor, especially when explaining supervision, visibility and orchestration to technical audiences.
+
+It is **not the primary definition of the product**.
+
+The primary idea is broader: Letra coordinates work between people, AI agents and tools.
+
+---
+
+## Current direction
+
+Letra is currently being developed as a real-world exploration of:
+
+- Human + AI collaboration;
+- agent orchestration;
+- specialized AI agents;
+- human-in-the-loop workflows;
+- context propagation;
+- agent handoffs;
+- model routing;
+- tool integration;
+- observability;
+- governance;
+- auditability;
+- software engineering workflows.
+
+The product will evolve alongside what we learn from building and using it.
+
+---
+
+## The long-term question
+
+The question behind Letra is not:
+
+> “How do we make AI produce more work?”
+
+It is:
+
+> **“How do we help people coordinate increasingly capable AI systems to accomplish meaningful work?”**
+
+That is the problem we want to keep exploring.
+
+---
+
+## One-line version
+
+**Letra turns human intent into coordinated work across people, AI agents and tools.**
