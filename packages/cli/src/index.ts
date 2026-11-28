@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
+import { installWorkspaceBusyHandler } from "./workspace-busy.js";
 import decisionCommand from "./commands/decision.js";
 import flowCommand from "./commands/flow.js";
 import focus from "./commands/focus.js";
@@ -176,4 +177,5 @@ program.addCommand(specLintCommand());
 program.addCommand(specMigrateFrontmatterCommand());
 program.addCommand(securityCommand());
 
+installWorkspaceBusyHandler();
 program.parse();

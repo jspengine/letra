@@ -1529,15 +1529,23 @@ function rejected(
       humanRequired: false,
     };
   }
-  const entry = audit(root, "agent_operation_rejected", direction, {
-    outcome: "rejected",
-    reasonCode,
-    reason,
-    actor: context.actor,
-    itemId: subject.itemId,
-    acId: subject.acId,
-    details: { operation: subject.operation },
-  });
+  // ITEM-58 AC3: a refusal must reach the caller even when it cannot be
+  // audited (e.g. the workspace lock is still busy); a second throw here used
+  // to kill the process with no answer at all.
+  let entry: { id: string };
+  try {
+    entry = audit(root, "agent_operation_rejected", direction, {
+      outcome: "rejected",
+      reasonCode,
+      reason,
+      actor: context.actor,
+      itemId: subject.itemId,
+      acId: subject.acId,
+      details: { operation: subject.operation },
+    });
+  } catch {
+    entry = { id: "audit-unavailable:workspace-busy" };
+  }
   const derived =
     (reasonCode === "CLAIM_REQUIRED" || reasonCode === "CLAIM_EXPIRED") &&
     !guidance.nextCommand
@@ -1725,7 +1733,37 @@ function resolveDecisionTargetStage(
   return stages.some((stage) => stage.id === target) ? target : null;
 }
 
+/**
+ * ITEM-58 AC3: even reading the direction takes the workspace lock, so a lock
+ * held past the short wait can surface anywhere in the claim. It becomes a
+ * refusal with the command to repeat; nothing was written, because the claim
+ * writes item and Run under one lock taken before any write (AC1).
+ */
 export async function claimOperation(
+  root: string,
+  input: ClaimOperationInput,
+): Promise<OperationResult> {
+  try {
+    return await claimOperationLocked(root, input);
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== "WORKSPACE_TRANSACTION_BUSY") throw error;
+    return {
+      outcome: "rejected",
+      auditId: "audit-unavailable:workspace-busy",
+      beforeRevision: input.expectedRevision,
+      afterRevision: input.expectedRevision,
+      reasonCode: "WORKSPACE_BUSY",
+      reason: "O workspace está ocupado por outra operação (por exemplo o board gravando); nada foi alterado. Repita o comando.",
+      recoveryActions: ["Repita o mesmo comando em alguns segundos."],
+      nextCommand: claimCommand(input.itemId, (input.actor ?? "").trim(), input.capability, input, input.expectedRevision),
+      humanRequired: false,
+      // The direction could not be read while the lock was held.
+      nextDirection: undefined as unknown as AgentDirectionSnapshot,
+    };
+  }
+}
+
+async function claimOperationLocked(
   root: string,
   input: ClaimOperationInput,
 ): Promise<OperationResult> {
@@ -2012,53 +2050,100 @@ export async function claimOperation(
     item.securityBaseline = captureSecurityBaseline(
       securityExecutionRoot(workspaceRoot, workflow),
     );
-  workflow.updatedAt = now.toISOString();
-  const writeResult = await writeWorkflow(workspaceRoot, {
-    workflow,
-    source: "flow-claim",
-    primaryItemId: item.id,
-    skipSitrep: true,
-    skipLog: true,
-    skipAdapters: true,
-    quiet: true,
-    confineAdapterWrites: true,
-    expectedRevision: before.revision,
-  });
-  if (!writeResult.ok)
-    return rejected(
-      workspaceRoot,
-      before,
-      "CLAIM_WRITE_FAILED",
-      writeResult.error ?? "Falha ao persistir claim.",
-      input,
-      subject,
-    );
-  let after = directionForOperation(workspaceRoot, input);
+  // ITEM-58 AC1: item claim and Run are written under one workspace lock,
+  // taken before any write, so a busy lock refuses cleanly instead of leaving
+  // the item claimed without a Run; a failed Run write undoes the claim.
+  const pristine = loadWorkflow(workspaceRoot);
+  let after: AgentDirectionSnapshot = before;
   let claimedRun: RunEntity | undefined;
-  if (item.workflowVersionId) {
-    const nowIso = now.toISOString();
-    const runStore = readExecutionRuns(workspaceRoot);
-    const priorRun = runStore.runs.find(
-      (run) =>
-        run.itemId === item.id &&
-        (run.status === "running" ||
-          run.status === "queued" ||
-          run.status === "waiting-human"),
-    );
-    const lease = {
-      expiresAt: item.claimExpiresAt!,
-      heartbeatAt: nowIso,
-      ttlMinutes: ttl,
-    };
-    try {
-      let runId: string;
-      if (priorRun) {
-        const resumed = updateExecutionRun(
-          workspaceRoot,
-          priorRun.id,
-          priorRun.revision,
-          (run) => ({
-            ...run,
+  let lockedOutcome: OperationResult | null;
+  try {
+    lockedOutcome = await withWorkspaceTransactionLock(workspaceRoot, async (): Promise<OperationResult | null> => {
+    workflow.updatedAt = now.toISOString();
+    const writeResult = await writeWorkflow(workspaceRoot, {
+      workflow,
+      source: "flow-claim",
+      primaryItemId: item.id,
+      skipSitrep: true,
+      skipLog: true,
+      skipAdapters: true,
+      quiet: true,
+      confineAdapterWrites: true,
+      expectedRevision: before.revision,
+    });
+    if (!writeResult.ok)
+      return rejected(
+        workspaceRoot,
+        before,
+        "CLAIM_WRITE_FAILED",
+        writeResult.error ?? "Falha ao persistir claim.",
+        input,
+        subject,
+      );
+    after = directionForOperation(workspaceRoot, input);
+    if (item.workflowVersionId) {
+      const nowIso = now.toISOString();
+      const runStore = readExecutionRuns(workspaceRoot);
+      const priorRun = runStore.runs.find(
+        (run) =>
+          run.itemId === item.id &&
+          (run.status === "running" ||
+            run.status === "queued" ||
+            run.status === "waiting-human"),
+      );
+      const lease = {
+        expiresAt: item.claimExpiresAt!,
+        heartbeatAt: nowIso,
+        ttlMinutes: ttl,
+      };
+      try {
+        let runId: string;
+        if (priorRun) {
+          const resumed = updateExecutionRun(
+            workspaceRoot,
+            priorRun.id,
+            priorRun.revision,
+            (run) => ({
+              ...run,
+              binding: {
+                actorId: actorForClaim,
+                identityId: claimIdentityId,
+                roleId: actorForClaim,
+                executorId: input.executorId.trim(),
+              },
+              authorization: {
+                kind: isCurrentHandoffRecipient ? "handoff" : "claim",
+                actorId: actorForClaim,
+                referenceId: isCurrentHandoffRecipient
+                  ? `handoff:${item.id}:${item.handoff?.timestamp ?? nowIso}`
+                  : `claim:${item.id}:${nowIso}`,
+                grantedAt: nowIso,
+                revision: before.revision,
+              },
+              workflowStageId: item.stage,
+              cycle:
+                run.cycle.endedAt !== null
+                  ? {
+                      number: run.cycle.number + 1,
+                      startedAt: nowIso,
+                      endedAt: null,
+                    }
+                  : run.cycle,
+              lease,
+              revision: run.revision + 1,
+              directionRevision: after.revision,
+              updatedAt: nowIso,
+              status: "running",
+              result: null,
+            }),
+          );
+          runId = resumed.id;
+        } else {
+          runId = `run-${randomUUID()}`;
+          const run: RunEntity = {
+            id: runId,
+            workspaceId: resolveWorkspaceRoot(workspaceRoot).workspaceRoot,
+            itemId: item.id,
             binding: {
               actorId: actorForClaim,
               identityId: claimIdentityId,
@@ -2074,81 +2159,75 @@ export async function claimOperation(
               grantedAt: nowIso,
               revision: before.revision,
             },
+            workflowVersionId: item.workflowVersionId,
             workflowStageId: item.stage,
-            cycle:
-              run.cycle.endedAt !== null
-                ? {
-                    number: run.cycle.number + 1,
-                    startedAt: nowIso,
-                    endedAt: null,
-                  }
-                : run.cycle,
+            cycle: { number: 1, startedAt: nowIso, endedAt: null },
             lease,
-            revision: run.revision + 1,
+            revision: 1,
             directionRevision: after.revision,
+            createdAt: nowIso,
             updatedAt: nowIso,
-            status: "running",
             result: null,
-          }),
+            handoffs: [],
+            gateDecisions: [],
+            evidence: [],
+            status: "running",
+          };
+          createExecutionRun(workspaceRoot, run);
+        }
+        claimedRun = readExecutionRuns(workspaceRoot).runs.find(
+          (run) => run.id === runId,
         );
-        runId = resumed.id;
-      } else {
-        runId = `run-${randomUUID()}`;
-        const run: RunEntity = {
-          id: runId,
-          workspaceId: resolveWorkspaceRoot(workspaceRoot).workspaceRoot,
-          itemId: item.id,
-          binding: {
-            actorId: actorForClaim,
-            identityId: claimIdentityId,
-            roleId: actorForClaim,
-            executorId: input.executorId.trim(),
-          },
-          authorization: {
-            kind: isCurrentHandoffRecipient ? "handoff" : "claim",
-            actorId: actorForClaim,
-            referenceId: isCurrentHandoffRecipient
-              ? `handoff:${item.id}:${item.handoff?.timestamp ?? nowIso}`
-              : `claim:${item.id}:${nowIso}`,
-            grantedAt: nowIso,
-            revision: before.revision,
-          },
-          workflowVersionId: item.workflowVersionId,
-          workflowStageId: item.stage,
-          cycle: { number: 1, startedAt: nowIso, endedAt: null },
-          lease,
-          revision: 1,
-          directionRevision: after.revision,
-          createdAt: nowIso,
-          updatedAt: nowIso,
-          result: null,
-          handoffs: [],
-          gateDecisions: [],
-          evidence: [],
-          status: "running",
-        };
-        createExecutionRun(workspaceRoot, run);
+        after = resolveDirection(workspaceRoot, {
+          runId,
+          executorId: input.executorId,
+        });
+      } catch (error) {
+        // ITEM-58 AC1: the item claim must not survive without its Run.
+        let undone = false;
+        if (pristine) {
+          const restored = await writeWorkflow(workspaceRoot, {
+            workflow: pristine,
+            source: "flow-claim",
+            primaryItemId: item.id,
+            skipSitrep: true,
+            skipLog: true,
+            skipAdapters: true,
+            quiet: true,
+            confineAdapterWrites: true,
+            expectedRevision: directionForOperation(workspaceRoot, input).revision,
+          });
+          undone = restored.ok;
+        }
+        const cause = error instanceof Error ? error.message : "Falha ao persistir a Run do claim.";
+        return rejected(
+          workspaceRoot,
+          before,
+          "RUN_CLAIM_WRITE_FAILED",
+          undone
+            ? `${cause} O claim do item foi desfeito; repita o comando.`
+            : `${cause} Não foi possível desfazer o claim do item.`,
+          input,
+          subject,
+          { nextCommand: claimCommand(item.id, actorForClaim, input.capability, input, before.revision) },
+        );
       }
-      claimedRun = readExecutionRuns(workspaceRoot).runs.find(
-        (run) => run.id === runId,
-      );
-      after = resolveDirection(workspaceRoot, {
-        runId,
-        executorId: input.executorId,
-      });
-    } catch (error) {
-      return rejected(
-        workspaceRoot,
-        before,
-        "RUN_CLAIM_WRITE_FAILED",
-        error instanceof Error
-          ? error.message
-          : "Falha ao persistir a Run do claim.",
-        input,
-        subject,
-      );
     }
+      return null;
+    });
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== "WORKSPACE_TRANSACTION_BUSY") throw error;
+    return rejected(
+      workspaceRoot,
+      before,
+      "WORKSPACE_BUSY",
+      "O workspace está ocupado por outra operação (por exemplo o board gravando); nada foi alterado. Repita o comando.",
+      input,
+      subject,
+      { nextCommand: claimCommand(item.id, actorForClaim, input.capability, input, before.revision) },
+    );
   }
+  if (lockedOutcome) return lockedOutcome;
   const entry = audit(workspaceRoot, "agent_claim_requested", before, {
     outcome: "accepted",
     reasonCode: "CLAIM_ACCEPTED",
