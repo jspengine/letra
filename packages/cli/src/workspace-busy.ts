@@ -25,10 +25,17 @@ export function isWorkspaceBusyError(error: unknown): boolean {
 	return error instanceof Error && error.message === WORKSPACE_BUSY_ERROR;
 }
 
-/** Installs the process-level handler; other errors keep their default behaviour. */
+/**
+ * Installs the process-level handler. Other errors keep Node's default outcome
+ * (stack on stderr, exit 1): rethrowing from an `uncaughtException` handler
+ * would make Node exit with code 7 instead.
+ */
 export function installWorkspaceBusyHandler(argv: readonly string[] = process.argv.slice(2)): void {
 	const handle = (error: unknown) => {
-		if (!isWorkspaceBusyError(error)) throw error;
+		if (!isWorkspaceBusyError(error)) {
+			console.error(error);
+			process.exit(1);
+		}
 		process.stdout.write(`${JSON.stringify(workspaceBusyRefusal(argv), null, 2)}\n`);
 		process.exit(1);
 	};
